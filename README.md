@@ -73,7 +73,9 @@ For implementing user stories with defined personas, user value, and BDD-style a
 
 ### Rules
 
-Rules define how the AI assistant should behave and what standards to follow:
+Rules define how the AI assistant should behave and what standards to follow. They can be assigned to a type of file or manually activated. 
+
+I often use manually activated rules for 'Persona's like:
 
 - **active-partner.md**: Interactive questioning pattern for unclear requirements ([source](https://lexler.github.io/augmented-coding-patterns/patterns/active-partner/))
 - **design-buddy.md**: Design thinking and architectural guidance (custom persona)
