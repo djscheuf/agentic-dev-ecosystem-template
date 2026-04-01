@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "pre_write_code": [
+      {
+        "command": ".windsurf/scripts/verify-secrets.sh --scope=staged",
+        "show_output": true
+      }
+    ],
+    "post_write_code": [
+      {
+        "command": ".windsurf/scripts/post-edit-verify-windsurf.sh",
+        "show_output": true
+      }
+    ],
+    "pre_run_command": [
+      {
+        "command": ".windsurf/scripts/pre-tool-verify-windsurf.sh",
+        "show_output": true
+      }
+    ],
+    "post_cascade_response": [
+      {
+        "command": ".windsurf/scripts/post-cascade-verify-cycle.sh",
+        "show_output": true
+      }
+    ],
+    "post_cascade_response_with_transcript": [
+      {
+        "command": "node .windsurf/scripts/audit-logger.js",
+        "show_output": true
+      }
+    ]
+  }
+}

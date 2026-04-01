@@ -1,0 +1,13 @@
+# Audit logs - these contain conversation transcripts and may include sensitive data
+# Decide whether to commit these based on your team's needs
+
+# Option 1: Ignore all audit logs (recommended for most cases)
+turns/
+conversations/
+logs/
+
+# Option 2: If you want to commit audit logs, comment out the above and uncomment below
+# This will track the structure but you can selectively add files
+# *
+# !.gitignore
+# !README.md
