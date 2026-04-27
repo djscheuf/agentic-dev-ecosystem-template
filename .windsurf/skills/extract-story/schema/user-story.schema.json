@@ -21,12 +21,7 @@
     "inputs": ["{list}",...],
     "outputs": ["{list}",...],
     "state_changes": ["{list}",...],
-    "affected_components":{
-      "ui": ["{list}",...],
-      "api": ["{list}",...],
-      "database": ["{list}",...],
-      "external_services": ["{list}",...]
-    }
+    "affected_components":{}
   },
   "acceptance_criteria": [
     {
@@ -64,20 +59,35 @@
     "Empty product catalog",
     "Search service unavailable"
   ],
-
   "dependencies": {
-    "blocked_by": ["US-001: Product catalog setup"],
-    "blocks": ["US-003: Advanced filtering"],
-    "technical": ["ProductService", "SearchController"]
+    "story": {
+      "blocked_by": ["US-001: Product catalog setup"],
+      "blocks": ["US-003: Advanced filtering"]
+    },
+    "technical": {
+      "existing_code": ["ProductService", "SearchController"],
+      "new_code": [],
+      "infrastructure": [],
+      "external_services": []
+    },
+    "knowledge": {
+      "domain_knowledge": [],
+      "technical_knowledge": [],
+      "stakeholder_questions": []
+    }
   },
   "complexity": {
     "story_points": 5,
     "risk_level": "Medium",
     "uncertainty": "Low"
   },
-  "open_questions": [
-    "Should search be case-sensitive?",
-    "How many results per page?"
+  "questions": [
+    {
+      "question":"{A Question in need of Calrification}",
+      "assumption": "{Assumed answer}",
+      "rationale": "{Why this assumption}",
+      "basis": "{Source of assumption}"
+    }
   ],
   "recommendation": "Ready to develop"
 }

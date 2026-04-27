@@ -1,4 +1,8 @@
-Use this skill to extract a user story from a given document or text.
+---
+name: extract-story
+description: Extract a user story from a given document or text, into a json format
+---
+
 
 ## Steps:
 ### 1. Read the Provided Document/Text
@@ -70,8 +74,9 @@ For each extract:
 Fill in the appropriate section of the JSON. 
 
 ### 7. Write the Sentinel File
-- create a sentinel file in the `.process` directory, named `extract_story.done`.
+- create a sentinel file in the `.process` directory, named `extract-story.done.json`.
 - the sentinel file will follow @/schema/sentinel.schema.json. 
+- set the task field to "extract-story".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
 - set the verify_params as follows:
     - set "extracted_story_path" as the path to the extracted story file.

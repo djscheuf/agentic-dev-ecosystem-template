@@ -1,2 +1,0 @@
-class StoryVerificationError(Exception):
-    pass
