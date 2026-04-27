@@ -1,0 +1,4 @@
+{
+    "extracted_story_path": "path/to/extracted/story.json",
+    "reference_document": "{path/to/reference/document} or {verbatim story prompt}"
+}
