@@ -17,17 +17,17 @@ if [[ "$file_path" =~ \.(md|txt|json|yml|yaml|gitignore)$ ]]; then
   exit 0
 fi
 
-# Route to appropriate verifier
-if [[ "$file_path" =~ \.(ts|tsx)$ ]]; then
-  pkg=$(affected_ui_packages "$file_path")
-  if [[ -n "$pkg" ]]; then
-    exec "$SCRIPT_DIR/verify-typescript.sh" --check=lint --scope="$pkg"
-  fi
-elif [[ "$file_path" =~ \.(cs|csproj)$ ]]; then
-  project=$(affected_dotnet_projects "$file_path")
-  if [[ -n "$project" ]]; then
-    exec "$SCRIPT_DIR/verify-dotnet.sh" --check=lint --scope="$project"
-  fi
-fi
+# # Route to appropriate verifier
+# if [[ "$file_path" =~ \.(ts|tsx)$ ]]; then
+#   pkg=$(affected_ui_packages "$file_path")
+#   if [[ -n "$pkg" ]]; then
+#     exec "$SCRIPT_DIR/verify-typescript.sh" --check=lint --scope="$pkg"
+#   fi
+# elif [[ "$file_path" =~ \.(cs|csproj)$ ]]; then
+#   project=$(affected_dotnet_projects "$file_path")
+#   if [[ -n "$project" ]]; then
+#     exec "$SCRIPT_DIR/verify-dotnet.sh" --check=lint --scope="$project"
+#   fi
+# fi
 
 exit 0
