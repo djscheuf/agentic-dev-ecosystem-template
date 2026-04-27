@@ -1,0 +1,4 @@
+{
+    "extracted_story_path": "path/to/extracted/story.json",
+    "impl_plan_path": "path/to/implementation/plan.json"
+}
