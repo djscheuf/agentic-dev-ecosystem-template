@@ -116,12 +116,23 @@ verify_structure() {
   if jq -e '.dependencies' <<< "$analysis" &>/dev/null; then
     local dependencies
     dependencies=$(jq '.dependencies' <<< "$analysis")
-    local dep_props=("blocked_by" "blocks" "technical")
+    local dep_props=("technical" "story" "knowledge")
     for prop in "${dep_props[@]}"; do
       if ! jq -e ".$prop" <<< "$dependencies" &>/dev/null; then
         fail "Schema validation failed: dependencies.$prop is required"
       fi
     done
+    
+    if jq -e '.story' <<< "$dependencies" &>/dev/null; then
+      local story_deps
+      story_deps=$(jq '.story' <<< "$dependencies")
+      local story_dep_props=("blocked_by" "blocks" "related")
+      for prop in "${story_dep_props[@]}"; do
+        if ! jq -e ".$prop" <<< "$story_deps" &>/dev/null; then
+          fail "Schema validation failed: dependencies.story.$prop is required"
+        fi
+      done
+    fi
   fi
   
   if jq -e '.complexity' <<< "$analysis" &>/dev/null; then
@@ -270,12 +281,12 @@ main() {
   
   if [[ -z "$sentinel_path" ]]; then
     echo "Usage: verify.sh <sentinel_file>" >&2
-    exit 1
+    exit 2
   fi
   
   if [[ ! -f "$sentinel_path" ]]; then
     echo "Sentinel file not found: $sentinel_path" >&2
-    exit 1
+    exit 2
   fi
   
   # Extract story path from sentinel

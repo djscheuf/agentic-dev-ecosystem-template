@@ -1,5 +1,5 @@
 ---
-name: expand-story-intent
+name: expand-story-analysi
 description: Expands the extracted story document with additional details, and drafts a high-level implementation plan based on captured assumptions
 ---
 
