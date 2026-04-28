@@ -4,12 +4,16 @@ description: Expands the extracted story document with additional details, and d
 ---
 
 ## Steps:
-### 1. Read the Extracted Story
-- Read the extracted story json document. 
+### 1. Read the Extracted Intent
+- Read the extracted intent json document. 
 
 ### 2. Read the provided document
-- read the conents of the raw_prompt field in the extracted story json document, either the file under the provided path or the verbatim text.
+- read the conents of the raw_prompt field in the extracted intent json document, either the file under the provided path or the verbatim text.
 
+### 2. Create Analysis JSON File
+- create a new json file in the same directory as the extracted intent json document, using the same filename but with the suffix `.analysis.json`. e.g. "create-object-with-validation.analysis.json"
+- The json will follow `/schema/analysis.schema.json`. 
+- set the raw_request to the file path of the provided document, or to the verbatim text provided if no document was sent.
 ### 3. Analyze the Capability
 ```
 Break down what's being requested:
@@ -135,7 +139,6 @@ RISKS AND MITIGATIONS:
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
 - set the verify_params as follows:
-    - set "extracted_story_path" as the path to the extracted story file.
-    - set "impl_plan_path" as the path to the implementation plan file.
+    - set "analysis_path" as the path to the analysis file.
 
 

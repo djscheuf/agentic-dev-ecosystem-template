@@ -88,6 +88,15 @@
       "persona_served": "Sarah - E-commerce Shopper"
     }
   ],
+  "questions": [
+    {
+      "question": "What is the maximum length for tactic title?",
+      "assumption": "No explicit limit, but reasonable default of 255 characters",
+      "rationale": "Standard database VARCHAR limit; prevents storage issues",
+      "basis": "Common web application practice"
+    },
+    {...}
+  ],
   "dependencies": {
     "technical": {
       "existing_code": ["Classes, services to modify"],

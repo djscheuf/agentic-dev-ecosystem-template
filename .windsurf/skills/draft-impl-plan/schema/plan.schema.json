@@ -21,19 +21,32 @@
     },
     {...}
   ],
+  "impacted_layers":{
+    "ui": ["Component A", "Component B"],
+    "api": ["Endpoint X", "Endpoint Y"],
+    "database": ["Table Z"]
+  },
   "steps":[
-    {"description": "Implement search functionality", "status": "pending"},
-    {"description": "Add search endpoint", "status": "pending"}
+    {"description": "Implement search functionality", "layer": "ui", "status": "pending"},
+    {"description": "Add search endpoint", "layer": "api", "status": "pending"}
   ],
   "testing_strategy": {
-    "unit_tests": ["Test search with exact match", "Test search with partial match"],
-    "integration_tests": ["Test search endpoint with database"],
-    "e2e_tests": ["Test search flow in browser"]
+    "unit_tests": [
+      {"description": "Test search with exact match", "layer": "ui"},
+      {"description": "Test search with partial match", "layer": "ui"}
+    ],
+    "integration_tests": [
+      {"description": "Test search endpoint with database", "layer": "api"}
+    ],
+    "e2e_tests": [
+      {"description": "Test search flow in browser", "layer": "ui"}
+    ]
   },
   "risks_and_mitigations": [
     {
       "risk": "Performance issue with large dataset",
-      "mitigation": "Implement pagination and optimize database queries"
+      "mitigation": "Implement pagination and optimize database queries",
+      "layer": "database"
     }
   ]
 }

@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# scripts/verify-impl-plan.sh - Verify implementation plan JSON against schema
+# verify.sh - Verify implementation plan against schema
 
 set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Track failures
@@ -31,7 +29,6 @@ exit_if_failed() {
 # Verify impl plan JSON structure against schema
 verify_structure() {
   local plan_path="$1"
-  local schema_path="$SCRIPT_DIR/../schema/impl-plan.schema.json"
   
   if [[ ! -f "$plan_path" ]]; then
     fail "Implementation plan file not found: $plan_path"
@@ -41,12 +38,6 @@ verify_structure() {
   # Validate JSON is well-formed
   if ! jq empty "$plan_path" 2>/dev/null; then
     fail "Implementation plan file is not valid JSON: $plan_path"
-    return
-  fi
-  
-  # Validate against schema structure
-  if [[ ! -f "$schema_path" ]]; then
-    fail "Schema file not found: $schema_path"
     return
   fi
   
@@ -311,14 +302,28 @@ verify_plan_completeness() {
   fi
 }
 
-# Main execution
 main() {
-  local plan_path="$1"
+  local sentinel_path="$1"
   
-  if [[ -z "$plan_path" ]]; then
-    echo "Usage: verify-impl-plan.sh <plan_file>" >&2
+  if [[ -z "$sentinel_path" ]]; then
+    echo "Usage: verify.sh <sentinel_file>" >&2
     exit 2
   fi
+  
+  if [[ ! -f "$sentinel_path" ]]; then
+    echo "Sentinel file not found: $sentinel_path" >&2
+    exit 2
+  fi
+  
+  local plan_path
+  plan_path=$(jq -r '.verify_params.impl_plan_path // empty' "$sentinel_path")
+  
+  if [[ -z "$plan_path" ]]; then
+    echo "Sentinel file missing 'verify_params.impl_plan_path'" >&2
+    exit 2
+  fi
+  
+  echo -e "${YELLOW}Verifying implementation plan...${NC}" >&2
   
   # Run verifications
   verify_structure "$plan_path"
@@ -327,7 +332,8 @@ main() {
   # Exit if any failures
   exit_if_failed
   
-  echo -e "${GREEN}Implementation plan verification passed${NC}" >&2
+  rm -f "$sentinel_path"
+  echo -e "${GREEN}Verification passed${NC}" >&2
 }
 
 main "$@"
