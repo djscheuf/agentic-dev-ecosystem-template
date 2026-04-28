@@ -13,7 +13,7 @@ description: Expands the extracted story document with additional details, and d
 ### 2. Create Analysis JSON File
 - create a new json file in the same directory as the extracted intent json document, using the same filename but with the suffix `.analysis.json`. e.g. "create-object-with-validation.analysis.json"
 - The json will follow `/schema/analysis.schema.json`. 
-- set the raw_request to the file path of the provided document, or to the verbatim text provided if no document was sent.
+- set the raw_request to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
 ### 3. Analyze the Capability
 ```
 Break down what's being requested:
@@ -139,6 +139,6 @@ RISKS AND MITIGATIONS:
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
 - set the verify_params as follows:
-    - set "analysis_path" as the path to the analysis file.
+    - set "analysis_path" as the path to the analysis file  relative to repo root.
 
 

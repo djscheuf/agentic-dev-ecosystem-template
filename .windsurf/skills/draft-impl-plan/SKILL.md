@@ -63,6 +63,6 @@ Update the "risks_and_mitigations" field in the plan json file.
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
 - set the verify_params as follows:
-    - set "plan_path" as the path to the plan file.
+    - set "plan_path" as the path to the plan file relative to repo root.
 
 
