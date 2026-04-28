@@ -20,11 +20,7 @@ draft a high-level implementation plan based on the extracted story document usi
 
 Address any verification errors before proceeding. 
 
-## Quality Checks
-- [ ] Story is well-formed (As a, I want, So that)
-- [ ] All acceptance criteria are testable
-- [ ] Edge cases documented
-- [ ] Dependencies identified
-- [ ] Questions captured with owners
-- [ ] Complexity reasonably estimated
-- [ ] Implementation approach outlined
+### Step 4: Break out Workstream Plans
+break out the implementation plan into workstream plans using the `create-workstream-plans` skill on the implementation plan file from the previous step.
+
+Address any verification errors before proceeding. 
