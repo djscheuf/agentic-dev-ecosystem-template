@@ -11,12 +11,12 @@ extract user-story from the provided document or prompt using the `extract-inten
 Address any verification errors before proceeding. 
 
 ### Step 2: Analyze the User Story
-expand the user-story into a comprehensive analysis document using the `expand-story-intent` skill on the extracted intent file.
+expand the user-story into a comprehensive analysis document using the `expand-story-intent` skill on the extracted intent file from the previous step.
 
 Address any verification errors before proceeding. 
 
 ### Step 3: Draft Implementation Plan
-draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the extracted intent file.
+draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the analysis file from the previous step.
 
 Address any verification errors before proceeding. 
 
