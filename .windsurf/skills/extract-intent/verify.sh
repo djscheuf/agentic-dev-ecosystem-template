@@ -32,7 +32,7 @@ exit_if_failed() {
 # Verify story JSON structure against schema
 verify_structure() {
   local story_path="$1"
-  local schema_path="$SCRIPT_DIR/schema/user-story.schema.json"
+  local schema_path="$SCRIPT_DIR/schema/story-intent.schema.json"
   
   if [[ ! -f "$story_path" ]]; then
     fail "Story file not found: $story_path"

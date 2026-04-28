@@ -52,42 +52,5 @@
       "jtbd": "Know when search yields no results",
       "persona_served": "Sarah - E-commerce Shopper"
     }
-  ],
-  "edge_cases": [
-    "Special characters in search query",
-    "Very long search string (1000+ characters)",
-    "Empty product catalog",
-    "Search service unavailable"
-  ],
-  "dependencies": {
-    "story": {
-      "blocked_by": ["US-001: Product catalog setup"],
-      "blocks": ["US-003: Advanced filtering"]
-    },
-    "technical": {
-      "existing_code": ["ProductService", "SearchController"],
-      "new_code": [],
-      "infrastructure": [],
-      "external_services": []
-    },
-    "knowledge": {
-      "domain_knowledge": [],
-      "technical_knowledge": [],
-      "stakeholder_questions": []
-    }
-  },
-  "complexity": {
-    "story_points": 5,
-    "risk_level": "Medium",
-    "uncertainty": "Low"
-  },
-  "questions": [
-    {
-      "question":"{A Question in need of Calrification}",
-      "assumption": "{Assumed answer}",
-      "rationale": "{Why this assumption}",
-      "basis": "{Source of assumption}"
-    }
-  ],
-  "recommendation": "Ready to develop"
+  ]
 }
