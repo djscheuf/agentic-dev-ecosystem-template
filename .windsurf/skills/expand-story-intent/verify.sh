@@ -266,17 +266,31 @@ verify_consistency() {
 }
 
 main() {
-  local analysis_path="$1"
+  local sentinel_path="$1"
   
-  if [[ -z "$analysis_path" ]]; then
-    echo "Usage: verify.sh <analysis_file>" >&2
-    exit 2
+  if [[ -z "$sentinel_path" ]]; then
+    echo "Usage: verify.sh <sentinel_file>" >&2
+    exit 1
   fi
+  
+  if [[ ! -f "$sentinel_path" ]]; then
+    echo "Sentinel file not found: $sentinel_path" >&2
+    exit 1
+  fi
+  
+  # Extract story path from sentinel
+  local sentinel
+  sentinel=$(jq '.' "$sentinel_path")
+  local analysis_path
+  analysis_path=$(jq -r '.verify_params.analysis_path // empty' <<< "$sentinel")
   
   verify_structure "$analysis_path"
   verify_completeness "$analysis_path"
   verify_consistency "$analysis_path"
   
+  # Delete sentinel file after verification
+  rm -f "$sentinel_path"
+
   exit_if_failed
   
   echo -e "${GREEN}Analysis verification passed${NC}" >&2

@@ -328,11 +328,12 @@ main() {
   verify_story_completeness "$story_path"
   verify_consistency "$story_path"
   
+  # Delete sentinel file after verification
+  rm -f "$sentinel_path"
+
   # Exit if any failures
   exit_if_failed
   
-  # Delete sentinel file on success
-  rm -f "$sentinel_path"
   
   echo -e "${GREEN}Verification passed${NC}" >&2
 }
