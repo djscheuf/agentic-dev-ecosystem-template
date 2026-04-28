@@ -316,10 +316,10 @@ main() {
   local sentinel
   sentinel=$(jq '.' "$sentinel_path")
   local story_path
-  story_path=$(jq -r '.verify_params.extracted_story_path // empty' <<< "$sentinel")
+  story_path=$(jq -r '.verify_params.extracted_intent_path // empty' <<< "$sentinel")
   
   if [[ -z "$story_path" ]]; then
-    echo "Sentinel file missing 'verify_params.extracted_story_path'" >&2
+    echo "Sentinel file missing 'verify_params.extracted_intent_path'" >&2
     exit 1
   fi
   

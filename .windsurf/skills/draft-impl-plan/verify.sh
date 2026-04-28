@@ -316,10 +316,10 @@ main() {
   fi
   
   local plan_path
-  plan_path=$(jq -r '.verify_params.impl_plan_path // empty' "$sentinel_path")
+  plan_path=$(jq -r '.verify_params.plan_path // empty' "$sentinel_path")
   
   if [[ -z "$plan_path" ]]; then
-    echo "Sentinel file missing 'verify_params.impl_plan_path'" >&2
+    echo "Sentinel file missing 'verify_params.plan_path'" >&2
     exit 2
   fi
   
