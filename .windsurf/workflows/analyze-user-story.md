@@ -6,12 +6,12 @@ Systematically analyze a user story to understand requirements, identify edge ca
 ## Workflow Steps
 
 ### Step 1: Parse the User Story
-extract user-story from the provided document or prompt using the `extract-intent` skill.
+extract user-story from the provided document or prompt using the `extract-story-intent` skill.
 
 Address any verification errors before proceeding. 
 
 ### Step 2: Analyze the User Story
-expand the user-story into a comprehensive analysis document using the `expand-story-intent` skill on the extracted intent file from the previous step.
+expand the user-story into a comprehensive analysis document using the `expand-story-analysis` skill on the extracted intent file from the previous step.
 
 Address any verification errors before proceeding. 
 
