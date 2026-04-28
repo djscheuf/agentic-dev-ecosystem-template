@@ -1,0 +1,11 @@
+{
+  "source_story": "{link to story analysis document}",
+  "workstreams": [
+    {
+      "name": "{workstream name}",
+      "description": "{workstream description}",
+      "path": "{path to workstream plan}"
+    }
+  ]
+}
+

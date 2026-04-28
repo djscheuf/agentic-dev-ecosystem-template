@@ -1,0 +1,38 @@
+{
+  "source_story": "{link to story analysis document}",
+  "story": {
+    "so_that": "{value of USer story}",
+    "as_a": "{Persona Name}",
+    "i_want": "{proposed action of story}"
+  },
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Search returns products matching the keyword in title or description",
+      "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
+      "status": "pending"
+    },
+    {...}
+  ],
+  "related_edge_cases": [
+    {
+      "criterion": "Special characters in search query",
+      "gherkin": "Given a search query with special characters When search is submitted Then results are filtered appropriately",
+      "status": "pending"
+    },
+    {...}
+  ],
+  "dependencies": ["{link to preceding workstream plan, if any}"],
+  "steps":[
+    {"description": "Implement search functionality", "layer": "ui", "status": "pending", "depends_on": ["{preceeding step(s), if any}"]},
+    {"description": "Add search endpoint", "layer": "api", "status": "pending", "depends_on": ["{preceeding step(s), if any}"]}
+  ],
+  "relevant_context": {
+    "documentation": [
+      "{link to relevant context documents, if any}"
+    ],
+    "code": [
+      "{link to relevant code components, if any}"
+    ]
+  }
+}
+

@@ -1,0 +1,7 @@
+{
+    "stream_index_path": "path/to/streams.index.json",
+    "workstream_paths": [
+        "path/to/workstream1.json",
+        "path/to/workstream2.json"
+    ]
+}
