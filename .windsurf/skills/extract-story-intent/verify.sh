@@ -25,7 +25,7 @@ exit_if_failed() {
   if [[ ${#FAILURES[@]} -gt 0 ]]; then
     echo -e "${RED}Verification failed:${NC}" >&2
     printf '%s\n' "${FAILURES[@]}" >&2
-    exit 1
+    exit 2
   fi
 }
 
@@ -55,7 +55,7 @@ verify_structure() {
   story=$(jq '.' "$story_path")
   
   # Check required top-level properties from schema
-  local required_props=("raw_request" "title" "story" "target_persona" "capability_breakdown" "acceptance_criteria" "edge_cases" "dependencies" "complexity" "open_questions" "recommendation")
+  local required_props=("raw_request" "title" "story" "target_persona" "capability_breakdown" "acceptance_criteria")
   for prop in "${required_props[@]}"; do
     if ! jq -e ".$prop" <<< "$story" &>/dev/null; then
       fail "Schema validation failed: Missing required property '$prop'"
@@ -127,30 +127,6 @@ verify_structure() {
     if ! jq -e '.acceptance_criteria | type == "array"' <<< "$story" &>/dev/null; then
       fail "Schema validation failed: acceptance_criteria must be an array"
     fi
-  fi
-  
-  # Validate dependencies structure
-  if jq -e '.dependencies' <<< "$story" &>/dev/null; then
-    local dependencies
-    dependencies=$(jq '.dependencies' <<< "$story")
-    local dep_props=("blocked_by" "blocks" "technical")
-    for prop in "${dep_props[@]}"; do
-      if ! jq -e ".$prop" <<< "$dependencies" &>/dev/null; then
-        fail "Schema validation failed: dependencies.$prop is required"
-      fi
-    done
-  fi
-  
-  # Validate complexity structure
-  if jq -e '.complexity' <<< "$story" &>/dev/null; then
-    local complexity
-    complexity=$(jq '.complexity' <<< "$story")
-    local complexity_props=("story_points" "risk_level" "uncertainty")
-    for prop in "${complexity_props[@]}"; do
-      if ! jq -e ".$prop" <<< "$complexity" &>/dev/null; then
-        fail "Schema validation failed: complexity.$prop is required"
-      fi
-    done
   fi
 }
 
@@ -266,36 +242,6 @@ verify_consistency() {
     fi
   fi
   
-  # Check complexity fields if present
-  if jq -e '.complexity' <<< "$story" &>/dev/null; then
-    local complexity
-    complexity=$(jq '.complexity' <<< "$story")
-    
-    # Check risk_level
-    if jq -e '.risk_level' <<< "$complexity" &>/dev/null; then
-      local risk
-      risk=$(jq -r '.risk_level' <<< "$complexity")
-      if ! [[ "$risk" =~ ^(Low|Medium|High)$ ]]; then
-        fail "Risk level '$risk' is invalid. Must be one of: Low, Medium, High"
-      fi
-    fi
-    
-    # Check story_points
-    if jq -e '.story_points' <<< "$complexity" &>/dev/null; then
-      local points
-      points=$(jq '.story_points' <<< "$complexity")
-      
-      # Check if it's a positive number
-      if ! jq -e 'type == "number" and . > 0' <<< "$points" &>/dev/null; then
-        fail "Story points must be a positive number, got: $points"
-      else
-        # Check if it's a valid Fibonacci number
-        if ! [[ "$points" =~ ^(1|2|3|5|8|13|21)$ ]]; then
-          fail "Story points '$points' is not a valid Fibonacci value. Accepted values: 1, 2, 3, 5, 8, 13, 21"
-        fi
-      fi
-    fi
-  fi
 }
 
 # Main execution
@@ -304,12 +250,12 @@ main() {
   
   if [[ -z "$sentinel_path" ]]; then
     echo "Usage: verify.sh <sentinel_file>" >&2
-    exit 1
+    exit 2
   fi
   
   if [[ ! -f "$sentinel_path" ]]; then
     echo "Sentinel file not found: $sentinel_path" >&2
-    exit 1
+    exit 2
   fi
   
   # Extract story path from sentinel
@@ -320,7 +266,7 @@ main() {
   
   if [[ -z "$story_path" ]]; then
     echo "Sentinel file missing 'verify_params.extracted_intent_path'" >&2
-    exit 1
+    exit 2
   fi
   
   # Run verifications

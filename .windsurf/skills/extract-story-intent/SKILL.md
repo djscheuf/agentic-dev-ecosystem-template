@@ -1,5 +1,5 @@
 ---
-name: extract-intent
+name: extract-story-intent
 description: Extract a user story from a given document or text, into a json format
 ---
 
