@@ -26,8 +26,9 @@ Assess Current Reality, to identify what's already in place and what needs to be
 Address any verification errors before proceeding. 
 
 ### Step 5: Add Design Step prior to Plan
-Skip this step for now. 
-// TODO: Add Design Step prior to Plan (Workflow, Interfaces/Contracts, Layer Responsibilities? based on CR) + Quant, Qual Verification
+Design the stories implementation with the `design-story-implementation` skill, with the analysis and audit files from the previous steps. 
+
+Address any verification errors before proceeding. 
 
 ### Step 6: Grade the Design
 Skip this Step for now. 
