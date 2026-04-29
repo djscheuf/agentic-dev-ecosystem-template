@@ -102,6 +102,13 @@ calculate_and_verify_score() {
   
   grade=$(jq '.' "$grade_path")
   
+  # Dimension weights (must sum to 1.0)
+  local weight_business_value=0.25
+  local weight_scope=0.20
+  local weight_acceptance_criteria=0.25
+  local weight_story_format=0.15
+  local weight_dependencies=0.10
+  
   # Extract scores
   local bv_score=$(jq '.business_value.score' <<< "$grade")
   local scope_score=$(jq '.scope.score' <<< "$grade")
@@ -113,7 +120,9 @@ calculate_and_verify_score() {
   # Weighted Score = (BV × 0.25) + (Scope × 0.20) + (AC × 0.25) + (SF × 0.15) + (Dep × 0.10)
   local weighted_score
   weighted_score=$(awk -v bv="$bv_score" -v scope="$scope_score" -v ac="$ac_score" -v sf="$sf_score" -v dep="$dep_score" \
-    'BEGIN { printf "%.2f", bv * 0.25 + scope * 0.20 + ac * 0.25 + sf * 0.15 + dep * 0.10 }')
+    -v w_bv="$weight_business_value" -v w_scope="$weight_scope" -v w_ac="$weight_acceptance_criteria" \
+    -v w_sf="$weight_story_format" -v w_dep="$weight_dependencies" \
+    'BEGIN { printf "%.2f", bv * w_bv + scope * w_scope + ac * w_ac + sf * w_sf + dep * w_dep }')
   
   # Normalize to 0-100 scale
   # Normalized Score = (Weighted Score / 3) × 100
