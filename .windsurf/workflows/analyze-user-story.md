@@ -15,12 +15,21 @@ expand the user-story into a comprehensive analysis document using the `expand-s
 
 Address any verification errors before proceeding. 
 
-### Step 3: Draft Implementation Plan
+### Step 3: Grade the Analysis
+grade the analysis based on the User Story Quality Rubric using the `grade-story-analysis` skill on the analysis file from the previous step.
+
+Address any verification errors before proceeding. 
+
+// TODO: Add Design Step prior to Plan (Workflow, Interfaces/Contracts, Layer Responsibilities?) + Quant, Qual Verification
+
+### Step 4: Draft Implementation Plan
 draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the analysis file from the previous step.
 
 Address any verification errors before proceeding. 
 
-### Step 4: Break out Workstream Plans
+### Step 5: Break out Workstream Plans
 break out the implementation plan into workstream plans using the `create-workstream-plans` skill on the implementation plan file from the previous step.
 
 Address any verification errors before proceeding. 
+
+// TODO: Add Qualitative Verification Step
