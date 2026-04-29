@@ -24,7 +24,12 @@ Model the user's flow through the system as a sequence of domain events (not UI 
 
 Update the relevant section of the JSON
 
-### 4. Allocate Layer Responsibilities
+### 5. Define Instrumentation Events
+Identify key events that should be instrumented for observability and monitoring.
+
+Update the relevant section of the JSON
+
+### 6. Allocate Layer Responsibilities
 Assign each AC element to the appropriate application layer(s) using responsibility heuristics. This is an iterative "catch ball" negotiation between layers, not strictly unidirectional.
 
 **Critical Principle**: "Where is the information available to act?" - Responsibility emerges from where new information/behavior originates.
@@ -54,7 +59,7 @@ Assign each AC element to the appropriate application layer(s) using responsibil
 
 Update the relevant section of the JSON
 
-### 5. Define Contracts Between Layers
+### 7. Define Contracts Between Layers
 Define inter-layer contracts (Frontend↔Backend, Backend↔Data) based on data model changes and interaction patterns. This is an iterative negotiation process where contract usage expectations drive data model decisions.
 
 - Design data model changes first
@@ -88,7 +93,7 @@ Define inter-layer contracts (Frontend↔Backend, Backend↔Data) based on data 
 
 Update the relevant section of the JSON
 
-### 6. Identify Architectural Decisions
+### 8. Identify Architectural Decisions
 - Identify architectural decisions that need to be made
 - Document the decisions and the rationale for each decision
 - Favor the application's ADRs, and it's Target Architecture first, then suitable industry architectural patterns, then known best practices.
@@ -96,7 +101,7 @@ Update the relevant section of the JSON
 
 Update the relevant section of the JSON
 
-### 7. Clarify Ambiguities
+### 9. Clarify Ambiguities
 ```
 When dependencies or questions are identified:
 
@@ -109,7 +114,8 @@ For each question, capture the following:
 ```
 
 Update the relevant section of the JSON
-### 8. Write the Sentinel File
+
+### 10. Write the Sentinel File
 - create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
 - the sentinel file will follow `/schema/sentinel.schema.json`. 
 - set the task field to "{skill-name}".

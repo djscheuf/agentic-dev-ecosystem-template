@@ -16,6 +16,19 @@
       ]
     }
   ],
+  "instrumentation_events": [
+    {
+      "event_name": "string",
+      "description": "string",
+      "layers_involved": ["string"],
+      "data_points": [
+        {
+          "point": "string",
+          "description": "string"
+        }
+      ]
+    }
+  ],
   "layer_responsibilities": [
     {
       "layer": "string (Frontend|Backend|DataPipeline|etc)",
