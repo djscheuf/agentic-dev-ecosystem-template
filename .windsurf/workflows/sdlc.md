@@ -1,7 +1,7 @@
-# Analyze User Story Workflow
-
-## Purpose
-Systematically analyze a user story to understand requirements, identify edge cases, assess complexity, and prepare for implementation.
+---
+description: Systematically analyze a user story to understand requirements, identify edge cases, assess complexity, and prepare for implementation. Then prepare Designs and Implementation Plans. 
+---
+# SDLC - Software Delivery Lifecycle
 
 ## Workflow Steps
 
@@ -31,8 +31,9 @@ Design the stories implementation with the `design-story-implementation` skill, 
 Address any verification errors before proceeding. 
 
 ### Step 6: Grade the Design
-Skip this Step for now. 
-// TODO: Add Design Qual Verification
+grade the design based on the Design Quality Rubric using the `grade-story-design` skill on the design file from the previous step.
+
+Address any verification errors before proceeding. 
 
 ### Step 7: Draft Implementation Plan
 draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the analysis file from the previous step.
