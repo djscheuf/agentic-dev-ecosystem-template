@@ -20,16 +20,29 @@ grade the analysis based on the User Story Quality Rubric using the `grade-story
 
 Address any verification errors before proceeding. 
 
-// TODO: Add Design Step prior to Plan (Workflow, Interfaces/Contracts, Layer Responsibilities?) + Quant, Qual Verification
+### Step 4: Assess Current Reality
+Assess Current Reality, to identify what's already in place and what needs to be built, existing ADRs, and design precedents, and architecture. using the `current-reality-audit` skill. 
 
-### Step 4: Draft Implementation Plan
+Address any verification errors before proceeding. 
+
+### Step 5: Add Design Step prior to Plan
+Skip this step for now. 
+// TODO: Add Design Step prior to Plan (Workflow, Interfaces/Contracts, Layer Responsibilities? based on CR) + Quant, Qual Verification
+
+### Step 6: Grade the Design
+Skip this Step for now. 
+// TODO: Add Design Qual Verification
+
+### Step 7: Draft Implementation Plan
 draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the analysis file from the previous step.
 
 Address any verification errors before proceeding. 
 
-### Step 5: Break out Workstream Plans
+### Step 8: Break out Workstream Plans
 break out the implementation plan into workstream plans using the `create-workstream-plans` skill on the implementation plan file from the previous step.
 
 Address any verification errors before proceeding. 
 
+### Step 9: Grade Workstream Plans
+Skip this step for now. 
 // TODO: Add Qualitative Verification Step
