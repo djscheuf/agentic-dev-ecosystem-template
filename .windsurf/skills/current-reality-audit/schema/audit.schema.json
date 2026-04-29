@@ -1,0 +1,40 @@
+{
+  "run_date": "20251015T085100Z",
+  "target_story": "path/to/analysis/file",
+  "vault_audit": {
+    "decisions": [{
+      "path": "path/to/some/adr",
+      "why": "How this decision applies to design for the current story"
+    }],
+    "persona": [{
+      "path": "path/to/some/persona",
+      "why": "How this story interacts with given persona"
+    }],
+    "target_architecture": [{
+      "path": "path/to/some/architecture",
+      "why": "How this architecture applies design for the current story"
+    }]
+  },
+  "code_audit": {
+    "components": [{
+      "path": "path/to/some/component",
+      "why": "How this component relates to the current story"
+    }],
+    "services": [{
+      "path": "path/to/some/service",
+      "why": "How this service relates to the current story"
+    }],
+    "models": [{
+      "path": "path/to/some/model",
+      "why": "How this model relates to the current story"
+    }],
+    "apis": [{
+      "path": "path/to/some/api",
+      "why": "How this api relates to the current story"
+    }],
+    "tests": [{
+      "path": "path/to/some/test",
+      "why": "How this test relates to the current story"
+    }]
+  }
+}
