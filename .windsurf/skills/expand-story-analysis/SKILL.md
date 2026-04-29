@@ -99,41 +99,10 @@ KNOWLEDGE DEPENDENCIES:
 Capture the dependencies in the appropriate section of the JSON.
 ```
 
-### 7. Clarify Ambiguities
-```
-When dependencies or questions are identified:
+### 8. Identify Open Questions
+When implementation or approach questions are identified, capture them in the appropriate section of the JSON. Capture the areas or aspects impacted by the question. For example a question about authentication flow might impact security, user experience, and integration points.
 
-Review existing related code, ADRs, and documentation to understand the context and make informed assumptions.
-For each question, capture the following:
-- the question
-- your assumed answer
-- the rationale for your assumption
-- the basis for your assumption (e.g., "pattern seen in {existing code}", "desicion precedent in {specific ADR}", "documented business rule per {specific documentation}")
-```
-
-### 8. Draft Implementation Plan
-```
-Outline high-level approach:
-
-IMPLEMENTATION PLAN:
-1. [First major step]
-2. [Second major step]
-3. [Third major step]
-...
-
-TESTING STRATEGY:
-├── Unit tests: [Key behaviors to test]
-├── Integration tests: [System interactions]
-└── E2E tests: [User scenarios]
-
-RISKS AND MITIGATIONS:
-├── Risk 1: [Description]
-│   └── Mitigation: [Approach]
-└── Risk 2: [Description]
-    └── Mitigation: [Approach]
-```
-
-### 9. Write the Sentinel File
+### 8. Write the Sentinel File
 - create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
 - the sentinel file will follow @/schema/sentinel.schema.json. 
 - set the task field to "{skill-name}".

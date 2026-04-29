@@ -7,7 +7,6 @@
     "i_want": "{proposed action of story}"
   },
   "target_persona": {
-    "name": "Sarah - E-commerce Shopper",
     "role": "Customer",
     "technical_level": "Intermediate",
     "journey":{
@@ -91,11 +90,12 @@
   "questions": [
     {
       "question": "What is the maximum length for tactic title?",
-      "assumption": "No explicit limit, but reasonable default of 255 characters",
-      "rationale": "Standard database VARCHAR limit; prevents storage issues",
-      "basis": "Common web application practice"
+      "impacts": ["database schema", "UI display", "API responses"]
     },
-    {...}
+    {
+      "question": "Should search be case-sensitive?",
+      "impacts": ["search algorithm", "user experience"]
+    }, {...}
   ],
   "dependencies": {
     "technical": {
@@ -119,10 +119,5 @@
     "story_points": 5,
     "risk_level": "Medium",
     "uncertainty": "Low"
-  },
-  "open_questions": [
-    "Should search be case-sensitive?",
-    "How many results per page?"
-  ],
-  "recommendation": "Ready to develop"
+  }
 }
