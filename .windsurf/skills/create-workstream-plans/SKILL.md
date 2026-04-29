@@ -81,17 +81,12 @@ Relevant context should include documentation such as ADRs, design documents, ex
 
 Mark these in the "relevant_context" field of the workstream json file.
 
-### 6. Capture Streams Index
-
-Create a file `streams.index.json` in the same directory as the analysis and plan json documents. It will follow the `schemas/streams-index.schema.json` schema. This file will index all the workstreams, including their names, descriptions, and paths to their respective json documents.
-
-### 7. Write the Sentinel File
+### 6. Write the Sentinel File
 - create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
 - the sentinel file will follow @/schema/sentinel.schema.json. 
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
 - set the verify_params as follows:
-    - set "steam_index_path" as the path to the streams index file  relative to repo root.
     - set "workstream_paths" as an array of paths to all the workstream plan files relative to repo root.
 
 
