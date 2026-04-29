@@ -5,7 +5,7 @@ description: Grades the quality of the extracted story document with additional 
 
 ## Steps:
 ### 1. Read the Analysis JSON
-- Read the analysis json document. The analysis will follow `/schema/analysis.schema.json`.
+- Read the analysis json document.
 
 ### 2. Grade the Analysis
 - grade the analysis based on the User Story Quality Rubric defined in `/rubric.md`.
