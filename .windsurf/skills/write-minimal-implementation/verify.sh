@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify.sh - Verify failing test sentinel structure
+# verify.sh - Verify minimal implementation sentinel structure
 # Validates sentinel against schema using jq
 
 set -euo pipefail
@@ -70,12 +70,19 @@ verify_sentinel_structure() {
     verify_params=$(jq '.verify_params' <<< "$sentinel")
     
     # Check required verify_params fields
-    local required_verify_fields=("failing_test_path" "failing_test_name")
+    local required_verify_fields=("failing_test_path" "failing_test_name" "changed_code_files")
     for field in "${required_verify_fields[@]}"; do
       if ! jq -e ".$field" <<< "$verify_params" &>/dev/null || [[ $(jq -r ".$field" <<< "$verify_params") == "null" ]]; then
         fail "Schema validation failed: Missing required verify_params field '$field'"
       fi
     done
+    
+    # Validate changed_code_files is an array
+    if jq -e '.changed_code_files' <<< "$verify_params" &>/dev/null; then
+      if ! jq -e '.changed_code_files | type == "array"' <<< "$verify_params" &>/dev/null; then
+        fail "Schema validation failed: changed_code_files must be an array"
+      fi
+    fi
   fi
 }
 
@@ -109,15 +116,16 @@ verify_failing_test_file() {
   fi
 }
 
-# Run the failing test (placeholder)
-run_failing_test() {
+
+# Run the test (placeholder)
+run_test() {
   local failing_test_path="$1"
   local failing_test_name="$2"
   
   # TODO: Implement test runner logic based on file type
   # - Detect language/framework from file extension
   # - Run the specific test
-  # - Capture and validate that it fails
+  # - Capture and validate that it passes
   echo "Placeholder: Would run test '$failing_test_name' from '$failing_test_path'" >&2
 }
 
@@ -141,12 +149,14 @@ main() {
   local test_cases_path
   local failing_test_path
   local failing_test_name
+  local changed_code_files
   
   test_cases_path=$(jq -r '.verify_params.test_cases_path // empty' <<< "$sentinel")
   failing_test_path=$(jq -r '.verify_params.failing_test_path // empty' <<< "$sentinel")
   failing_test_name=$(jq -r '.verify_params.failing_test_name // empty' <<< "$sentinel")
+  changed_code_files=$(jq '.verify_params.changed_code_files // empty' <<< "$sentinel")
   
-  if [[ -z "$test_cases_path" ]] || [[ -z "$failing_test_path" ]] || [[ -z "$failing_test_name" ]]; then
+  if [[ -z "$test_cases_path" ]] || [[ -z "$failing_test_path" ]] || [[ -z "$failing_test_name" ]] || [[ -z "$changed_code_files" ]]; then
     echo "Sentinel file missing required verify_params fields" >&2
     exit 2
   fi
@@ -155,7 +165,7 @@ main() {
   verify_sentinel_structure "$sentinel_path"
   verify_test_cases_file "$test_cases_path"
   verify_failing_test_file "$failing_test_path"
-  run_failing_test "$failing_test_path" "$failing_test_name"
+  run_test "$failing_test_path" "$failing_test_name"
   
   # Delete sentinel file after verification
   rm -f "$sentinel_path"

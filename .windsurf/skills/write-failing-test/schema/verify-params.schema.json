@@ -1,4 +1,5 @@
 {
+    "test_cases_path": "path/to/test_cases.json",
     "failing_test_path": "path/to/failing_test.ts",
     "failing_test_name": "test_name"
 }

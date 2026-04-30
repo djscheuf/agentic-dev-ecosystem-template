@@ -57,11 +57,20 @@ If test passes → Something is wrong:
 - Code already exists
 - Test has a bug
 ```
+// TODO - Add Run-Test Skill specific to the project's testing framework, supporting that projects structure
 
 ### Step 7: Document the Failure
 Update the test plan and mark the test as "failing".
 
-### Step 8: Report Progress
+### Step 8: Write the Sentinel File
+- create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
+- the sentinel file will follow @/schema/sentinel.schema.json. 
+- set the task field to "{skill-name}".
+- the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 
+- set the verify_params as follows:
+    - set "test_cases_path" to the path of the test cases file relative to repo root.
+    - set "failing_test_path" to the path of the failing test file relative to repo root.
+    - set "failing_test_name" to the name of the failing test.
 
 ## Quality Checks
 - [ ] Test name clearly describes the scenario
