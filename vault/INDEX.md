@@ -10,3 +10,4 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-004: Skill Output Contracts & Sentinel Files](decisions/ADR-004-skill-output-contracts.md)
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](decisions/ADR-005-analysis-separation.md)
 - [ADR-006: Grader Skill Pattern](decisions/ADR-006-grader-skill-pattern.md)
+- [ADR-007: Skill Input Independence](decisions/ADR-007-skill-input-independence.md)
