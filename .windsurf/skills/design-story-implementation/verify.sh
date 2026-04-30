@@ -48,23 +48,35 @@ verify_design_structure() {
   design=$(jq '.' "$design_path")
   
   # Check required top-level properties
-  local required_props=("story_path" "audit_path" "workflow_sequence" "layer_responsibilities" "contracts" "architectural_decisions" "questions_addressed")
+  local required_props=("story_path" "repo_state_before_design" "workflow_sequence" "layer_responsibilities" "contracts" "architectural_decisions" "questions_addressed")
   for prop in "${required_props[@]}"; do
     if ! jq -e ".$prop" <<< "$design" &>/dev/null; then
       fail "Design validation failed: Missing required property '$prop'"
     fi
   done
   
-  # Validate story_path and audit_path are strings
+  # Validate story_path and repo_state_before_design are strings
   if jq -e '.story_path' <<< "$design" &>/dev/null; then
     if ! jq -e '.story_path | type == "string"' <<< "$design" &>/dev/null; then
       fail "Design validation failed: story_path must be a string"
+    else
+      local story_path
+      story_path=$(jq -r '.story_path' <<< "$design")
+      if [[ ! -f "$story_path" ]]; then
+        fail "Design validation failed: story_path file does not exist: $story_path"
+      fi
     fi
   fi
   
-  if jq -e '.audit_path' <<< "$design" &>/dev/null; then
-    if ! jq -e '.audit_path | type == "string"' <<< "$design" &>/dev/null; then
-      fail "Design validation failed: audit_path must be a string"
+  if jq -e '.repo_state_before_design' <<< "$design" &>/dev/null; then
+    if ! jq -e '.repo_state_before_design | type == "string"' <<< "$design" &>/dev/null; then
+      fail "Design validation failed: repo_state_before_design must be a string"
+    else
+      local repo_state_path
+      repo_state_path=$(jq -r '.repo_state_before_design' <<< "$design")
+      if [[ ! -f "$repo_state_path" ]]; then
+        fail "Design validation failed: repo_state_before_design file does not exist: $repo_state_path"
+      fi
     fi
   fi
   

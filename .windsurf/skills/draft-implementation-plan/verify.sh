@@ -45,12 +45,37 @@ verify_structure() {
   plan=$(jq '.' "$plan_path")
   
   # Check required top-level properties from schema
-  local required_props=("source_story" "story" "acceptance_criteria" "edge_cases" "steps" "testing_strategy" "risks_and_mitigations")
+  local required_props=("source_story" "overall_design" "story" "acceptance_criteria" "edge_cases" "steps" "testing_strategy" "risks_and_mitigations")
   for prop in "${required_props[@]}"; do
     if ! jq -e ".$prop" <<< "$plan" &>/dev/null; then
       fail "Schema validation failed: Missing required property '$prop'"
     fi
   done
+  
+  # Validate source_story and overall_design are strings and files exist
+  if jq -e '.source_story' <<< "$plan" &>/dev/null; then
+    if ! jq -e '.source_story | type == "string"' <<< "$plan" &>/dev/null; then
+      fail "Schema validation failed: source_story must be a string"
+    else
+      local source_story_path
+      source_story_path=$(jq -r '.source_story' <<< "$plan")
+      if [[ ! -f "$source_story_path" ]]; then
+        fail "Schema validation failed: source_story file does not exist: $source_story_path"
+      fi
+    fi
+  fi
+  
+  if jq -e '.overall_design' <<< "$plan" &>/dev/null; then
+    if ! jq -e '.overall_design | type == "string"' <<< "$plan" &>/dev/null; then
+      fail "Schema validation failed: overall_design must be a string"
+    else
+      local design_path
+      design_path=$(jq -r '.overall_design' <<< "$plan")
+      if [[ ! -f "$design_path" ]]; then
+        fail "Schema validation failed: overall_design file does not exist: $design_path"
+      fi
+    fi
+  fi
   
   # Validate story object structure
   if jq -e '.story' <<< "$plan" &>/dev/null; then

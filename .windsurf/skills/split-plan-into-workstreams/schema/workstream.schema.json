@@ -1,5 +1,6 @@
 {
   "source_story": "{link to story analysis document}",
+  "overall_design":"{link to overall design document, if any}",
   "story": {
     "so_that": "{value of USer story}",
     "as_a": "{Persona Name}",

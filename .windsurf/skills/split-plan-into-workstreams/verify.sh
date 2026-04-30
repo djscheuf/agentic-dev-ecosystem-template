@@ -46,6 +46,22 @@ verify_workstream() {
   # Check required top-level properties
   if ! jq -e '.source_story' <<< "$ws" &>/dev/null || [[ $(jq -r '.source_story' <<< "$ws") == "null" ]]; then
     fail "Workstream at $ws_path: Missing required field 'source_story'"
+  else
+    local source_story_path
+    source_story_path=$(jq -r '.source_story' <<< "$ws")
+    if [[ ! -f "$source_story_path" ]]; then
+      fail "Workstream at $ws_path: source_story file does not exist: $source_story_path"
+    fi
+  fi
+  
+  if ! jq -e '.overall_design' <<< "$ws" &>/dev/null || [[ $(jq -r '.overall_design' <<< "$ws") == "null" ]]; then
+    fail "Workstream at $ws_path: Missing required field 'overall_design'"
+  else
+    local design_path
+    design_path=$(jq -r '.overall_design' <<< "$ws")
+    if [[ ! -f "$design_path" ]]; then
+      fail "Workstream at $ws_path: overall_design file does not exist: $design_path"
+    fi
   fi
   
   if ! jq -e '.story' <<< "$ws" &>/dev/null; then

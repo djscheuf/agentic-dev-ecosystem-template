@@ -1,6 +1,6 @@
 {
   "story_path": "string (path to user story analysis JSON)",
-  "audit_path": "string (path to current reality audit JSON)",
+  "repo_state_before_design": "string (path to repo state audit before design)",
   "workflow_sequence": [
     {
       "step": "number",
