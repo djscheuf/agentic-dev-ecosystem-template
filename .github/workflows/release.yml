@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  create-release-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create tarball
+        run: |
+          tar --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='.DS_Store' \
+            -czf agentic-dev-ecosystem-template-${{ github.event.release.tag_name }}.tar.gz .
+
+      - name: Calculate SHA256 checksum
+        run: |
+          sha256sum agentic-dev-ecosystem-template-${{ github.event.release.tag_name }}.tar.gz > checksum.txt
+          cat checksum.txt
+
+      - name: Upload tarball to release
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+            agentic-dev-ecosystem-template-${{ github.event.release.tag_name }}.tar.gz \
+            checksum.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
