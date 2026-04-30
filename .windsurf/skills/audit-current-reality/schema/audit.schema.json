@@ -1,6 +1,30 @@
 {
   "run_date": "20251015T085100Z",
   "target_story": "path/to/analysis/file",
+  "project_structure": {
+    "root": "path/to/project/root",
+    "description": "Description of the project structure and purpose",
+    "tech_stack": {
+          "programming_languages": ["Python","typescript"],
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": []
+        },
+    "subprojects": [
+      { 
+        "root": "path/to/subproject/root" ,
+        "description": "Description of the subproject and it's propose",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": []
+        }
+      },
+      {...}
+    ]
+  },
+  
   "vault_audit": {
     "decisions": [{
       "path": "path/to/some/adr",
