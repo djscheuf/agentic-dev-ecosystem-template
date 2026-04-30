@@ -1,7 +1,10 @@
+---
+description: Implement some planned functionality, in a test-driven development manner.
+---
 # SDLC Implement Workflow
 
 ## Purpose
-Implement some functionality based on a provided plan, in a test-driven development manner.
+Implement some planned functionality, in a test-driven development manner.
 
 ## Trigger
 - After Planning an implementation, and before writing any production code
@@ -18,15 +21,17 @@ This workflow orchestrates the four TDD phases in a continuous cycle until the f
 0. Review Context
 1. Think
 2. Red-Green Loop
-    a. Red - Write a failing test
-    b. Green - Write minimal passing code
-    c. More Tests in Priority Group?
+    a. Red - Write a failing test (INVOKE write-failing-test skill)
+    b. Green - Write minimal passing code (INVOKE write-minimal-implementation skill)
+    c. PAUSE & COMMIT: git commit ONLY YOUR CHANGES with message "feat: [description] - test [N] of [total]"
+    d. More Tests in Priority Group?
         - If yes, go back to a.
         - If no, Jump to 3. 
 3. Refactor
     a. Identify improvements (if any)
     b. Apply refactorings (tests stay green)
-    c. More Tests to Complete in Plan?
+    c. PAUSE & COMMIT: git commit ONLY REFACTORING CHANGES with message "refactor: [description]"
+    d. More Tests to Complete in Plan?
         - If yes, go back to 2.
         - If no, jump to 4.
 4. Done. 
@@ -46,16 +51,24 @@ Use the `design-test-cases` skill to design comprehensive test cases.
 
 ### Phase 2-4: Red-Green-Refactor Loop
 **Repeat for each test in the plan**
+
+**CRITICAL: One Test at a Time**
+Each iteration of the loop handles ONE test only:
+- Do NOT add multiple tests in a single edit
+- Do NOT implement multiple features in one code change
+- Each test gets its own Red-Green-Commit cycle
+
 For each priority group of tests, you will loop through:
-    For Each test in the group:
-        - use `write-failing-test` skill to write a failing test
-        - use `write-minimal-implementation` skill to write minimal passing code
-        - commit changes with message: "feat: [description] - test [N] of [total]"
-    - After each priority group, use `refactor-code` skill to refactor if needed
-    - commit refactor changes with message: "refactor: [description]"
-    - loop back to the next priority-group.
+    For EACH test in the group:
+        - INVOKE `write-failing-test` skill (mandatory - do not skip)
+        - INVOKE `write-minimal-implementation` skill (mandatory - do not skip)
+        - git commit ONLY YOUR CHANGES with message: "feat: [description] - test [N] of [total]"
+        - Verify test passes before moving to next test
+    - After each priority group completes:
+        - INVOKE `refactor-code-with-ai` skill to refactor if improvements identified
+        - git commit ONLY REFACTORING CHANGES with message: "refactor: [description]"
+    - Loop back to the next priority-group
 
 ### Phase 5: Confirmation & Reporting
 Skip this phase for now. 
 // TODO - Verify completion by checking if all tests pass and the implementation matches the design.
-
