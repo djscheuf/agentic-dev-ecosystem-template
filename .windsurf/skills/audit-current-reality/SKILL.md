@@ -1,6 +1,6 @@
 ---
 name: audit-current-reality
-description: Review and capture the current application reality prior to designing implementation of a new user story. Identifies relevant ADRs, existing code patterns, and target architecture. 
+description: Discovers the current application reality BEFORE designing or implementing. Surfaces relevant ADRs, existing code patterns, and target architecture. 
 ---
 
 ## Steps:
