@@ -1,6 +1,6 @@
 ---
-name: expand-story-analysis
-description: Expands the extracted story document with additional details, and drafts a high-level implementation plan based on captured assumptions
+name: analyze-story
+description: Analyzes the extracted story document, capturing capability, acceptance criteria, edge cases, dependencies and open design questions. Use after extracting a story from a user request, to clarify the stories intended and likley imact. Use before designing the implementation.
 ---
 
 ## Steps:
@@ -14,6 +14,7 @@ description: Expands the extracted story document with additional details, and d
 - create a new json file in the same directory as the extracted intent json document, using the same filename but with the suffix `.analysis.json`. e.g. "create-object-with-validation.analysis.json"
 - The json will follow `/schema/analysis.schema.json`. 
 - set the raw_request to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
+
 ### 3. Analyze the Capability
 ```
 Break down what's being requested:

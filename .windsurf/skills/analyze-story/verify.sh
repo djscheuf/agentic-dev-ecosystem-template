@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify.sh - Verify expand-story-intent skill output against analysis schema
+# verify.sh - Verify analyze-story skill output against analysis schema
 
 set -euo pipefail
 
