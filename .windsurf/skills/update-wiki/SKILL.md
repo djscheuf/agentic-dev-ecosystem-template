@@ -1,5 +1,5 @@
 ---
-name: wiki-update
+name: update-wiki
 description: Maintain the project wiki in vault/. Use at the end of any session that produced a decision, fact, or state change. Extracts entities, updates topic pages, adds cross-links, never deletes. Pairs with the post_cascade_response_with_transcript hook.
 ---
 

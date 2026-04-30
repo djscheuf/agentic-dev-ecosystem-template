@@ -21,7 +21,7 @@ grade the analysis based on the User Story Quality Rubric using the `grade-story
 Address any verification errors before proceeding. 
 
 ### Step 4: Assess Current Reality
-Assess Current Reality, to identify what's already in place and what needs to be built, existing ADRs, and design precedents, and architecture. using the `current-reality-audit` skill. 
+Assess Current Reality, to identify what's already in place and what needs to be built, existing ADRs, and design precedents, and architecture. using the `audit-current-reality` skill. 
 
 Address any verification errors before proceeding. 
 
@@ -36,12 +36,12 @@ grade the design based on the Design Quality Rubric using the `grade-story-desig
 Address any verification errors before proceeding. 
 
 ### Step 7: Draft Implementation Plan
-draft a high-level implementation plan based on the extracted story document using the `draft-impl-plan` skill on the analysis file from the previous step.
+draft a high-level implementation plan based on the extracted story document using the `draft-implementation-plan` skill on the analysis file from the previous step.
 
 Address any verification errors before proceeding. 
 
 ### Step 8: Break out Workstream Plans
-break out the implementation plan into workstream plans using the `create-workstream-plans` skill on the implementation plan file from the previous step.
+break out the implementation plan into workstream plans using the `split-plan-into-workstreams` skill on the implementation plan file from the previous step.
 
 Address any verification errors before proceeding. 
 

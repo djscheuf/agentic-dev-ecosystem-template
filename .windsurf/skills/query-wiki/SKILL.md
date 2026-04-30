@@ -1,5 +1,5 @@
 ---
-name: wiki-query
+name: query-wiki
 description: Read the project wiki (vault/) before starting any non-trivial task. Surfaces relevant decisions, ownership, incidents, and glossary entries for the task at hand.
 ---
 

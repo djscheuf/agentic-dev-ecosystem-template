@@ -1,5 +1,5 @@
 ---
-name: code-query
+name: query-code
 description: Read the project code (src/) to find existing implementation patterns, and related functionality. Surfaces relevant patterns, services, interfaces, and components for the task at hand.
 ---
 

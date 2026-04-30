@@ -1,5 +1,5 @@
 ---
-name: create-workstream-plans
+name: split-plan-into-workstreams
 description: Converts a High-level Implementation Plan into several parallel Workstream documents
 ---
 

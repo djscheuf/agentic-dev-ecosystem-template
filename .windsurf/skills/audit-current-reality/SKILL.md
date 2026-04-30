@@ -1,5 +1,5 @@
 ---
-name: current-reality-audit
+name: audit-current-reality
 description: Review and capture the current application reality prior to designing implementation of a new user story. Identifies relevant ADRs, existing code patterns, and target architecture. 
 ---
 
@@ -8,10 +8,10 @@ description: Review and capture the current application reality prior to designi
 - Read the story analysis document provided by the user. This document contains the user story in a structured format, as well as some basic analysis of the upcoming functionality. The document will follow the schema defined in `/schema/analysis.schema.json`.
 
 ### 2. Audit the Vault
-- use the `wiki-query` tool to search for relevant information in the vault. This will include relevant ADRs, existing API contracts, personas, and target architecture.
+- use the `query-wiki` tool to search for relevant information in the vault. This will include relevant ADRs, existing API contracts, personas, and target architecture.
 
 ### 3. Audit the Code
-- use the `code-query` tool to search for relevant information in the codebase. This will include existing services, models, and components that may be related to the user story.
+- use the `query-code` tool to search for relevant information in the codebase. This will include existing services, models, and components that may be related to the user story.
 
 ### 4. Capture the Audit file
 - create current reality audit file in the same folder as the given analysis json. The audit file will follow the schema defined in `/schema/audit.schema.json`. The file should be named `current-reality.audit.json`.

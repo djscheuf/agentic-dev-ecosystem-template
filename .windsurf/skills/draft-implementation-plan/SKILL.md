@@ -1,5 +1,5 @@
 ---
-name: draft-impl-plan
+name: draft-implementation-plan
 description: Drafts a high-level implementation plan based on the extracted story document
 ---
 
