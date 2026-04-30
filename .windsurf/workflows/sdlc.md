@@ -53,7 +53,15 @@ Execute: sdlc-plan
 ```
 
 ### Phase 4: Implement
-Input: Workstream Plan Documents
-Output: Clean code, all tests passing
-Skip this step for now. 
-// TODO: Add SDLC Implement workflow
+Input: Workstream Plan Document
+Workflow: /sdlc-implement
+Output: Implemented Workstream, clean code, all tests passing.
+
+```
+Execute: sdlc-implement on the foundations workstream
+├── Understand requirements, and plan
+├── Design Test Cases for the Plan
+├── Loop through test cases in TDD approach
+├── Commit as you go
+└── Output: Implemented Workstream, clean code, all tests passing
+```
