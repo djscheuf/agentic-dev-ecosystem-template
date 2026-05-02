@@ -36,4 +36,15 @@ fi
 
 # Run the verify script with sentinel file path
 info "Running verify for skill: $task"
-bash "$verify_script" "$file_path"
+
+# Capture both output and exit code
+verify_output=$(bash "$verify_script" "$file_path" 2>&1)
+verify_exit_code=$?
+
+# If verification failed, block with detailed error
+if [[ $verify_exit_code -ne 0 ]]; then
+  block "Skill verification failed for '$task' (exit code: $verify_exit_code)\n\n$verify_output"
+fi
+
+# Log success
+info "Verification passed for skill: $task"
