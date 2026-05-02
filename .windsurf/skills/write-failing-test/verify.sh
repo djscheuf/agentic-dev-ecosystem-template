@@ -109,16 +109,331 @@ verify_failing_test_file() {
   fi
 }
 
-# Run the failing test (placeholder)
+# Check if Node.js dependencies are installed
+check_node_dependencies() {
+  local framework="$1"
+  
+  if [[ ! -d "$PROJECT_DIR/node_modules" ]]; then
+    fail "node_modules directory not found. Dependencies must be installed before verification."
+    fail "Please ensure 'npm install' completes successfully before writing the sentinel file."
+    return 1
+  fi
+  
+  # Check if specific framework is installed
+  case "$framework" in
+    jest)
+      if [[ ! -d "$PROJECT_DIR/node_modules/jest" ]]; then
+        fail "Jest not found in node_modules. Dependencies may still be installing."
+        fail "Ensure 'npm install' completes before writing the sentinel file."
+        fail "If npm install has completed, verify Jest is listed in package.json devDependencies."
+        return 1
+      fi
+      ;;
+    mocha)
+      if [[ ! -d "$PROJECT_DIR/node_modules/mocha" ]]; then
+        fail "Mocha not found in node_modules. Dependencies may still be installing."
+        fail "Ensure 'npm install' completes before writing the sentinel file."
+        fail "If npm install has completed, verify Mocha is listed in package.json devDependencies."
+        return 1
+      fi
+      ;;
+    vitest)
+      if [[ ! -d "$PROJECT_DIR/node_modules/vitest" ]]; then
+        fail "Vitest not found in node_modules. Dependencies may still be installing."
+        fail "Ensure 'npm install' completes before writing the sentinel file."
+        fail "If npm install has completed, verify Vitest is listed in package.json devDependencies."
+        return 1
+      fi
+      ;;
+  esac
+  
+  return 0
+}
+
+# Detect test framework based on file and project structure
+detect_test_framework() {
+  local test_file="$1"
+  local file_ext="${test_file##*.}"
+  
+  case "$file_ext" in
+    js|mjs|cjs|ts|tsx)
+      if [[ -f "$PROJECT_DIR/package.json" ]]; then
+        if grep -q '"vitest"' "$PROJECT_DIR/package.json" 2>/dev/null; then
+          echo "vitest"
+        elif grep -q '"jest"' "$PROJECT_DIR/package.json" 2>/dev/null; then
+          echo "jest"
+        elif grep -q '"mocha"' "$PROJECT_DIR/package.json" 2>/dev/null; then
+          echo "mocha"
+        else
+          echo "unknown"
+        fi
+      else
+        echo "unknown"
+      fi
+      ;;
+    py)
+      if command -v pytest &>/dev/null; then
+        echo "pytest"
+      elif command -v python -m unittest &>/dev/null; then
+        echo "unittest"
+      else
+        echo "unknown"
+      fi
+      ;;
+    cs)
+      if command -v dotnet &>/dev/null; then
+        echo "dotnet-test"
+      else
+        echo "unknown"
+      fi
+      ;;
+    go)
+      echo "go-test"
+      ;;
+    *)
+      echo "unknown"
+      ;;
+  esac
+}
+
+# Run test with Mocha
+run_mocha_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v npx &>/dev/null; then
+    fail "npx not found - cannot run Mocha tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  cd "$PROJECT_DIR" || return 1
+  timeout 5s npx mocha "$test_file" --grep "^${test_name}$" &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run test with Jest
+run_jest_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v npx &>/dev/null; then
+    fail "npx not found - cannot run Jest tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  cd "$PROJECT_DIR" || return 1
+  timeout 5s npx jest "$test_file" -t "$test_name" &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run test with Vitest
+run_vitest_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v npx &>/dev/null; then
+    fail "npx not found - cannot run Vitest tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  cd "$PROJECT_DIR" || return 1
+  timeout 5s npx vitest run "$test_file" -t "$test_name" &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run test with pytest
+run_pytest_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v pytest &>/dev/null; then
+    fail "pytest not found - cannot run pytest tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  cd "$PROJECT_DIR" || return 1
+  timeout 5s pytest "$test_file" -k "$test_name" &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run test with dotnet test
+run_dotnet_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v dotnet &>/dev/null; then
+    fail "dotnet not found - cannot run .NET tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  local test_dir
+  test_dir=$(dirname "$test_file")
+  
+  cd "$PROJECT_DIR" || return 1
+  timeout 5s dotnet test --filter "FullyQualifiedName~$test_name" --no-build --verbosity quiet &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run test with Go
+run_go_test() {
+  local test_file="$1"
+  local test_name="$2"
+  
+  if ! command -v go &>/dev/null; then
+    fail "go not found - cannot run Go tests"
+    return 1
+  fi
+  
+  if ! command -v timeout &>/dev/null; then
+    fail "timeout command not found - cannot enforce test timeout"
+    return 1
+  fi
+  
+  local test_dir
+  test_dir=$(dirname "$test_file")
+  cd "$test_dir" || return 1
+  timeout 5s go test -run "^${test_name}$" &>/dev/null
+  local exit_code=$?
+  
+  if [[ $exit_code -eq 124 ]]; then
+    fail "Test '$test_name' timed out after 5 seconds"
+    return 124
+  fi
+  
+  return $exit_code
+}
+
+# Run the failing test and verify it fails (Red phase of TDD)
 run_failing_test() {
   local failing_test_path="$1"
   local failing_test_name="$2"
   
-  # TODO: Implement test runner logic based on file type
-  # - Detect language/framework from file extension
-  # - Run the specific test
-  # - Capture and validate that it fails
-  echo "Placeholder: Would run test '$failing_test_name' from '$failing_test_path'" >&2
+  echo "Running test '$failing_test_name' from '$failing_test_path'..." >&2
+  
+  # Detect framework
+  local framework
+  framework=$(detect_test_framework "$failing_test_path")
+  
+  if [[ "$framework" == "unknown" ]]; then
+    fail "Unable to detect test framework for: $failing_test_path"
+    return
+  fi
+  
+  echo "Detected test framework: $framework" >&2
+  
+  # Check dependencies for Node.js frameworks
+  if [[ "$framework" == "jest" || "$framework" == "mocha" || "$framework" == "vitest" ]]; then
+    if ! check_node_dependencies "$framework"; then
+      return
+    fi
+  fi
+  
+  # Run the test and capture exit code
+  local exit_code
+  case "$framework" in
+    mocha)
+      run_mocha_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    jest)
+      run_jest_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    vitest)
+      run_vitest_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    pytest)
+      run_pytest_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    dotnet-test)
+      run_dotnet_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    go-test)
+      run_go_test "$failing_test_path" "$failing_test_name"
+      exit_code=$?
+      ;;
+    *)
+      fail "Unsupported test framework: $framework"
+      return
+      ;;
+  esac
+  
+  # In TDD Red phase, we EXPECT the test to fail
+  # Exit code 0 means test passed, which is BAD
+  # Exit code 124 means timeout, which is also BAD
+  # Other non-zero exit codes mean test failed, which is GOOD
+  if [[ $exit_code -eq 124 ]]; then
+    # Timeout already added to failures in the runner function
+    fail "Test '$failing_test_name' timed out after 5 seconds, we should check for infinite loops, or other issues. We expected test to run and fail (Red Phase)."
+    return
+  elif [[ $exit_code -eq 0 ]]; then
+    fail "Test '$failing_test_name' PASSED, but it should FAIL in the Red phase of TDD"
+  else
+    echo -e "${GREEN}✓${NC} Test '$failing_test_name' failed as expected (Red phase)" >&2
+  fi
 }
 
 # Main execution

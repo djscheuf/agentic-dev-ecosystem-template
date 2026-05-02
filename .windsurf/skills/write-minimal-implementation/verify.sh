@@ -7,9 +7,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+# Configuration - Minimal Implementation Constraints
+MAX_LINES_CHANGED=20
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Track failures
@@ -117,6 +121,35 @@ verify_failing_test_file() {
 }
 
 
+# Verify lines changed in affected files
+verify_lines_changed() {
+  local changed_code_files="$1"
+  local max_lines="$2"
+  
+  # Parse the JSON array of changed files
+  local file_count
+  file_count=$(jq 'length' <<< "$changed_code_files")
+  
+  for ((i = 0; i < file_count; i++)); do
+    local file
+    file=$(jq -r ".[$i]" <<< "$changed_code_files")
+    
+    if [[ ! -f "$file" ]]; then
+      fail "Changed code file not found: $file"
+      continue
+    fi
+    
+    # Get the number of lines changed using git diff against HEAD
+    # This checks both staged and committed changes in the last commit
+    local lines_changed
+    lines_changed=$(git diff --unified=0 HEAD~1 HEAD "$file" 2>/dev/null | grep -E '^[+\-]' | grep -v '^[+\-]{3}' | wc -l || echo "0")
+    
+    if [[ $lines_changed -gt $max_lines ]]; then
+      fail "Lines changed check failed: $file has $lines_changed lines changed (limit: $max_lines)"
+    fi
+  done
+}
+
 # Run the test (placeholder)
 run_test() {
   local failing_test_path="$1"
@@ -165,6 +198,7 @@ main() {
   verify_sentinel_structure "$sentinel_path"
   verify_test_cases_file "$test_cases_path"
   verify_failing_test_file "$failing_test_path"
+  verify_lines_changed "$changed_code_files" "$MAX_LINES_CHANGED"
   run_test "$failing_test_path" "$failing_test_name"
   
   # Delete sentinel file after verification
