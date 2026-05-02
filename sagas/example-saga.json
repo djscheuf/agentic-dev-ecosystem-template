@@ -1,0 +1,12 @@
+{
+  "name": "example-saga",
+  "start": "example",
+  "connections": [
+    {
+      "origin": "example",
+      "then": {
+        "target": "end"
+      }
+    }
+  ]
+}

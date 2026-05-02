@@ -1,0 +1,16 @@
+{
+  "name": "complex-workflow",
+  "start": "example",
+  "connections": [
+    {
+      "origin": "example",
+      "pass": {
+        "target": "end"
+      },
+      "fail": {
+        "target": "example",
+        "traversal_limit": 2
+      }
+    }
+  ]
+}
