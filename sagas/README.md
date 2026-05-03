@@ -13,22 +13,35 @@ A saga definition is a JSON file with the following structure:
 ```json
 {
   "name": "saga-name",
-  "start": "first-step",
+  "max_recursion_depth": 50,
+  "start": "first-node",
+  "nodes": {
+    "node-name": {
+      "type": "step",
+      "reference": "step-folder-name",
+      "timeout": 300
+    },
+    "sub-workflow": {
+      "type": "saga",
+      "reference": "sub-saga.json",
+      "timeout": 600
+    }
+  },
   "connections": [
     {
-      "origin": "step-name",
+      "node": "node-name",
       "then": {
-        "target": "next-step",
+        "target": "next-node",
         "traversal_limit": 5
       }
     },
     {
-      "origin": "another-step",
+      "node": "another-node",
       "pass": {
-        "target": "success-step"
+        "target": "success-node"
       },
       "fail": {
-        "target": "retry-step",
+        "target": "retry-node",
         "traversal_limit": 3
       }
     }
@@ -39,35 +52,47 @@ A saga definition is a JSON file with the following structure:
 ### Fields
 
 - **name**: Unique identifier for the saga
-- **start**: Name of the first step to execute
+- **max_recursion_depth** (optional, default: 50): Maximum nesting depth for sub-sagas
+- **start**: Name of the first node to execute
+- **nodes**: Dictionary of node definitions (steps or sub-sagas)
 - **connections**: Array of connection objects defining the workflow graph
+
+### Node Definition
+
+Each node must be defined in the `nodes` section:
+
+- **type** (required): Either `"step"` or `"saga"`
+- **reference** (required): 
+  - For steps: name of folder in `steps/` directory
+  - For sagas: path to saga JSON file (relative to `sagas/` or absolute)
+- **timeout** (optional): Maximum execution time in seconds
 
 ### Connection Types
 
 #### 1. Directed Connection (`then`)
-Simple unconditional routing to the next step.
+Simple unconditional routing to the next node.
 
 ```json
 {
-  "origin": "step-a",
+  "node": "node-a",
   "then": {
-    "target": "step-b",
+    "target": "node-b",
     "traversal_limit": 10
   }
 }
 ```
 
 #### 2. Branching Connection (`pass`/`fail`)
-Conditional routing based on step exit code (0 = pass, non-zero = fail).
+Conditional routing based on node exit code (0 = pass, non-zero = fail).
 
 ```json
 {
-  "origin": "step-b",
+  "node": "node-b",
   "pass": {
     "target": "end"
   },
   "fail": {
-    "target": "step-c",
+    "target": "node-c",
     "traversal_limit": 3
   }
 }
@@ -92,11 +117,14 @@ Each connection target can optionally specify a `traversal_limit`. This prevents
 
 The saga orchestrator validates the following before execution:
 
-1. ✓ Start step exists in `steps/` directory
-2. ✓ All referenced steps exist in `steps/` directory
-3. ✓ Graph is closed (all paths lead to `end`)
-4. ✓ No dead-end nodes (except `end`)
-5. ✓ Branching connections have both `pass` and `fail`
+1. ✓ Start node is defined in `nodes` section
+2. ✓ All node references exist (steps in `steps/`, sagas in `sagas/`)
+3. ✓ All connections reference defined nodes or `end`
+4. ✓ Graph is closed (all paths lead to `end`)
+5. ✓ No dead-end nodes (except `end`)
+6. ✓ Branching connections have both `pass` and `fail`
+7. ✓ Recursion depth doesn't exceed `max_recursion_depth`
+8. ⚠ Circular references generate warnings (not errors)
 
 ## Running a Saga
 
@@ -129,6 +157,53 @@ Steps can define outputs by creating an `outputs.json` file:
 
 These outputs become inputs to the next step in the saga.
 
+## Composable Sagas
+
+Sagas can now contain both **steps** and **sub-sagas** as nodes, enabling modular workflow composition.
+
+### Example: Composite Workflow
+
+```json
+{
+  "name": "deployment-pipeline",
+  "max_recursion_depth": 10,
+  "start": "validate",
+  "nodes": {
+    "validate": {
+      "type": "step",
+      "reference": "validate-config",
+      "timeout": 60
+    },
+    "build-and-test": {
+      "type": "saga",
+      "reference": "build-test-saga.json",
+      "timeout": 1800
+    },
+    "deploy": {
+      "type": "step",
+      "reference": "deploy-to-prod"
+    }
+  },
+  "connections": [
+    {
+      "node": "validate",
+      "pass": {"target": "build-and-test"},
+      "fail": {"target": "end"}
+    },
+    {
+      "node": "build-and-test",
+      "then": {"target": "deploy"}
+    },
+    {
+      "node": "deploy",
+      "then": {"target": "end"}
+    }
+  ]
+}
+```
+
+See `orchestrator/COMPOSABLE_SAGAS.md` for detailed documentation on composable sagas.
+
 ## Examples
 
 ### Simple Linear Saga
@@ -136,9 +211,13 @@ These outputs become inputs to the next step in the saga.
 {
   "name": "simple",
   "start": "step-a",
+  "nodes": {
+    "step-a": {"type": "step", "reference": "step-a"},
+    "step-b": {"type": "step", "reference": "step-b"}
+  },
   "connections": [
-    {"origin": "step-a", "then": {"target": "step-b"}},
-    {"origin": "step-b", "then": {"target": "end"}}
+    {"node": "step-a", "then": {"target": "step-b"}},
+    {"node": "step-b", "then": {"target": "end"}}
   ]
 }
 ```
@@ -147,12 +226,15 @@ These outputs become inputs to the next step in the saga.
 ```json
 {
   "name": "retry",
-  "start": "validate",
+  "start": "task",
+  "nodes": {
+    "task": {"type": "step", "reference": "task", "timeout": 300}
+  },
   "connections": [
     {
-      "origin": "validate",
+      "node": "task",
       "pass": {"target": "end"},
-      "fail": {"target": "validate", "traversal_limit": 3}
+      "fail": {"target": "task", "traversal_limit": 3}
     }
   ]
 }
@@ -163,25 +245,25 @@ These outputs become inputs to the next step in the saga.
 {
   "name": "complex",
   "start": "analyze",
+  "nodes": {
+    "analyze": {"type": "step", "reference": "analyze"},
+    "refine": {"type": "step", "reference": "refine"},
+    "implement": {"type": "step", "reference": "implement"},
+    "debug": {"type": "step", "reference": "debug"}
+  },
   "connections": [
     {
-      "origin": "analyze",
+      "node": "analyze",
       "pass": {"target": "implement"},
       "fail": {"target": "refine", "traversal_limit": 2}
     },
+    {"node": "refine", "then": {"target": "analyze"}},
     {
-      "origin": "refine",
-      "then": {"target": "analyze"}
-    },
-    {
-      "origin": "implement",
+      "node": "implement",
       "pass": {"target": "end"},
       "fail": {"target": "debug", "traversal_limit": 5}
     },
-    {
-      "origin": "debug",
-      "then": {"target": "implement"}
-    }
+    {"node": "debug", "then": {"target": "implement"}}
   ]
 }
 ```

@@ -52,19 +52,29 @@ def main():
         
         repo_root = Path(__file__).parent.parent
         steps_dir = repo_root / "steps"
+        sagas_dir = repo_root / "sagas"
         
         if not steps_dir.exists():
             print(f"[Saga Orchestrator] ERROR: Steps directory not found: {steps_dir}", file=sys.stderr)
             sys.exit(1)
         
+        if not sagas_dir.exists():
+            print(f"[Saga Orchestrator] ERROR: Sagas directory not found: {sagas_dir}", file=sys.stderr)
+            sys.exit(1)
+        
         print("[Saga Orchestrator] Validating saga definition...")
-        is_valid, errors = validate_saga(saga, steps_dir)
+        is_valid, errors, warnings = validate_saga(saga, steps_dir, sagas_dir)
         
         if not is_valid:
             print("[Saga Orchestrator] ERROR: Saga validation failed:", file=sys.stderr)
             for error in errors:
                 print(f"  - {error}", file=sys.stderr)
             sys.exit(1)
+        
+        if warnings:
+            print("[Saga Orchestrator] Warnings:")
+            for warning in warnings:
+                print(f"  ⚠ {warning}")
         
         print("[Saga Orchestrator] ✓ Saga validation passed")
         
@@ -75,7 +85,7 @@ def main():
         print(f"[Saga Orchestrator] Execution log: {log_path}")
         print("[Saga Orchestrator] Starting saga execution...\n")
         
-        success = execute_saga(saga, steps_dir, log_path, initial_inputs)
+        success, final_outputs = execute_saga(saga, steps_dir, sagas_dir, log_path, initial_inputs)
         
         if success:
             print(f"\n[Saga Orchestrator] ✓ Saga '{saga.name}' completed successfully")

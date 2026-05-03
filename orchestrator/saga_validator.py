@@ -3,29 +3,37 @@
 Saga Validator - Validates saga definitions for correctness.
 """
 
+import json
 from pathlib import Path
 from typing import Set, Dict, List
 
 try:
-    from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection
+    from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
 except ImportError:
-    from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection
+    from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
 
 
 class SagaValidator:
     """Validates saga definitions."""
     
-    def __init__(self, saga: SagaDefinition, steps_dir: Path):
+    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, recursion_depth: int = 0):
         self.saga = saga
         self.steps_dir = steps_dir
+        self.sagas_dir = sagas_dir
+        self.recursion_depth = recursion_depth
         self.errors: List[str] = []
+        self.warnings: List[str] = []
+        self.visited_sagas: Set[str] = set()
     
     def validate(self) -> bool:
         """Run all validations. Returns True if valid, False otherwise."""
         self.errors = []
+        self.warnings = []
         
+        self._validate_recursion_depth()
         self._validate_start_exists()
-        self._validate_steps_exist()
+        self._validate_nodes_exist()
+        self._validate_connections_reference_nodes()
         self._validate_graph_connectivity()
         
         return len(self.errors) == 0
@@ -34,77 +42,122 @@ class SagaValidator:
         """Get list of validation errors."""
         return self.errors
     
+    def get_warnings(self) -> List[str]:
+        """Get list of validation warnings."""
+        return self.warnings
+    
+    def _validate_recursion_depth(self):
+        """Check if recursion depth exceeds maximum."""
+        if self.recursion_depth > self.saga.max_recursion_depth:
+            self.errors.append(
+                f"Recursion depth {self.recursion_depth} exceeds maximum {self.saga.max_recursion_depth}"
+            )
+    
     def _validate_start_exists(self):
-        """Ensure start step exists."""
+        """Ensure start node exists."""
         if self.saga.start == "end":
             self.errors.append("Start cannot be 'end'")
             return
         
-        step_path = self.steps_dir / self.saga.start / "step.json"
-        if not step_path.exists():
-            self.errors.append(f"Start step '{self.saga.start}' does not exist at {step_path}")
+        if self.saga.start not in self.saga.nodes:
+            self.errors.append(f"Start node '{self.saga.start}' is not defined in nodes")
     
-    def _validate_steps_exist(self):
-        """Ensure all referenced steps exist in filesystem."""
-        referenced_steps = self._get_all_referenced_steps()
-        
-        for step_name in referenced_steps:
-            if step_name == "end":
-                continue
+    def _validate_nodes_exist(self):
+        """Ensure all defined nodes exist in filesystem."""
+        for node_name, node_def in self.saga.nodes.items():
+            if node_def.type == "step":
+                step_path = self.steps_dir / node_def.reference / "step.json"
+                if not step_path.exists():
+                    self.errors.append(f"Step node '{node_name}' references '{node_def.reference}' which does not exist at {step_path}")
             
-            step_path = self.steps_dir / step_name / "step.json"
-            if not step_path.exists():
-                self.errors.append(f"Step '{step_name}' does not exist at {step_path}")
+            elif node_def.type == "saga":
+                saga_path = Path(node_def.reference)
+                if not saga_path.is_absolute():
+                    saga_path = self.sagas_dir / node_def.reference
+                
+                if not saga_path.exists():
+                    self.errors.append(f"Saga node '{node_name}' references '{node_def.reference}' which does not exist at {saga_path}")
+                else:
+                    self._validate_subsaga(node_name, saga_path)
+    
+    def _validate_subsaga(self, node_name: str, saga_path: Path):
+        """Recursively validate a sub-saga."""
+        if node_name in self.visited_sagas:
+            self.warnings.append(f"Circular reference detected: saga node '{node_name}' may cause recursion")
+            return
+        
+        self.visited_sagas.add(node_name)
+        
+        try:
+            sub_saga_data = json.loads(saga_path.read_text())
+            sub_saga = SagaDefinition.from_dict(sub_saga_data)
+            
+            sub_validator = SagaValidator(
+                sub_saga,
+                self.steps_dir,
+                self.sagas_dir,
+                recursion_depth=self.recursion_depth + 1
+            )
+            sub_validator.visited_sagas = self.visited_sagas
+            
+            if not sub_validator.validate():
+                for error in sub_validator.get_errors():
+                    self.errors.append(f"In sub-saga '{node_name}': {error}")
+            
+            for warning in sub_validator.get_warnings():
+                self.warnings.append(f"In sub-saga '{node_name}': {warning}")
+        
+        except Exception as e:
+            self.errors.append(f"Failed to load sub-saga '{node_name}': {e}")
+    
+    def _validate_connections_reference_nodes(self):
+        """Ensure all connections reference defined nodes or 'end'."""
+        for conn in self.saga.connections:
+            node_name = conn.node
+            
+            if node_name not in self.saga.nodes:
+                self.errors.append(f"Connection references undefined node '{node_name}'")
+            
+            if isinstance(conn, DirectedConnection):
+                target = conn.then.target
+                if target != "end" and target not in self.saga.nodes:
+                    self.errors.append(f"Connection from '{node_name}' references undefined target '{target}'")
+            
+            elif isinstance(conn, BranchingConnection):
+                pass_target = conn.pass_target.target
+                fail_target = conn.fail_target.target
+                
+                if pass_target != "end" and pass_target not in self.saga.nodes:
+                    self.errors.append(f"Connection from '{node_name}' pass references undefined target '{pass_target}'")
+                
+                if fail_target != "end" and fail_target not in self.saga.nodes:
+                    self.errors.append(f"Connection from '{node_name}' fail references undefined target '{fail_target}'")
     
     def _validate_graph_connectivity(self):
         """Ensure graph is closed and all nodes can reach 'end'."""
-        # Build adjacency list
         graph = self._build_graph()
         
-        # Check that all nodes (except 'end') have outgoing edges
-        all_nodes = self._get_all_nodes()
-        for node in all_nodes:
-            if node == "end":
-                continue
-            if node not in graph or len(graph[node]) == 0:
-                self.errors.append(f"Dead-end node '{node}' has no outgoing connections")
+        for node_name in self.saga.nodes.keys():
+            if node_name not in graph or len(graph[node_name]) == 0:
+                self.errors.append(f"Dead-end node '{node_name}' has no outgoing connections")
         
-        # Check that 'end' is reachable from start
         if not self._can_reach_end(graph):
             self.errors.append("'end' is not reachable from start - graph is not closed")
     
-    def _get_all_referenced_steps(self) -> Set[str]:
-        """Get all step names referenced in connections."""
-        steps = {self.saga.start}
-        
-        for conn in self.saga.connections:
-            steps.add(conn.origin)
-            
-            if isinstance(conn, DirectedConnection):
-                steps.add(conn.then.target)
-            elif isinstance(conn, BranchingConnection):
-                steps.add(conn.pass_target.target)
-                steps.add(conn.fail_target.target)
-        
-        return steps
-    
-    def _get_all_nodes(self) -> Set[str]:
-        """Get all nodes in the graph (origins + targets)."""
-        return self._get_all_referenced_steps()
     
     def _build_graph(self) -> Dict[str, List[str]]:
         """Build adjacency list representation of the graph."""
         graph: Dict[str, List[str]] = {}
         
         for conn in self.saga.connections:
-            if conn.origin not in graph:
-                graph[conn.origin] = []
+            if conn.node not in graph:
+                graph[conn.node] = []
             
             if isinstance(conn, DirectedConnection):
-                graph[conn.origin].append(conn.then.target)
+                graph[conn.node].append(conn.then.target)
             elif isinstance(conn, BranchingConnection):
-                graph[conn.origin].append(conn.pass_target.target)
-                graph[conn.origin].append(conn.fail_target.target)
+                graph[conn.node].append(conn.pass_target.target)
+                graph[conn.node].append(conn.fail_target.target)
         
         return graph
     
@@ -135,8 +188,8 @@ class SagaValidator:
         return False
 
 
-def validate_saga(saga: SagaDefinition, steps_dir: Path) -> tuple[bool, List[str]]:
-    """Validate a saga definition. Returns (is_valid, errors)."""
-    validator = SagaValidator(saga, steps_dir)
+def validate_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path) -> tuple[bool, List[str], List[str]]:
+    """Validate a saga definition. Returns (is_valid, errors, warnings)."""
+    validator = SagaValidator(saga, steps_dir, sagas_dir)
     is_valid = validator.validate()
-    return is_valid, validator.get_errors()
+    return is_valid, validator.get_errors(), validator.get_warnings()

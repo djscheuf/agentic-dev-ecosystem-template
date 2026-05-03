@@ -1,9 +1,16 @@
 {
   "name": "retry-saga",
   "start": "example",
+  "nodes": {
+    "example": {
+      "type": "step",
+      "reference": "example",
+      "timeout": 60
+    }
+  },
   "connections": [
     {
-      "origin": "example",
+      "node": "example",
       "pass": {
         "target": "end"
       },
