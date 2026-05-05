@@ -23,6 +23,7 @@ class TestDevinWrapperHappyPath:
         with patch('subprocess.run') as mock_run:
             mock_result = Mock()
             mock_result.returncode = 0
+            mock_result.stdout = ""
             mock_run.return_value = mock_result
             
             exit_code = wrapper.run_devin()
@@ -50,6 +51,8 @@ class TestDevinWrapperHappyPath:
         with patch('subprocess.run') as mock_run:
             mock_result = Mock()
             mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
             mock_run.return_value = mock_result
             
             exit_code = wrapper.execute()
@@ -173,9 +176,10 @@ class TestDevinWrapperEdgeCases:
         step_def = load_step_definition(str(step_file))
         wrapper = DevinWrapper(step_def, [])
         
-        exit_code = wrapper.run_verification()
+        exit_code, stderr = wrapper.run_verification()
         
         assert exit_code == 0
+        assert stderr == ""
 
 
 class TestDevinWrapperErrorHandling:
@@ -243,9 +247,10 @@ class TestDevinWrapperErrorHandling:
         step_def = load_step_definition(str(step_file))
         wrapper = DevinWrapper(step_def, [])
         
-        exit_code = wrapper.run_verification()
+        exit_code, stderr = wrapper.run_verification()
         
         assert exit_code == 1
+        assert "Verification script not found" in stderr
     
     def test_d_er_07_verification_script_fails(self, tmp_path):
         """D-ER-07: Verification script fails (non-zero exit)."""
@@ -267,11 +272,13 @@ class TestDevinWrapperErrorHandling:
         with patch('subprocess.run') as mock_run:
             mock_result = Mock()
             mock_result.returncode = 1
+            mock_result.stderr = "Test error"
             mock_run.return_value = mock_result
             
-            exit_code = wrapper.run_verification()
+            exit_code, stderr = wrapper.run_verification()
             
             assert exit_code == 1
+            assert stderr == "Test error"
     
     def test_prompt_loaded_from_file(self, tmp_path):
         """Test that prompt content is loaded from external file."""
@@ -314,6 +321,7 @@ class TestDevinWrapperErrorHandling:
         step_def = load_step_definition(str(step_file))
         wrapper = DevinWrapper(step_def, [])
         
-        exit_code = wrapper.run_verification()
+        exit_code, stderr = wrapper.run_verification()
         
         assert exit_code == 0
+        assert stderr == ""

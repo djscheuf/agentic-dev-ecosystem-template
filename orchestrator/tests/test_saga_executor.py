@@ -32,7 +32,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, ["output1"])
+            mock_execute.return_value = (0, ["output1"], "")
             
             success, outputs = executor.execute([])
             
@@ -61,7 +61,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, [])
+            mock_execute.return_value = (0, [], "")
             
             success, outputs = executor.execute([])
             
@@ -86,7 +86,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (1, [])
+            mock_execute.return_value = (1, [], "")
             
             success, outputs = executor.execute([])
             
@@ -119,8 +119,8 @@ class TestSagaExecutorHappyPath:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                return (1, [])
-            return (0, [])
+                return (1, [], "")
+            return (0, [], "")
         
         with patch.object(executor, '_execute_node', side_effect=mock_execute_side_effect):
             success, outputs = executor.execute([])
@@ -355,7 +355,7 @@ class TestSagaExecutorEdgeCases:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         assert exit_code == 0
     
@@ -383,7 +383,7 @@ class TestSagaExecutorEdgeCases:
             mock_result.stdout = ""
             mock_run.return_value = mock_result
             
-            exit_code, outputs = executor._execute_step("step1", saga.nodes["step1"], [])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
             assert exit_code == 0
 
@@ -412,7 +412,7 @@ class TestSagaExecutorTimeouts:
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
-            exit_code, outputs = executor._execute_step("step1", saga.nodes["step1"], [])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
             assert exit_code == 124
             assert outputs == []
@@ -441,7 +441,7 @@ class TestSagaExecutorTimeouts:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         log_content = tmp_log_path.read_text()
         assert "WARNING" in log_content or "exceeded timeout" in log_content or exit_code == 0
@@ -467,7 +467,7 @@ class TestSagaExecutorTimeouts:
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
-            exit_code, outputs = executor._execute_step("step1", saga.nodes["step1"], [])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
             assert exit_code == 124
     
@@ -495,7 +495,7 @@ class TestSagaExecutorTimeouts:
             mock_result.stdout = ""
             mock_run.return_value = mock_result
             
-            exit_code, outputs = executor._execute_step("step1", saga.nodes["step1"], [])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
             mock_run.assert_called_once()
             assert mock_run.call_args[1]['timeout'] is None
@@ -524,7 +524,7 @@ class TestSagaExecutorTimeouts:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         assert exit_code == 0
 
@@ -566,7 +566,7 @@ class TestSagaExecutorTraversalTracking:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, [])
+            mock_execute.return_value = (0, [], "")
             
             success, outputs = executor.execute([])
             
@@ -595,7 +595,7 @@ class TestSagaExecutorTraversalTracking:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (1, [])
+            mock_execute.return_value = (1, [], "")
             
             success, outputs = executor.execute([])
             
@@ -623,7 +623,7 @@ class TestSagaExecutorTraversalTracking:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, [])
+            mock_execute.return_value = (0, [], "")
             
             success, outputs = executor.execute([])
             
@@ -662,7 +662,7 @@ class TestSagaExecutorErrorHandling:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         assert exit_code == 1
         assert outputs == []
@@ -690,7 +690,7 @@ class TestSagaExecutorErrorHandling:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         assert exit_code == 1
     
@@ -716,7 +716,7 @@ class TestSagaExecutorErrorHandling:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, [])
+            mock_execute.return_value = (0, [], "")
             
             success, outputs = executor.execute([])
             
@@ -743,7 +743,7 @@ class TestSagaExecutorErrorHandling:
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
-            exit_code, outputs = executor._execute_step("step1", saga.nodes["step1"], [])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
             assert exit_code == 124
     
@@ -759,7 +759,7 @@ class TestSagaExecutorErrorHandling:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_node("nonexistent", [])
+        exit_code, outputs, stderr = executor._execute_node("nonexistent", [])
         
         assert exit_code == 1
         assert outputs == []
@@ -781,7 +781,7 @@ class TestSagaExecutorErrorHandling:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor, '_execute_node') as mock_execute:
-            mock_execute.return_value = (0, [])
+            mock_execute.return_value = (0, [], "")
             
             success, outputs = executor.execute([])
             
@@ -813,7 +813,7 @@ class TestSagaExecutorErrorHandling:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        exit_code, outputs = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
+        exit_code, outputs, stderr = executor._execute_subsaga("subsaga1", saga.nodes["subsaga1"], [])
         
         assert exit_code == 1
     
@@ -833,6 +833,6 @@ class TestSagaExecutorErrorHandling:
         
         saga.nodes["step1"].type = "invalid"
         
-        exit_code, outputs = executor._execute_node("step1", [])
+        exit_code, outputs, stderr = executor._execute_node("step1", [])
         
         assert exit_code == 1
