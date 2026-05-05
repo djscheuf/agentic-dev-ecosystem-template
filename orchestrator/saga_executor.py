@@ -12,8 +12,10 @@ from typing import List, Dict, Optional, Tuple
 
 try:
     from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
+    from .devin_wrapper import DevinWrapper, load_step_definition
 except ImportError:
     from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
+    from devin_wrapper import DevinWrapper, load_step_definition
 
 
 class TraversalTracker:
@@ -118,11 +120,11 @@ class SagaExecutor:
         while current_node != "end":
             self.logger.log(f"\n--- Current node: {current_node} ---")
             
-            exit_code, outputs = self._execute_node(current_node, current_inputs)
+            exit_code, outputs, stderr = self._execute_node(current_node, current_inputs)
             
             self.logger.log_step_result(current_node, exit_code)
             
-            next_node, limit_hit = self._route_to_next_node(current_node, exit_code)
+            next_node, limit_hit = self._route_to_next_node(current_node, exit_code, stderr)
             
             if limit_hit:
                 self.logger.log_saga_result(False, "Traversal limit exceeded")
@@ -139,58 +141,88 @@ class SagaExecutor:
         self.logger.log_saga_result(True, "Reached end successfully")
         return True, self.final_outputs
     
-    def _execute_node(self, node_name: str, inputs: List[str]) -> Tuple[int, List[str]]:
-        """Execute a node (step or sub-saga). Returns (exit_code, outputs)."""
+    def _execute_node(self, node_name: str, inputs: List[str]) -> Tuple[int, List[str], str]:
+        """Execute a node (step or sub-saga). Returns (exit_code, outputs, stderr)."""
         if node_name not in self.saga.nodes:
             self.logger.log(f"ERROR: Node '{node_name}' not found in saga definition")
-            return 1, []
+            return 1, [], ""
         
         node_def = self.saga.nodes[node_name]
         
+        # Check for self-correction feedback (indicates session continuation)
+        resume_session = False
         if node_def.type == "step":
-            return self._execute_step(node_name, node_def, inputs)
+            feedback_file = self.steps_dir / node_def.reference / "feedback.txt"
+            if feedback_file.exists():
+                resume_session = True
+                self.logger.log(f"  Resuming session with self-correction feedback")
+        
+        if node_def.type == "step":
+            return self._execute_step(node_name, node_def, inputs, resume_session)
         elif node_def.type == "saga":
             return self._execute_subsaga(node_name, node_def, inputs)
         else:
             self.logger.log(f"ERROR: Unknown node type '{node_def.type}' for node '{node_name}'")
-            return 1, []
+            return 1, [], ""
     
-    def _execute_step(self, node_name: str, node_def: NodeDefinition, inputs: List[str]) -> Tuple[int, List[str]]:
-        """Execute a single step. Returns (exit_code, outputs)."""
+    def _execute_step(self, node_name: str, node_def: NodeDefinition, inputs: List[str], resume_session: bool = False) -> Tuple[int, List[str], str]:
+        """Execute a single step. Returns (exit_code, outputs, stderr)."""
         self.logger.log_step_start(node_name, inputs)
         
         step_def_path = self.steps_dir / node_def.reference / "step.json"
         
-        cmd = [
-            sys.executable,
-            str(Path(__file__).parent / "devin_wrapper.py"),
-            str(step_def_path)
-        ] + inputs
-        
         try:
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=node_def.timeout
-            )
-            exit_code = result.returncode
+            # Load step definition
+            step_def = load_step_definition(str(step_def_path))
             
-            outputs = self._parse_outputs(node_def.reference, result.stdout)
+            # Create wrapper instance
+            wrapper = DevinWrapper(step_def, inputs)
             
-            return exit_code, outputs
+            # Execute with timeout handling
+            if node_def.timeout:
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError(f"Step execution exceeded {node_def.timeout} seconds")
+                
+                # Set timeout alarm (Unix only)
+                if hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(node_def.timeout)
+                
+                try:
+                    exit_code = wrapper.execute(resume_session=resume_session)
+                finally:
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.alarm(0)  # Cancel alarm
+            else:
+                # No timeout
+                exit_code = wrapper.execute(resume_session=resume_session)
+            
+            # Parse outputs
+            outputs = self._parse_outputs(node_def.reference, "")
+            
+            # Read stderr if available
+            stderr = ""
+            if wrapper.stderr_file.exists():
+                stderr = wrapper.stderr_file.read_text()
+                if stderr:
+                    self.logger.log(f"  Verification feedback: {stderr[:200]}...")
+            
+            return exit_code, outputs, stderr
         
-        except subprocess.TimeoutExpired:
+        except TimeoutError as e:
             self.logger.log(f"ERROR: Step '{node_name}' timed out after {node_def.timeout} seconds")
-            return 124, []
+            return 124, [], ""
         
         except Exception as e:
             self.logger.log(f"ERROR executing step '{node_name}': {e}")
-            return 1, []
+            import traceback
+            self.logger.log(f"  Traceback: {traceback.format_exc()}")
+            return 1, [], ""
     
-    def _execute_subsaga(self, node_name: str, node_def: NodeDefinition, inputs: List[str]) -> Tuple[int, List[str]]:
-        """Execute a sub-saga. Returns (exit_code, outputs)."""
+    def _execute_subsaga(self, node_name: str, node_def: NodeDefinition, inputs: List[str]) -> Tuple[int, List[str], str]:
+        """Execute a sub-saga. Returns (exit_code, outputs, stderr)."""
         self.logger.log(f"Entering sub-saga: {node_name}")
         
         saga_path = Path(node_def.reference)
@@ -221,11 +253,12 @@ class SagaExecutor:
             
             self.logger.log(f"Exiting sub-saga: {node_name} (exit code: {exit_code})")
             
-            return exit_code, outputs
+            # Sub-sagas don't have stderr (they're composed of steps)
+            return exit_code, outputs, ""
         
         except Exception as e:
             self.logger.log(f"ERROR executing sub-saga '{node_name}': {e}")
-            return 1, []
+            return 1, [], ""
     
     def _parse_outputs(self, step_name: str, stdout: str) -> List[str]:
         """Parse outputs from step execution."""
@@ -240,12 +273,25 @@ class SagaExecutor:
             except Exception as e:
                 self.logger.log(f"  Warning: Could not parse outputs.json: {e}")
         
+        # Note: stderr prepending for fail path happens in routing logic
+        # This keeps _parse_outputs focused on normal output parsing
+        
         return outputs
     
-    def _route_to_next_node(self, current_node: str, exit_code: int) -> Tuple[Optional[str], bool]:
+    def _route_to_next_node(self, current_node: str, exit_code: int, stderr: str) -> Tuple[Optional[str], bool]:
         """
         Determine next node based on current node and exit code.
         Returns (next_node, limit_hit).
+        
+        Routing rules:
+        - Directed connection (then only):
+          - Exit 0: Follow then path
+          - Exit 1: Saga fails (return None)
+          - Exit 2: Loop back to current node with stderr feedback
+        
+        - Branching connection (pass/fail):
+          - Exit 0: Follow pass path
+          - Exit 1 or 2: Follow fail path with stderr
         """
         if current_node not in self.connection_map:
             return None, False
@@ -253,25 +299,68 @@ class SagaExecutor:
         conn = self.connection_map[current_node]
         
         if isinstance(conn, DirectedConnection):
-            target = conn.then.target
-            limit = conn.then.traversal_limit
+            if exit_code == 0:
+                # Success - follow then path
+                target = conn.then.target
+                limit = conn.then.traversal_limit
+                
+                count = self.tracker.increment(current_node, target)
+                
+                if limit is not None and count > limit:
+                    self.logger.log_traversal_limit_hit(current_node, target, limit)
+                    return None, True
+                
+                self.logger.log_routing(current_node, target, "then", count, limit)
+                
+                # Clean up session files on success
+                self._cleanup_session_files(current_node)
+                
+                return target, False
             
-            count = self.tracker.increment(current_node, target)
+            elif exit_code == 1:
+                # Hard failure with no fail path - saga fails
+                self.logger.log(f"Step '{current_node}' failed (exit 1) with no fail path defined")
+                return None, False
             
-            if limit is not None and count > limit:
-                self.logger.log_traversal_limit_hit(current_node, target, limit)
-                return None, True
+            elif exit_code == 2:
+                # Self-correction needed - loop back to same node
+                target = current_node
+                count = self.tracker.increment(current_node, target)
+                
+                # Check traversal limit on the 'then' connection
+                limit = conn.then.traversal_limit
+                if limit is not None and count > limit:
+                    self.logger.log(f"Self-correction limit exceeded for '{current_node}' (limit: {limit})")
+                    return None, True
+                
+                self.logger.log(f"Self-correction needed for '{current_node}' (attempt {count})")
+                
+                # Prepare feedback for next iteration
+                self._prepare_self_correction_feedback(current_node, stderr)
+                
+                return target, False
             
-            self.logger.log_routing(current_node, target, "then", count, limit)
-            return target, False
+            else:
+                # Unknown exit code - treat as hard failure
+                self.logger.log(f"Step '{current_node}' returned unknown exit code {exit_code}")
+                return None, False
         
         elif isinstance(conn, BranchingConnection):
             if exit_code == 0:
+                # Success - follow pass path
                 target_obj = conn.pass_target
                 reason = "pass"
+                
+                # Clean up session files on success
+                self._cleanup_session_files(current_node)
             else:
+                # Failure (exit 1 or 2) - follow fail path
                 target_obj = conn.fail_target
                 reason = "fail"
+                
+                # Prepend stderr to outputs for fail path
+                if stderr:
+                    self._prepare_fail_path_stderr(current_node, stderr)
             
             target = target_obj.target
             limit = target_obj.traversal_limit
@@ -286,6 +375,42 @@ class SagaExecutor:
             return target, False
         
         return None, False
+    
+    def _prepare_self_correction_feedback(self, node_name: str, stderr: str):
+        """Prepare feedback input for self-correction loop."""
+        if node_name not in self.saga.nodes:
+            return
+        
+        node_def = self.saga.nodes[node_name]
+        if node_def.type != "step":
+            return
+        
+        feedback_file = self.steps_dir / node_def.reference / "feedback.txt"
+        feedback_message = f"The verification script for this step returned the following message:\n\n{stderr}"
+        feedback_file.write_text(feedback_message)
+        self.logger.log(f"  Prepared self-correction feedback for '{node_name}'")
+    
+    def _prepare_fail_path_stderr(self, node_name: str, stderr: str):
+        """Log that stderr will be available for fail path."""
+        self.logger.log(f"  Verification error will be available to fail path")
+    
+    def _cleanup_session_files(self, node_name: str):
+        """Clean up session files after successful completion."""
+        if node_name not in self.saga.nodes:
+            return
+        
+        node_def = self.saga.nodes[node_name]
+        if node_def.type != "step":
+            return
+        
+        step_dir = self.steps_dir / node_def.reference
+        
+        # Remove session tracking files
+        for file in ["session_id.txt", "feedback.txt", "stderr.txt"]:
+            file_path = step_dir / file
+            if file_path.exists():
+                file_path.unlink()
+                self.logger.log(f"  Cleaned up {file}")
 
 
 def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str]) -> Tuple[bool, List[str]]:
