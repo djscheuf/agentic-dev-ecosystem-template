@@ -11,3 +11,5 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](decisions/ADR-005-analysis-separation.md)
 - [ADR-006: Grader Skill Pattern](decisions/ADR-006-grader-skill-pattern.md)
 - [ADR-007: Skill Input Independence](decisions/ADR-007-skill-input-independence.md)
+- [ADR-008: Devin CLI Saga Orchestration](decisions/ADR-008-devin-saga-orchestration.md)
+- [ADR-009: Saga State Persistence with File-Based Storage](decisions/ADR-009-saga-state-persistence.md)

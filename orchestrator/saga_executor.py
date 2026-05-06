@@ -13,9 +13,11 @@ from typing import List, Dict, Optional, Tuple
 try:
     from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
     from .devin_wrapper import DevinWrapper, load_step_definition
+    from .saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
 except ImportError:
     from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
     from devin_wrapper import DevinWrapper, load_step_definition
+    from saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
 
 
 class TraversalTracker:
@@ -91,7 +93,7 @@ class ExecutionLogger:
 class SagaExecutor:
     """Executes a saga workflow."""
     
-    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None):
+    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None, saga_path: Optional[str] = None, original_input: Optional[str] = None):
         self.saga = saga
         self.steps_dir = steps_dir
         self.sagas_dir = sagas_dir
@@ -101,6 +103,12 @@ class SagaExecutor:
         self.tracker = TraversalTracker()
         self.connection_map = self._build_connection_map()
         self.final_outputs: List[str] = []
+        
+        self.state_manager: Optional[SagaStateManager] = None
+        if depth == 0 and saga_path is not None:
+            saga_id = generate_saga_id(saga.name, original_input or "")
+            self.state_manager = SagaStateManager(saga_id)
+            self.state_manager.initialize(saga_path, original_input or "", saga.start)
     
     def _build_connection_map(self) -> Dict[str, any]:
         """Build a map of node -> connection for quick lookup."""
@@ -120,7 +128,9 @@ class SagaExecutor:
         while current_node != "end":
             self.logger.log(f"\n--- Current node: {current_node} ---")
             
+            self._record_step_start(current_node)
             exit_code, outputs, stderr = self._execute_node(current_node, current_inputs)
+            self._record_step_completion(current_node, exit_code)
             
             self.logger.log_step_result(current_node, exit_code)
             
@@ -140,6 +150,44 @@ class SagaExecutor:
         self.final_outputs = current_inputs
         self.logger.log_saga_result(True, "Reached end successfully")
         return True, self.final_outputs
+    
+    def _record_step_start(self, node_name: str) -> None:
+        """Record step start in state manager."""
+        if self.state_manager is None:
+            return
+        
+        entry = StateEntry(
+            node=node_name,
+            status="starting",
+            started_at=datetime.now().isoformat()
+        )
+        self.state_manager.append_state_entry(entry)
+    
+    def _record_step_completion(self, node_name: str, exit_code: int, session_id: Optional[str] = None) -> None:
+        """Record step completion in state manager."""
+        if self.state_manager is None:
+            return
+        
+        updates = {
+            "status": "completed" if exit_code == 0 else "failed",
+            "completed_at": datetime.now().isoformat(),
+            "exit_code": exit_code,
+            "session_id": session_id
+        }
+        self.state_manager.update_last_state_entry(updates)
+    
+    def _record_subsaga_start(self, node_name: str, child_saga_id: str) -> None:
+        """Record sub-saga invocation in state manager."""
+        if self.state_manager is None:
+            return
+        
+        entry = SubSagaEntry(
+            node=node_name,
+            saga_id=child_saga_id,
+            status="in_progress",
+            started_at=datetime.now().isoformat()
+        )
+        self.state_manager.append_subsaga_entry(entry)
     
     def _execute_node(self, node_name: str, inputs: List[str]) -> Tuple[int, List[str], str]:
         """Execute a node (step or sub-saga). Returns (exit_code, outputs, stderr)."""
@@ -191,13 +239,13 @@ class SagaExecutor:
                     signal.alarm(node_def.timeout)
                 
                 try:
-                    exit_code = wrapper.execute(resume_session=resume_session)
+                    exit_code, session_id = wrapper.execute(resume_session=resume_session)
                 finally:
                     if hasattr(signal, 'SIGALRM'):
                         signal.alarm(0)  # Cancel alarm
             else:
                 # No timeout
-                exit_code = wrapper.execute(resume_session=resume_session)
+                exit_code, session_id = wrapper.execute(resume_session=resume_session)
             
             # Parse outputs
             outputs = self._parse_outputs(node_def.reference, "")
@@ -233,14 +281,22 @@ class SagaExecutor:
             sub_saga_data = json.loads(saga_path.read_text())
             sub_saga = SagaDefinition.from_dict(sub_saga_data)
             
+            saga_path_abs = str(saga_path.resolve())
             sub_executor = SagaExecutor(
                 sub_saga,
                 self.steps_dir,
                 self.sagas_dir,
                 self.log_path,
                 depth=self.depth + 1,
-                logger=self.logger
+                logger=self.logger,
+                saga_path=saga_path_abs,
+                original_input=""
             )
+            
+            # Record sub-saga invocation in parent state manager
+            if sub_executor.state_manager is not None:
+                child_saga_id = sub_executor.state_manager.saga_id
+                self._record_subsaga_start(node_name, child_saga_id)
             
             start_time = datetime.now()
             success, outputs = sub_executor.execute(inputs)
@@ -413,7 +469,7 @@ class SagaExecutor:
                 self.logger.log(f"  Cleaned up {file}")
 
 
-def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str]) -> Tuple[bool, List[str]]:
+def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str], saga_path: Optional[str] = None, original_input: Optional[str] = None) -> Tuple[bool, List[str]]:
     """Execute a saga. Returns (success, final_outputs)."""
-    executor = SagaExecutor(saga, steps_dir, sagas_dir, log_path)
+    executor = SagaExecutor(saga, steps_dir, sagas_dir, log_path, saga_path=saga_path, original_input=original_input)
     return executor.execute(initial_inputs)

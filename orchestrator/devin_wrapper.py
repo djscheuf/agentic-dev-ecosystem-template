@@ -202,8 +202,14 @@ class DevinWrapper:
             print(f"[Devin Wrapper] ERROR: Failed to execute verification: {e}", file=sys.stderr)
             return 1, str(e)
     
-    def execute(self, resume_session: bool = False) -> int:
-        """Execute the full workflow: Devin + verification."""
+    def execute(self, resume_session: bool = False) -> Tuple[int, Optional[str]]:
+        """Execute the full workflow: Devin + verification.
+        
+        Returns:
+            Tuple[int, Optional[str]]: (exit_code, session_id)
+                - exit_code: 0 for success, non-zero for failure
+                - session_id: Devin session ID if extracted, None otherwise
+        """
         # Load session ID if resuming
         if resume_session:
             self._load_session_id()
@@ -222,7 +228,7 @@ class DevinWrapper:
         
         if devin_exit_code != 0:
             print(f"[Devin Wrapper] Devin execution failed with exit code {devin_exit_code}", file=sys.stderr)
-            return devin_exit_code
+            return devin_exit_code, self.session_id
         
         print("[Devin Wrapper] Devin execution completed successfully")
         
@@ -233,7 +239,7 @@ class DevinWrapper:
         if stderr:
             self.stderr_file.write_text(stderr)
         
-        return verify_exit_code
+        return verify_exit_code, self.session_id
 
 
 def load_step_definition(path: str) -> StepDefinition:
@@ -275,7 +281,7 @@ def main():
         
         # Create wrapper and execute
         wrapper = DevinWrapper(step_def, input_files)
-        exit_code = wrapper.execute(resume_session=resume_session)
+        exit_code, session_id = wrapper.execute(resume_session=resume_session)
         
         sys.exit(exit_code)
         

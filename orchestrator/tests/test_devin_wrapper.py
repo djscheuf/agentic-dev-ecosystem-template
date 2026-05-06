@@ -55,9 +55,10 @@ class TestDevinWrapperHappyPath:
             mock_result.stderr = ""
             mock_run.return_value = mock_result
             
-            exit_code = wrapper.execute()
+            exit_code, session_id = wrapper.execute()
             
             assert exit_code == 0
+            assert session_id is None
             assert mock_run.call_count == 2
     
     def test_d_h_03_execute_with_input_files(self, tmp_path):
@@ -325,3 +326,336 @@ class TestDevinWrapperErrorHandling:
         
         assert exit_code == 0
         assert stderr == ""
+
+
+class TestSessionIDExtraction:
+    """Session ID extraction tests (S-E-*)."""
+    
+    def test_s_e_01_extract_session_id_pattern_1(self, tmp_path):
+        """S-E-01: Extract session ID with 'Starting new session:' pattern."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "Starting new session: sess_abc123def456"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "sess_abc123def456"
+        assert wrapper.session_file.exists()
+        assert wrapper.session_file.read_text() == "sess_abc123def456"
+    
+    def test_s_e_02_extract_session_id_pattern_2(self, tmp_path):
+        """S-E-02: Extract session ID with 'Session <id> started' pattern."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "Session xyz789 started"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "xyz789"
+        assert wrapper.session_file.read_text() == "xyz789"
+    
+    def test_s_e_03_extract_session_id_pattern_3(self, tmp_path):
+        """S-E-03: Extract session ID with 'session_id:' pattern."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "session_id: sess_final_123"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "sess_final_123"
+        assert wrapper.session_file.read_text() == "sess_final_123"
+    
+    def test_s_e_04_extract_session_id_case_insensitive(self, tmp_path):
+        """S-E-04: Extract session ID with case-insensitive matching."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "SESSION_ID: upper_case_id"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "upper_case_id"
+    
+    def test_s_e_05_extract_session_id_with_whitespace(self, tmp_path):
+        """S-E-05: Extract session ID with various whitespace patterns."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "Starting new session:    sess_with_spaces"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "sess_with_spaces"
+    
+    def test_s_e_06_extract_session_id_in_multiline_output(self, tmp_path):
+        """S-E-06: Extract session ID from multiline output."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = """
+        Initializing Devin...
+        Starting new session: sess_multiline_123
+        Executing task...
+        """
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "sess_multiline_123"
+    
+    def test_s_e_07_no_session_id_in_output(self, tmp_path):
+        """S-E-07: Handle output with no session ID gracefully."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "Task completed successfully"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id is None
+        assert not wrapper.session_file.exists()
+    
+    def test_s_e_08_malformed_session_id_no_match(self, tmp_path):
+        """S-E-08: Handle malformed session ID output."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "session_id: "
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id is None
+    
+    def test_s_e_09_extract_session_id_with_special_chars(self, tmp_path):
+        """S-E-09: Extract session ID with special characters."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        stdout = "Starting new session: sess-abc_123.xyz"
+        wrapper._extract_session_id(stdout)
+        
+        assert wrapper.session_id == "sess-abc_123.xyz"
+
+
+class TestExecuteMethodReturnValue:
+    """Tests for execute method return value contract (E-R-*)."""
+    
+    def test_e_r_01_execute_returns_tuple(self, tmp_path):
+        """E-R-01: execute() returns tuple of (exit_code, session_id)."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = "Starting new session: sess_test_123"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+            
+            result = wrapper.execute()
+            
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            assert isinstance(result[0], int)
+            assert result[0] == 0
+            assert result[1] == "sess_test_123"
+    
+    def test_e_r_02_execute_returns_none_session_id_when_not_found(self, tmp_path):
+        """E-R-02: execute() returns None for session_id when not found."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = "Task completed"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+            
+            exit_code, session_id = wrapper.execute()
+            
+            assert exit_code == 0
+            assert session_id is None
+    
+    def test_e_r_03_execute_returns_nonzero_exit_code(self, tmp_path):
+        """E-R-03: execute() returns non-zero exit code on failure."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 1
+            mock_result.stdout = ""
+            mock_result.stderr = "Error occurred"
+            mock_run.return_value = mock_result
+            
+            exit_code, session_id = wrapper.execute()
+            
+            assert exit_code == 1
+            assert session_id is None
+    
+    def test_e_r_04_execute_with_verification_success(self, tmp_path):
+        """E-R-04: execute() with verification script success."""
+        verify_script = tmp_path / "verify.sh"
+        verify_script.write_text("#!/bin/bash\nexit 0")
+        verify_script.chmod(0o755)
+        
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "verify": str(verify_script)
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = "Starting new session: sess_verify_123"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+            
+            exit_code, session_id = wrapper.execute()
+            
+            assert exit_code == 0
+            assert session_id == "sess_verify_123"
+    
+    def test_e_r_05_execute_with_verification_failure(self, tmp_path):
+        """E-R-05: execute() returns verification failure exit code."""
+        verify_script = tmp_path / "verify.sh"
+        verify_script.write_text("#!/bin/bash\nexit 1")
+        verify_script.chmod(0o755)
+        
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "verify": str(verify_script)
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            # First call is devin, second is verification
+            devin_result = Mock()
+            devin_result.returncode = 0
+            devin_result.stdout = "Starting new session: sess_fail_123"
+            devin_result.stderr = ""
+            
+            verify_result = Mock()
+            verify_result.returncode = 1
+            verify_result.stderr = "Verification failed"
+            
+            mock_run.side_effect = [devin_result, verify_result]
+            
+            exit_code, session_id = wrapper.execute()
+            
+            assert exit_code == 1
+            assert session_id == "sess_fail_123"
+    
+    def test_e_r_06_execute_returns_session_id_with_multiple_patterns(self, tmp_path):
+        """E-R-06: execute() extracts session ID using multiple patterns."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = "Session sess_pattern2 started"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+            
+            exit_code, session_id = wrapper.execute()
+            
+            assert exit_code == 0
+            assert session_id == "sess_pattern2"

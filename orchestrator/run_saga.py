@@ -85,7 +85,9 @@ def main():
         print(f"[Saga Orchestrator] Execution log: {log_path}")
         print("[Saga Orchestrator] Starting saga execution...\n")
         
-        success, final_outputs = execute_saga(saga, steps_dir, sagas_dir, log_path, initial_inputs)
+        saga_path_abs = str(Path(saga_def_path).resolve())
+        original_input = initial_inputs[0] if initial_inputs else ""
+        success, final_outputs = execute_saga(saga, steps_dir, sagas_dir, log_path, initial_inputs, saga_path_abs, original_input)
         
         if success:
             print(f"\n[Saga Orchestrator] ✓ Saga '{saga.name}' completed successfully")
