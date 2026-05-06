@@ -61,6 +61,10 @@ class DevinWrapper:
         # Add model
         cmd.extend(["--model", self.step_def.model])
         
+        # Use agent config to allow file writes in non-interactive mode
+        # The config uses 'permissions' field with 'allow' and 'deny' lists
+        cmd.extend(["--agent-config", ".devin/agent-config.json"])
+        
         # Use print mode for non-interactive execution
         cmd.append("-p")
         
