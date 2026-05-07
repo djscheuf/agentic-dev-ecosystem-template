@@ -13,3 +13,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-007: Skill Input Independence](decisions/ADR-007-skill-input-independence.md)
 - [ADR-008: Devin CLI Saga Orchestration](decisions/ADR-008-devin-saga-orchestration.md)
 - [ADR-009: Saga State Persistence with File-Based Storage](decisions/ADR-009-saga-state-persistence.md)
+
+## Services & Components
+
+- [Saga State Enrichment](services/saga-enrichment.md) - Context enrichment for saga execution

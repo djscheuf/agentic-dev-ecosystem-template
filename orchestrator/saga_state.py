@@ -5,6 +5,11 @@ from pathlib import Path
 from dataclasses import dataclass, asdict, field
 from typing import Optional, List, Dict, Any
 
+try:
+    from .enrichment import EnrichmentDictionary
+except ImportError:
+    from enrichment import EnrichmentDictionary
+
 
 def generate_saga_id(saga_name: str, input_path: str) -> str:
     """
@@ -109,6 +114,7 @@ class SagaStateManager:
         self.saga_id = saga_id
         self.saga_dir = Path.cwd() / ".process" / f"saga-{saga_id}"
         self.state_file = self.saga_dir / "saga.json"
+        self.enrichment_file = self.saga_dir / "enrichment.json"
         self.state: Optional[SagaState] = None
 
     def initialize(
@@ -223,3 +229,36 @@ class SagaStateManager:
         temp_file = self.state_file.with_suffix(".tmp")
         temp_file.write_text(state_json)
         temp_file.replace(self.state_file)
+
+    def save_enrichment(self, enrichment: EnrichmentDictionary) -> None:
+        """
+        Save enrichment dictionary to file using atomic write strategy.
+        
+        Args:
+            enrichment: EnrichmentDictionary to persist
+        """
+        enrichment_dict = enrichment.to_dict()
+        enrichment_json = json.dumps(enrichment_dict, indent=2)
+        
+        enrichment_file = self.saga_dir / "enrichment.json"
+        temp_file = enrichment_file.with_suffix(".tmp")
+        temp_file.write_text(enrichment_json)
+        temp_file.replace(enrichment_file)
+
+    def load_enrichment(self) -> EnrichmentDictionary:
+        """
+        Load enrichment dictionary from file.
+        
+        Returns:
+            EnrichmentDictionary loaded from persisted state
+            
+        Raises:
+            FileNotFoundError: If enrichment.json does not exist
+            json.JSONDecodeError: If enrichment.json is corrupted
+        """
+        enrichment_file = self.saga_dir / "enrichment.json"
+        if not enrichment_file.exists():
+            raise FileNotFoundError(f"Enrichment file not found: {enrichment_file}")
+        
+        data = json.loads(enrichment_file.read_text())
+        return EnrichmentDictionary.from_dict(data)

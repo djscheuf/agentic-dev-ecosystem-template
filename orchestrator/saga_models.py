@@ -48,6 +48,7 @@ class SagaDefinition:
     nodes: Dict[str, NodeDefinition]
     connections: List[Connection]
     max_recursion_depth: Optional[int] = 50
+    enrichment: Dict[str, str] = field(default_factory=dict)
     
     @staticmethod
     def from_dict(data: dict) -> 'SagaDefinition':
@@ -126,10 +127,13 @@ class SagaDefinition:
                     f"Connection from '{node}' must have either 'then' or 'pass'/'fail'"
                 )
         
+        enrichment = data.get("enrichment", {})
+        
         return SagaDefinition(
             name=name,
             start=start,
             nodes=nodes,
             connections=connections,
-            max_recursion_depth=max_recursion_depth
+            max_recursion_depth=max_recursion_depth,
+            enrichment=enrichment
         )

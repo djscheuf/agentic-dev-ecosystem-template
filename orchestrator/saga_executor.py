@@ -14,10 +14,12 @@ try:
     from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
     from .devin_wrapper import DevinWrapper, load_step_definition
     from .saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
+    from .enrichment import EnrichmentDictionary
 except ImportError:
     from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
     from devin_wrapper import DevinWrapper, load_step_definition
     from saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
+    from enrichment import EnrichmentDictionary
 
 
 class TraversalTracker:
@@ -109,6 +111,14 @@ class SagaExecutor:
             saga_id = generate_saga_id(saga.name, original_input or "")
             self.state_manager = SagaStateManager(saga_id)
             self.state_manager.initialize(saga_path, original_input or "", saga.start)
+            
+            enrichment = EnrichmentDictionary(
+                saga_id=saga_id,
+                state_storage_location=str(self.state_manager.saga_dir),
+                initial_prompt_path=saga_path,
+                custom_variables=saga.enrichment
+            )
+            self.state_manager.save_enrichment(enrichment)
     
     def _build_connection_map(self) -> Dict[str, any]:
         """Build a map of node -> connection for quick lookup."""
