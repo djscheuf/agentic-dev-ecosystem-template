@@ -1,0 +1,36 @@
+{
+  "name": "sdlc-analysis",
+  "start": "extract",
+  "nodes": {
+    "extract": {
+      "type": "step",
+      "reference": "extract-story-intent"
+    },
+    "analyze": {
+      "type": "step",
+      "reference": "analyze-story"
+    }
+  },
+  "connections": [
+    {
+      "node": "extract",
+      "pass": {
+        "target": "analyze"
+      },
+      "fail": {
+        "target": "extract",
+        "traversal_limit": 2
+      }
+    },
+    {
+      "node": "analyze",
+      "pass": {
+        "target": "end"
+      },
+      "fail": {
+        "target": "analyze",
+        "traversal_limit": 2
+      }
+    }
+  ]
+}

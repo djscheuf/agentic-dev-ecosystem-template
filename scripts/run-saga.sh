@@ -23,4 +23,4 @@ if [ ! -f "$SAGA_DEF_PATH" ]; then
 fi
 
 nix-shell -p python3 \
-  --run "python3 -m orchestrator.run_saga '$SAGA_DEF_PATH' ${INPUT_FILES[@]}"
+  --run "python3 orchestrator/run_saga.py '$SAGA_DEF_PATH' ${INPUT_FILES[@]}"

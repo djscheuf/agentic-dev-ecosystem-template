@@ -154,6 +154,9 @@ class DevinWrapper(AgentWrapper):
             # Use existing session_id if resuming, otherwise use extracted
             final_session_id = session_id if session_id else extracted_session_id
             
+            if not final_session_id:
+                print(f"[DevinWrapper] WARNING: No session ID found. Extracted: {extracted_session_id}, Provided: {session_id}")
+            
             return result.stdout, final_session_id
         
         except subprocess.TimeoutExpired:

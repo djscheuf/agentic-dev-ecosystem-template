@@ -27,9 +27,15 @@ except ImportError:
 class Orchestrator:
     """Orchestrates step execution with state management and verification."""
     
-    def __init__(self):
-        """Initialize the orchestrator."""
+    def __init__(self, logging_dir: Optional[Path] = None):
+        """Initialize the orchestrator.
+        
+        Args:
+            logging_dir: Optional directory for writing feedback and stderr files.
+                        If None, files are written to step directories.
+        """
         self.wrapper = DevinWrapper()
+        self.logging_dir = logging_dir
     
     def invoke_step(
         self,
@@ -38,7 +44,8 @@ class Orchestrator:
         prompt: str,
         enrichment: Optional[Dict[str, Any]] = None,
         timeout: Optional[int] = None,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        step_name: Optional[str] = None
     ) -> Tuple[int, Optional[str]]:
         """Invoke a step with full orchestration.
         
@@ -49,6 +56,7 @@ class Orchestrator:
             enrichment: Optional enrichment dictionary for variable substitution
             timeout: Optional timeout in seconds
             session_id: Optional session ID to resume
+            step_name: Optional step name for logging (used as prefix for feedback/stderr files)
         
         Returns:
             Tuple[int, Optional[str]]: (exit_code, session_id)
@@ -67,10 +75,23 @@ class Orchestrator:
         
         step_def = json.loads(step_file.read_text())
         
-        # Enrich prompt if enrichment provided
-        enriched_prompt = prompt
-        if enrichment:
-            enriched_prompt = self._enrich_prompt(prompt, enrichment)
+        # Check if resuming with verification errors
+        verification_errors = enrichment.get('verification_errors') if enrichment else None
+        print(f"[Orchestrator] invoke_step: session_id={session_id}, has_enrichment={enrichment is not None}, has_verification_errors={verification_errors is not None}")
+        
+        # Build the prompt/message to send
+        if session_id and verification_errors:
+            # Resuming session: send verification errors as continuation message
+            execution_prompt = f"Verification failed. Please review and fix the following errors:\n\n{verification_errors}"
+            print(f"[Orchestrator] Resuming session with verification errors ({len(verification_errors)} bytes)")
+        else:
+            # New session or resuming without errors: use normal prompt
+            enriched_prompt = prompt
+            if enrichment:
+                enriched_prompt = self._enrich_prompt(prompt, enrichment)
+            execution_prompt = enriched_prompt
+            if session_id:
+                print(f"[Orchestrator] Resuming session without verification errors")
         
         # Get agent config path
         agent_config = step_def.get("agent_config", ".devin/agent-config.json")
@@ -83,7 +104,7 @@ class Orchestrator:
         # Invoke wrapper
         try:
             output, returned_session_id = self._invoke_wrapper(
-                prompt=enriched_prompt,
+                prompt=execution_prompt,
                 model=model,
                 agent_config=agent_config,
                 timeout=timeout,
@@ -94,12 +115,13 @@ class Orchestrator:
             return 1, session_id
         
         # Write session state files
-        self._write_session_state(step_dir, output, returned_session_id)
+        print(f"[Orchestrator] Writing session state: returned_session_id={returned_session_id}")
+        self._write_session_state(step_dir, output, returned_session_id, step_name or step_id)
         
         # Run verification script if specified
         verify_script = step_def.get("verify")
         if verify_script:
-            exit_code = self._run_verification(step_dir, verify_script)
+            exit_code = self._run_verification(step_dir, verify_script, step_name or step_id)
         else:
             exit_code = 0
         
@@ -152,34 +174,49 @@ class Orchestrator:
         self,
         step_dir: Path,
         output: str,
-        session_id: Optional[str]
+        session_id: Optional[str],
+        step_name: str
     ) -> None:
         """Write session state files.
         
         Args:
             step_dir: The step directory
-            output: The wrapper output
+            output: The wrapper output (stdout from agent)
             session_id: The session ID
+            step_name: The step name for file prefixes
         """
+        # Determine output directory
+        if self.logging_dir:
+            output_dir = self.logging_dir
+        else:
+            # Fallback to .process/{step}/ to avoid writing to step directory
+            output_dir = Path.cwd() / ".process" / step_name
+            output_dir.mkdir(parents=True, exist_ok=True)
+        
         # Write session ID if available
         if session_id:
-            session_file = step_dir / "session_id.txt"
+            session_file = output_dir / "session_id.txt"
             session_file.write_text(session_id)
         
-        # Write output/feedback
-        feedback_file = step_dir / "feedback.txt"
-        feedback_file.write_text(output)
+        # Write agent stdout
+        if self.logging_dir:
+            stdout_file = output_dir / f"{step_name}_stdout.txt"
+        else:
+            stdout_file = output_dir / "stdout.txt"
+        stdout_file.write_text(output)
     
     def _run_verification(
         self,
         step_dir: Path,
-        verify_script: str
+        verify_script: str,
+        step_name: str
     ) -> int:
         """Run verification script.
         
         Args:
             step_dir: The step directory
             verify_script: Path to verification script (relative or absolute)
+            step_name: The step name for file prefixes
         
         Returns:
             int: Exit code from verification script
@@ -205,7 +242,13 @@ class Orchestrator:
             
             # Write stderr if present
             if result.stderr:
-                stderr_file = step_dir / "stderr.txt"
+                if self.logging_dir:
+                    stderr_file = self.logging_dir / f"{step_name}_stderr.txt"
+                else:
+                    # Fallback to .process/{step}/ to avoid writing to step directory
+                    output_dir = Path.cwd() / ".process" / step_name
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    stderr_file = output_dir / "stderr.txt"
                 stderr_file.write_text(result.stderr)
             
             return result.returncode

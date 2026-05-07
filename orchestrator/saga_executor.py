@@ -16,7 +16,12 @@ try:
     from .saga_state import SagaStateManager
 except ImportError:
     from models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition, StateEntry, SubSagaEntry, generate_saga_id, EnrichmentDictionary
-    from orchestrator import Orchestrator
+    import sys
+    import os
+    # Import orchestrator module from the same directory
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import orchestrator as orch_module
+    Orchestrator = orch_module.Orchestrator
     from saga_state import SagaStateManager
 
 
@@ -103,7 +108,6 @@ class SagaExecutor:
         self.tracker = TraversalTracker()
         self.connection_map = self._build_connection_map()
         self.final_outputs: List[str] = []
-        self.orchestrator = Orchestrator()
         
         self.state_manager: Optional[SagaStateManager] = None
         if depth == 0 and saga_path is not None:
@@ -118,6 +122,10 @@ class SagaExecutor:
                 custom_variables=saga.enrichment
             )
             self.state_manager.save_enrichment(enrichment)
+        
+        # Initialize orchestrator with logging directory
+        logging_dir = self.state_manager.saga_dir if self.state_manager else None
+        self.orchestrator = Orchestrator(logging_dir=logging_dir)
     
     def _build_connection_map(self) -> Dict[str, any]:
         """Build a map of node -> connection for quick lookup."""
@@ -206,13 +214,13 @@ class SagaExecutor:
         
         node_def = self.saga.nodes[node_name]
         
-        # Check for self-correction feedback (indicates session continuation)
+        # Check for stdout (indicates session continuation)
         resume_session = False
-        if node_def.type == "step":
-            feedback_file = self.steps_dir / node_def.reference / "feedback.txt"
-            if feedback_file.exists():
+        if node_def.type == "step" and self.state_manager:
+            stdout_file = self.state_manager.saga_dir / f"{node_name}_stdout.txt"
+            if stdout_file.exists():
                 resume_session = True
-                self.logger.log(f"  Resuming session with self-correction feedback")
+                self.logger.log(f"  Resuming session with verification feedback")
         
         if node_def.type == "step":
             return self._execute_step(node_name, node_def, inputs, resume_session)
@@ -237,29 +245,48 @@ class SagaExecutor:
             # Build enrichment dictionary from inputs
             enrichment = self._build_enrichment(node_def.reference, inputs)
             
-            # Load session ID if resuming
+            # Load session ID and verification errors if resuming
             session_id = None
+            verification_errors = None
             if resume_session:
-                session_file = step_dir / "session_id.txt"
+                if self.state_manager:
+                    session_file = self.state_manager.saga_dir / "session_id.txt"
+                    stderr_file = self.state_manager.saga_dir / f"{node_name}_stderr.txt"
+                else:
+                    session_file = Path.cwd() / ".process" / node_name / "session_id.txt"
+                    stderr_file = Path.cwd() / ".process" / node_name / "stderr.txt"
+                
                 if session_file.exists():
                     session_id = session_file.read_text().strip()
+                
+                if stderr_file.exists():
+                    verification_errors = stderr_file.read_text()
+                    enrichment['verification_errors'] = verification_errors
+                    self.logger.log(f"  Loaded verification errors for enrichment ({len(verification_errors)} bytes)")
             
             # Invoke step through orchestrator
+            if 'verification_errors' in enrichment:
+                self.logger.log(f"  Passing verification_errors to orchestrator ({len(enrichment['verification_errors'])} bytes)")
             exit_code, returned_session_id = self.orchestrator.invoke_step(
                 step_id=node_def.reference,
                 steps_dir=self.steps_dir,
                 prompt=prompt,
                 enrichment=enrichment,
                 timeout=node_def.timeout,
-                session_id=session_id
+                session_id=session_id,
+                step_name=node_name
             )
             
             # Parse outputs
             outputs = self._parse_outputs(node_def.reference, "")
             
-            # Read stderr if available
+            # Read stderr if available (from saga state dir or .process/{step}/)
             stderr = ""
-            stderr_file = step_dir / "stderr.txt"
+            if self.state_manager:
+                stderr_file = self.state_manager.saga_dir / f"{node_name}_stderr.txt"
+            else:
+                stderr_file = Path.cwd() / ".process" / node_name / "stderr.txt"
+            
             if stderr_file.exists():
                 stderr = stderr_file.read_text()
                 if stderr:
@@ -468,10 +495,12 @@ class SagaExecutor:
         if node_def.type != "step":
             return
         
-        feedback_file = self.steps_dir / node_def.reference / "feedback.txt"
-        feedback_message = f"The verification script for this step returned the following message:\n\n{stderr}"
-        feedback_file.write_text(feedback_message)
+        # Orchestrator already wrote stderr to saga state dir
+        # Just log that feedback is available for self-correction
         self.logger.log(f"  Prepared self-correction feedback for '{node_name}'")
+        if self.state_manager:
+            stderr_file = self.state_manager.saga_dir / f"{node_name}_stderr.txt"
+            self.logger.log(f"  Stderr available at: {stderr_file}")
     
     def _prepare_fail_path_stderr(self, node_name: str, stderr: str):
         """Log that stderr will be available for fail path."""
@@ -486,14 +515,23 @@ class SagaExecutor:
         if node_def.type != "step":
             return
         
-        step_dir = self.steps_dir / node_def.reference
-        
         # Remove session tracking files
-        for file in ["session_id.txt", "feedback.txt", "stderr.txt"]:
-            file_path = step_dir / file
-            if file_path.exists():
-                file_path.unlink()
-                self.logger.log(f"  Cleaned up {file}")
+        if self.state_manager:
+            # Clean up from saga state directory
+            for suffix in ["stdout.txt", "stderr.txt"]:
+                file_path = self.state_manager.saga_dir / f"{node_name}_{suffix}"
+                if file_path.exists():
+                    file_path.unlink()
+                    self.logger.log(f"  Cleaned up {node_name}_{suffix}")
+        else:
+            # Clean up from .process/{step}/ directory
+            process_dir = Path.cwd() / ".process" / node_name
+            if process_dir.exists():
+                for file in ["stdout.txt", "stderr.txt", "session_id.txt"]:
+                    file_path = process_dir / file
+                    if file_path.exists():
+                        file_path.unlink()
+                        self.logger.log(f"  Cleaned up {file}")
 
 
 def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str], saga_path: Optional[str] = None, original_input: Optional[str] = None) -> Tuple[bool, List[str]]:
