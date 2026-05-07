@@ -1,0 +1,113 @@
+{
+  "raw_request": "docs/reqs/orchestrator prompt enrichment/01-saga-state-enrichment-requirements.md",
+  "user_story": {
+    "as_a": "Saga orchestrator system",
+    "i_want": "Enrich step prompts with Saga state variables at invocation time, maintaining a prompt enrichment dictionary with saga context (ID, state location, initial prompt path, custom variables) and a previous_step_output variable that is updated after each completed step",
+    "so_that": "Subsequent agents can reference context about the Saga execution without requiring external lookups, enabling proper output placement, context-aware prompting, and deterministic step-to-step communication"
+  },
+  "target_persona": {
+    "name": "Saga Orchestrator System",
+    "role": "Workflow execution engine",
+    "technical_level": "Expert",
+    "frequency_of_use": "Continuous (every saga execution)",
+    "environment": "Backend/CLI",
+    "permissions": "Full control over saga state, step execution, and verification"
+  },
+  "capability_breakdown": {
+    "core_action": "Maintain and propagate saga context variables through step execution",
+    "inputs_required": [
+      "Saga definition with optional enrichment configuration",
+      "Initial input path or content",
+      "Step definitions and prompts",
+      "Verify script outputs"
+    ],
+    "outputs_expected": [
+      "Enriched step prompts with variable substitution",
+      "Persisted enrichment dictionary in saga state",
+      "Updated previous_step_output after each step",
+      "Verify script parameters (state directory, enrichment dictionary path)"
+    ],
+    "state_changes": [
+      "Enrichment dictionary created and persisted",
+      "previous_step_output updated after each step completion",
+      "Saga state includes enrichment context"
+    ],
+    "side_effects": [
+      "Verify scripts receive enrichment dictionary path",
+      "Step prompts contain substituted variables",
+      "Saga state directory contains enrichment.json file"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Orchestrator maintains a prompt enrichment dictionary with Saga ID, state storage location, initial prompt path, and custom variables",
+      "gherkin": "Given a saga with enrichment configuration, when the saga is initialized, then the enrichment dictionary contains saga_id, state_storage_location, initial_prompt_path, and custom variables",
+      "type": "functional",
+      "jtbd": "Initialize enrichment dictionary with saga context",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Enrichment dictionary is persisted as JSON in the saga state directory",
+      "gherkin": "Given an initialized saga, when the enrichment dictionary is created, then it is written to {saga_state_dir}/enrichment.json",
+      "type": "functional",
+      "jtbd": "Persist enrichment dictionary to file",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Step prompts are enriched with variables from the enrichment dictionary before DevinWrapper invocation",
+      "gherkin": "Given a step prompt with template variables, when the step is about to execute, then variables are substituted using the enrichment dictionary",
+      "type": "functional",
+      "jtbd": "Substitute variables in step prompts",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "previous_step_output variable is updated after each completed step with verify script output",
+      "gherkin": "Given a completed step with verify script output, when the step completes successfully, then previous_step_output is set to the verify script's stdout",
+      "type": "functional",
+      "jtbd": "Capture and propagate step output",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Verify scripts receive saga state directory and enrichment dictionary path as parameters",
+      "gherkin": "Given a verify script, when it is invoked, then it receives two parameters: saga_state_dir and enrichment_dict_path",
+      "type": "functional",
+      "jtbd": "Pass state context to verify scripts",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Enrichment dictionary is restored when a saga is resumed",
+      "gherkin": "Given a saga that was previously executed, when the saga is resumed, then the enrichment dictionary is loaded from the persisted state",
+      "type": "functional",
+      "jtbd": "Restore enrichment context on resume",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Child saga's verify script output becomes parent saga's previous_step_output",
+      "gherkin": "Given a parent saga with a child saga node, when the child saga completes, then its verify script output becomes the parent's previous_step_output",
+      "type": "functional",
+      "jtbd": "Chain saga results through output mechanism",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Saga definitions support enrichment configuration with custom variables",
+      "gherkin": "Given a saga definition with enrichment field, when the saga is loaded, then custom variables are included in the enrichment dictionary",
+      "type": "functional",
+      "jtbd": "Support custom enrichment variables",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Verification failures provide error messages that are captured and used to enrich follow-on prompts",
+      "gherkin": "Given a failed verification, when the next step is about to execute, then the error message is available in the enrichment context",
+      "type": "functional",
+      "jtbd": "Propagate verification errors as context",
+      "persona": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Step output logging is separate from previous_step_output mechanism",
+      "gherkin": "Given a completed step, when step output is logged, then it is recorded separately from the previous_step_output variable",
+      "type": "functional",
+      "jtbd": "Maintain separate output logging",
+      "persona": "Saga Orchestrator System"
+    }
+  ]
+}
