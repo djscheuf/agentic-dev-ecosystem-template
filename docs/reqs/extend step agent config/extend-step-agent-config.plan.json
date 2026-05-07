@@ -1,0 +1,343 @@
+{
+  "plan_title": "Extend Step Architecture for Per-Step Agent Configuration",
+  "plan_date": "2026-05-06",
+  "source_story": "extend-step-agent-config.analysis.json",
+  "source_design": "extend-step-agent-config.design.json",
+  "plan_summary": "Implement per-step agent configuration support by extending StepDefinition and DevinWrapper classes, adding validation to saga validator, and comprehensive testing. Implementation follows existing patterns and maintains backward compatibility.",
+  "impacted_layers": [
+    {
+      "layer": "Orchestration Layer",
+      "components": [
+        "orchestrator/devin_wrapper.py - StepDefinition class",
+        "orchestrator/saga_executor.py - step execution flow"
+      ],
+      "changes": "Add agent_config field and path resolution"
+    },
+    {
+      "layer": "Wrapper Layer",
+      "components": [
+        "orchestrator/devin_wrapper.py - DevinWrapper class"
+      ],
+      "changes": "Update command building to use step-specific config"
+    },
+    {
+      "layer": "Validation Layer",
+      "components": [
+        "orchestrator/saga_validator.py - step validation"
+      ],
+      "changes": "Add agent_config file existence checks"
+    },
+    {
+      "layer": "Testing Layer",
+      "components": [
+        "orchestrator/tests/test_devin_wrapper.py",
+        "orchestrator/tests/test_saga_validator.py"
+      ],
+      "changes": "Add unit and integration tests"
+    }
+  ],
+  "implementation_steps": [
+    {
+      "step_number": 1,
+      "title": "Extend StepDefinition Class",
+      "description": "Add agent_config field to StepDefinition and implement path resolution",
+      "layer": "Orchestration Layer",
+      "tasks": [
+        "Add agent_config field to __init__() - extract from data dict",
+        "Handle empty/null values - treat as not specified",
+        "Implement get_agent_config_path() method",
+        "Resolve paths relative to step_def_dir",
+        "Support both relative and absolute paths",
+        "Add docstrings and type hints"
+      ],
+      "acceptance_criteria": [
+        "StepDefinition accepts agent_config field from step.json",
+        "get_agent_config_path() returns None if agent_config not specified",
+        "Relative paths resolve to step directory",
+        "Absolute paths are returned as-is",
+        "Empty/null values treated as not specified"
+      ],
+      "dependencies": [],
+      "estimated_effort": "2 hours"
+    },
+    {
+      "step_number": 2,
+      "title": "Update DevinWrapper.build_devin_command()",
+      "description": "Modify command building to use step-specific config if available",
+      "layer": "Wrapper Layer",
+      "tasks": [
+        "Get agent_config_path from StepDefinition",
+        "Use step-specific config if available",
+        "Fall back to global config if not specified",
+        "Pass --agent-config flag with correct path",
+        "Add logging for config selection",
+        "Update docstrings"
+      ],
+      "acceptance_criteria": [
+        "DevinWrapper uses step-specific config if available",
+        "Falls back to global config if agent_config not specified",
+        "Devin command includes --agent-config flag",
+        "Path is correctly resolved before passing to CLI"
+      ],
+      "dependencies": [
+        "Step 1: Extend StepDefinition Class"
+      ],
+      "estimated_effort": "1.5 hours"
+    },
+    {
+      "step_number": 3,
+      "title": "Add Validation to Saga Validator",
+      "description": "Validate agent_config file existence during saga validation",
+      "layer": "Validation Layer",
+      "tasks": [
+        "Load step definition during validation",
+        "Check if agent_config is specified",
+        "Verify agent_config file exists",
+        "Check file is readable",
+        "Provide clear error messages",
+        "Add validation tests"
+      ],
+      "acceptance_criteria": [
+        "Saga validation fails if agent_config file missing",
+        "Error message indicates missing file path",
+        "Validation passes if agent_config file exists",
+        "Validation passes if agent_config not specified"
+      ],
+      "dependencies": [
+        "Step 1: Extend StepDefinition Class"
+      ],
+      "estimated_effort": "2 hours"
+    },
+    {
+      "step_number": 4,
+      "title": "Write Unit Tests for StepDefinition",
+      "description": "Comprehensive unit tests for StepDefinition changes",
+      "layer": "Testing Layer",
+      "tasks": [
+        "Test StepDefinition with agent_config field",
+        "Test StepDefinition without agent_config field",
+        "Test path resolution - relative paths",
+        "Test path resolution - absolute paths",
+        "Test path resolution - edge cases (../, empty, null)",
+        "Test get_agent_config_path() return values"
+      ],
+      "acceptance_criteria": [
+        "All unit tests pass",
+        "Coverage includes happy path and edge cases",
+        "Tests verify backward compatibility"
+      ],
+      "dependencies": [
+        "Step 1: Extend StepDefinition Class"
+      ],
+      "estimated_effort": "3 hours"
+    },
+    {
+      "step_number": 5,
+      "title": "Write Unit Tests for DevinWrapper",
+      "description": "Unit tests for DevinWrapper command building changes",
+      "layer": "Testing Layer",
+      "tasks": [
+        "Test command building with step-specific config",
+        "Test command building without step-specific config",
+        "Test fallback to global config",
+        "Test --agent-config flag in command",
+        "Test path handling in command"
+      ],
+      "acceptance_criteria": [
+        "All unit tests pass",
+        "Tests verify step-specific config is used",
+        "Tests verify fallback behavior"
+      ],
+      "dependencies": [
+        "Step 2: Update DevinWrapper.build_devin_command()"
+      ],
+      "estimated_effort": "2 hours"
+    },
+    {
+      "step_number": 6,
+      "title": "Write Integration Tests",
+      "description": "Integration tests for saga execution with step-specific configs",
+      "layer": "Testing Layer",
+      "tasks": [
+        "Create test fixtures (steps with/without agent_config)",
+        "Test saga execution with step-specific config",
+        "Test saga validation with missing config file",
+        "Test saga validation with valid config file",
+        "Test backward compatibility with existing steps",
+        "Test error handling and messages"
+      ],
+      "acceptance_criteria": [
+        "All integration tests pass",
+        "Tests verify saga execution flow",
+        "Tests verify backward compatibility",
+        "Tests verify error handling"
+      ],
+      "dependencies": [
+        "Step 1: Extend StepDefinition Class",
+        "Step 2: Update DevinWrapper.build_devin_command()",
+        "Step 3: Add Validation to Saga Validator"
+      ],
+      "estimated_effort": "4 hours"
+    },
+    {
+      "step_number": 7,
+      "title": "Verify Backward Compatibility",
+      "description": "Run full test suite to ensure no regressions",
+      "layer": "Testing Layer",
+      "tasks": [
+        "Run all existing tests",
+        "Verify no test failures",
+        "Test with existing steps (example, extract-story-intent)",
+        "Verify existing sagas still work",
+        "Check for any performance regressions"
+      ],
+      "acceptance_criteria": [
+        "All existing tests pass",
+        "No new test failures",
+        "Existing steps work without modification",
+        "No performance degradation"
+      ],
+      "dependencies": [
+        "Step 4: Write Unit Tests for StepDefinition",
+        "Step 5: Write Unit Tests for DevinWrapper",
+        "Step 6: Write Integration Tests"
+      ],
+      "estimated_effort": "2 hours"
+    },
+    {
+      "step_number": 8,
+      "title": "Update Documentation and Examples",
+      "description": "Document new feature and provide examples",
+      "layer": "Documentation",
+      "tasks": [
+        "Update step.json schema documentation",
+        "Create example step with agent-config.json",
+        "Document permission model and common patterns",
+        "Add troubleshooting guide",
+        "Update README if needed"
+      ],
+      "acceptance_criteria": [
+        "Schema documentation is clear",
+        "Examples are runnable",
+        "Troubleshooting guide covers common issues"
+      ],
+      "dependencies": [
+        "Step 7: Verify Backward Compatibility"
+      ],
+      "estimated_effort": "2 hours"
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": {
+      "description": "Test individual components in isolation",
+      "scope": [
+        "StepDefinition with/without agent_config",
+        "Path resolution (relative, absolute, edge cases)",
+        "DevinWrapper command building",
+        "Fallback to global config"
+      ],
+      "tools": "pytest",
+      "estimated_effort": "5 hours"
+    },
+    "integration_tests": {
+      "description": "Test component interactions",
+      "scope": [
+        "Saga execution with step-specific config",
+        "Saga validation with missing/valid config",
+        "Backward compatibility with existing steps",
+        "Error handling and messages"
+      ],
+      "tools": "pytest",
+      "estimated_effort": "4 hours"
+    },
+    "regression_tests": {
+      "description": "Verify no regressions in existing functionality",
+      "scope": [
+        "Run full existing test suite",
+        "Test with existing steps",
+        "Test with existing sagas"
+      ],
+      "tools": "pytest",
+      "estimated_effort": "2 hours"
+    }
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Backward compatibility - existing steps break",
+      "severity": "High",
+      "impact": "All existing steps fail to execute",
+      "mitigation": "Make agent_config optional; implement fallback to global config",
+      "verification": "Run full test suite; verify all existing steps still work",
+      "layer": "Orchestration Layer"
+    },
+    {
+      "risk": "Path resolution edge cases (traversal, symlinks)",
+      "severity": "Medium",
+      "impact": "Config paths resolved incorrectly; security issues",
+      "mitigation": "Use pathlib for safe path handling; comprehensive unit tests",
+      "verification": "Unit tests for relative, absolute, and edge case paths",
+      "layer": "Orchestration Layer"
+    },
+    {
+      "risk": "Devin CLI doesn't support --agent-config in non-interactive mode",
+      "severity": "High",
+      "impact": "Feature doesn't work; steps fail to execute",
+      "mitigation": "Verify flag support before implementation; document requirement",
+      "verification": "Manual testing with Devin CLI; check version compatibility",
+      "layer": "Wrapper Layer"
+    },
+    {
+      "risk": "Config validation errors not clear to users",
+      "severity": "Medium",
+      "impact": "Users confused about what went wrong",
+      "mitigation": "Provide detailed error messages in saga validator",
+      "verification": "Test error messages; ensure they guide users to solution",
+      "layer": "Validation Layer"
+    },
+    {
+      "risk": "Config file permission issues",
+      "severity": "Low",
+      "impact": "Config file not readable; step fails",
+      "mitigation": "Check file readability during validation",
+      "verification": "Unit tests for permission denied scenarios",
+      "layer": "Validation Layer"
+    },
+    {
+      "risk": "Performance impact of path resolution",
+      "severity": "Low",
+      "impact": "Slight overhead in step execution",
+      "mitigation": "Use efficient pathlib operations; cache resolved paths if needed",
+      "verification": "Performance tests; compare with baseline",
+      "layer": "Orchestration Layer"
+    }
+  ],
+  "dependencies_and_ordering": {
+    "critical_path": [
+      "Step 1: Extend StepDefinition Class",
+      "Step 2: Update DevinWrapper.build_devin_command()",
+      "Step 3: Add Validation to Saga Validator",
+      "Step 6: Write Integration Tests",
+      "Step 7: Verify Backward Compatibility"
+    ],
+    "parallel_opportunities": [
+      "Steps 4 and 5 can run in parallel (independent unit tests)",
+      "Steps 1, 2, 3 must be sequential (dependencies)"
+    ]
+  },
+  "effort_estimation": {
+    "implementation": "5.5 hours",
+    "testing": "11 hours",
+    "documentation": "2 hours",
+    "total": "18.5 hours",
+    "notes": "Estimates assume experienced Python developer familiar with codebase. Includes time for code review and iteration."
+  },
+  "success_criteria": [
+    "All acceptance criteria met",
+    "All unit tests pass",
+    "All integration tests pass",
+    "Full backward compatibility verified",
+    "No performance regressions",
+    "Documentation complete and clear",
+    "Code follows existing patterns and style"
+  ]
+}

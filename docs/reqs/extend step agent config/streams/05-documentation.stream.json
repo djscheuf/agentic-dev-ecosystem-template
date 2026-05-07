@@ -1,0 +1,122 @@
+{
+  "stream_name": "Documentation",
+  "stream_id": "05-documentation",
+  "stream_date": "2026-05-06",
+  "stream_summary": "Document new feature with schema updates, examples, and troubleshooting guide. Enables users to understand and use per-step agent configurations.",
+  "stream_priority": "Medium",
+  "stream_phase": "Documentation",
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config': 'agent-config.json', When the step is executed, Then DevinWrapper uses that config file",
+      "type": "functional"
+    }
+  ],
+  "related_edge_cases": [],
+  "dependencies": [
+    "01-core-implementation: Must complete core implementation first",
+    "04-integration-testing: Must complete integration testing first"
+  ],
+  "stream_steps": [
+    {
+      "step_number": 1,
+      "title": "Update Step Definition Schema",
+      "description": "Document the step.json schema with new agent_config field",
+      "tasks": [
+        "Update step.json schema documentation",
+        "Document agent_config field (type, required, default)",
+        "Provide examples of step.json with agent_config",
+        "Provide examples of step.json without agent_config",
+        "Document path resolution behavior",
+        "Document fallback behavior"
+      ],
+      "acceptance_criteria": [
+        "Schema documentation is clear and complete",
+        "Examples are correct and runnable",
+        "Path resolution behavior is documented",
+        "Fallback behavior is documented"
+      ],
+      "artifacts_produced": [
+        "Updated schema documentation",
+        "Example step.json files"
+      ],
+      "estimated_effort": "1.5 hours"
+    },
+    {
+      "step_number": 2,
+      "title": "Create Example Step with Agent Config",
+      "description": "Create a runnable example step with step-specific agent configuration",
+      "tasks": [
+        "Create example step directory",
+        "Create step.json with agent_config field",
+        "Create step-specific agent-config.json",
+        "Document the example",
+        "Explain permission model",
+        "Show common patterns"
+      ],
+      "acceptance_criteria": [
+        "Example step is complete and runnable",
+        "agent-config.json is properly formatted",
+        "Documentation explains the example",
+        "Permission patterns are clear"
+      ],
+      "artifacts_produced": [
+        "Example step with agent-config.json",
+        "Documentation for the example"
+      ],
+      "estimated_effort": "1.5 hours"
+    },
+    {
+      "step_number": 3,
+      "title": "Write Troubleshooting Guide",
+      "description": "Document common issues and solutions",
+      "tasks": [
+        "Document missing config file error",
+        "Document permission denied error",
+        "Document path resolution issues",
+        "Document fallback behavior",
+        "Provide solutions for each issue",
+        "Add debugging tips"
+      ],
+      "acceptance_criteria": [
+        "Troubleshooting guide covers common issues",
+        "Solutions are clear and actionable",
+        "Debugging tips are helpful"
+      ],
+      "artifacts_produced": [
+        "Troubleshooting guide document"
+      ],
+      "estimated_effort": "1 hour"
+    }
+  ],
+  "relevant_context": [
+    {
+      "type": "Code",
+      "reference": "steps/example/step.json",
+      "relevance": "Example step definition to use as template"
+    },
+    {
+      "type": "Code",
+      "reference": ".devin/agent-config.json",
+      "relevance": "Reference implementation of agent configuration"
+    },
+    {
+      "type": "Documentation",
+      "reference": "docs/reqs/extend-step-agent-config.md",
+      "relevance": "Requirement documentation with acceptance criteria"
+    },
+    {
+      "type": "Design",
+      "reference": "extend-step-agent-config.design.json",
+      "relevance": "Design decisions and rationale"
+    }
+  ],
+  "success_criteria": [
+    "Schema documentation is clear and complete",
+    "Example step is runnable and well-documented",
+    "Troubleshooting guide covers common issues",
+    "Documentation follows project style and conventions"
+  ],
+  "estimated_effort": "4 hours",
+  "notes": "Documentation should be completed after all implementation and testing is done. This ensures documentation is accurate and reflects actual behavior."
+}

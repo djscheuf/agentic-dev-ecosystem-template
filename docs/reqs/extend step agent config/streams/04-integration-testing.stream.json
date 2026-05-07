@@ -1,0 +1,158 @@
+{
+  "stream_name": "Integration Testing",
+  "stream_id": "04-integration-testing",
+  "stream_date": "2026-05-06",
+  "stream_summary": "Integration tests for saga execution with step-specific configs. Verifies end-to-end functionality and backward compatibility.",
+  "stream_priority": "High",
+  "stream_phase": "Testing",
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config': 'agent-config.json', When the step is executed, Then DevinWrapper uses that config file",
+      "type": "functional"
+    },
+    {
+      "criterion": "If step has no agent_config, fall back to global .devin/agent-config.json",
+      "gherkin": "Given a step.json without 'agent_config' field, When the step is executed, Then DevinWrapper uses .devin/agent-config.json",
+      "type": "functional"
+    },
+    {
+      "criterion": "Validation ensures agent_config file exists if specified",
+      "gherkin": "Given a step.json with agent_config pointing to non-existent file, When saga validation runs, Then validation fails with clear error message",
+      "type": "constraint"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Global config file is missing",
+      "criterion": "Given no global .devin/agent-config.json and step has no agent_config, When step executes, Then error indicates missing config"
+    },
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Both step-specific and global config exist",
+      "criterion": "Given both configs exist, When step executes, Then step-specific config is used"
+    },
+    {
+      "category": "SYSTEM_EDGE_CASES",
+      "case": "Agent config file is not readable (permission denied)",
+      "criterion": "Given agent-config.json with no read permissions, When step executes, Then error indicates permission issue"
+    }
+  ],
+  "dependencies": [
+    "01-core-implementation: Must complete core implementation first",
+    "02-validation: Must complete validation layer first",
+    "03-unit-testing: Unit tests should be complete"
+  ],
+  "stream_steps": [
+    {
+      "step_number": 1,
+      "title": "Create Test Fixtures",
+      "description": "Set up test steps and configurations for integration testing",
+      "tasks": [
+        "Create test step with agent-config.json",
+        "Create test step without agent-config.json",
+        "Create test step with invalid config path",
+        "Create test step with absolute config path",
+        "Create test sagas using these steps",
+        "Set up test data and fixtures"
+      ],
+      "acceptance_criteria": [
+        "All test fixtures are created",
+        "Fixtures are properly organized",
+        "Fixtures can be reused across tests"
+      ],
+      "artifacts_produced": [
+        "Test fixtures in orchestrator/tests/fixtures/"
+      ],
+      "estimated_effort": "1 hour"
+    },
+    {
+      "step_number": 2,
+      "title": "Write Integration Tests",
+      "description": "Integration tests for saga execution with step-specific configs",
+      "tasks": [
+        "Test saga execution with step-specific config",
+        "Test saga validation with missing config file",
+        "Test saga validation with valid config file",
+        "Test backward compatibility with existing steps",
+        "Test error handling and messages",
+        "Test with multiple steps (some with, some without agent_config)"
+      ],
+      "acceptance_criteria": [
+        "All integration tests pass",
+        "Tests verify saga execution flow",
+        "Tests verify backward compatibility",
+        "Tests verify error handling"
+      ],
+      "artifacts_produced": [
+        "New test cases in orchestrator/tests/test_saga_executor.py"
+      ],
+      "dependencies": [
+        "Step 1: Create Test Fixtures"
+      ],
+      "estimated_effort": "3 hours"
+    },
+    {
+      "step_number": 3,
+      "title": "Verify Backward Compatibility",
+      "description": "Run full test suite to ensure no regressions",
+      "tasks": [
+        "Run all existing tests",
+        "Verify no test failures",
+        "Test with existing steps (example, extract-story-intent)",
+        "Verify existing sagas still work",
+        "Check for any performance regressions"
+      ],
+      "acceptance_criteria": [
+        "All existing tests pass",
+        "No new test failures",
+        "Existing steps work without modification",
+        "No performance degradation"
+      ],
+      "artifacts_produced": [
+        "Test results and regression report"
+      ],
+      "dependencies": [
+        "Step 2: Write Integration Tests"
+      ],
+      "estimated_effort": "2 hours"
+    }
+  ],
+  "relevant_context": [
+    {
+      "type": "Code",
+      "reference": "orchestrator/tests/",
+      "relevance": "Existing test structure and patterns"
+    },
+    {
+      "type": "Code",
+      "reference": "steps/example/",
+      "relevance": "Example step that can be used as template for test fixtures"
+    },
+    {
+      "type": "Code",
+      "reference": "sagas/",
+      "relevance": "Existing sagas that can be used for integration testing"
+    },
+    {
+      "type": "Tool",
+      "reference": "pytest",
+      "relevance": "Testing framework used in the project"
+    },
+    {
+      "type": "Design",
+      "reference": "extend-step-agent-config.design.json - Testing Strategy section",
+      "relevance": "Integration test requirements and scenarios"
+    }
+  ],
+  "success_criteria": [
+    "All integration tests pass",
+    "Saga execution works with step-specific configs",
+    "Backward compatibility verified",
+    "Error handling works correctly",
+    "No performance regressions"
+  ],
+  "estimated_effort": "6 hours",
+  "notes": "Integration testing is critical for verifying end-to-end functionality. Must complete before documentation phase."
+}

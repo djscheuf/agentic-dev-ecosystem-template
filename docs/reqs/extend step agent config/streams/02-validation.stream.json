@@ -1,0 +1,94 @@
+{
+  "stream_name": "Validation",
+  "stream_id": "02-validation",
+  "stream_date": "2026-05-06",
+  "stream_summary": "Add validation for agent_config files in the saga validator. Ensures configuration errors are caught early before saga execution.",
+  "stream_priority": "High",
+  "stream_phase": "Foundations",
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Validation ensures agent_config file exists if specified",
+      "gherkin": "Given a step.json with agent_config pointing to non-existent file, When saga validation runs, Then validation fails with clear error message",
+      "type": "constraint"
+    },
+    {
+      "criterion": "Agent config with invalid permissions structure is rejected",
+      "gherkin": "Given an agent-config.json with malformed permissions, When DevinWrapper loads it, Then an error is raised",
+      "type": "constraint"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Global config file is missing",
+      "criterion": "Given no global .devin/agent-config.json and step has no agent_config, When step executes, Then error indicates missing config"
+    },
+    {
+      "category": "SYSTEM_EDGE_CASES",
+      "case": "Agent config file is not readable (permission denied)",
+      "criterion": "Given agent-config.json with no read permissions, When step executes, Then error indicates permission issue"
+    }
+  ],
+  "dependencies": [
+    "01-core-implementation: Must complete StepDefinition extension first"
+  ],
+  "stream_steps": [
+    {
+      "step_number": 1,
+      "title": "Add Validation to Saga Validator",
+      "description": "Validate agent_config file existence during saga validation",
+      "tasks": [
+        "Load step definition during validation",
+        "Check if agent_config is specified",
+        "Verify agent_config file exists",
+        "Check file is readable",
+        "Provide clear error messages",
+        "Handle missing global config fallback case"
+      ],
+      "acceptance_criteria": [
+        "Saga validation fails if agent_config file missing",
+        "Error message indicates missing file path",
+        "Validation passes if agent_config file exists",
+        "Validation passes if agent_config not specified",
+        "Validation fails if global config missing and no agent_config"
+      ],
+      "artifacts_produced": [
+        "Modified orchestrator/saga_validator.py with agent_config validation"
+      ],
+      "dependencies": [
+        "01-core-implementation: StepDefinition extension"
+      ],
+      "estimated_effort": "2 hours"
+    }
+  ],
+  "relevant_context": [
+    {
+      "type": "Code",
+      "reference": "orchestrator/saga_validator.py",
+      "relevance": "Current validation logic that needs to be extended"
+    },
+    {
+      "type": "Code",
+      "reference": "orchestrator/saga_models.py",
+      "relevance": "Saga definition structures used in validation"
+    },
+    {
+      "type": "Pattern",
+      "reference": "Existing validation for step/saga references",
+      "relevance": "Pattern to follow for agent_config validation"
+    },
+    {
+      "type": "Design",
+      "reference": "extend-step-agent-config.design.json - Validation Layer section",
+      "relevance": "Design decisions for validation approach"
+    }
+  ],
+  "success_criteria": [
+    "Saga validator checks agent_config file existence",
+    "Clear error messages for missing files",
+    "Validation passes for valid configurations",
+    "Backward compatibility with existing steps"
+  ],
+  "estimated_effort": "2 hours",
+  "notes": "Validation layer is critical for catching configuration errors early. Must be completed before integration testing."
+}

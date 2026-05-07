@@ -1,0 +1,131 @@
+{
+  "stream_name": "Unit Testing",
+  "stream_id": "03-unit-testing",
+  "stream_date": "2026-05-06",
+  "stream_summary": "Comprehensive unit tests for StepDefinition and DevinWrapper changes. Tests cover happy path, edge cases, and error scenarios.",
+  "stream_priority": "High",
+  "stream_phase": "Testing",
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config': 'agent-config.json', When the step is executed, Then DevinWrapper uses that config file",
+      "type": "functional"
+    },
+    {
+      "criterion": "If step has no agent_config, fall back to global .devin/agent-config.json",
+      "gherkin": "Given a step.json without 'agent_config' field, When the step is executed, Then DevinWrapper uses .devin/agent-config.json",
+      "type": "functional"
+    },
+    {
+      "criterion": "Step-specific agent-config is resolved relative to step directory",
+      "gherkin": "Given a step in steps/my-step/ with agent_config: 'agent-config.json', When the path is resolved, Then it resolves to steps/my-step/agent-config.json",
+      "type": "functional"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is empty string",
+      "criterion": "Given agent_config: '', When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is null",
+      "criterion": "Given agent_config: null, When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config path contains relative traversal (../)",
+      "criterion": "Given agent_config: '../other-step/agent-config.json', When resolved, Then it points to correct location"
+    }
+  ],
+  "dependencies": [
+    "01-core-implementation: Must complete StepDefinition and DevinWrapper changes first"
+  ],
+  "stream_steps": [
+    {
+      "step_number": 1,
+      "title": "Write Unit Tests for StepDefinition",
+      "description": "Comprehensive unit tests for StepDefinition changes",
+      "tasks": [
+        "Test StepDefinition with agent_config field",
+        "Test StepDefinition without agent_config field",
+        "Test path resolution - relative paths",
+        "Test path resolution - absolute paths",
+        "Test path resolution - edge cases (../, empty, null)",
+        "Test get_agent_config_path() return values",
+        "Test backward compatibility"
+      ],
+      "acceptance_criteria": [
+        "All unit tests pass",
+        "Coverage includes happy path and edge cases",
+        "Tests verify backward compatibility",
+        "Tests verify path resolution correctness"
+      ],
+      "artifacts_produced": [
+        "New test cases in orchestrator/tests/test_devin_wrapper.py"
+      ],
+      "dependencies": [
+        "01-core-implementation: StepDefinition extension"
+      ],
+      "estimated_effort": "3 hours"
+    },
+    {
+      "step_number": 2,
+      "title": "Write Unit Tests for DevinWrapper",
+      "description": "Unit tests for DevinWrapper command building changes",
+      "tasks": [
+        "Test command building with step-specific config",
+        "Test command building without step-specific config",
+        "Test fallback to global config",
+        "Test --agent-config flag in command",
+        "Test path handling in command",
+        "Test logging and error messages"
+      ],
+      "acceptance_criteria": [
+        "All unit tests pass",
+        "Tests verify step-specific config is used",
+        "Tests verify fallback behavior",
+        "Tests verify command structure"
+      ],
+      "artifacts_produced": [
+        "New test cases in orchestrator/tests/test_devin_wrapper.py"
+      ],
+      "dependencies": [
+        "01-core-implementation: DevinWrapper changes"
+      ],
+      "estimated_effort": "2 hours"
+    }
+  ],
+  "relevant_context": [
+    {
+      "type": "Code",
+      "reference": "orchestrator/tests/test_devin_wrapper.py",
+      "relevance": "Existing test file where new tests should be added"
+    },
+    {
+      "type": "Pattern",
+      "reference": "Existing test patterns in test_devin_wrapper.py",
+      "relevance": "Follow existing test structure and naming conventions"
+    },
+    {
+      "type": "Tool",
+      "reference": "pytest",
+      "relevance": "Testing framework used in the project"
+    },
+    {
+      "type": "Design",
+      "reference": "extend-step-agent-config.design.json - Testing Strategy section",
+      "relevance": "Test cases and coverage requirements"
+    }
+  ],
+  "success_criteria": [
+    "All unit tests pass",
+    "Coverage includes happy path and edge cases",
+    "Tests verify backward compatibility",
+    "Tests are independent and can run in any order",
+    "Tests follow existing patterns and style"
+  ],
+  "estimated_effort": "5 hours",
+  "notes": "Unit tests can run in parallel with validation workstream. Must be completed before integration testing."
+}

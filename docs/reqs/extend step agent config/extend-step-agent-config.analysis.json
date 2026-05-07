@@ -1,0 +1,206 @@
+{
+  "story_summary": "Extend step architecture to support per-step agent configurations, allowing each step to specify its own Devin agent permissions rather than relying on a global config.",
+  "capability_analysis": {
+    "core_action": "Load and apply step-specific agent configuration when executing a step via Devin CLI",
+    "inputs_required": [
+      "Step definition JSON (step.json) with optional agent_config field",
+      "Agent configuration file (agent-config.json) with permissions structure"
+    ],
+    "outputs_expected": [
+      "Devin CLI invoked with --agent-config pointing to step-specific config",
+      "Step executes with only the permissions defined in its config"
+    ],
+    "state_changes": [
+      "StepDefinition class now accepts and stores agent_config path",
+      "DevinWrapper.build_devin_command() uses step-specific config if available",
+      "Saga executor passes step-specific config to wrapper"
+    ],
+    "side_effects": [
+      "Backward compatibility maintained: steps without agent_config use global config",
+      "Improved security posture: principle of least privilege per step",
+      "Better auditability: can see what each step needs"
+    ],
+    "affected_components": [
+      "orchestrator/devin_wrapper.py - StepDefinition class and DevinWrapper class",
+      "orchestrator/saga_executor.py - _execute_step method",
+      "steps/*/step.json - schema extension",
+      ".devin/agent-config.json - reference implementation"
+    ]
+  },
+  "acceptance_criteria_analysis": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config': 'agent-config.json', When the step is executed, Then DevinWrapper uses that config file",
+      "type": "functional",
+      "testable": true,
+      "dependencies": ["AC-2"],
+      "jtbd": "Configure step-specific agent permissions"
+    },
+    {
+      "criterion": "If step has no agent_config, fall back to global .devin/agent-config.json",
+      "gherkin": "Given a step.json without 'agent_config' field, When the step is executed, Then DevinWrapper uses .devin/agent-config.json",
+      "type": "functional",
+      "testable": true,
+      "dependencies": [],
+      "jtbd": "Maintain backward compatibility"
+    },
+    {
+      "criterion": "DevinWrapper receives agent-config path and passes it to Devin CLI",
+      "gherkin": "Given a step with agent_config field, When DevinWrapper.build_devin_command() is called, Then the command includes --agent-config <path>",
+      "type": "functional",
+      "testable": true,
+      "dependencies": ["AC-1"],
+      "jtbd": "Pass step-specific config to Devin"
+    },
+    {
+      "criterion": "Step-specific agent-config is resolved relative to step directory",
+      "gherkin": "Given a step in steps/my-step/ with agent_config: 'agent-config.json', When the path is resolved, Then it resolves to steps/my-step/agent-config.json",
+      "type": "functional",
+      "testable": true,
+      "dependencies": ["AC-1"],
+      "jtbd": "Resolve config paths correctly"
+    },
+    {
+      "criterion": "Validation ensures agent_config file exists if specified",
+      "gherkin": "Given a step.json with agent_config pointing to non-existent file, When saga validation runs, Then validation fails with clear error message",
+      "type": "constraint",
+      "testable": true,
+      "dependencies": [],
+      "jtbd": "Validate step configuration"
+    },
+    {
+      "criterion": "Agent config with invalid permissions structure is rejected",
+      "gherkin": "Given an agent-config.json with malformed permissions, When DevinWrapper loads it, Then an error is raised",
+      "type": "constraint",
+      "testable": true,
+      "dependencies": [],
+      "jtbd": "Validate config structure"
+    },
+    {
+      "criterion": "Absolute paths in agent_config are supported",
+      "gherkin": "Given a step with agent_config: '/absolute/path/agent-config.json', When the path is resolved, Then it uses the absolute path",
+      "type": "functional",
+      "testable": true,
+      "dependencies": ["AC-4"],
+      "jtbd": "Support flexible path specifications"
+    }
+  ],
+  "edge_cases": [
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is empty string",
+      "impact": "Should be treated as not specified, fall back to global config",
+      "criterion": "Given agent_config: '', When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is null",
+      "impact": "Should be treated as not specified, fall back to global config",
+      "criterion": "Given agent_config: null, When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config path contains relative traversal (../)",
+      "impact": "Should be resolved safely relative to step directory",
+      "criterion": "Given agent_config: '../other-step/agent-config.json', When resolved, Then it points to correct location"
+    },
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Global config file is missing",
+      "impact": "Fallback fails, step execution should fail with clear error",
+      "criterion": "Given no global .devin/agent-config.json and step has no agent_config, When step executes, Then error indicates missing config"
+    },
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Both step-specific and global config exist",
+      "impact": "Step-specific config takes precedence",
+      "criterion": "Given both configs exist, When step executes, Then step-specific config is used"
+    },
+    {
+      "category": "SYSTEM_EDGE_CASES",
+      "case": "Agent config file is not readable (permission denied)",
+      "impact": "Step execution should fail with clear error",
+      "criterion": "Given agent-config.json with no read permissions, When step executes, Then error indicates permission issue"
+    },
+    {
+      "category": "SYSTEM_EDGE_CASES",
+      "case": "Devin CLI doesn't recognize --agent-config flag",
+      "impact": "Command will fail; wrapper should handle gracefully",
+      "criterion": "Given Devin CLI that doesn't support --agent-config, When step executes, Then error is captured"
+    }
+  ],
+  "dependencies": {
+    "technical_dependencies": {
+      "existing_code": [
+        "orchestrator/devin_wrapper.py - StepDefinition and DevinWrapper classes",
+        "orchestrator/saga_executor.py - _execute_step method",
+        "orchestrator/saga_models.py - NodeDefinition class",
+        ".devin/agent-config.json - reference permissions structure"
+      ],
+      "new_code": [
+        "Config validation logic in StepDefinition or DevinWrapper",
+        "Path resolution logic for step-relative config paths"
+      ],
+      "infrastructure": [],
+      "external_services": [
+        "Devin CLI - must support --agent-config flag in non-interactive mode"
+      ]
+    },
+    "story_dependencies": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "ADR-008: Devin CLI Saga Orchestration",
+        "ADR-009: Saga State Persistence"
+      ]
+    },
+    "knowledge_dependencies": {
+      "domain_knowledge": [
+        "Devin CLI permission model and --agent-config flag behavior",
+        "Current global agent-config.json structure and semantics"
+      ],
+      "technical_knowledge": [
+        "Python pathlib for path resolution",
+        "JSON schema validation",
+        "Devin CLI command-line interface"
+      ],
+      "questions_for_stakeholders": [
+        "Should step-specific config completely replace global config or merge with it?",
+        "What's the priority order if both exist: step-specific > global or merge?",
+        "Should we validate config structure or just pass it to Devin CLI?"
+      ]
+    }
+  },
+  "open_questions": [
+    {
+      "question": "Should step-specific agent-config completely override the global config or should they be merged?",
+      "impact_areas": ["Security", "Flexibility", "Implementation complexity"],
+      "context": "If merged, we need to define merge strategy (step-specific wins, or union of permissions?)"
+    },
+    {
+      "question": "Should we validate the agent-config.json structure in the wrapper, or just pass it to Devin CLI?",
+      "impact_areas": ["Error handling", "User experience", "Maintenance"],
+      "context": "Early validation gives better error messages; delegating to Devin gives flexibility"
+    },
+    {
+      "question": "What happens if a step-specific config file is missing but referenced?",
+      "impact_areas": ["Error handling", "Saga execution"],
+      "context": "Should saga validation catch this, or should it fail at runtime?"
+    },
+    {
+      "question": "Should agent_config support environment variable expansion (e.g., ${STEP_DIR}/agent-config.json)?",
+      "impact_areas": ["Flexibility", "Implementation complexity"],
+      "context": "Could make configs more portable across different environments"
+    }
+  ],
+  "complexity_assessment": {
+    "overall_complexity": "Low to Medium",
+    "reasoning": "Changes are localized to StepDefinition and DevinWrapper classes. Main complexity is path resolution and validation.",
+    "risk_areas": [
+      "Path resolution edge cases (relative vs absolute, traversal)",
+      "Backward compatibility with existing steps",
+      "Devin CLI flag support across versions"
+    ]
+  },
+  "raw_request": "User request: Extend step architecture so each step can implement its own agent-config, passed to devin wrapper for permission control in non-interactive mode"
+}
