@@ -1,0 +1,1 @@
+/mnt/data/0_repo/agentic-dev-ecosystem-template/steps/analyze-story/scripts/verify.sh: line 295: $1: unbound variable
