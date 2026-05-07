@@ -1,5 +1,5 @@
 import pytest
-from orchestrator.saga_models import SagaDefinition, DirectedConnection, BranchingConnection
+from orchestrator.models import SagaDefinition, DirectedConnection, BranchingConnection
 
 
 class TestSagaModelsHappyPath:

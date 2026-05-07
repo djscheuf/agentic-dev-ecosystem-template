@@ -15,7 +15,7 @@ from pathlib import Path
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from saga_models import SagaDefinition
+from models import SagaDefinition
 from saga_validator import validate_saga
 from saga_executor import execute_saga
 

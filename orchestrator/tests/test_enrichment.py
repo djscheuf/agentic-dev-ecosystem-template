@@ -1,11 +1,10 @@
 import pytest
 import json
 from pathlib import Path
-from orchestrator.enrichment import EnrichmentDictionary, substitute_variables
+from orchestrator.enrichment import substitute_variables
 from orchestrator.saga_state import SagaStateManager
-from orchestrator.saga_models import SagaDefinition
+from orchestrator.models import SagaDefinition, StepDefinition, EnrichmentDictionary
 from orchestrator.saga_executor import SagaExecutor
-from orchestrator.devin_wrapper import StepDefinition
 
 
 class TestEnrichmentDictionaryCreation:

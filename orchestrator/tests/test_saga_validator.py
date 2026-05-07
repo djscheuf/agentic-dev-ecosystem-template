@@ -1,7 +1,7 @@
 import pytest
 import json
 from pathlib import Path
-from orchestrator.saga_models import SagaDefinition
+from orchestrator.models import SagaDefinition
 from orchestrator.saga_validator import SagaValidator, validate_saga
 
 

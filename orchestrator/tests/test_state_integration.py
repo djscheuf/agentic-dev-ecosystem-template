@@ -2,9 +2,9 @@ import pytest
 import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from orchestrator.saga_models import SagaDefinition
+from orchestrator.models import SagaDefinition, StateEntry, SubSagaEntry
 from orchestrator.saga_executor import SagaExecutor
-from orchestrator.saga_state import SagaStateManager, StateEntry, SubSagaEntry
+from orchestrator.saga_state import SagaStateManager
 
 
 class TestStateIntegrationAC1:

@@ -11,15 +11,13 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
 try:
-    from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
+    from .models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition, StateEntry, SubSagaEntry, generate_saga_id, EnrichmentDictionary
     from .orchestrator import Orchestrator
-    from .saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
-    from .enrichment import EnrichmentDictionary
+    from .saga_state import SagaStateManager
 except ImportError:
-    from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
+    from models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition, StateEntry, SubSagaEntry, generate_saga_id, EnrichmentDictionary
     from orchestrator import Orchestrator
-    from saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
-    from enrichment import EnrichmentDictionary
+    from saga_state import SagaStateManager
 
 
 class TraversalTracker:

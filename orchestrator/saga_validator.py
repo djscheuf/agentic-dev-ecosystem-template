@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import Set, Dict, List
 
 try:
-    from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
-    from .devin_wrapper import StepDefinition
+    from .models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition, StepDefinition
 except ImportError:
-    from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
-    from devin_wrapper import StepDefinition
+    from models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition, StepDefinition
 
 
 class SagaValidator:

@@ -18,10 +18,10 @@ from typing import Dict, Optional, Tuple, Any
 
 try:
     from .devin_wrapper import DevinWrapper
-    from .enrichment import EnrichmentDictionary
+    from .models import EnrichmentDictionary
 except ImportError:
     from devin_wrapper import DevinWrapper
-    from enrichment import EnrichmentDictionary
+    from models import EnrichmentDictionary
 
 
 class Orchestrator:
