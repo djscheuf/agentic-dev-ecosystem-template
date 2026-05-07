@@ -1,0 +1,9 @@
+{
+    "test_cases_path": "path/to/test_cases.json",
+    "failing_test_path": "path/to/failing_test.ts",
+    "failing_test_name": "test_name",
+    "changed_code_files": [
+        "path/to/changed_file1.ts",
+        "path/to/changed_file2.ts"
+    ]
+}

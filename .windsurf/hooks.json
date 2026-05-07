@@ -7,10 +7,14 @@
       }
     ],
     "post_write_code": [
-      {
-        "command": ".windsurf/scripts/post-edit-verify-windsurf.sh",
-        "show_output": true
-      }
+        {
+          "command": ".windsurf/scripts/post-edit-verify-windsurf.sh",
+          "show_output": true
+        },
+        {
+          "command": ".windsurf/scripts/post-edit-verify-skill.sh",
+          "show_output": true
+        }
     ],
     "pre_run_command": [
       {

@@ -170,6 +170,7 @@ detect_languages() {
 block() {
   local message="$1"
   echo -e "${RED}[DevBox Hook] BLOCKED: ${message}${NC}" >&2
+  log_entry "ERROR" "$message"
   exit 2
 }
 
@@ -177,18 +178,51 @@ block() {
 warn() {
   local message="$1"
   echo -e "${YELLOW}[DevBox Hook] WARNING: ${message}${NC}" >&2
+  log_entry "WARN" "$message"
 }
 
 # Success info — to stderr so it doesn't pollute JSON stdout
 info() {
   local message="$1"
   echo -e "${GREEN}[DevBox Hook] ${message}${NC}" >&2
+  log_entry "INFO" "$message"
 }
 
 # Return JSON on stdout (for hooks that need structured output)
 json_output() {
   local json="$1"
   echo "$json"
+}
+
+# ── Logging helpers ──────────────────────────────────────────────────────────
+
+# Ensure log file is ready (creates .process directory and log file if needed)
+# Usage: ensure_log_file
+ensure_log_file() {
+  local log_dir="$HOOK_PROJECT_DIR/.process"
+  local log_file="$log_dir/$(date +%Y%m%d).hooks.log"
+  
+  mkdir -p "$log_dir" 2>/dev/null || true
+  
+  # Create log file if it doesn't exist
+  if [[ ! -f "$log_file" ]]; then
+    touch "$log_file" 2>/dev/null || true
+  fi
+  
+  echo "$log_file"
+}
+
+# Append entry to log file with timestamp and log level
+# Usage: log_entry "INFO" "message text"
+log_entry() {
+  local level="$1"
+  local message="$2"
+  local log_file
+  log_file=$(ensure_log_file)
+  
+  if [[ -w "$log_file" ]]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message" >> "$log_file"
+  fi
 }
 
 # ── Execution helpers ─────────────────────────────────────────────────────────

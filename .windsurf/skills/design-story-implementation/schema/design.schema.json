@@ -1,0 +1,84 @@
+{
+  "story_path": "string (path to user story analysis JSON)",
+  "repo_state_before_design": "string (path to repo state audit before design)",
+  "workflow_sequence": [
+    {
+      "step": "number",
+      "description": "string",
+      "layers_involved": ["string"],
+      "handshake_points": [
+        {
+          "from_layer": "string",
+          "to_layer": "string",
+          "contract_used": "string (reference to contract name)",
+          "data_shape": "object"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "string",
+      "description": "string",
+      "layers_involved": ["string"],
+      "data_points": [
+        {
+          "point": "string",
+          "description": "string"
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "string (Frontend|Backend|DataPipeline|etc)",
+      "new_responsibilities": [
+        {
+          "responsibility": "string",
+          "intent": "string (why this layer owns it)",
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "string (DataModel|APIContract|InteractionPattern)",
+      "name": "string",
+      "description": "string",
+      "changes": {
+        "added": "object or array (new fields/endpoints/steps)",
+        "modified": "object or array (changed fields/endpoints/steps)",
+        "removed": "object or array (deprecated fields/endpoints/steps)"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "string",
+      "justification": "string",
+      "basis": "ADR-NNN, {source}, or Explicit Architectural Change from Story",
+      "impact": "(scope of change)",
+      "answers_open_question": "string (reference to open question from story analysis, if applicable)"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the maximum length for tactic title?",
+      "answer": "25 Characters",
+      "justification": "To ensure the title is concise and easy to read",
+      "basis": "Product Owner's requirement from original story's tech notes"
+    },
+    {
+      "question": "Should search be case-sensitive?",
+      "answer": "Yes, search will be case sensitive, on textual fields via a Contains search. Non-text fields will look for exact matches with a starts-with search.",
+      "justification": "This limits the need to transform user input data in text fields. And provide consistent behavior from a user perspective.",
+      "basis": "Good UX practice per {source}"
+    },
+    {
+      "question": "Should searches be cached?",
+      "answer": "Yes, searches will be cached with a 5 min TTL.",
+      "justifications": "To improve performance and reduce database load",
+      "basis": "ADR-NNN - Search Caching Strategy"
+    }
+  ]
+}

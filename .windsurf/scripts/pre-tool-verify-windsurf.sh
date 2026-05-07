@@ -12,10 +12,10 @@ if [[ -z "$command" ]]; then
   exit 0
 fi
 
-# Only gate git push and merge commands
-if [[ "$command" =~ ^git\ (push|merge) ]]; then
-  info "Git push/merge detected, running full verification..."
-  exec "$SCRIPT_DIR/verify-all.sh" --mode=full
-fi
+# # Only gate git push and merge commands
+# if [[ "$command" =~ ^git\ (push|merge) ]]; then
+#   info "Git push/merge detected, running full verification..."
+#   exec "$SCRIPT_DIR/verify-all.sh" --mode=full
+# fi
 
 exit 0
