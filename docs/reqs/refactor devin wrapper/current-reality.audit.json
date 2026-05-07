@@ -1,0 +1,129 @@
+{
+  "run_date": "2026-05-07T14:03:00Z",
+  "target_story": "docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.analysis.json",
+  "project_structure": {
+    "root": "/mnt/data/0_repo/agentic-dev-ecosystem-template",
+    "description": "Agentic software factory template with saga-based orchestration for deterministic workflow execution using Devin CLI",
+    "tech_stack": {
+      "programming_languages": ["Python"],
+      "frameworks": ["subprocess (CLI execution)", "pathlib (file operations)"],
+      "libraries": ["json", "re", "dataclasses", "typing"],
+      "unit_testing_tools": ["pytest"]
+    },
+    "subprojects": [
+      {
+        "root": "orchestrator/",
+        "description": "Core saga orchestration engine and Devin CLI wrapper for step execution",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": ["subprocess", "pathlib"],
+          "libraries": ["json", "re", "dataclasses"],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "steps/",
+        "description": "Individual step definitions with prompts, agent configs, and verification scripts",
+        "tech_stack": {
+          "programming_language": "JSON + Bash",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": ["bash"]
+        }
+      },
+      {
+        "root": "sagas/",
+        "description": "Saga workflow definitions in JSON format for graph-based orchestration",
+        "tech_stack": {
+          "programming_language": "JSON",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": []
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "vault/decisions/ADR-008-devin-saga-orchestration.md",
+        "why": "Defines current saga orchestration architecture with Devin CLI; this refactoring improves separation of concerns within the wrapper and orchestrator components"
+      },
+      {
+        "path": "vault/decisions/ADR-009-saga-state-persistence.md",
+        "why": "Defines future state persistence requirements; refactoring should enable cleaner session lifecycle management in orchestrator for better state tracking"
+      },
+      {
+        "path": "vault/decisions/ADR-003-skills-based-architecture.md",
+        "why": "Predecessor to saga orchestration; understanding skills pattern helps inform generic agent interface design"
+      }
+    ],
+    "persona": [],
+    "target_architecture": [
+      {
+        "path": "vault/decisions/ADR-008-devin-saga-orchestration.md",
+        "why": "Defines target architecture for saga execution; refactoring maintains graph-based execution while improving component separation"
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [
+      {
+        "path": "orchestrator/devin_wrapper.py",
+        "why": "Core component to refactor - currently handles CLI wrapping, instrumentation, verification, and state management; should be reduced to thin CLI adapter"
+      },
+      {
+        "path": "orchestrator/saga_executor.py",
+        "why": "Orchestrator component that delegates to wrapper; needs expansion to handle enrichment, session lifecycle, and verification invocation"
+      },
+      {
+        "path": "orchestrator/enrichment.py",
+        "why": "Enrichment service that should be integrated into orchestrator workflow; currently not called during saga execution"
+      }
+    ],
+    "services": [
+      {
+        "path": "orchestrator/saga_models.py",
+        "why": "Defines saga and node data structures; refactoring doesn't change models but may add new orchestrator service"
+      },
+      {
+        "path": "orchestrator/saga_validator.py",
+        "why": "Validates saga definitions; unchanged by refactoring but important for understanding saga execution flow"
+      }
+    ],
+    "models": [
+      {
+        "path": "orchestrator/saga_models.py:SagaDefinition",
+        "why": "Root saga model; refactoring maintains same model structure"
+      },
+      {
+        "path": "orchestrator/saga_models.py:NodeDefinition",
+        "why": "Node model for steps and sagas; refactoring doesn't change node structure"
+      },
+      {
+        "path": "orchestrator/enrichment.py:EnrichmentDictionary",
+        "why": "Context model for prompt enrichment; should be integrated into orchestrator workflow"
+      }
+    ],
+    "apis": [
+      {
+        "path": "orchestrator/devin_wrapper.py:DevinWrapper.execute()",
+        "why": "Current API that needs refactoring; should become thin CLI adapter with minimal side effects"
+      },
+      {
+        "path": "orchestrator/saga_executor.py:SagaExecutor._execute_node()",
+        "why": "Internal API that calls wrapper; should be updated to use new orchestrator interface"
+      }
+    ],
+    "tests": [
+      {
+        "path": "orchestrator/tests/test_devin_wrapper.py",
+        "why": "Tests for wrapper; need updates after refactoring to thin CLI adapter"
+      },
+      {
+        "path": "orchestrator/tests/test_saga_executor.py",
+        "why": "Tests for saga executor; need updates after orchestrator expansion"
+      }
+    ]
+  }
+}

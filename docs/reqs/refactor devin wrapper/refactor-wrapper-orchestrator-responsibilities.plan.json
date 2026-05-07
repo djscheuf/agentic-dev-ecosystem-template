@@ -1,0 +1,337 @@
+{
+  "source_story": "docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.analysis.json",
+  "overall_design": "docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.design.json",
+  "story": {
+    "so_that": "The codebase is maintainable, testable, and can support multiple agent types in the future",
+    "as_a": "Orchestrator and Saga Executor",
+    "i_want": "Clear separation of concerns between the DevinWrapper (thin CLI adapter) and the Orchestrator (instrumentation and state management)"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "DevinWrapper accepts prompt, agent_config, optional timeout, and optional session_id",
+      "gherkin": "Given a prompt and agent configuration When DevinWrapper.execute_prompt is called Then it returns (output, session_id) tuple",
+      "status": "pending"
+    },
+    {
+      "criterion": "DevinWrapper does not manage session files, logging, or verification scripts",
+      "gherkin": "Given DevinWrapper execution When the wrapper completes Then no session files or logs are written by the wrapper",
+      "status": "pending"
+    },
+    {
+      "criterion": "Orchestrator loads step definition data and enriches prompts before calling wrapper",
+      "gherkin": "Given a step_id When orchestrator.invoke_step is called Then the orchestrator loads step data and enriches the prompt",
+      "status": "pending"
+    },
+    {
+      "criterion": "Orchestrator manages session lifecycle (session_id.txt, feedback.txt, stderr.txt)",
+      "gherkin": "Given wrapper execution When orchestrator receives output Then orchestrator writes session state files",
+      "status": "pending"
+    },
+    {
+      "criterion": "Orchestrator invokes verification scripts after step execution",
+      "gherkin": "Given step execution completion When orchestrator processes results Then orchestrator invokes the step's verification script",
+      "status": "pending"
+    },
+    {
+      "criterion": "Generic AgentWrapper interface enables future agent implementations",
+      "gherkin": "Given a new agent type When implementing AgentWrapper interface Then the new agent can be used without modifying orchestrator",
+      "status": "pending"
+    },
+    {
+      "criterion": "Timeout enforcement happens at orchestrator level, not wrapper level",
+      "gherkin": "Given a timeout parameter When orchestrator calls wrapper Then orchestrator enforces the timeout around the wrapper call",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty prompt string",
+      "gherkin": "Given an empty prompt When wrapper is called Then wrapper passes to CLI as-is",
+      "status": "pending"
+    },
+    {
+      "criterion": "Invalid agent_config format",
+      "gherkin": "Given invalid agent configuration When wrapper is called Then wrapper fails gracefully with error output",
+      "status": "pending"
+    },
+    {
+      "criterion": "Session ID for non-existent session",
+      "gherkin": "Given non-existent session_id When wrapper attempts resumption Then wrapper fails and creates new session",
+      "status": "pending"
+    },
+    {
+      "criterion": "Timeout during wrapper execution",
+      "gherkin": "Given timeout exceeded When wrapper executes Then orchestrator kills wrapper process and captures partial output",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verification script missing or not executable",
+      "gherkin": "Given missing verification script When orchestrator invokes verification Then orchestrator logs error and continues",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "orchestrator": [
+      "orchestrator/devin_wrapper.py - Refactor to thin CLI adapter",
+      "orchestrator/saga_executor.py - Expand with orchestration logic",
+      "orchestrator/enrichment.py - Integrate with orchestrator",
+      "orchestrator/run_saga.py - Update to use new orchestrator interface"
+    ],
+    "interfaces": [
+      "AgentWrapper abstract base class (new)",
+      "Orchestrator.invoke_step() method (new)"
+    ],
+    "tests": [
+      "orchestrator/tests/test_devin_wrapper.py - Update tests",
+      "orchestrator/tests/test_saga_executor.py - Update tests",
+      "orchestrator/tests/test_orchestrator.py - New tests for orchestrator"
+    ]
+  },
+  "steps": [
+    {
+      "description": "Create AgentWrapper abstract base class with execute_prompt() interface",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Define abstract base class that DevinWrapper and future agents will implement. Include timeout, session_id, and error handling contracts."
+    },
+    {
+      "description": "Refactor DevinWrapper to implement AgentWrapper interface",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Remove session file management, verification script invocation, and enrichment logic. Keep only CLI wrapping and timeout handling."
+    },
+    {
+      "description": "Create Orchestrator class with invoke_step() method",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "New class that handles step loading, enrichment, wrapper invocation, state management, and verification."
+    },
+    {
+      "description": "Integrate EnrichmentDictionary into Orchestrator.invoke_step()",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Call substitute_variables() before passing prompt to wrapper. Handle enrichment failures."
+    },
+    {
+      "description": "Move session file management to Orchestrator",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Orchestrator writes session_id.txt, feedback.txt, stderr.txt after wrapper execution."
+    },
+    {
+      "description": "Move verification script invocation to Orchestrator",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Orchestrator invokes verification script after wrapper execution and captures exit code."
+    },
+    {
+      "description": "Move timeout enforcement to Orchestrator level",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Orchestrator enforces timeout around entire step lifecycle using subprocess.run(timeout=...)."
+    },
+    {
+      "description": "Update SagaExecutor to use Orchestrator.invoke_step()",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Replace direct wrapper calls with orchestrator.invoke_step(). Update routing logic to use returned exit code."
+    },
+    {
+      "description": "Update run_saga.py to initialize Orchestrator",
+      "layer": "orchestrator",
+      "status": "pending",
+      "details": "Create Orchestrator instance and pass to SagaExecutor for step execution."
+    },
+    {
+      "description": "Write unit tests for AgentWrapper interface",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Test that DevinWrapper correctly implements interface. Test mock agent implementations."
+    },
+    {
+      "description": "Write unit tests for DevinWrapper refactoring",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Verify wrapper is stateless. Verify no files are written by wrapper. Test error handling."
+    },
+    {
+      "description": "Write unit tests for Orchestrator.invoke_step()",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Test step loading, enrichment, wrapper invocation, state management, verification invocation."
+    },
+    {
+      "description": "Write integration tests for step execution flow",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Test full flow: load step -> enrich -> execute -> manage state -> verify. Test with real step definitions."
+    },
+    {
+      "description": "Write integration tests for session resumption",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Test that session ID is captured and can be used to resume execution."
+    },
+    {
+      "description": "Update existing saga execution tests",
+      "layer": "tests",
+      "status": "pending",
+      "details": "Update tests to work with new orchestrator interface. Verify backward compatibility."
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "AgentWrapper interface contract - test that DevinWrapper implements all required methods",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-1, AC-6"
+      },
+      {
+        "description": "DevinWrapper - test execute_prompt() returns (output, session_id) tuple",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-1"
+      },
+      {
+        "description": "DevinWrapper - verify no session files are written by wrapper",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-2"
+      },
+      {
+        "description": "DevinWrapper - test error handling for missing CLI",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-8"
+      },
+      {
+        "description": "DevinWrapper - test timeout parameter is passed to subprocess",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-7"
+      },
+      {
+        "description": "Orchestrator - test step definition loading",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3"
+      },
+      {
+        "description": "Orchestrator - test prompt enrichment with EnrichmentDictionary",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3"
+      },
+      {
+        "description": "Orchestrator - test session state file writing",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-4"
+      },
+      {
+        "description": "Orchestrator - test verification script invocation",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-5"
+      },
+      {
+        "description": "Orchestrator - test timeout enforcement around wrapper call",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-7"
+      },
+      {
+        "description": "Orchestrator - test error handling for missing step definition",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-9"
+      },
+      {
+        "description": "Orchestrator - test error handling for enrichment failure",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-9"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "Full step execution flow - load step, enrich prompt, execute, manage state, verify",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3, AC-4, AC-5"
+      },
+      {
+        "description": "Session resumption - capture session ID and resume execution",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-10"
+      },
+      {
+        "description": "SagaExecutor integration - verify SagaExecutor calls Orchestrator.invoke_step()",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3, AC-4, AC-5"
+      },
+      {
+        "description": "Timeout enforcement - verify orchestrator kills wrapper on timeout",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-7, EC-4"
+      },
+      {
+        "description": "Verification failure handling - verify verification exit code determines routing",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-5"
+      },
+      {
+        "description": "Enrichment failure handling - verify orchestrator fails step on enrichment error",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-9"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "Execute complete saga with multiple steps using new orchestrator",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3, AC-4, AC-5, AC-7"
+      },
+      {
+        "description": "Execute saga with step retry (traversal limit) using new orchestrator",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3, AC-4, AC-5"
+      },
+      {
+        "description": "Execute saga with sub-saga using new orchestrator",
+        "layer": "orchestrator",
+        "acceptance_criteria": "AC-3, AC-4, AC-5"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Breaking change to existing saga execution - SagaExecutor needs to be updated to use new Orchestrator interface",
+      "mitigation": "Provide clear migration path. Update SagaExecutor incrementally. Maintain backward compatibility during transition.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Session file management moved from wrapper to orchestrator - existing code that reads session files may break",
+      "mitigation": "Session file location and format remain unchanged. Only responsibility moves, not interface.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Timeout enforcement moved from wrapper to orchestrator - timing behavior may change",
+      "mitigation": "Orchestrator enforces timeout around entire step lifecycle (enrichment + execution + verification). Test timeout behavior thoroughly.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Enrichment integration may fail if EnrichmentDictionary is not properly initialized",
+      "mitigation": "Orchestrator should validate enrichment dictionary before use. Fail step with clear error if enrichment fails.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Verification script invocation moved from wrapper to orchestrator - verification behavior may change",
+      "mitigation": "Verification script location and invocation method remain unchanged. Only responsibility moves, not interface.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Generic AgentWrapper interface may not be flexible enough for future agent types",
+      "mitigation": "Design interface to be minimal and extensible. Use composition for agent-specific features. Plan for interface evolution.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Concurrent step execution may cause session file conflicts",
+      "mitigation": "Use unique session IDs per invocation. ADR-009 will define state persistence structure for isolation.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Tests may fail due to refactoring - existing test suite needs updates",
+      "mitigation": "Update tests incrementally. Maintain test coverage throughout refactoring. Use mocking for isolation.",
+      "layer": "tests"
+    }
+  ]
+}

@@ -1,0 +1,521 @@
+{
+  "story_path": "docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.analysis.json",
+  "repo_state_before_design": "docs/reqs/refactor devin wrapper/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "Orchestrator loads step definition and enrichment context",
+      "layers_involved": ["Orchestrator"],
+      "handshake_points": []
+    },
+    {
+      "step": 2,
+      "description": "Orchestrator enriches prompt with context variables using EnrichmentDictionary",
+      "layers_involved": ["Orchestrator", "Enrichment"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "Enrichment",
+          "contract_used": "EnrichmentDictionary.substitute_variables()",
+          "data_shape": {
+            "input": "prompt_template: str, enrichment: EnrichmentDictionary",
+            "output": "enriched_prompt: str"
+          }
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "Orchestrator invokes AgentWrapper with enriched prompt and agent config",
+      "layers_involved": ["Orchestrator", "AgentWrapper"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "AgentWrapper",
+          "contract_used": "AgentWrapper.execute_prompt()",
+          "data_shape": {
+            "input": "prompt: str, agent_config: dict|str, timeout: Optional[int], session_id: Optional[str]",
+            "output": "(output: str, session_id: Optional[str])"
+          }
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "AgentWrapper (DevinWrapper) executes CLI command and returns output",
+      "layers_involved": ["AgentWrapper", "CLI"],
+      "handshake_points": [
+        {
+          "from_layer": "AgentWrapper",
+          "to_layer": "CLI",
+          "contract_used": "subprocess.run()",
+          "data_shape": {
+            "input": "command: List[str], timeout: Optional[int]",
+            "output": "CompletedProcess(returncode, stdout, stderr)"
+          }
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "Orchestrator captures session ID from wrapper output",
+      "layers_involved": ["Orchestrator", "AgentWrapper"],
+      "handshake_points": []
+    },
+    {
+      "step": 6,
+      "description": "Orchestrator writes session state files (session_id.txt, feedback.txt, stderr.txt)",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "StateFileWrite",
+          "data_shape": {
+            "session_id.txt": "session_id: str",
+            "stderr.txt": "stderr_output: str",
+            "feedback.txt": "feedback_content: str"
+          }
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "description": "Orchestrator invokes verification script",
+      "layers_involved": ["Orchestrator", "CLI"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "CLI",
+          "contract_used": "subprocess.run()",
+          "data_shape": {
+            "input": "command: [bash, script_path], cwd: step_dir",
+            "output": "CompletedProcess(returncode, stdout, stderr)"
+          }
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "description": "Orchestrator returns exit code and session ID to SagaExecutor",
+      "layers_involved": ["Orchestrator", "SagaExecutor"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "SagaExecutor",
+          "contract_used": "invoke_step_result",
+          "data_shape": {
+            "output": "(exit_code: int, session_id: Optional[str])"
+          }
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "step_execution_started",
+      "description": "Logged when orchestrator begins executing a step",
+      "layers_involved": ["Orchestrator"],
+      "data_points": [
+        {
+          "point": "step_id",
+          "description": "Identifier of the step being executed"
+        },
+        {
+          "point": "timestamp",
+          "description": "When step execution started"
+        }
+      ]
+    },
+    {
+      "event_name": "prompt_enrichment_completed",
+      "description": "Logged when prompt enrichment is complete",
+      "layers_involved": ["Orchestrator", "Enrichment"],
+      "data_points": [
+        {
+          "point": "step_id",
+          "description": "Step being enriched"
+        },
+        {
+          "point": "variables_substituted",
+          "description": "Count of variables substituted"
+        }
+      ]
+    },
+    {
+      "event_name": "agent_execution_started",
+      "description": "Logged when agent wrapper begins execution",
+      "layers_involved": ["AgentWrapper"],
+      "data_points": [
+        {
+          "point": "agent_type",
+          "description": "Type of agent (e.g., 'devin')"
+        },
+        {
+          "point": "timeout_seconds",
+          "description": "Timeout enforced by orchestrator"
+        }
+      ]
+    },
+    {
+      "event_name": "agent_execution_completed",
+      "description": "Logged when agent wrapper completes execution",
+      "layers_involved": ["AgentWrapper"],
+      "data_points": [
+        {
+          "point": "exit_code",
+          "description": "Exit code from agent CLI"
+        },
+        {
+          "point": "session_id",
+          "description": "Session ID extracted from output"
+        },
+        {
+          "point": "duration_seconds",
+          "description": "Time taken for execution"
+        }
+      ]
+    },
+    {
+      "event_name": "session_state_persisted",
+      "description": "Logged when orchestrator writes session state files",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "data_points": [
+        {
+          "point": "session_id",
+          "description": "Session ID being persisted"
+        },
+        {
+          "point": "files_written",
+          "description": "List of state files written"
+        }
+      ]
+    },
+    {
+      "event_name": "verification_started",
+      "description": "Logged when orchestrator invokes verification script",
+      "layers_involved": ["Orchestrator"],
+      "data_points": [
+        {
+          "point": "step_id",
+          "description": "Step being verified"
+        },
+        {
+          "point": "script_path",
+          "description": "Path to verification script"
+        }
+      ]
+    },
+    {
+      "event_name": "verification_completed",
+      "description": "Logged when verification script completes",
+      "layers_involved": ["Orchestrator"],
+      "data_points": [
+        {
+          "point": "exit_code",
+          "description": "Verification exit code (0=pass, non-zero=fail)"
+        },
+        {
+          "point": "duration_seconds",
+          "description": "Time taken for verification"
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "AgentWrapper (DevinWrapper)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Accept prompt, agent_config, timeout, and optional session_id",
+          "intent": "Thin CLI adapter - only accepts inputs needed for CLI invocation"
+        },
+        {
+          "responsibility": "Build and execute CLI command",
+          "intent": "Core responsibility - translate abstract parameters to concrete CLI invocation"
+        },
+        {
+          "responsibility": "Capture and return output and session ID",
+          "intent": "Return raw results to caller for processing"
+        },
+        {
+          "responsibility": "Handle CLI execution errors gracefully",
+          "intent": "Wrapper-level error handling - return error output instead of raising exceptions"
+        }
+      ]
+    },
+    {
+      "layer": "Orchestrator (new/expanded)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Load step definition data",
+          "intent": "Orchestrator owns step lifecycle - must load step metadata"
+        },
+        {
+          "responsibility": "Enrich prompt with context variables",
+          "intent": "Orchestrator has access to saga context and enrichment dictionary"
+        },
+        {
+          "responsibility": "Invoke AgentWrapper with enriched prompt",
+          "intent": "Orchestrator coordinates agent execution within saga context"
+        },
+        {
+          "responsibility": "Enforce timeout around wrapper call",
+          "intent": "Orchestrator-level timeout management ensures consistent timeout behavior"
+        },
+        {
+          "responsibility": "Capture output into saga/step state",
+          "intent": "Orchestrator manages state persistence for saga execution"
+        },
+        {
+          "responsibility": "Write session state files",
+          "intent": "Orchestrator owns session lifecycle and state persistence"
+        },
+        {
+          "responsibility": "Invoke verification script",
+          "intent": "Orchestrator owns step verification as part of orchestration"
+        },
+        {
+          "responsibility": "Manage logging destinations",
+          "intent": "Orchestrator controls where logs go within saga context"
+        },
+        {
+          "responsibility": "Handle session resumption logic",
+          "intent": "Orchestrator manages session lifecycle across step invocations"
+        }
+      ]
+    },
+    {
+      "layer": "SagaExecutor",
+      "new_responsibilities": [
+        {
+          "responsibility": "Delegate step execution to Orchestrator.invoke_step()",
+          "intent": "SagaExecutor focuses on graph traversal; Orchestrator handles step details"
+        },
+        {
+          "responsibility": "Route based on exit code from Orchestrator",
+          "intent": "SagaExecutor uses exit code for routing decisions"
+        }
+      ]
+    },
+    {
+      "layer": "EnrichmentDictionary",
+      "new_responsibilities": [
+        {
+          "responsibility": "Provide variable substitution service to Orchestrator",
+          "intent": "Enrichment is now integrated into orchestrator workflow"
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "AgentWrapper Interface",
+      "description": "Generic interface for agent CLI tools, enabling multiple agent implementations",
+      "changes": {
+        "added": {
+          "abstract_class": "AgentWrapper",
+          "methods": [
+            {
+              "name": "execute_prompt",
+              "signature": "execute_prompt(prompt: str, agent_config: dict|str, timeout: Optional[int] = None, session_id: Optional[str] = None) -> Tuple[str, Optional[str]]",
+              "returns": "(output: str, session_id: Optional[str])",
+              "description": "Execute a prompt with the agent and return output and session ID"
+            }
+          ]
+        },
+        "modified": {
+          "DevinWrapper": "Implements AgentWrapper interface; simplified to thin CLI adapter"
+        },
+        "removed": []
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "Orchestrator.invoke_step()",
+      "description": "New orchestrator method that handles full step execution lifecycle",
+      "changes": {
+        "added": {
+          "method": "invoke_step",
+          "signature": "invoke_step(step_id: str, inputs: List[str] = None, session_id: Optional[str] = None, timeout: Optional[int] = None) -> Tuple[int, Optional[str], str]",
+          "returns": "(exit_code: int, session_id: Optional[str], stderr: str)",
+          "description": "Execute a step with enrichment, agent invocation, state management, and verification"
+        },
+        "responsibilities": [
+          "Load step definition",
+          "Enrich prompt with context",
+          "Invoke agent wrapper",
+          "Capture session ID",
+          "Write session state files",
+          "Invoke verification script",
+          "Return exit code and session ID for routing"
+        ]
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "Step Execution Flow",
+      "description": "Sequence of interactions during step execution",
+      "changes": {
+        "added": [
+          {
+            "step": 1,
+            "actor": "SagaExecutor",
+            "action": "Call Orchestrator.invoke_step(step_id, inputs, session_id, timeout)"
+          },
+          {
+            "step": 2,
+            "actor": "Orchestrator",
+            "action": "Load step definition from steps/<step_id>/step.json"
+          },
+          {
+            "step": 3,
+            "actor": "Orchestrator",
+            "action": "Call EnrichmentDictionary.substitute_variables(prompt, enrichment)"
+          },
+          {
+            "step": 4,
+            "actor": "Orchestrator",
+            "action": "Call AgentWrapper.execute_prompt(enriched_prompt, agent_config, timeout, session_id)"
+          },
+          {
+            "step": 5,
+            "actor": "AgentWrapper",
+            "action": "Execute CLI command and return (output, session_id)"
+          },
+          {
+            "step": 6,
+            "actor": "Orchestrator",
+            "action": "Write session state files (session_id.txt, stderr.txt, feedback.txt)"
+          },
+          {
+            "step": 7,
+            "actor": "Orchestrator",
+            "action": "Invoke verification script via subprocess"
+          },
+          {
+            "step": 8,
+            "actor": "Orchestrator",
+            "action": "Return (exit_code, session_id, stderr) to SagaExecutor"
+          }
+        ]
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "Session State Files",
+      "description": "Files written by Orchestrator to persist session state",
+      "changes": {
+        "added": [
+          {
+            "file": "session_id.txt",
+            "location": "steps/<step_id>/",
+            "content": "Devin session ID for resumption",
+            "responsibility": "Orchestrator writes after agent execution"
+          },
+          {
+            "file": "stderr.txt",
+            "location": "steps/<step_id>/",
+            "content": "Captured stderr from verification script",
+            "responsibility": "Orchestrator writes after verification"
+          },
+          {
+            "file": "feedback.txt",
+            "location": "steps/<step_id>/",
+            "content": "User feedback for session continuation",
+            "responsibility": "Orchestrator reads for session resumption"
+          }
+        ]
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Define generic AgentWrapper interface as abstract base class",
+      "justification": "Enables multiple agent implementations (Devin, Claude, Anthropic, etc.) without modifying orchestrator. Follows Open/Closed Principle.",
+      "basis": "ADR-003 (Skills-Based Architecture) - modularity and composability; ADR-008 (Devin CLI Saga Orchestration) - agent abstraction",
+      "impact": "Enables future agent implementations; requires DevinWrapper to implement interface",
+      "answers_open_question": "Should the AgentWrapper interface be an abstract base class or a protocol/interface? - Answer: Abstract base class for explicit contract enforcement"
+    },
+    {
+      "decision": "Move timeout enforcement to Orchestrator level",
+      "justification": "Orchestrator has full context of step execution and can enforce timeout around the entire step lifecycle (enrichment + agent execution + verification). Wrapper receives timeout but doesn't enforce it.",
+      "basis": "ADR-008 (Devin CLI Saga Orchestration) - timeout enforcement via subprocess; Separation of Concerns principle",
+      "impact": "Wrapper becomes simpler; Orchestrator gains timeout responsibility; consistent timeout behavior across all steps",
+      "answers_open_question": "How should timeout enforcement work? Process kill, signal, or graceful shutdown? - Answer: Orchestrator uses subprocess.run(timeout=...) for process kill"
+    },
+    {
+      "decision": "Orchestrator owns session lifecycle management",
+      "justification": "Session state (session_id.txt, feedback.txt, stderr.txt) is part of saga execution context. Orchestrator manages when files are written and read.",
+      "basis": "ADR-009 (Saga State Persistence) - session ID capture for resume capability; Separation of Concerns principle",
+      "impact": "Wrapper becomes stateless; Orchestrator manages all state files; enables future state persistence in ADR-009",
+      "answers_open_question": "How should session state be isolated when multiple steps execute concurrently? - Answer: Orchestrator uses unique session IDs or separate directories per invocation"
+    },
+    {
+      "decision": "Orchestrator integrates EnrichmentDictionary into step execution",
+      "justification": "Prompt enrichment is part of step execution context. Orchestrator has access to enrichment dictionary and should apply it before agent invocation.",
+      "basis": "Current code pattern - enrichment.py exists but isn't integrated; Separation of Concerns principle",
+      "impact": "Enrichment is now automatic for all steps; Wrapper receives enriched prompt; enables context-aware agent execution",
+      "answers_open_question": "What happens if enrichment fails? Should orchestrator fail the step or use unenriched prompt? - Answer: Orchestrator should fail the step with clear error message"
+    },
+    {
+      "decision": "Orchestrator invokes verification scripts",
+      "justification": "Verification is part of step execution orchestration. Orchestrator should invoke verification after agent execution and capture results.",
+      "basis": "ADR-008 (Devin CLI Saga Orchestration) - verification-driven routing; Current code - verification is part of step execution",
+      "impact": "Wrapper no longer invokes verification; Orchestrator owns verification lifecycle; enables better error handling and logging",
+      "answers_open_question": "Should verification script failures block saga execution or just log warnings? - Answer: Verification exit code determines routing (0=pass, non-zero=fail)"
+    },
+    {
+      "decision": "Wrapper remains Devin-specific initially; AgentWrapper interface enables future generalization",
+      "justification": "Immediate goal is to refactor responsibilities. Devin-specific implementation can be extracted to generic interface later.",
+      "basis": "Pragmatic approach - refactor now, generalize later; ADR-008 (Devin CLI Saga Orchestration) - current implementation uses Devin",
+      "impact": "DevinWrapper implements AgentWrapper interface; future agents can be added by implementing same interface",
+      "answers_open_question": "Should wrapper support multiple agent types from day 1, or is Devin-only acceptable initially? - Answer: Devin-only initially; interface enables future agents"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should the AgentWrapper interface be an abstract base class or a protocol/interface?",
+      "answer": "Abstract base class",
+      "justification": "Explicit contract enforcement, type checking support, and clear method signatures. Python's ABC module provides good support.",
+      "basis": "Python best practices for interface definition; ADR-003 (Skills-Based Architecture) - explicit contracts"
+    },
+    {
+      "question": "How should timeout enforcement work? Process kill, signal, or graceful shutdown?",
+      "answer": "Process kill via subprocess.run(timeout=...) at Orchestrator level",
+      "justification": "Hard timeout ensures no runaway processes. Orchestrator enforces timeout around entire step lifecycle.",
+      "basis": "ADR-008 (Devin CLI Saga Orchestration) - timeout enforcement via subprocess; Current implementation pattern"
+    },
+    {
+      "question": "Should orchestrator retry failed wrapper invocations, or fail immediately?",
+      "answer": "Fail immediately; retry logic is handled by saga routing (traversal limits)",
+      "justification": "Orchestrator should not retry. Saga executor handles retry via connection traversal limits.",
+      "basis": "ADR-008 (Devin CLI Saga Orchestration) - traversal-limited retry pattern; Separation of Concerns principle"
+    },
+    {
+      "question": "How should session state be isolated when multiple steps execute concurrently?",
+      "answer": "Use unique session IDs and separate directories per invocation; ADR-009 will define state persistence structure",
+      "justification": "Each step invocation gets unique session ID. State files are written to step-specific directory.",
+      "basis": "ADR-009 (Saga State Persistence) - hash-based saga IDs; Current implementation - step-specific directories"
+    },
+    {
+      "question": "Should verification script output be captured and stored, or just exit code?",
+      "answer": "Capture both exit code and stderr; store stderr in stderr.txt for debugging",
+      "justification": "Exit code determines routing; stderr provides debugging information for failed verifications.",
+      "basis": "Current implementation pattern; ADR-009 (Saga State Persistence) - artifact storage for debugging"
+    },
+    {
+      "question": "What happens if enrichment fails? Should orchestrator fail the step or use unenriched prompt?",
+      "answer": "Orchestrator should fail the step with clear error message",
+      "justification": "Enrichment failures indicate configuration issues that should be fixed, not silently ignored.",
+      "basis": "Error handling best practices; Separation of Concerns principle"
+    },
+    {
+      "question": "Should wrapper support multiple agent types from day 1, or is Devin-only acceptable initially?",
+      "answer": "Devin-only initially; AgentWrapper interface enables future agents without modifying orchestrator",
+      "justification": "Pragmatic approach - solve immediate problem (refactor responsibilities), enable future extensibility via interface.",
+      "basis": "Incremental design principle; ADR-008 (Devin CLI Saga Orchestration) - current implementation uses Devin"
+    }
+  ]
+}
