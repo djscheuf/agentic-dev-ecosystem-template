@@ -161,11 +161,8 @@ class TestSagaExecutorHappyPath:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             success, outputs = executor.execute([])
             
@@ -195,11 +192,8 @@ class TestSagaExecutorHappyPath:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             success, outputs = executor.execute([])
             
@@ -241,11 +235,8 @@ class TestSagaExecutorHappyPath:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             success, outputs = executor.execute([])
             
@@ -273,11 +264,8 @@ class TestSagaExecutorEdgeCases:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             success, outputs = executor.execute([])
             
@@ -301,11 +289,8 @@ class TestSagaExecutorEdgeCases:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             success, outputs = executor.execute([])
             
@@ -377,11 +362,8 @@ class TestSagaExecutorEdgeCases:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
@@ -409,12 +391,12 @@ class TestSagaExecutorTimeouts:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
-            assert exit_code == 124
+            assert exit_code == 1
             assert outputs == []
     
     def test_e_t_02_subsaga_timeout_warning(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_saga):
@@ -464,12 +446,12 @@ class TestSagaExecutorTimeouts:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
-            assert exit_code == 124
+            assert exit_code == 1
     
     def test_e_t_04_no_timeout_specified(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
         """E-T-04: No timeout specified (runs indefinitely)."""
@@ -489,16 +471,13 @@ class TestSagaExecutorTimeouts:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = ""
-            mock_run.return_value = mock_result
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
-            mock_run.assert_called_once()
-            assert mock_run.call_args[1]['timeout'] is None
+            mock_invoke.assert_called_once()
+            assert mock_invoke.call_args[1]['timeout'] is None
     
     def test_e_t_05_nested_saga_timeout_independent(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_saga):
         """E-T-05: Nested saga timeout independent of parent."""
@@ -740,12 +719,12 @@ class TestSagaExecutorErrorHandling:
         saga = SagaDefinition.from_dict(data)
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
-        with patch('subprocess.run') as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.side_effect = subprocess.TimeoutExpired(cmd=['test'], timeout=1)
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
-            assert exit_code == 124
+            assert exit_code == 1
     
     def test_e_er_08_node_not_found(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path):
         """E-ER-08: Node not found in saga definition."""

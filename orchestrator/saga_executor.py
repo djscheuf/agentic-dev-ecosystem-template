@@ -12,12 +12,12 @@ from typing import List, Dict, Optional, Tuple
 
 try:
     from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
-    from .devin_wrapper import DevinWrapper, load_step_definition
+    from .orchestrator import Orchestrator
     from .saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
     from .enrichment import EnrichmentDictionary
 except ImportError:
     from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, ConnectionTarget, NodeDefinition
-    from devin_wrapper import DevinWrapper, load_step_definition
+    from orchestrator import Orchestrator
     from saga_state import SagaStateManager, generate_saga_id, StateEntry, SubSagaEntry
     from enrichment import EnrichmentDictionary
 
@@ -105,6 +105,7 @@ class SagaExecutor:
         self.tracker = TraversalTracker()
         self.connection_map = self._build_connection_map()
         self.final_outputs: List[str] = []
+        self.orchestrator = Orchestrator()
         
         self.state_manager: Optional[SagaStateManager] = None
         if depth == 0 and saga_path is not None:
@@ -227,51 +228,46 @@ class SagaExecutor:
         """Execute a single step. Returns (exit_code, outputs, stderr)."""
         self.logger.log_step_start(node_name, inputs)
         
-        step_def_path = self.steps_dir / node_def.reference / "step.json"
+        step_dir = self.steps_dir / node_def.reference
+        step_def_path = step_dir / "step.json"
         
         try:
-            # Load step definition
-            step_def = load_step_definition(str(step_def_path))
+            # Load step definition to get prompt
+            step_def_data = json.loads(step_def_path.read_text())
+            prompt = step_def_data.get("prompt", "")
             
-            # Create wrapper instance
-            wrapper = DevinWrapper(step_def, inputs)
+            # Build enrichment dictionary from inputs
+            enrichment = self._build_enrichment(node_def.reference, inputs)
             
-            # Execute with timeout handling
-            if node_def.timeout:
-                import signal
-                
-                def timeout_handler(signum, frame):
-                    raise TimeoutError(f"Step execution exceeded {node_def.timeout} seconds")
-                
-                # Set timeout alarm (Unix only)
-                if hasattr(signal, 'SIGALRM'):
-                    signal.signal(signal.SIGALRM, timeout_handler)
-                    signal.alarm(node_def.timeout)
-                
-                try:
-                    exit_code, session_id = wrapper.execute(resume_session=resume_session)
-                finally:
-                    if hasattr(signal, 'SIGALRM'):
-                        signal.alarm(0)  # Cancel alarm
-            else:
-                # No timeout
-                exit_code, session_id = wrapper.execute(resume_session=resume_session)
+            # Load session ID if resuming
+            session_id = None
+            if resume_session:
+                session_file = step_dir / "session_id.txt"
+                if session_file.exists():
+                    session_id = session_file.read_text().strip()
+            
+            # Invoke step through orchestrator
+            exit_code, returned_session_id = self.orchestrator.invoke_step(
+                step_id=node_def.reference,
+                steps_dir=self.steps_dir,
+                prompt=prompt,
+                enrichment=enrichment,
+                timeout=node_def.timeout,
+                session_id=session_id
+            )
             
             # Parse outputs
             outputs = self._parse_outputs(node_def.reference, "")
             
             # Read stderr if available
             stderr = ""
-            if wrapper.stderr_file.exists():
-                stderr = wrapper.stderr_file.read_text()
+            stderr_file = step_dir / "stderr.txt"
+            if stderr_file.exists():
+                stderr = stderr_file.read_text()
                 if stderr:
                     self.logger.log(f"  Verification feedback: {stderr[:200]}...")
             
             return exit_code, outputs, stderr
-        
-        except TimeoutError as e:
-            self.logger.log(f"ERROR: Step '{node_name}' timed out after {node_def.timeout} seconds")
-            return 124, [], ""
         
         except Exception as e:
             self.logger.log(f"ERROR executing step '{node_name}': {e}")
@@ -325,6 +321,29 @@ class SagaExecutor:
         except Exception as e:
             self.logger.log(f"ERROR executing sub-saga '{node_name}': {e}")
             return 1, [], ""
+    
+    def _build_enrichment(self, step_id: str, inputs: List[str]) -> Dict[str, any]:
+        """Build enrichment dictionary for step execution.
+        
+        Args:
+            step_id: The step identifier
+            inputs: List of input values from previous step
+        
+        Returns:
+            Dict with enrichment variables
+        """
+        enrichment = {}
+        
+        # Add inputs as enrichment variables
+        for i, input_val in enumerate(inputs):
+            enrichment[f"input_{i}"] = input_val
+        
+        # Add saga-level enrichment if available
+        if self.state_manager:
+            enrichment['saga_id'] = self.state_manager.saga_id
+            enrichment['state_dir'] = str(self.state_manager.saga_dir)
+        
+        return enrichment
     
     def _parse_outputs(self, step_name: str, stdout: str) -> List[str]:
         """Parse outputs from step execution."""
