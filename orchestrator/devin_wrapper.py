@@ -11,6 +11,7 @@ Usage:
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -103,6 +104,7 @@ class DevinWrapper(AgentWrapper):
         self,
         prompt: str,
         agent_config: str,
+        model: str = "claude-sonnet-4.5",
         timeout: Optional[int] = None,
         session_id: Optional[str] = None
     ) -> Tuple[str, Optional[str]]:
@@ -113,6 +115,7 @@ class DevinWrapper(AgentWrapper):
         Args:
             prompt: The prompt to execute
             agent_config: Path to agent configuration file
+            model: The model to use (default: claude-sonnet-4.5)
             timeout: Optional timeout in seconds
             session_id: Optional session ID to resume
         
@@ -125,7 +128,7 @@ class DevinWrapper(AgentWrapper):
             FileNotFoundError: If 'devin' command is not found
             subprocess.TimeoutExpired: If execution exceeds timeout
         """
-        cmd = self.build_devin_command(prompt, "gpt-4", agent_config, session_id)
+        cmd = self.build_devin_command(prompt, model, agent_config, session_id)
         
         try:
             result = subprocess.run(
@@ -135,6 +138,15 @@ class DevinWrapper(AgentWrapper):
                 text=True,
                 timeout=timeout
             )
+            
+            # Check if command failed
+            if result.returncode != 0:
+                error_msg = f"Devin command failed with exit code {result.returncode}"
+                if result.stderr:
+                    error_msg += f"\nStderr: {result.stderr}"
+                if result.stdout:
+                    error_msg += f"\nStdout: {result.stdout}"
+                raise RuntimeError(error_msg)
             
             # Extract session ID from output on initial run
             extracted_session_id = self._extract_session_id(result.stdout)
@@ -181,6 +193,7 @@ def main():
     try:
         # Load step definition from steps/<step_name>/step.json
         step_def_path = f"steps/{step_name}/step.json"
+        print(f"[Devin Wrapper] Loading step definition: {step_def_path}", file=sys.stderr)
         step_def = load_step_definition(step_def_path)
         
         # Create wrapper and execute
@@ -196,17 +209,29 @@ def main():
         else:
             agent_config = ".devin/agent-config.json"
         
+        print(f"[Devin Wrapper] Using agent config: {agent_config}", file=sys.stderr)
+        print(f"[Devin Wrapper] Using model: {step_def.model}", file=sys.stderr)
+        print(f"[Devin Wrapper] Executing prompt with timeout: {step_def.timeout}s", file=sys.stderr)
+        
         output, session_id = wrapper.execute_prompt(
             prompt=prompt_content,
             agent_config=agent_config,
+            model=step_def.model,
             timeout=step_def.timeout
         )
         
+        print(f"[Devin Wrapper] Execution completed. Session ID: {session_id}", file=sys.stderr)
         print(output)
         sys.exit(0)
         
+    except FileNotFoundError as e:
+        print(f"[Devin Wrapper] ERROR: 'devin' command not found. Is Devin CLI installed?", file=sys.stderr)
+        print(f"[Devin Wrapper] Details: {e}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(f"[Devin Wrapper] FATAL ERROR: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

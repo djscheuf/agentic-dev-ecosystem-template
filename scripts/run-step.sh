@@ -15,4 +15,4 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 nix-shell -p python3 \
-  --run "python3 -m orchestrator.devin_wrapper '$STEP_NAME' '$INPUT_FILE_PATH'"
+  --run "python3 orchestrator/devin_wrapper.py '$STEP_NAME' '$INPUT_FILE_PATH'"

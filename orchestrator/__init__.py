@@ -20,4 +20,11 @@ __all__ = [
     'SubSagaEntry',
     'SagaStateManager',
     'EnrichmentDictionary',
+    'DevinWrapper',
 ]
+
+def __getattr__(name):
+    if name == 'DevinWrapper':
+        from .devin_wrapper import DevinWrapper
+        return DevinWrapper
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
