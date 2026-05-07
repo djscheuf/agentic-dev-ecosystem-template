@@ -19,12 +19,10 @@ from typing import List, Optional, Tuple
 
 try:
     from .agent_wrapper import AgentWrapper
-    from .enrichment import substitute_variables
-    from .models import StepDefinition, EnrichmentDictionary
+    from .models import StepDefinition
 except ImportError:
     from agent_wrapper import AgentWrapper
-    from enrichment import substitute_variables
-    from models import StepDefinition, EnrichmentDictionary
+    from models import StepDefinition
 
 
 class DevinWrapper(AgentWrapper):
@@ -172,48 +170,25 @@ def load_step_definition(path: str) -> StepDefinition:
 
 
 def main():
-    """Main entry point - supports enrichment context injection."""
-    if len(sys.argv) < 2:
-        print("Usage: python devin_wrapper.py <step_definition.json> [input_files...] [--enrichment <enrichment.json>]", file=sys.stderr)
+    """Main entry point - accepts step name and input file path."""
+    if len(sys.argv) < 3:
+        print("Usage: python devin_wrapper.py <step_name> <input_file_path>", file=sys.stderr)
         sys.exit(1)
     
-    step_def_path = sys.argv[1]
-    input_files = []
-    enrichment_path = None
-    
-    # Parse arguments
-    i = 2
-    while i < len(sys.argv):
-        if sys.argv[i] == "--enrichment" and i + 1 < len(sys.argv):
-            enrichment_path = sys.argv[i + 1]
-            i += 2
-        else:
-            input_files.append(sys.argv[i])
-            i += 1
+    step_name = sys.argv[1]
+    input_file_path = sys.argv[2]
     
     try:
-        # Load step definition
+        # Load step definition from steps/<step_name>/step.json
+        step_def_path = f"steps/{step_name}/step.json"
         step_def = load_step_definition(step_def_path)
         
         # Create wrapper and execute
         wrapper = DevinWrapper()
         prompt_content = step_def.get_prompt_content()
         
-        # Apply enrichment if provided
-        if enrichment_path:
-            enrichment_file = Path(enrichment_path)
-            if enrichment_file.exists():
-                enrichment_data = json.loads(enrichment_file.read_text())
-                enrichment = EnrichmentDictionary.from_dict(enrichment_data)
-                prompt_content = substitute_variables(prompt_content, enrichment)
-                print(f"[Devin Wrapper] Enrichment applied from: {enrichment_path}", file=sys.stderr)
-            else:
-                print(f"[Devin Wrapper] Warning: Enrichment file not found: {enrichment_path}", file=sys.stderr)
-        
-        if input_files:
-            prompt_content += "\n\nInput files:\n"
-            for input_file in input_files:
-                prompt_content += f"- {input_file}\n"
+        # Append input file path to prompt
+        prompt_content += f"\n\n{input_file_path}"
         
         agent_config_path = step_def.get_agent_config_path()
         if agent_config_path:
