@@ -1,0 +1,18 @@
+[0;31mVerification failed:[0m
+Schema validation failed: Missing required property 'title'
+Schema validation failed: Missing required property 'story'
+Schema validation failed: target_persona.journey is required
+Schema validation failed: capability_breakdown.inputs is required
+Schema validation failed: capability_breakdown.outputs is required
+Schema validation failed: capability_breakdown.affected_components.ui is required
+Schema validation failed: capability_breakdown.affected_components.api is required
+Schema validation failed: capability_breakdown.affected_components.database is required
+Schema validation failed: capability_breakdown.affected_components.external_services is required
+Missing required field: 'title'
+Missing required field: 'story'
+Acceptance criterion 0 has invalid type 'functional'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case
+Acceptance criterion 1 has invalid type 'functional'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case
+Acceptance criterion 2 has invalid type 'functional'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case
+Acceptance criterion 3 has invalid type 'functional'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case
+Acceptance criterion 4 has invalid type 'constraint'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case
+Target persona 'Step Developer' is not served by any acceptance criterion. At least one criterion must have persona_served matching the target persona.

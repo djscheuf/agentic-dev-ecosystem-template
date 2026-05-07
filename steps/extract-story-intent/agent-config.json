@@ -1,0 +1,14 @@
+{
+    "permissions": {
+    "allow": [
+        "Read(*)",
+        "Write(docs/**)"
+    ],
+    "deny": [
+        "Write(*.lock)",
+        "Write(.env*)",
+        "Write(.git*)",
+        "Write(orchestrator/**)"
+    ]
+    }
+}
