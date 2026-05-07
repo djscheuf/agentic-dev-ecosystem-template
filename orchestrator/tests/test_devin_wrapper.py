@@ -659,3 +659,162 @@ class TestExecuteMethodReturnValue:
             
             assert exit_code == 0
             assert session_id == "sess_pattern2"
+
+
+class TestAgentConfigHappyPath:
+    """Happy path tests for agent_config feature (A-H-*)."""
+    
+    def test_a_h_01_step_with_agent_config_field(self, tmp_path):
+        """A-H-01: Step definition includes agent_config field."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": "agent-config.json"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        
+        assert hasattr(step_def, 'agent_config')
+        assert step_def.agent_config == "agent-config.json"
+    
+    def test_a_h_02_get_agent_config_path_relative(self, tmp_path):
+        """A-H-02: get_agent_config_path() resolves relative paths to step directory."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": "agent-config.json"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        config_path = step_def.get_agent_config_path()
+        
+        assert config_path == tmp_path / "agent-config.json"
+    
+    def test_a_h_03_get_agent_config_path_absolute(self, tmp_path):
+        """A-H-03: get_agent_config_path() returns absolute paths as-is."""
+        step_file = tmp_path / "step.json"
+        absolute_path = "/absolute/path/agent-config.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": absolute_path
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        config_path = step_def.get_agent_config_path()
+        
+        assert config_path == Path(absolute_path)
+    
+    def test_a_h_04_devin_command_includes_agent_config(self, tmp_path):
+        """A-H-04: DevinWrapper.build_devin_command() includes --agent-config flag."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": "agent-config.json"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        cmd = wrapper.build_devin_command()
+        
+        assert "--agent-config" in cmd
+        config_idx = cmd.index("--agent-config")
+        assert str(tmp_path / "agent-config.json") == cmd[config_idx + 1]
+    
+    def test_a_h_05_fallback_to_global_config_when_not_specified(self, tmp_path):
+        """A-H-05: Falls back to global config when agent_config not specified."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        cmd = wrapper.build_devin_command()
+        
+        assert "--agent-config" in cmd
+        config_idx = cmd.index("--agent-config")
+        assert ".devin/agent-config.json" == cmd[config_idx + 1]
+
+
+class TestAgentConfigEdgeCases:
+    """Edge case tests for agent_config feature (A-E-*)."""
+    
+    def test_a_e_01_empty_agent_config_string(self, tmp_path):
+        """A-E-01: agent_config is empty string → use global config."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": ""
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        config_path = step_def.get_agent_config_path()
+        
+        assert config_path is None
+    
+    def test_a_e_02_null_agent_config(self, tmp_path):
+        """A-E-02: agent_config is null → use global config."""
+        step_file = tmp_path / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": None
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        config_path = step_def.get_agent_config_path()
+        
+        assert config_path is None
+    
+    def test_a_e_03_agent_config_with_relative_traversal(self, tmp_path):
+        """A-E-03: agent_config with ../ resolves correctly."""
+        step_dir = tmp_path / "steps" / "my-step"
+        step_dir.mkdir(parents=True)
+        
+        step_file = step_dir / "step.json"
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": "../shared/agent-config.json"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        config_path = step_def.get_agent_config_path()
+        
+        expected = step_dir / "../shared/agent-config.json"
+        assert config_path == expected
+    
+    def test_a_e_04_both_configs_exist_step_wins(self, tmp_path):
+        """A-E-04: When both step-specific and global config exist, step-specific wins."""
+        step_file = tmp_path / "step.json"
+        step_config = tmp_path / "agent-config.json"
+        step_config.write_text("{}")
+        
+        step_data = {
+            "prompt": "test prompt",
+            "model": "gpt-4",
+            "agent_config": "agent-config.json"
+        }
+        step_file.write_text(json.dumps(step_data))
+        
+        step_def = load_step_definition(str(step_file))
+        wrapper = DevinWrapper(step_def, [])
+        cmd = wrapper.build_devin_command()
+        
+        assert "--agent-config" in cmd
+        config_idx = cmd.index("--agent-config")
+        assert str(tmp_path / "agent-config.json") == cmd[config_idx + 1]

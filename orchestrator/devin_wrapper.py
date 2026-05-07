@@ -24,6 +24,7 @@ class StepDefinition:
         self.budget = data.get("budget")
         self.timeout = data.get("timeout")
         self.verify = data.get("verify")
+        self.agent_config = data.get("agent_config")
         self.step_def_dir = step_def_dir
         
         if not self.prompt:
@@ -41,6 +42,27 @@ class StepDefinition:
         if prompt_path.exists():
             return prompt_path.read_text()
         return self.prompt
+    
+    def get_agent_config_path(self) -> Optional[Path]:
+        """Get agent config path, resolving relative paths to step directory.
+        
+        Returns:
+            Path: Resolved path to agent config file, or None if not specified.
+                  Relative paths are resolved relative to step_def_dir.
+                  Absolute paths are returned as-is.
+        """
+        # Return None if agent_config is not specified, empty, or null
+        if not self.agent_config:
+            return None
+        
+        config_path = Path(self.agent_config)
+        
+        # If absolute path, return as-is
+        if config_path.is_absolute():
+            return config_path
+        
+        # Resolve relative path relative to step definition directory
+        return self.step_def_dir / config_path
 
 
 class DevinWrapper:
@@ -63,7 +85,12 @@ class DevinWrapper:
         
         # Use agent config to allow file writes in non-interactive mode
         # The config uses 'permissions' field with 'allow' and 'deny' lists
-        cmd.extend(["--agent-config", ".devin/agent-config.json"])
+        # Use step-specific config if available, otherwise fall back to global config
+        agent_config_path = self.step_def.get_agent_config_path()
+        if agent_config_path:
+            cmd.extend(["--agent-config", str(agent_config_path)])
+        else:
+            cmd.extend(["--agent-config", ".devin/agent-config.json"])
         
         # Use print mode for non-interactive execution
         cmd.append("-p")
@@ -133,6 +160,8 @@ class DevinWrapper:
         if self.step_def.timeout:
             print(f"[Devin Wrapper] Timeout: {self.step_def.timeout} seconds")
         print(f"[Devin Wrapper] Running in non-interactive mode (-p)")
+        print(f"[Devin Wrapper] Command: {' '.join(cmd)}")
+        print("")
         
         try:
             result = subprocess.run(
@@ -149,7 +178,17 @@ class DevinWrapper:
             
             # Print stdout for visibility
             if result.stdout:
+                print("[Devin Wrapper] === STDOUT ===")
                 print(result.stdout)
+            
+            # Print stderr if present (important for debugging)
+            if result.stderr:
+                print("[Devin Wrapper] === STDERR ===", file=sys.stderr)
+                print(result.stderr, file=sys.stderr)
+            
+            # Log exit code
+            if result.returncode != 0:
+                print(f"[Devin Wrapper] Exit code: {result.returncode}", file=sys.stderr)
             
             return result.returncode
         except subprocess.TimeoutExpired:
@@ -158,6 +197,7 @@ class DevinWrapper:
             return 124  # Standard timeout exit code
         except FileNotFoundError:
             print("[Devin Wrapper] ERROR: 'devin' command not found", file=sys.stderr)
+            print("[Devin Wrapper]       Make sure Devin CLI is installed and in your PATH", file=sys.stderr)
             return 127
         except Exception as e:
             print(f"[Devin Wrapper] ERROR: Failed to execute Devin: {e}", file=sys.stderr)

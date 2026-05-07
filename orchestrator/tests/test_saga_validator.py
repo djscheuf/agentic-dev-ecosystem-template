@@ -562,3 +562,169 @@ class TestSagaValidatorErrorHandling:
         is_valid = validator.validate()
         assert not is_valid
         assert any("In sub-saga 'subsaga1'" in err and "Start cannot be 'end'" in err for err in validator.get_errors())
+
+
+class TestAgentConfigValidationHappyPath:
+    """Happy path tests for agent_config validation (AV-H-*)."""
+    
+    def test_av_h_01_step_with_agent_config_file_exists(self, tmp_steps_dir, tmp_sagas_dir, create_step):
+        """AV-H-01: Validation passes when step has agent_config and file exists."""
+        step_dir = create_step("test")
+        config_file = step_dir / "agent-config.json"
+        config_file.write_text('{"permissions": {"allow": []}}')
+        
+        step_file = step_dir / "step.json"
+        step_data = json.loads(step_file.read_text())
+        step_data["agent_config"] = "agent-config.json"
+        step_file.write_text(json.dumps(step_data))
+        
+        data = {
+            "name": "saga-with-config",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert is_valid
+        assert len(errors) == 0
+    
+    def test_av_h_02_step_without_agent_config_uses_global(self, tmp_steps_dir, tmp_sagas_dir, create_step):
+        """AV-H-02: Validation passes when step has no agent_config (uses global)."""
+        create_step("test")
+        
+        global_config = tmp_steps_dir.parent / ".devin" / "agent-config.json"
+        global_config.parent.mkdir(parents=True, exist_ok=True)
+        global_config.write_text('{"permissions": {"allow": []}}')
+        
+        data = {
+            "name": "saga-no-config",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert is_valid
+        assert len(errors) == 0
+    
+    def test_av_h_03_absolute_agent_config_path(self, tmp_steps_dir, tmp_sagas_dir, create_step, tmp_path):
+        """AV-H-03: Validation passes with absolute agent_config path."""
+        step_dir = create_step("test")
+        absolute_config = tmp_path / "absolute-config.json"
+        absolute_config.write_text('{"permissions": {"allow": []}}')
+        
+        step_file = step_dir / "step.json"
+        step_data = json.loads(step_file.read_text())
+        step_data["agent_config"] = str(absolute_config)
+        step_file.write_text(json.dumps(step_data))
+        
+        data = {
+            "name": "saga-absolute-config",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert is_valid
+        assert len(errors) == 0
+
+
+class TestAgentConfigValidationEdgeCases:
+    """Edge case tests for agent_config validation (AV-E-*)."""
+    
+    def test_av_e_01_agent_config_file_missing(self, tmp_steps_dir, tmp_sagas_dir, create_step):
+        """AV-E-01: Validation fails when agent_config file doesn't exist."""
+        step_dir = create_step("test")
+        
+        step_file = step_dir / "step.json"
+        step_data = json.loads(step_file.read_text())
+        step_data["agent_config"] = "nonexistent-config.json"
+        step_file.write_text(json.dumps(step_data))
+        
+        data = {
+            "name": "saga-missing-config",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert not is_valid
+        assert any("agent_config" in err.lower() and ("not found" in err.lower() or "does not exist" in err.lower()) for err in errors)
+    
+    def test_av_e_02_global_config_missing_no_agent_config(self, tmp_steps_dir, tmp_sagas_dir, create_step):
+        """AV-E-02: Validation passes when global config missing and no agent_config specified (backward compatible)."""
+        create_step("test")
+        
+        data = {
+            "name": "saga-no-global-config",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert is_valid
+        assert len(errors) == 0
+    
+    def test_av_e_03_agent_config_with_relative_traversal(self, tmp_steps_dir, tmp_sagas_dir, create_step):
+        """AV-E-03: Validation passes with relative traversal in agent_config path."""
+        step_dir = create_step("test")
+        shared_dir = step_dir.parent / "shared"
+        shared_dir.mkdir(exist_ok=True)
+        config_file = shared_dir / "agent-config.json"
+        config_file.write_text('{"permissions": {"allow": []}}')
+        
+        step_file = step_dir / "step.json"
+        step_data = json.loads(step_file.read_text())
+        step_data["agent_config"] = "../shared/agent-config.json"
+        step_file.write_text(json.dumps(step_data))
+        
+        data = {
+            "name": "saga-relative-traversal",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        is_valid, errors, warnings = validate_saga(saga, tmp_steps_dir, tmp_sagas_dir)
+        
+        assert is_valid
+        assert len(errors) == 0

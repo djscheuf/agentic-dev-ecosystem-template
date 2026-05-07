@@ -9,8 +9,10 @@ from typing import Set, Dict, List
 
 try:
     from .saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
+    from .devin_wrapper import StepDefinition
 except ImportError:
     from saga_models import SagaDefinition, DirectedConnection, BranchingConnection, Connection, NodeDefinition
+    from devin_wrapper import StepDefinition
 
 
 class SagaValidator:
@@ -33,6 +35,7 @@ class SagaValidator:
         self._validate_recursion_depth()
         self._validate_start_exists()
         self._validate_nodes_exist()
+        self._validate_agent_configs()
         self._validate_connections_reference_nodes()
         self._validate_graph_connectivity()
         
@@ -79,6 +82,43 @@ class SagaValidator:
                     self.errors.append(f"Saga node '{node_name}' references '{node_def.reference}' which does not exist at {saga_path}")
                 else:
                     self._validate_subsaga(node_name, saga_path)
+    
+    def _validate_agent_configs(self):
+        """Validate agent_config files for all step nodes."""
+        for node_name, node_def in self.saga.nodes.items():
+            if node_def.type == "step":
+                step_path = self.steps_dir / node_def.reference / "step.json"
+                if step_path.exists():
+                    self._validate_step_agent_config(node_name, step_path)
+    
+    def _validate_step_agent_config(self, node_name: str, step_path: Path):
+        """Validate agent_config for a specific step.
+        
+        Rules:
+        - If step specifies agent_config, it MUST exist (error if missing)
+        - If step doesn't specify agent_config, global config is optional (no error if missing)
+        """
+        try:
+            step_data = json.loads(step_path.read_text())
+            step_def_dir = step_path.parent
+            step_def = StepDefinition(step_data, step_def_dir)
+            
+            # Get the agent config path
+            agent_config_path = step_def.get_agent_config_path()
+            
+            if agent_config_path:
+                # Step has explicit agent_config, verify it exists
+                if not agent_config_path.exists():
+                    self.errors.append(
+                        f"Step node '{node_name}' references agent_config '{step_def.agent_config}' "
+                        f"which does not exist at {agent_config_path}"
+                    )
+                elif not agent_config_path.is_file():
+                    self.errors.append(
+                        f"Step node '{node_name}' agent_config path '{agent_config_path}' is not a file"
+                    )
+        except Exception as e:
+            self.errors.append(f"Failed to validate agent_config for step node '{node_name}': {e}")
     
     def _validate_subsaga(self, node_name: str, saga_path: Path):
         """Recursively validate a sub-saga."""
