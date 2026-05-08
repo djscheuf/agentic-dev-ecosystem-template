@@ -234,14 +234,14 @@ find_intent_file() {
 }
 
 main() {
-  echo "[Verify] Searching for generated intent file..."
+  echo "[Verify] Searching for generated intent file..." >&2
   
   local story_path
   if ! story_path=$(find_intent_file); then
     exit 2
   fi
   
-  echo "[Verify] Found intent file: $story_path"
+  echo "[Verify] Found intent file: $story_path" >&2
   
   verify_structure "$story_path"
   verify_story_completeness "$story_path"
@@ -249,7 +249,8 @@ main() {
   
   exit_if_failed
   
-  echo -e "${GREEN}[Verify] ✓ Verification passed${NC}"
+  echo -e "${GREEN}[Verify] ✓ Verification passed${NC}" >&2
+  echo "$story_path"
 }
 
 main "$@"

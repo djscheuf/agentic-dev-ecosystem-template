@@ -49,7 +49,7 @@ class Orchestrator:
         saga_id: Optional[str] = None,
         node_name: Optional[str] = None,
         attempt_number: Optional[int] = None
-    ) -> Tuple[int, Optional[str]]:
+    ) -> Tuple[int, Optional[str], str]:
         """Invoke a step with full orchestration.
         
         Args:
@@ -65,9 +65,10 @@ class Orchestrator:
             attempt_number: Optional attempt number for retry logic
         
         Returns:
-            Tuple[int, Optional[str]]: (exit_code, session_id)
+            Tuple[int, Optional[str], str]: (exit_code, session_id, verification_output)
                 - exit_code: 0 for success, non-zero for failure
                 - session_id: The session ID (new or resumed)
+                - verification_output: stdout from verification script (empty if no verify script)
         
         Raises:
             FileNotFoundError: If step definition not found
@@ -133,7 +134,7 @@ class Orchestrator:
             attempt_dir = Path.cwd() / ".process" / f"saga-{saga_id}" / node_name / f"attempt_{attempt_number}"
             self._write_attempt_verification(attempt_dir, verification_output)
         
-        return exit_code, returned_session_id
+        return exit_code, returned_session_id, verification_output
     
     def _enrich_prompt(self, prompt: str, enrichment: Dict[str, Any]) -> str:
         """Enrich prompt with variables from enrichment dictionary.
@@ -229,7 +230,7 @@ class Orchestrator:
         Returns:
             Tuple[int, str]: (exit_code, verification_output)
                 - exit_code: Exit code from verification script
-                - verification_output: stderr from verification script (feedback)
+                - verification_output: stdout from verification script (for enrichment)
         """
         # Resolve script path
         script_path = Path(verify_script)
@@ -250,9 +251,9 @@ class Orchestrator:
                 text=True
             )
             
-            verification_output = result.stderr if result.stderr else ""
+            verification_output = result.stdout if result.stdout else ""
             
-            # Write stderr if present
+            # Write stderr if present (for debugging feedback)
             if result.stderr:
                 if self.logging_dir:
                     stderr_file = self.logging_dir / f"{step_name}_stderr.txt"

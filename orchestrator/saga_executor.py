@@ -276,7 +276,7 @@ class SagaExecutor:
                         self.orchestrator._log_accumulated_prompt_composed(node_name, attempt_number, len(execution_prompt), previous_attempts)
             
             # Invoke step through orchestrator
-            exit_code, returned_session_id = self.orchestrator.invoke_step(
+            exit_code, returned_session_id, verification_output = self.orchestrator.invoke_step(
                 step_id=node_def.reference,
                 steps_dir=self.steps_dir,
                 prompt=execution_prompt,
@@ -287,6 +287,17 @@ class SagaExecutor:
                 node_name=node_name,
                 attempt_number=attempt_number
             )
+            
+            # Update enrichment with verification output if step succeeded
+            if exit_code == 0 and verification_output and self.state_manager:
+                try:
+                    persisted_enrichment = self.state_manager.load_enrichment()
+                    if persisted_enrichment:
+                        persisted_enrichment.previous_step_output = verification_output.strip()
+                        self.state_manager.save_enrichment(persisted_enrichment)
+                        self.logger.log(f"  Updated enrichment with previous_step_output from verification")
+                except Exception as e:
+                    self.logger.log(f"  Warning: Could not update enrichment with verification output: {e}")
             
             # Parse outputs
             outputs = self._parse_outputs(node_def.reference, "")
