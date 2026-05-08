@@ -81,23 +81,11 @@ class Orchestrator:
         
         step_def = json.loads(step_file.read_text())
         
-        # Check if resuming with verification errors
-        verification_errors = enrichment.get('verification_errors') if enrichment else None
-        print(f"[Orchestrator] invoke_step: session_id={session_id}, has_enrichment={enrichment is not None}, has_verification_errors={verification_errors is not None}")
-        
         # Build the prompt/message to send
-        if session_id and verification_errors:
-            # Resuming session: send verification errors as continuation message
-            execution_prompt = f"Verification failed. Please review and fix the following errors:\n\n{verification_errors}"
-            print(f"[Orchestrator] Resuming session with verification errors ({len(verification_errors)} bytes)")
-        else:
-            # New session or resuming without errors: use normal prompt
-            enriched_prompt = prompt
-            if enrichment:
-                enriched_prompt = self._enrich_prompt(prompt, enrichment)
-            execution_prompt = enriched_prompt
-            if session_id:
-                print(f"[Orchestrator] Resuming session without verification errors")
+        enriched_prompt = prompt
+        if enrichment:
+            enriched_prompt = self._enrich_prompt(prompt, enrichment)
+        execution_prompt = enriched_prompt
         
         # Get agent config path
         agent_config = step_def.get("agent_config", ".devin/agent-config.json")

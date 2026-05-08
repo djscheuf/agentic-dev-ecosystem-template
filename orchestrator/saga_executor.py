@@ -273,28 +273,18 @@ class SagaExecutor:
                     # First attempt
                     attempt_number = 1
             
-            # Load session ID and verification errors if resuming
+            # Load session ID if resuming
             session_id = None
-            verification_errors = None
             if resume_session:
                 if self.state_manager:
                     session_file = self.state_manager.saga_dir / "session_id.txt"
-                    stderr_file = self.state_manager.saga_dir / f"{node_name}_stderr.txt"
                 else:
                     session_file = Path.cwd() / ".process" / node_name / "session_id.txt"
-                    stderr_file = Path.cwd() / ".process" / node_name / "stderr.txt"
                 
                 if session_file.exists():
                     session_id = session_file.read_text().strip()
-                
-                if stderr_file.exists():
-                    verification_errors = stderr_file.read_text()
-                    enrichment['verification_errors'] = verification_errors
-                    self.logger.log(f"  Loaded verification errors for enrichment ({len(verification_errors)} bytes)")
             
             # Invoke step through orchestrator
-            if 'verification_errors' in enrichment:
-                self.logger.log(f"  Passing verification_errors to orchestrator ({len(enrichment['verification_errors'])} bytes)")
             exit_code, returned_session_id = self.orchestrator.invoke_step(
                 step_id=node_def.reference,
                 steps_dir=self.steps_dir,
