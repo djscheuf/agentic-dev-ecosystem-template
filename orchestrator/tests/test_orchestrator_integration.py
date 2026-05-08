@@ -36,7 +36,7 @@ class TestOrchestratorIntegration:
         agent_config_file = agent_config_dir / "agent-config.json"
         agent_config_file.write_text(json.dumps({"permissions": {"allow": [], "deny": []}}))
         
-        orchestrator = Orchestrator()
+        orchestrator = Orchestrator(logging_dir=step_dir)
         
         # Mock the wrapper execution
         with patch.object(orchestrator.wrapper, 'execute_prompt') as mock_execute:
@@ -52,7 +52,8 @@ class TestOrchestratorIntegration:
                 step_id="integration-test",
                 steps_dir=tmp_path / "steps",
                 prompt="Process {{input}} with {{config}}",
-                enrichment=enrichment
+                enrichment=enrichment,
+                step_name="integration-test"
             )
             
             # Verify results
@@ -63,8 +64,8 @@ class TestOrchestratorIntegration:
             assert (step_dir / "session_id.txt").exists()
             assert (step_dir / "session_id.txt").read_text() == "session-abc123"
             
-            assert (step_dir / "feedback.txt").exists()
-            assert (step_dir / "feedback.txt").read_text() == "Agent output"
+            assert (step_dir / "integration-test_stdout.txt").exists()
+            assert (step_dir / "integration-test_stdout.txt").read_text() == "Agent output"
             
             # Verify wrapper was called with enriched prompt
             call_args = mock_execute.call_args

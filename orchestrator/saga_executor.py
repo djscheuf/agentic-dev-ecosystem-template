@@ -98,7 +98,7 @@ class ExecutionLogger:
 class SagaExecutor:
     """Executes a saga workflow."""
     
-    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None, saga_path: Optional[str] = None, original_input: Optional[str] = None):
+    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None, saga_path: Optional[str] = None, original_input: Optional[str] = None, orchestrator: Optional[Orchestrator] = None):
         self.saga = saga
         self.steps_dir = steps_dir
         self.sagas_dir = sagas_dir
@@ -123,9 +123,12 @@ class SagaExecutor:
             )
             self.state_manager.save_enrichment(enrichment)
         
-        # Initialize orchestrator with logging directory
-        logging_dir = self.state_manager.saga_dir if self.state_manager else None
-        self.orchestrator = Orchestrator(logging_dir=logging_dir)
+        # Initialize orchestrator with logging directory or use provided one
+        if orchestrator is not None:
+            self.orchestrator = orchestrator
+        else:
+            logging_dir = self.state_manager.saga_dir if self.state_manager else None
+            self.orchestrator = Orchestrator(logging_dir=logging_dir)
     
     def _build_connection_map(self) -> Dict[str, any]:
         """Build a map of node -> connection for quick lookup."""
@@ -245,6 +248,31 @@ class SagaExecutor:
             # Build enrichment dictionary from inputs
             enrichment = self._build_enrichment(node_def.reference, inputs)
             
+            # Determine saga context for retry logic
+            saga_id = None
+            attempt_number = None
+            execution_prompt = prompt
+            
+            if self.state_manager:
+                saga_id = self.state_manager.saga_id
+                
+                # Check if this is a retry (existing attempt directories)
+                node_dir = self.state_manager.saga_dir / node_name
+                if node_dir.exists():
+                    # This is a retry - determine next attempt number and compose accumulated prompt
+                    attempt_number = self.orchestrator._determine_next_attempt_number(saga_id, node_name)
+                    accumulated_prompt = self.orchestrator._compose_accumulated_prompt(saga_id, node_name)
+                    
+                    if accumulated_prompt:
+                        execution_prompt = accumulated_prompt
+                        previous_attempts = attempt_number - 1
+                        self.logger.log(f"  Retry detected: attempt {attempt_number}, composing accumulated prompt from {previous_attempts} previous attempt(s)")
+                        self.orchestrator._log_attempt_number_determined(node_name, attempt_number, previous_attempts)
+                        self.orchestrator._log_accumulated_prompt_composed(node_name, attempt_number, len(execution_prompt), previous_attempts)
+                else:
+                    # First attempt
+                    attempt_number = 1
+            
             # Load session ID and verification errors if resuming
             session_id = None
             verification_errors = None
@@ -270,11 +298,14 @@ class SagaExecutor:
             exit_code, returned_session_id = self.orchestrator.invoke_step(
                 step_id=node_def.reference,
                 steps_dir=self.steps_dir,
-                prompt=prompt,
+                prompt=execution_prompt,
                 enrichment=enrichment,
                 timeout=node_def.timeout,
                 session_id=session_id,
-                step_name=node_name
+                step_name=node_name,
+                saga_id=saga_id,
+                node_name=node_name,
+                attempt_number=attempt_number
             )
             
             # Parse outputs
@@ -321,7 +352,8 @@ class SagaExecutor:
                 depth=self.depth + 1,
                 logger=self.logger,
                 saga_path=saga_path_abs,
-                original_input=""
+                original_input="",
+                orchestrator=self.orchestrator
             )
             
             # Record sub-saga invocation in parent state manager
@@ -416,7 +448,7 @@ class SagaExecutor:
                 
                 count = self.tracker.increment(current_node, target)
                 
-                if limit is not None and count > limit:
+                if limit is not None and count >= limit:
                     self.logger.log_traversal_limit_hit(current_node, target, limit)
                     return None, True
                 
@@ -438,7 +470,7 @@ class SagaExecutor:
                 count = self.tracker.increment(current_node, target)
                 
                 # Check traversal limit on the 'then' connection
-                limit = conn.then.traversal_limit
+                limit = conn.max_retries
                 if limit is not None and count > limit:
                     self.logger.log(f"Self-correction limit exceeded for '{current_node}' (limit: {limit})")
                     return None, True

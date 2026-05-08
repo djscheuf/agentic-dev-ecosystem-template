@@ -622,6 +622,183 @@ class TestSagaExecutorTraversalTracking:
         assert tracker.get_count("step1", "step2") == 3
 
 
+class TestSagaExecutorRetryLogic:
+    """Retry logic tests for saga_executor.py (E-RY-*)."""
+    
+    def test_e_ry_01_retry_detection_with_existing_attempt_directories(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step, tmp_path):
+        """E-RY-01: Detect retry when attempt directories exist."""
+        create_step("test")
+        
+        data = {
+            "name": "test-saga",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        
+        # Create saga state manager with attempt directory
+        from orchestrator.saga_state import SagaStateManager
+        saga_id = "test-saga-123"
+        state_manager = SagaStateManager(saga_id)
+        
+        # Create attempt_1 directory to simulate a previous attempt
+        node_dir = state_manager.saga_dir / "step1"
+        attempt_dir = node_dir / "attempt_1"
+        attempt_dir.mkdir(parents=True, exist_ok=True)
+        
+        executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
+        executor.state_manager = state_manager
+        
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
+            with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
+                mock_attempt.return_value = 2
+                with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
+                    mock_prompt.return_value = "accumulated prompt"
+                    
+                    exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
+                    
+                    # Verify attempt number was determined
+                    mock_attempt.assert_called_once_with(saga_id, "step1")
+                    # Verify accumulated prompt was composed
+                    mock_prompt.assert_called_once_with(saga_id, "step1")
+    
+    def test_e_ry_02_first_attempt_no_retry_detection(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
+        """E-RY-02: First attempt does not trigger retry detection."""
+        create_step("test")
+        
+        data = {
+            "name": "test-saga",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        
+        # Create saga state manager without attempt directory
+        from orchestrator.saga_state import SagaStateManager
+        saga_id = "test-saga-456"
+        state_manager = SagaStateManager(saga_id)
+        
+        executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
+        executor.state_manager = state_manager
+        
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
+            with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
+                with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
+                    
+                    exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
+                    
+                    # Verify attempt number was NOT determined (first attempt)
+                    mock_attempt.assert_not_called()
+                    # Verify accumulated prompt was NOT composed
+                    mock_prompt.assert_not_called()
+                    # Verify invoke_step was called with attempt_number=1
+                    call_kwargs = mock_invoke.call_args[1]
+                    assert call_kwargs['attempt_number'] == 1
+    
+    def test_e_ry_03_saga_context_passed_to_orchestrator(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
+        """E-RY-03: Saga context (saga_id, node_name, attempt_number) passed to orchestrator."""
+        create_step("test")
+        
+        data = {
+            "name": "test-saga",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        
+        # Create saga state manager
+        from orchestrator.saga_state import SagaStateManager
+        saga_id = "test-saga-789"
+        state_manager = SagaStateManager(saga_id)
+        
+        executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
+        executor.state_manager = state_manager
+        
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
+            
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
+            
+            # Verify invoke_step was called with correct saga context
+            call_kwargs = mock_invoke.call_args[1]
+            assert call_kwargs['saga_id'] == saga_id
+            assert call_kwargs['node_name'] == "step1"
+            assert call_kwargs['attempt_number'] == 1
+    
+    def test_e_ry_04_multiple_retry_attempts_with_accumulated_prompt(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
+        """E-RY-04: Multiple retry attempts use accumulated prompt with growing size."""
+        create_step("test")
+        
+        data = {
+            "name": "test-saga",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {"node": "step1", "then": "end"}
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        
+        # Create saga state manager with multiple attempt directories
+        from orchestrator.saga_state import SagaStateManager
+        saga_id = "test-saga-multi"
+        state_manager = SagaStateManager(saga_id)
+        
+        # Create attempt_1 and attempt_2 directories to simulate previous attempts
+        node_dir = state_manager.saga_dir / "step1"
+        attempt_dir_1 = node_dir / "attempt_1"
+        attempt_dir_2 = node_dir / "attempt_2"
+        attempt_dir_1.mkdir(parents=True, exist_ok=True)
+        attempt_dir_2.mkdir(parents=True, exist_ok=True)
+        
+        executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
+        executor.state_manager = state_manager
+        
+        with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
+            mock_invoke.return_value = (0, "test-session-123")
+            with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
+                mock_attempt.return_value = 3
+                with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
+                    # Simulate accumulated prompt growing with each retry
+                    accumulated = "attempt 1 output\n---\nattempt 2 output\n---\nverification feedback"
+                    mock_prompt.return_value = accumulated
+                    
+                    exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
+                    
+                    # Verify attempt number was determined as 3
+                    mock_attempt.assert_called_once_with(saga_id, "step1")
+                    # Verify accumulated prompt was composed
+                    mock_prompt.assert_called_once_with(saga_id, "step1")
+                    # Verify invoke_step was called with attempt_number=3
+                    call_kwargs = mock_invoke.call_args[1]
+                    assert call_kwargs['attempt_number'] == 3
+                    # Verify the accumulated prompt was used
+                    assert call_kwargs['prompt'] == accumulated
+
+
 class TestSagaExecutorErrorHandling:
     """Critical error handling tests for saga_executor.py (E-ER-*)."""
     
@@ -815,3 +992,33 @@ class TestSagaExecutorErrorHandling:
         exit_code, outputs, stderr = executor._execute_node("step1", [])
         
         assert exit_code == 1
+    
+    def test_e_er_13_max_retries_exceeded(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
+        """E-ER-13: Max retries exceeded on self-correction loop."""
+        create_step("test")
+        
+        data = {
+            "name": "test-saga",
+            "start": "step1",
+            "nodes": {
+                "step1": {"type": "step", "reference": "test"}
+            },
+            "connections": [
+                {
+                    "node": "step1",
+                    "then": "end",
+                    "max_retries": 2
+                }
+            ]
+        }
+        
+        saga = SagaDefinition.from_dict(data)
+        executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
+        
+        with patch.object(executor, '_execute_node') as mock_execute:
+            mock_execute.return_value = (2, [], "validation error")
+            
+            success, outputs = executor.execute([])
+            
+            assert not success
+            assert mock_execute.call_count == 3

@@ -27,6 +27,7 @@ class DirectedConnection:
     """A simple directed connection (then)."""
     node: str
     then: ConnectionTarget
+    max_retries: Optional[int] = None
 
 
 @dataclass
@@ -120,7 +121,8 @@ class SagaDefinition:
                     then=ConnectionTarget(
                         target=then_data.get("target") if isinstance(then_data, dict) else then_data,
                         traversal_limit=then_data.get("traversal_limit") if isinstance(then_data, dict) else None
-                    )
+                    ),
+                    max_retries=conn_data.get("max_retries")
                 ))
             else:
                 raise ValueError(
