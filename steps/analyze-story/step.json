@@ -2,7 +2,7 @@
   "prompt": "prompt.md",
   "model": "claude-sonnet-4.5",
   "budget": 5,
-  "timeout": 300,
+  "timeout": 180,
   "verify": "scripts/verify.sh",
   "agent_config": "agent-config.json"
 }
