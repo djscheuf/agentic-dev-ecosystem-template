@@ -144,12 +144,17 @@ class SagaExecutor:
         
         current_node = self.saga.start
         current_inputs = initial_inputs
+        node_attempt_counts: Dict[str, int] = {}  # Track attempt number per node
         
         while current_node != "end":
             self.logger.log(f"\n--- Current node: {current_node} ---")
             
+            # Increment attempt count for this node
+            node_attempt_counts[current_node] = node_attempt_counts.get(current_node, 0) + 1
+            attempt_number = node_attempt_counts[current_node]
+            
             self._record_step_start(current_node)
-            exit_code, outputs, stderr = self._execute_node(current_node, current_inputs)
+            exit_code, outputs, stderr = self._execute_node(current_node, current_inputs, attempt_number)
             self._record_step_completion(current_node, exit_code)
             
             self.logger.log_step_result(current_node, exit_code)
@@ -209,7 +214,7 @@ class SagaExecutor:
         )
         self.state_manager.append_subsaga_entry(entry)
     
-    def _execute_node(self, node_name: str, inputs: List[str]) -> Tuple[int, List[str], str]:
+    def _execute_node(self, node_name: str, inputs: List[str], attempt_number: int = 1) -> Tuple[int, List[str], str]:
         """Execute a node (step or sub-saga). Returns (exit_code, outputs, stderr)."""
         if node_name not in self.saga.nodes:
             self.logger.log(f"ERROR: Node '{node_name}' not found in saga definition")
@@ -217,23 +222,15 @@ class SagaExecutor:
         
         node_def = self.saga.nodes[node_name]
         
-        # Check for stdout (indicates session continuation)
-        resume_session = False
-        if node_def.type == "step" and self.state_manager:
-            stdout_file = self.state_manager.saga_dir / f"{node_name}_stdout.txt"
-            if stdout_file.exists():
-                resume_session = True
-                self.logger.log(f"  Resuming session with verification feedback")
-        
         if node_def.type == "step":
-            return self._execute_step(node_name, node_def, inputs, resume_session)
+            return self._execute_step(node_name, node_def, inputs, attempt_number)
         elif node_def.type == "saga":
             return self._execute_subsaga(node_name, node_def, inputs)
         else:
             self.logger.log(f"ERROR: Unknown node type '{node_def.type}' for node '{node_name}'")
             return 1, [], ""
     
-    def _execute_step(self, node_name: str, node_def: NodeDefinition, inputs: List[str], resume_session: bool = False) -> Tuple[int, List[str], str]:
+    def _execute_step(self, node_name: str, node_def: NodeDefinition, inputs: List[str], attempt_number: int = 1) -> Tuple[int, List[str], str]:
         """Execute a single step. Returns (exit_code, outputs, stderr)."""
         self.logger.log_step_start(node_name, inputs)
         
@@ -250,17 +247,13 @@ class SagaExecutor:
             
             # Determine saga context for retry logic
             saga_id = None
-            attempt_number = None
             execution_prompt = prompt
             
             if self.state_manager:
                 saga_id = self.state_manager.saga_id
                 
-                # Check if this is a retry (existing attempt directories)
-                node_dir = self.state_manager.saga_dir / node_name
-                if node_dir.exists():
-                    # This is a retry - determine next attempt number and compose accumulated prompt
-                    attempt_number = self.orchestrator._determine_next_attempt_number(saga_id, node_name)
+                # If this is a retry (attempt_number > 1), compose accumulated prompt
+                if attempt_number > 1:
                     accumulated_prompt = self.orchestrator._compose_accumulated_prompt(saga_id, node_name)
                     
                     if accumulated_prompt:
@@ -269,20 +262,6 @@ class SagaExecutor:
                         self.logger.log(f"  Retry detected: attempt {attempt_number}, composing accumulated prompt from {previous_attempts} previous attempt(s)")
                         self.orchestrator._log_attempt_number_determined(node_name, attempt_number, previous_attempts)
                         self.orchestrator._log_accumulated_prompt_composed(node_name, attempt_number, len(execution_prompt), previous_attempts)
-                else:
-                    # First attempt
-                    attempt_number = 1
-            
-            # Load session ID if resuming
-            session_id = None
-            if resume_session:
-                if self.state_manager:
-                    session_file = self.state_manager.saga_dir / "session_id.txt"
-                else:
-                    session_file = Path.cwd() / ".process" / node_name / "session_id.txt"
-                
-                if session_file.exists():
-                    session_id = session_file.read_text().strip()
             
             # Invoke step through orchestrator
             exit_code, returned_session_id = self.orchestrator.invoke_step(
@@ -291,7 +270,6 @@ class SagaExecutor:
                 prompt=execution_prompt,
                 enrichment=enrichment,
                 timeout=node_def.timeout,
-                session_id=session_id,
                 step_name=node_name,
                 saga_id=saga_id,
                 node_name=node_name,
@@ -301,19 +279,7 @@ class SagaExecutor:
             # Parse outputs
             outputs = self._parse_outputs(node_def.reference, "")
             
-            # Read stderr if available (from saga state dir or .process/{step}/)
-            stderr = ""
-            if self.state_manager:
-                stderr_file = self.state_manager.saga_dir / f"{node_name}_stderr.txt"
-            else:
-                stderr_file = Path.cwd() / ".process" / node_name / "stderr.txt"
-            
-            if stderr_file.exists():
-                stderr = stderr_file.read_text()
-                if stderr:
-                    self.logger.log(f"  Verification feedback: {stderr[:200]}...")
-            
-            return exit_code, outputs, stderr
+            return exit_code, outputs, ""
         
         except Exception as e:
             self.logger.log(f"ERROR executing step '{node_name}': {e}")

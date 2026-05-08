@@ -115,7 +115,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         call_count = 0
-        def mock_execute_side_effect(node, inputs):
+        def mock_execute_side_effect(node, inputs, attempt_number=1):
             nonlocal call_count
             call_count += 1
             if call_count < 3:
@@ -657,17 +657,14 @@ class TestSagaExecutorRetryLogic:
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
             mock_invoke.return_value = (0, "test-session-123")
-            with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
-                mock_attempt.return_value = 2
-                with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
-                    mock_prompt.return_value = "accumulated prompt"
-                    
-                    exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
-                    
-                    # Verify attempt number was determined
-                    mock_attempt.assert_called_once_with(saga_id, "step1")
-                    # Verify accumulated prompt was composed
-                    mock_prompt.assert_called_once_with(saga_id, "step1")
+            with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
+                mock_prompt.return_value = "accumulated prompt"
+                
+                # Call with attempt_number=2 to simulate a retry
+                exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [], attempt_number=2)
+                
+                # Verify accumulated prompt was composed
+                mock_prompt.assert_called_once_with(saga_id, "step1")
     
     def test_e_ry_02_first_attempt_no_retry_detection(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path, create_step):
         """E-RY-02: First attempt does not trigger retry detection."""
@@ -779,24 +776,21 @@ class TestSagaExecutorRetryLogic:
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
             mock_invoke.return_value = (0, "test-session-123")
-            with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
-                mock_attempt.return_value = 3
-                with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
-                    # Simulate accumulated prompt growing with each retry
-                    accumulated = "attempt 1 output\n---\nattempt 2 output\n---\nverification feedback"
-                    mock_prompt.return_value = accumulated
-                    
-                    exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
-                    
-                    # Verify attempt number was determined as 3
-                    mock_attempt.assert_called_once_with(saga_id, "step1")
-                    # Verify accumulated prompt was composed
-                    mock_prompt.assert_called_once_with(saga_id, "step1")
-                    # Verify invoke_step was called with attempt_number=3
-                    call_kwargs = mock_invoke.call_args[1]
-                    assert call_kwargs['attempt_number'] == 3
-                    # Verify the accumulated prompt was used
-                    assert call_kwargs['prompt'] == accumulated
+            with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
+                # Simulate accumulated prompt growing with each retry
+                accumulated = "attempt 1 output\n---\nattempt 2 output\n---\nverification feedback"
+                mock_prompt.return_value = accumulated
+                
+                # Call with attempt_number=3 to simulate third attempt
+                exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [], attempt_number=3)
+                
+                # Verify accumulated prompt was composed
+                mock_prompt.assert_called_once_with(saga_id, "step1")
+                # Verify invoke_step was called with attempt_number=3
+                call_kwargs = mock_invoke.call_args[1]
+                assert call_kwargs['attempt_number'] == 3
+                # Verify the accumulated prompt was used
+                assert call_kwargs['prompt'] == accumulated
 
 
 class TestSagaExecutorErrorHandling:
