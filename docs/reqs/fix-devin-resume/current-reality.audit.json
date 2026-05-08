@@ -1,0 +1,126 @@
+{
+  "run_date": "2026-05-08T13:21:00Z",
+  "target_story": "docs/reqs/fix devin resume/fix-devin-resume-retry-logic.analysis.json",
+  "project_structure": {
+    "root": "/mnt/data/0_repo/agentic-dev-ecosystem-template",
+    "description": "Agentic software factory template with saga-based orchestration for Devin CLI execution. Implements graph-based workflow orchestration with step execution, verification-driven routing, and state persistence.",
+    "tech_stack": {
+      "programming_languages": ["Python"],
+      "frameworks": ["Devin CLI"],
+      "libraries": ["pathlib", "json", "subprocess", "datetime"],
+      "unit_testing_tools": ["pytest"]
+    },
+    "subprojects": [
+      {
+        "root": "orchestrator/",
+        "description": "Core saga orchestration engine with step execution, state management, and verification routing",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": [],
+          "libraries": ["pathlib", "json", "subprocess", "datetime"],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "steps/",
+        "description": "Step definitions with prompts, agent configs, and verification scripts",
+        "tech_stack": {
+          "programming_language": "JSON",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": []
+        }
+      },
+      {
+        "root": "sagas/",
+        "description": "Saga workflow definitions in JSON format",
+        "tech_stack": {
+          "programming_language": "JSON",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": []
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "vault/decisions/ADR-008-devin-saga-orchestration.md",
+        "why": "Defines the saga orchestration architecture and Devin CLI integration. Establishes graph-based execution model, traversal limits, and verification-driven routing. Critical for understanding current retry/correction patterns and session management limitations."
+      },
+      {
+        "path": "vault/decisions/ADR-009-saga-state-persistence.md",
+        "why": "Defines file-based state persistence for saga execution. Specifies directory structure (.process/saga-<hash>/), state file format, and session ID capture. Directly relevant to implementing conversation accumulation pattern and file structure changes."
+      }
+    ],
+    "persona": [],
+    "target_architecture": [
+      {
+        "path": "vault/services/saga-enrichment.md",
+        "why": "Documents saga enrichment patterns for context passing between steps. Relevant for understanding how accumulated conversation history will be passed to retry attempts."
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [
+      {
+        "path": "orchestrator/saga_executor.py",
+        "why": "Main execution engine. Contains _execute_step() method that needs modification to detect retries and call compose_retry_prompt(). Also contains _route_to_next_node() for routing logic and traversal tracking."
+      },
+      {
+        "path": "orchestrator/orchestrator.py",
+        "why": "Step orchestrator. Contains _write_session_state() method that currently writes to .process/<step>/ or logging_dir. Needs modification to create node-specific directories and write three files (input.txt, output.txt, verification.txt). Also needs new methods: _determine_attempt_number() and compose_retry_prompt()."
+      },
+      {
+        "path": "orchestrator/devin_wrapper.py",
+        "why": "Devin CLI wrapper for step execution. Currently invokes agent and captures output. May need modification to support passing accumulated prompts on retry."
+      }
+    ],
+    "services": [
+      {
+        "path": "orchestrator/saga_state.py",
+        "why": "State management for saga execution. Tracks saga state and step execution history. May be extended to track attempt numbers and accumulated prompts."
+      }
+    ],
+    "models": [
+      {
+        "path": "orchestrator/models/saga_models.py",
+        "why": "Data structures for saga definitions including NodeDefinition, StateEntry, SubSagaEntry. May need extension for attempt tracking."
+      }
+    ],
+    "apis": [],
+    "tests": [
+      {
+        "path": "orchestrator/tests/test_saga_executor.py",
+        "why": "Tests for saga execution. Will need new tests for retry logic, attempt number determination, and accumulated prompt composition."
+      },
+      {
+        "path": "orchestrator/tests/test_saga_state.py",
+        "why": "Tests for state management. Will need tests for new state file structure and attempt tracking."
+      }
+    ]
+  },
+  "current_implementation_notes": {
+    "session_management": "Current implementation attempts to resume sessions via session_id.txt but Devin CLI does not provide discoverable session IDs. Session resumption is not viable.",
+    "state_files": "Currently writes stdout.txt, stderr.txt, and session_id.txt to .process/<step>/ or logging_dir. No node-specific subdirectories or attempt tracking.",
+    "retry_pattern": "Uses traversal limits on connections to prevent infinite loops. Retry logic is graph-based (routing back to same node). No conversation accumulation or context passing on retry.",
+    "verification": "Verification scripts run after step execution. Failures trigger routing decisions (pass/fail). No mechanism to pass verification feedback back to agent on retry.",
+    "enrichment": "Enrichment dictionary passed to orchestrator for prompt variable substitution. Currently supports verification_errors but no accumulated conversation history."
+  },
+  "implementation_gaps": [
+    "No node-specific directory structure for organizing attempt artifacts",
+    "No attempt number tracking or determination logic",
+    "No accumulated prompt composition from previous attempts",
+    "No mechanism to pass full conversation history to retry attempts",
+    "No clear separation between input.txt, output.txt, and verification.txt files",
+    "Session ID tracking is non-functional (Devin CLI limitation)"
+  ],
+  "design_constraints": [
+    "Must maintain backward compatibility with existing sagas",
+    "Must use existing traversal limit mechanism for retry enforcement",
+    "Must not require session resumption (not viable with Devin CLI)",
+    "Must preserve all attempt artifacts for debugging",
+    "Must work with current file-based state persistence approach"
+  ]
+}

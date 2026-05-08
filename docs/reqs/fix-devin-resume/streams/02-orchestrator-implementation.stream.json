@@ -1,0 +1,131 @@
+{
+  "source_story": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.analysis.json",
+  "overall_design": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json",
+  "story": {
+    "as_a": "Saga Orchestrator System",
+    "i_want": "Implement conversation accumulation pattern for retry logic when Devin session resumption is not viable",
+    "so_that": "Failed verification steps can be retried with full conversation context, allowing agents to see and fix previous errors"
+  },
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Each step execution creates a node-specific directory",
+      "gherkin": "Given a saga step execution, When the step completes, Then a node-specific directory is created at .sagas/<saga-id>/<node-name>/attempt_<N>/",
+      "status": "pending"
+    },
+    {
+      "criterion": "Three files captured per attempt: input.txt, output.txt, verification.txt",
+      "gherkin": "Given a step execution, When state is captured, Then input.txt, output.txt, and verification.txt are written to the attempt directory",
+      "status": "pending"
+    },
+    {
+      "criterion": "Retry attempts compose accumulated conversation history",
+      "gherkin": "Given a failed verification, When a retry is triggered, Then the new prompt contains original input + all previous outputs + all previous verification feedback",
+      "status": "pending"
+    },
+    {
+      "criterion": "Logs clearly show retry attempts and accumulated prompt sizes",
+      "gherkin": "Given a retry attempt, When logs are examined, Then they show attempt number and accumulated prompt size",
+      "status": "pending"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "criterion": "First attempt (no previous attempts to accumulate)",
+      "gherkin": "Given a step execution on first attempt, When state is captured, Then input.txt contains original prompt only",
+      "status": "pending"
+    },
+    {
+      "criterion": "Accumulated prompt exceeds token limits",
+      "gherkin": "Given accumulated prompt exceeds token limits, When retry is attempted, Then agent returns error and verification fails",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verification script produces no output",
+      "gherkin": "Given verification script runs successfully with no output, When state is captured, Then verification.txt is empty or contains success indicator",
+      "status": "pending"
+    }
+  ],
+  "dependencies": [
+    "docs/reqs/fix-devin-resume/streams/01-foundations.stream.json"
+  ],
+  "steps": [
+    {
+      "description": "Modify Orchestrator._write_session_state() to accept saga_id, node_name, and attempt_number parameters",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": []
+    },
+    {
+      "description": "Implement directory creation logic in _write_session_state() to create .sagas/<saga-id>/<node-name>/attempt_<N>/ structure",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Implement file writing in _write_session_state() to write input.txt, output.txt, and verification.txt",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 2"]
+    },
+    {
+      "description": "Implement Orchestrator._determine_attempt_number() method to scan node directory and return next attempt number",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 2"]
+    },
+    {
+      "description": "Implement Orchestrator.compose_retry_prompt() method to load previous attempts and build accumulated conversation",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 4"]
+    },
+    {
+      "description": "Update Orchestrator.invoke_step() to accept and use saga context (saga_id, node_name, attempt_number)",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Add logging for attempt number determination and accumulated prompt composition",
+      "layer": "orchestrator",
+      "status": "pending",
+      "depends_on": ["Step 5"]
+    },
+    {
+      "description": "Write unit tests for _determine_attempt_number() with various directory states",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 4"]
+    },
+    {
+      "description": "Write unit tests for compose_retry_prompt() with various attempt histories",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 5"]
+    },
+    {
+      "description": "Write unit tests for _write_session_state() with new directory structure",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 3"]
+    },
+    {
+      "description": "Write integration tests for full orchestrator flow with retries",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 10"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "vault/decisions/ADR-008-devin-saga-orchestration.md - Saga orchestration architecture",
+      "vault/decisions/ADR-009-saga-state-persistence.md - File-based state persistence pattern",
+      "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json - Design document with contracts and responsibilities"
+    ],
+    "code": [
+      "orchestrator/orchestrator.py - Orchestrator class and _write_session_state() method",
+      "orchestrator/devin_wrapper.py - DevinWrapper for understanding prompt execution",
+      "orchestrator/tests/test_saga_state.py - Existing state management tests for reference"
+    ]
+  }
+}

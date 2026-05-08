@@ -1,0 +1,116 @@
+{
+  "source_story": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.analysis.json",
+  "overall_design": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json",
+  "story": {
+    "as_a": "Saga Orchestrator System",
+    "i_want": "Implement conversation accumulation pattern for retry logic when Devin session resumption is not viable",
+    "so_that": "Failed verification steps can be retried with full conversation context, allowing agents to see and fix previous errors"
+  },
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Each retry creates a new Devin agent (no session resumption)",
+      "gherkin": "Given a retry attempt, When the orchestrator executes the step, Then a new Devin agent is created (not resuming a previous session)",
+      "status": "pending"
+    },
+    {
+      "criterion": "Retry limit enforced via existing traversal limit mechanism",
+      "gherkin": "Given a step with retry attempts, When the traversal limit is reached, Then no further retries are attempted",
+      "status": "pending"
+    },
+    {
+      "criterion": "Existing saga execution flow preserved (no breaking changes)",
+      "gherkin": "Given existing sagas, When executed with new code, Then they continue to work without modification",
+      "status": "pending"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "criterion": "Multiple retries with growing prompt size",
+      "gherkin": "Given 5+ retry attempts, When accumulated prompt is composed, Then all previous outputs and verification feedback are included",
+      "status": "pending"
+    }
+  ],
+  "dependencies": [
+    "docs/reqs/fix-devin-resume/streams/02-orchestrator-implementation.stream.json"
+  ],
+  "steps": [
+    {
+      "description": "Modify SagaExecutor._execute_step() to detect retries by checking for existing attempt directories in node directory",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": []
+    },
+    {
+      "description": "Implement retry detection logic to call _determine_attempt_number() when retries are detected",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Modify SagaExecutor._execute_step() to call Orchestrator.compose_retry_prompt() when retry is detected",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": ["Step 2"]
+    },
+    {
+      "description": "Modify SagaExecutor._execute_node() to pass saga_id, node_name, and attempt_number to Orchestrator.invoke_step()",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": []
+    },
+    {
+      "description": "Add logging for retry detection and accumulated prompt composition in SagaExecutor",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": ["Step 3"]
+    },
+    {
+      "description": "Verify that existing traversal limit mechanism enforces retry limits correctly",
+      "layer": "saga_executor",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Write unit tests for retry detection logic",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Write unit tests for _execute_step() with retry scenarios",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 3"]
+    },
+    {
+      "description": "Write integration tests for full retry flow with multiple attempts",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 8"]
+    },
+    {
+      "description": "Write integration tests for traversal limit enforcement on retries",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 6"]
+    },
+    {
+      "description": "Write E2E tests for saga with verification failure and successful retry",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 9"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "vault/decisions/ADR-008-devin-saga-orchestration.md - Saga orchestration and traversal limits",
+      "vault/decisions/ADR-009-saga-state-persistence.md - State persistence patterns",
+      "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json - Design document with workflow sequence"
+    ],
+    "code": [
+      "orchestrator/saga_executor.py - SagaExecutor class and _execute_step() method",
+      "orchestrator/saga_executor.py - TraversalTracker for understanding traversal limit enforcement",
+      "orchestrator/tests/test_saga_executor.py - Existing saga executor tests for reference"
+    ]
+  }
+}

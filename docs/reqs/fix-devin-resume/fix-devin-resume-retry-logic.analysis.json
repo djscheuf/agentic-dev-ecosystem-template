@@ -1,0 +1,245 @@
+{
+  "raw_request": "docs/reqs/fix devin resume/requirements.md",
+  "title": "Fix Devin Resume/Retry Logic with Conversation Accumulation",
+  "story": {
+    "as_a": "Saga Orchestrator System",
+    "i_want": "Implement conversation accumulation pattern for retry logic when Devin session resumption is not viable",
+    "so_that": "Failed verification steps can be retried with full conversation context, allowing agents to see and fix previous errors"
+  },
+  "target_persona": {
+    "name": "Saga Orchestrator",
+    "role": "System Component",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Step execution begins with original prompt sent to Devin agent",
+      "during": "Agent produces output, verification script runs and may fail, system needs to retry with context",
+      "after": "Retry completes with accumulated conversation history or succeeds"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Capture step execution state and compose retry prompts with full conversation history",
+    "inputs": [
+      "Original prompt sent to agent",
+      "Agent output from previous attempts",
+      "Verification script output from previous attempts",
+      "Attempt number tracking",
+      "Node name and saga ID for directory structure"
+    ],
+    "outputs": [
+      "Structured state files (input.txt, output.txt, verification.txt)",
+      "Accumulated conversation prompt for retry",
+      "Clear attempt tracking in directory structure",
+      "Logs showing retry attempts and accumulated prompt sizes"
+    ],
+    "state_changes": [
+      "New node-specific directories created under .sagas/<saga-id>/<node-name>/",
+      "Attempt subdirectories created (attempt_1, attempt_2, etc.)",
+      "State files written per attempt",
+      "Retry counter incremented",
+      "Session ID tracking removed/deprecated"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [],
+      "database": [],
+      "external_services": [
+        "Devin CLI (invoked per retry attempt)"
+      ],
+      "internal_services": [
+        "orchestrator/orchestrator.py - _write_session_state(), _determine_attempt_number(), compose_retry_prompt()",
+        "orchestrator/saga_executor.py - _execute_step() retry detection",
+        "orchestrator/devin_wrapper.py - agent invocation"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Each step execution creates a node-specific directory",
+      "gherkin": "Given a saga step execution, When the step completes, Then a node-specific directory is created at .sagas/<saga-id>/<node-name>/attempt_<N>/",
+      "type": "Functional",
+      "jtbd": "Create node-specific directory",
+      "persona_served": "Saga Orchestrator",
+      "testable": true,
+      "dependencies": ["Directory structure must be created before files are written"]
+    },
+    {
+      "criterion": "Three files captured per attempt: input.txt, output.txt, verification.txt",
+      "gherkin": "Given a step execution, When state is captured, Then input.txt, output.txt, and verification.txt are written to the attempt directory",
+      "type": "Functional",
+      "jtbd": "Capture three state files",
+      "persona_served": "Saga Orchestrator",
+      "testable": true,
+      "dependencies": ["Node-specific directory must exist"]
+    },
+    {
+      "criterion": "Retry attempts compose accumulated conversation history",
+      "gherkin": "Given a failed verification, When a retry is triggered, Then the new prompt contains original input + all previous outputs + all previous verification feedback",
+      "type": "Functional",
+      "jtbd": "Compose accumulated prompt",
+      "persona_served": "Devin Agent",
+      "testable": true,
+      "dependencies": ["Previous attempt files must be readable"]
+    },
+    {
+      "criterion": "Each retry creates a new Devin agent (no session resumption)",
+      "gherkin": "Given a retry attempt, When the orchestrator executes the step, Then a new Devin agent is created (not resuming a previous session)",
+      "type": "Constraint",
+      "jtbd": "Create new agent per retry",
+      "persona_served": "Saga Orchestrator",
+      "testable": true,
+      "dependencies": ["Session resumption logic must be removed"]
+    },
+    {
+      "criterion": "Retry limit enforced via existing traversal limit mechanism",
+      "gherkin": "Given a step with retry attempts, When the traversal limit is reached, Then no further retries are attempted",
+      "type": "Constraint",
+      "jtbd": "Enforce retry limit",
+      "persona_served": "Saga Orchestrator",
+      "testable": true,
+      "dependencies": ["Existing traversal limit mechanism must be in place"]
+    },
+    {
+      "criterion": "File naming is clear and self-documenting",
+      "gherkin": "Given state files, When examined, Then file names (input.txt, output.txt, verification.txt) clearly indicate their purpose",
+      "type": "Non-functional",
+      "jtbd": "Use clear file names",
+      "persona_served": "Developer",
+      "testable": true,
+      "dependencies": []
+    },
+    {
+      "criterion": "Existing saga execution flow preserved (no breaking changes)",
+      "gherkin": "Given existing sagas, When executed with new code, Then they continue to work without modification",
+      "type": "Constraint",
+      "jtbd": "Maintain backward compatibility",
+      "persona_served": "System",
+      "testable": true,
+      "dependencies": ["All new code must be additive"]
+    },
+    {
+      "criterion": "Logs clearly show retry attempts and accumulated prompt sizes",
+      "gherkin": "Given a retry attempt, When logs are examined, Then they show attempt number and accumulated prompt size",
+      "type": "Non-functional",
+      "jtbd": "Log retry details",
+      "persona_served": "Developer",
+      "testable": true,
+      "dependencies": ["Logging must be added to retry logic"]
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "First attempt (no previous attempts to accumulate)",
+      "gherkin": "Given a step execution on first attempt, When state is captured, Then input.txt contains original prompt only",
+      "type": "Edge case",
+      "jtbd": "Handle first attempt without previous context",
+      "persona_served": "Saga Orchestrator"
+    },
+    {
+      "criterion": "Accumulated prompt exceeds token limits",
+      "gherkin": "Given accumulated prompt exceeds token limits, When retry is attempted, Then agent returns error and verification fails",
+      "type": "Edge case",
+      "jtbd": "Handle token limit overflow",
+      "persona_served": "Saga Orchestrator"
+    },
+    {
+      "criterion": "Verification script produces no output",
+      "gherkin": "Given verification script runs successfully with no output, When state is captured, Then verification.txt is empty or contains success indicator",
+      "type": "Edge case",
+      "jtbd": "Handle empty verification output",
+      "persona_served": "Saga Orchestrator"
+    },
+    {
+      "criterion": "Node directory already exists from previous saga run",
+      "gherkin": "Given node directory exists from previous saga, When new saga runs same node, Then new attempt subdirectory is created with incremented number",
+      "type": "Edge case",
+      "jtbd": "Handle existing node directory",
+      "persona_served": "Saga Orchestrator"
+    },
+    {
+      "criterion": "Attempt subdirectories partially created (crash recovery)",
+      "gherkin": "Given attempt subdirectory exists but files are incomplete, When retry logic checks for next attempt, Then next attempt number is correctly determined",
+      "type": "Edge case",
+      "jtbd": "Handle partial directory creation",
+      "persona_served": "Saga Orchestrator"
+    },
+    {
+      "criterion": "Multiple retries with growing prompt size",
+      "gherkin": "Given 5+ retry attempts, When accumulated prompt is composed, Then all previous outputs and verification feedback are included",
+      "type": "Edge case",
+      "jtbd": "Handle deep retry chains",
+      "persona_served": "Devin Agent"
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "Should we implement prompt compression/summarization to reduce token usage?",
+      "impacts": ["token usage", "agent context quality", "implementation complexity"],
+      "answer": "No, not in initial implementation. Keep it simple."
+    },
+    {
+      "question": "What happens if accumulated prompt exceeds token limits?",
+      "impacts": ["error handling", "retry behavior", "user experience"],
+      "answer": "Let it fail naturally. Agent will return error, verification will fail, saga will exit."
+    },
+    {
+      "question": "Should we preserve old attempt directories or clean them up on success?",
+      "impacts": ["storage usage", "debugging capability", "cleanup logic"],
+      "answer": "Preserve all attempts for debugging. Clean up on saga completion (future enhancement)."
+    },
+    {
+      "question": "Where should compose_retry_prompt() live - DevinWrapper or Orchestrator?",
+      "impacts": ["code organization", "separation of concerns", "testability"],
+      "answer": "Orchestrator - it's orchestration logic, not agent-specific."
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "orchestrator/orchestrator.py - Orchestrator class and _write_session_state() method",
+        "orchestrator/saga_executor.py - SagaExecutor class and _execute_step() method",
+        "orchestrator/devin_wrapper.py - DevinWrapper class for agent invocation",
+        "Existing traversal limit mechanism for retry enforcement"
+      ],
+      "new_code": [
+        "Orchestrator._determine_attempt_number() - Check existing attempt directories",
+        "Orchestrator.compose_retry_prompt() - Load previous attempts and build accumulated conversation",
+        "Modified Orchestrator._write_session_state() - Create node directories and write three files",
+        "Modified SagaExecutor._execute_step() - Detect retries and call compose_retry_prompt()"
+      ],
+      "infrastructure": [
+        "File system for state directory structure",
+        ".sagas/<saga-id>/ directory structure"
+      ],
+      "external_services": [
+        "Devin CLI for agent invocation"
+      ]
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "ADR-008: Devin CLI Saga Orchestration"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Saga orchestration patterns",
+        "Devin CLI behavior and limitations",
+        "Verification script patterns"
+      ],
+      "technical_knowledge": [
+        "Python file I/O and directory operations",
+        "Prompt composition and formatting",
+        "Devin CLI invocation and output handling"
+      ],
+      "stakeholder_questions": []
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Low",
+    "rationale": "Implementation is straightforward (file I/O and prompt composition), but touches critical retry logic. Risk is medium due to impact on saga execution flow. Uncertainty is low because requirements are well-defined."
+  },
+  "recommendation": "Proceed with implementation. Requirements are clear and well-documented. The conversation accumulation pattern is a pragmatic solution to the Devin CLI session ID limitation. Implement in three phases: (1) State Capture, (2) Prompt Composition, (3) Integration. Start with Phase 1 to establish the file structure, then Phase 2 for prompt composition, and finally Phase 3 to integrate retry detection into SagaExecutor. All changes are additive and maintain backward compatibility."
+}

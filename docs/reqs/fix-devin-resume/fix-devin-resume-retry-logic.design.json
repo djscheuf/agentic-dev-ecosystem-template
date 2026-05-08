@@ -1,0 +1,539 @@
+{
+  "story_path": "docs/reqs/fix devin resume/fix-devin-resume-retry-logic.analysis.json",
+  "repo_state_before_design": "docs/reqs/fix devin resume/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "Saga executor detects first attempt of a step and initializes node-specific directory structure",
+      "layers_involved": ["SagaExecutor", "Orchestrator"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "Orchestrator",
+          "contract_used": "invoke_step_with_saga_context",
+          "data_shape": {
+            "saga_id": "string",
+            "node_name": "string",
+            "attempt_number": "integer"
+          }
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "Orchestrator creates node-specific directory at .sagas/<saga-id>/<node-name>/attempt_1/",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "directory_creation",
+          "data_shape": {
+            "path": ".sagas/<saga-id>/<node-name>/attempt_<N>/",
+            "mode": "create with parents"
+          }
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "Orchestrator captures original prompt and writes to input.txt",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "state_file_write",
+          "data_shape": {
+            "file": "input.txt",
+            "content": "original_prompt"
+          }
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "DevinWrapper executes step and returns output",
+      "layers_involved": ["Orchestrator", "DevinWrapper", "DevinCLI"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "DevinWrapper",
+          "contract_used": "execute_prompt",
+          "data_shape": {
+            "prompt": "string",
+            "timeout": "integer",
+            "session_id": "optional string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "Orchestrator writes agent output to output.txt",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "state_file_write",
+          "data_shape": {
+            "file": "output.txt",
+            "content": "agent_output"
+          }
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "description": "Verification script runs and produces feedback",
+      "layers_involved": ["Orchestrator", "VerificationScript"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "VerificationScript",
+          "contract_used": "verification_execution",
+          "data_shape": {
+            "exit_code": "integer",
+            "stderr": "string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "description": "Orchestrator writes verification output to verification.txt",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "state_file_write",
+          "data_shape": {
+            "file": "verification.txt",
+            "content": "verification_output"
+          }
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "description": "On verification failure, SagaExecutor detects retry and determines next attempt number",
+      "layers_involved": ["SagaExecutor", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "FileSystem",
+          "contract_used": "attempt_number_discovery",
+          "data_shape": {
+            "node_dir": ".sagas/<saga-id>/<node-name>/",
+            "existing_attempts": ["attempt_1", "attempt_2", ...],
+            "next_attempt": "integer"
+          }
+        }
+      ]
+    },
+    {
+      "step": 9,
+      "description": "Orchestrator composes accumulated prompt from all previous attempts",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "accumulated_prompt_composition",
+          "data_shape": {
+            "previous_attempts": [
+              {
+                "attempt_number": "integer",
+                "input": "string",
+                "output": "string",
+                "verification": "string"
+              }
+            ],
+            "accumulated_prompt": "string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 10,
+      "description": "Orchestrator creates attempt_N directory and writes accumulated input.txt",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "state_file_write",
+          "data_shape": {
+            "file": ".sagas/<saga-id>/<node-name>/attempt_N/input.txt",
+            "content": "accumulated_prompt"
+          }
+        }
+      ]
+    },
+    {
+      "step": 11,
+      "description": "DevinWrapper executes retry with accumulated prompt",
+      "layers_involved": ["Orchestrator", "DevinWrapper", "DevinCLI"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "DevinWrapper",
+          "contract_used": "execute_prompt",
+          "data_shape": {
+            "prompt": "accumulated_prompt",
+            "timeout": "integer"
+          }
+        }
+      ]
+    },
+    {
+      "step": 12,
+      "description": "Orchestrator writes retry output and verification results",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator",
+          "to_layer": "FileSystem",
+          "contract_used": "state_file_write",
+          "data_shape": {
+            "files": ["output.txt", "verification.txt"],
+            "location": ".sagas/<saga-id>/<node-name>/attempt_N/"
+          }
+        }
+      ]
+    },
+    {
+      "step": 13,
+      "description": "SagaExecutor checks traversal limit and either continues retry or exits",
+      "layers_involved": ["SagaExecutor"],
+      "handshake_points": []
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "attempt_number_determined",
+      "description": "Logged when retry logic determines the next attempt number",
+      "layers_involved": ["SagaExecutor", "Orchestrator"],
+      "data_points": [
+        {
+          "point": "node_name",
+          "description": "Name of the node being retried"
+        },
+        {
+          "point": "attempt_number",
+          "description": "The attempt number being executed"
+        },
+        {
+          "point": "existing_attempts",
+          "description": "Count of previously completed attempts"
+        }
+      ]
+    },
+    {
+      "event_name": "accumulated_prompt_composed",
+      "description": "Logged when retry prompt is composed from previous attempts",
+      "layers_involved": ["Orchestrator"],
+      "data_points": [
+        {
+          "point": "node_name",
+          "description": "Name of the node"
+        },
+        {
+          "point": "attempt_number",
+          "description": "Current attempt number"
+        },
+        {
+          "point": "accumulated_prompt_size",
+          "description": "Size in bytes of the accumulated prompt"
+        },
+        {
+          "point": "previous_attempts_included",
+          "description": "Number of previous attempts included in composition"
+        }
+      ]
+    },
+    {
+      "event_name": "state_files_written",
+      "description": "Logged when attempt state files are written",
+      "layers_involved": ["Orchestrator", "FileSystem"],
+      "data_points": [
+        {
+          "point": "node_name",
+          "description": "Name of the node"
+        },
+        {
+          "point": "attempt_number",
+          "description": "Attempt number"
+        },
+        {
+          "point": "files_written",
+          "description": "List of files written (input.txt, output.txt, verification.txt)"
+        },
+        {
+          "point": "directory_path",
+          "description": "Full path to attempt directory"
+        }
+      ]
+    },
+    {
+      "event_name": "retry_limit_enforced",
+      "description": "Logged when traversal limit prevents further retries",
+      "layers_involved": ["SagaExecutor"],
+      "data_points": [
+        {
+          "point": "node_name",
+          "description": "Name of the node"
+        },
+        {
+          "point": "traversal_limit",
+          "description": "The limit that was exceeded"
+        },
+        {
+          "point": "attempts_made",
+          "description": "Number of attempts made before limit"
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "SagaExecutor",
+      "new_responsibilities": [
+        {
+          "responsibility": "Detect if step is a retry (check for existing attempt directories)",
+          "intent": "Determine whether to use original prompt or call compose_retry_prompt()"
+        },
+        {
+          "responsibility": "Call _determine_attempt_number() to find next attempt",
+          "intent": "Ensure correct attempt numbering and directory structure"
+        },
+        {
+          "responsibility": "Pass attempt_number and saga_id to Orchestrator",
+          "intent": "Enable Orchestrator to create correct directory structure"
+        },
+        {
+          "responsibility": "Log retry attempts and accumulated prompt sizes",
+          "intent": "Provide visibility into retry behavior for debugging"
+        }
+      ]
+    },
+    {
+      "layer": "Orchestrator",
+      "new_responsibilities": [
+        {
+          "responsibility": "Create node-specific directory structure: .sagas/<saga-id>/<node-name>/attempt_<N>/",
+          "intent": "Organize attempt artifacts and maintain execution history"
+        },
+        {
+          "responsibility": "Write three state files per attempt: input.txt, output.txt, verification.txt",
+          "intent": "Capture complete execution context for debugging and retry composition"
+        },
+        {
+          "responsibility": "Implement _determine_attempt_number() method",
+          "intent": "Discover next attempt number by scanning existing directories"
+        },
+        {
+          "responsibility": "Implement compose_retry_prompt() method",
+          "intent": "Load previous attempts and build accumulated conversation history"
+        },
+        {
+          "responsibility": "Pass accumulated prompt to DevinWrapper on retry",
+          "intent": "Enable agent to see full conversation context and fix previous errors"
+        }
+      ]
+    },
+    {
+      "layer": "FileSystem",
+      "new_responsibilities": [
+        {
+          "responsibility": "Store attempt artifacts in hierarchical structure",
+          "intent": "Enable easy discovery of attempt history and accumulated context"
+        },
+        {
+          "responsibility": "Preserve all attempt directories and files",
+          "intent": "Support debugging and future analysis of retry patterns"
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "AttemptStateStructure",
+      "description": "File-based state structure for each step attempt",
+      "changes": {
+        "added": {
+          "directory_structure": ".sagas/<saga-id>/<node-name>/attempt_<N>/",
+          "files": [
+            {
+              "name": "input.txt",
+              "description": "Complete prompt sent to agent (original on attempt_1, accumulated on retry)"
+            },
+            {
+              "name": "output.txt",
+              "description": "Agent's complete response"
+            },
+            {
+              "name": "verification.txt",
+              "description": "Verification script output (empty if verification passes)"
+            }
+          ]
+        },
+        "removed": [
+          "session_id.txt (deprecated - session resumption not viable)",
+          "stdout.txt (replaced by output.txt)",
+          "stderr.txt (replaced by verification.txt)"
+        ]
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "invoke_step_with_saga_context",
+      "description": "Enhanced invoke_step method signature to support saga context",
+      "changes": {
+        "added": {
+          "parameters": [
+            {
+              "name": "saga_id",
+              "type": "string",
+              "description": "Unique saga instance identifier"
+            },
+            {
+              "name": "node_name",
+              "type": "string",
+              "description": "Name of the node being executed"
+            },
+            {
+              "name": "attempt_number",
+              "type": "integer",
+              "description": "Current attempt number (1 for first, 2+ for retries)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "retry_with_accumulated_context",
+      "description": "Pattern for composing and passing accumulated conversation to retry attempts",
+      "changes": {
+        "added": {
+          "steps": [
+            "1. SagaExecutor detects retry by checking for existing attempt directories",
+            "2. SagaExecutor calls _determine_attempt_number() to find next attempt",
+            "3. SagaExecutor passes saga_id, node_name, attempt_number to Orchestrator",
+            "4. Orchestrator calls compose_retry_prompt() to load previous attempts",
+            "5. Orchestrator builds accumulated prompt: original + output_1 + verification_1 + output_2 + verification_2 + ...",
+            "6. Orchestrator creates attempt_N directory and writes accumulated input.txt",
+            "7. Orchestrator invokes DevinWrapper with accumulated prompt",
+            "8. DevinWrapper executes new agent (no session resumption)",
+            "9. Orchestrator writes output.txt and verification.txt to attempt_N directory"
+          ]
+        }
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Use file-based attempt tracking instead of database or in-memory state",
+      "justification": "Aligns with existing ADR-009 (file-based state persistence). Enables debugging by inspecting files. Survives process crashes. No external dependencies.",
+      "basis": "ADR-009: Saga State Persistence with File-Based Storage",
+      "impact": "All attempt artifacts stored in .sagas/<saga-id>/<node-name>/attempt_<N>/ directories",
+      "answers_open_question": "Where should attempt history be stored?"
+    },
+    {
+      "decision": "Implement conversation accumulation pattern instead of session resumption",
+      "justification": "Devin CLI does not provide discoverable session IDs, making session resumption impossible. Conversation accumulation is pragmatic workaround that provides full context to agent on retry.",
+      "basis": "ADR-008: Devin CLI Saga Orchestration (notes session ID limitation)",
+      "impact": "Prompt size grows linearly with retry attempts. May hit token limits on deep retry chains.",
+      "answers_open_question": "How should failed verification steps be retried with context?"
+    },
+    {
+      "decision": "Create node-specific subdirectories for each attempt",
+      "justification": "Isolates attempt artifacts, maintains execution history, enables easy discovery of attempt count. Supports debugging and future analysis.",
+      "basis": "File-based state persistence pattern (ADR-009)",
+      "impact": "Directory structure grows with number of attempts. Cleanup required on saga completion (future enhancement).",
+      "answers_open_question": "How should attempt artifacts be organized?"
+    },
+    {
+      "decision": "Use three clear file names (input.txt, output.txt, verification.txt) instead of stdout/stderr",
+      "justification": "Self-documenting file names clearly indicate purpose. Easier to understand state at a glance. Aligns with requirements for clear, self-documenting structure.",
+      "basis": "Acceptance criteria: 'File naming is clear and self-documenting'",
+      "impact": "Deprecates old file naming convention (stdout.txt, stderr.txt, session_id.txt)",
+      "answers_open_question": "What should the state files be named?"
+    },
+    {
+      "decision": "Enforce retry limit via existing traversal limit mechanism",
+      "justification": "Reuses existing SagaExecutor traversal tracking. No new limit enforcement logic needed. Maintains consistency with current retry patterns.",
+      "basis": "ADR-008: Devin CLI Saga Orchestration (traversal limits)",
+      "impact": "Retry limits are connection-based, not attempt-based. Consistent with existing graph-based routing.",
+      "answers_open_question": "How should retry attempts be limited?"
+    },
+    {
+      "decision": "Implement compose_retry_prompt() in Orchestrator, not DevinWrapper",
+      "justification": "Prompt composition is orchestration logic, not agent-specific. Orchestrator already manages state files and prompt building.",
+      "basis": "Separation of concerns: DevinWrapper handles agent invocation, Orchestrator handles orchestration",
+      "impact": "Orchestrator becomes responsible for prompt composition logic",
+      "answers_open_question": "Where should compose_retry_prompt() live?"
+    },
+    {
+      "decision": "Preserve all attempt directories and files (no cleanup on success)",
+      "justification": "Supports debugging and future analysis of retry patterns. Cleanup can be implemented later as optional enhancement.",
+      "basis": "Open question answer: 'Preserve all attempts for debugging. Clean up on saga completion (future enhancement).'",
+      "impact": "Storage grows with retry attempts. Manual cleanup required or future cleanup feature needed.",
+      "answers_open_question": "Should old attempt directories be cleaned up on success?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should we implement prompt compression/summarization to reduce token usage?",
+      "answer": "No, not in initial implementation. Keep it simple.",
+      "justification": "Compression adds complexity without clear benefit in initial version. Can be added later if token limits become a problem.",
+      "basis": "Open question answer from requirements document"
+    },
+    {
+      "question": "What happens if accumulated prompt exceeds token limits?",
+      "answer": "Let it fail naturally. Agent will return error, verification will fail, saga will exit.",
+      "justification": "Graceful failure is simpler than implementing token limit checking. Allows agent to handle its own constraints.",
+      "basis": "Open question answer from requirements document"
+    },
+    {
+      "question": "Should we preserve old attempt directories or clean them up on success?",
+      "answer": "Preserve all attempts for debugging. Clean up on saga completion (future enhancement).",
+      "justification": "Debugging support is more important than storage optimization in initial version. Cleanup can be added later.",
+      "basis": "Open question answer from requirements document"
+    },
+    {
+      "question": "Where should compose_retry_prompt() live - DevinWrapper or Orchestrator?",
+      "answer": "Orchestrator - it's orchestration logic, not agent-specific.",
+      "justification": "Prompt composition is part of orchestration workflow, not agent invocation. Orchestrator already manages state and prompt building.",
+      "basis": "Open question answer from requirements document"
+    },
+    {
+      "question": "How should attempt artifacts be organized?",
+      "answer": "Create node-specific subdirectories: .sagas/<saga-id>/<node-name>/attempt_<N>/",
+      "justification": "Isolates attempts, maintains history, enables easy discovery. Aligns with file-based state persistence pattern.",
+      "basis": "Requirements document file structure specification"
+    },
+    {
+      "question": "What should the state files be named?",
+      "answer": "input.txt (prompt sent), output.txt (agent response), verification.txt (verification feedback)",
+      "justification": "Self-documenting names clearly indicate purpose. Replaces unclear stdout/stderr naming.",
+      "basis": "Requirements document: 'File naming is clear and self-documenting'"
+    },
+    {
+      "question": "How should failed verification steps be retried with context?",
+      "answer": "Use conversation accumulation pattern: compose new prompt containing original input + all previous outputs + all previous verification feedback",
+      "justification": "Devin CLI session resumption not viable. Accumulation provides full context to agent for fixing errors.",
+      "basis": "Requirements document: 'conversation accumulation pattern' and ADR-008 session ID limitation"
+    },
+    {
+      "question": "How should retry attempts be limited?",
+      "answer": "Enforce via existing traversal limit mechanism on saga connections",
+      "justification": "Reuses existing infrastructure. Maintains consistency with current retry patterns.",
+      "basis": "Requirements document and ADR-008: traversal limits"
+    }
+  ]
+}
