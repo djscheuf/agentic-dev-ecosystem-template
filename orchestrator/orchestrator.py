@@ -130,7 +130,7 @@ class Orchestrator:
         
         # Write verification output if using saga context
         if saga_id and node_name and attempt_number:
-            attempt_dir = Path.cwd() / ".sagas" / saga_id / node_name / f"attempt_{attempt_number}"
+            attempt_dir = Path.cwd() / ".process" / f"saga-{saga_id}" / node_name / f"attempt_{attempt_number}"
             self._write_attempt_verification(attempt_dir, verification_output)
         
         return exit_code, returned_session_id
@@ -284,7 +284,7 @@ class Orchestrator:
         Returns:
             Path: The created attempt directory
         """
-        attempt_dir = Path.cwd() / ".sagas" / saga_id / node_name / f"attempt_{attempt_number}"
+        attempt_dir = Path.cwd() / ".process" / f"saga-{saga_id}" / node_name / f"attempt_{attempt_number}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         return attempt_dir
     
@@ -330,7 +330,7 @@ class Orchestrator:
         Returns:
             int: The next attempt number (1 if no attempts exist, N+1 if N attempts exist)
         """
-        node_dir = Path.cwd() / ".sagas" / saga_id / node_name
+        node_dir = Path.cwd() / ".process" / f"saga-{saga_id}" / node_name
         
         if not node_dir.exists():
             return 1
@@ -366,7 +366,7 @@ class Orchestrator:
         Returns:
             str: The accumulated prompt containing all previous attempts' context
         """
-        node_dir = Path.cwd() / ".sagas" / saga_id / node_name
+        node_dir = Path.cwd() / ".process" / f"saga-{saga_id}" / node_name
         
         if not node_dir.exists():
             return ""

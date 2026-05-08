@@ -118,7 +118,7 @@ class SagaExecutor:
             enrichment = EnrichmentDictionary(
                 saga_id=saga_id,
                 state_storage_location=str(self.state_manager.saga_dir),
-                initial_prompt_path=saga_path,
+                initial_prompt_path=original_input or "",
                 custom_variables=saga.enrichment
             )
             self.state_manager.save_enrichment(enrichment)
@@ -240,7 +240,18 @@ class SagaExecutor:
         try:
             # Load step definition to get prompt
             step_def_data = json.loads(step_def_path.read_text())
-            prompt = step_def_data.get("prompt", "")
+            prompt_value = step_def_data.get("prompt", "")
+            
+            # Resolve relative prompt paths to actual content
+            prompt = prompt_value
+            if prompt_value and not prompt_value.startswith(("{{", "SO THAT", "AS A", "I WANT")):
+                # Likely a file path, try to resolve it
+                prompt_path = Path(prompt_value)
+                if not prompt_path.is_absolute():
+                    prompt_path = step_dir / prompt_value
+                
+                if prompt_path.exists():
+                    prompt = prompt_path.read_text()
             
             # Build enrichment dictionary from inputs
             enrichment = self._build_enrichment(node_def.reference, inputs)

@@ -14,23 +14,17 @@
   "connections": [
     {
       "node": "extract",
-      "pass": {
+      "then": {
         "target": "analyze"
       },
-      "fail": {
-        "target": "extract",
-        "traversal_limit": 2
-      }
+      "max_attempts": 2
     },
     {
       "node": "analyze",
-      "pass": {
+      "then": {
         "target": "end"
       },
-      "fail": {
-        "target": "analyze",
-        "traversal_limit": 2
-      }
+      "max_attempts": 2
     }
   ]
 }
