@@ -98,7 +98,7 @@ class ExecutionLogger:
 class SagaExecutor:
     """Executes a saga workflow."""
     
-    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None, saga_path: Optional[str] = None, original_input: Optional[str] = None, orchestrator: Optional[Orchestrator] = None):
+    def __init__(self, saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, depth: int = 0, logger: Optional['ExecutionLogger'] = None, saga_path: Optional[str] = None, original_input: Optional[str] = None, orchestrator: Optional[Orchestrator] = None, keep_attempt_logs: bool = False):
         self.saga = saga
         self.steps_dir = steps_dir
         self.sagas_dir = sagas_dir
@@ -108,6 +108,7 @@ class SagaExecutor:
         self.tracker = TraversalTracker()
         self.connection_map = self._build_connection_map()
         self.final_outputs: List[str] = []
+        self.keep_attempt_logs = keep_attempt_logs
         
         self.state_manager: Optional[SagaStateManager] = None
         if depth == 0 and saga_path is not None:
@@ -320,7 +321,8 @@ class SagaExecutor:
                 logger=self.logger,
                 saga_path=saga_path_abs,
                 original_input="",
-                orchestrator=self.orchestrator
+                orchestrator=self.orchestrator,
+                keep_attempt_logs=self.keep_attempt_logs
             )
             
             # Record sub-saga invocation in parent state manager
@@ -421,8 +423,9 @@ class SagaExecutor:
                 
                 self.logger.log_routing(current_node, target, "then", count, limit)
                 
-                # Clean up session files on success
-                self._cleanup_session_files(current_node)
+                # Clean up session files on success (unless debugging)
+                if not self.keep_attempt_logs:
+                    self._cleanup_session_files(current_node)
                 
                 return target, False
             
@@ -460,8 +463,9 @@ class SagaExecutor:
                 target_obj = conn.pass_target
                 reason = "pass"
                 
-                # Clean up session files on success
-                self._cleanup_session_files(current_node)
+                # Clean up session files on success (unless debugging)
+                if not self.keep_attempt_logs:
+                    self._cleanup_session_files(current_node)
             else:
                 # Failure (exit 1 or 2) - follow fail path
                 target_obj = conn.fail_target
@@ -533,7 +537,7 @@ class SagaExecutor:
                         self.logger.log(f"  Cleaned up {file}")
 
 
-def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str], saga_path: Optional[str] = None, original_input: Optional[str] = None) -> Tuple[bool, List[str]]:
+def execute_saga(saga: SagaDefinition, steps_dir: Path, sagas_dir: Path, log_path: Path, initial_inputs: List[str], saga_path: Optional[str] = None, original_input: Optional[str] = None, keep_attempt_logs: bool = False) -> Tuple[bool, List[str]]:
     """Execute a saga. Returns (success, final_outputs)."""
-    executor = SagaExecutor(saga, steps_dir, sagas_dir, log_path, saga_path=saga_path, original_input=original_input)
+    executor = SagaExecutor(saga, steps_dir, sagas_dir, log_path, saga_path=saga_path, original_input=original_input, keep_attempt_logs=keep_attempt_logs)
     return executor.execute(initial_inputs)

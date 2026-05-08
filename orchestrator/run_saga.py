@@ -19,6 +19,9 @@ from models import SagaDefinition
 from saga_validator import validate_saga
 from saga_executor import execute_saga
 
+# Configuration: Set to True to keep attempt logs for debugging
+KEEP_ATTEMPT_LOGS = True
+
 
 def load_saga_definition(path: str) -> SagaDefinition:
     """Load and parse saga definition JSON file."""
@@ -87,7 +90,7 @@ def main():
         
         saga_path_abs = str(Path(saga_def_path).resolve())
         original_input = initial_inputs[0] if initial_inputs else ""
-        success, final_outputs = execute_saga(saga, steps_dir, sagas_dir, log_path, initial_inputs, saga_path_abs, original_input)
+        success, final_outputs = execute_saga(saga, steps_dir, sagas_dir, log_path, initial_inputs, saga_path_abs, original_input, KEEP_ATTEMPT_LOGS)
         
         if success:
             print(f"\n[Saga Orchestrator] ✓ Saga '{saga.name}' completed successfully")
