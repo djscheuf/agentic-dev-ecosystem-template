@@ -2,10 +2,12 @@
 
 Extract a user story from the provided document or text into a structured JSON format.
 
+**Input Document**: {{initial_prompt_path}}
+
 ## Steps
 
 ### 1. Read the Provided Document/Text
-- Read the provided document or text. You will be extracting information from this document to create the user story JSON.
+- Read the document at {{initial_prompt_path}}. You will be extracting information from this document to create the user story JSON.
 
 ### 2. Create JSON File
 - Create a new JSON file in the same directory as the document or text, using the {Verb Object Context} of the user story as the filename. e.g. "create-object-with-validation.intent.json"

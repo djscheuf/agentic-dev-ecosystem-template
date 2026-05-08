@@ -360,14 +360,19 @@ class SagaExecutor:
         """
         enrichment = {}
         
-        # Add inputs as enrichment variables
+        # Load persisted enrichment from state manager if available
+        if self.state_manager:
+            try:
+                persisted_enrichment = self.state_manager.load_enrichment()
+                if persisted_enrichment:
+                    # Convert EnrichmentDictionary to dict
+                    enrichment = persisted_enrichment.to_dict()
+            except Exception as e:
+                self.logger.log(f"  Warning: Could not load persisted enrichment: {e}")
+        
+        # Add inputs as enrichment variables (override if already present)
         for i, input_val in enumerate(inputs):
             enrichment[f"input_{i}"] = input_val
-        
-        # Add saga-level enrichment if available
-        if self.state_manager:
-            enrichment['saga_id'] = self.state_manager.saga_id
-            enrichment['state_dir'] = str(self.state_manager.saga_dir)
         
         return enrichment
     
