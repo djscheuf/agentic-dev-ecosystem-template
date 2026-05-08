@@ -1,7 +1,7 @@
 # ADR-009: Saga State Persistence with File-Based Storage
 
 **Date:** 2026-05-05  
-**Status:** Approved (Not Yet Implemented)
+**Status:** Implemented (Updated 2026-05-08)
 
 ## Decision
 
@@ -66,14 +66,23 @@ def generate_saga_id(saga_name: str, input_path: str) -> str:
 ```
 .process/
   saga-<hash>/
-    saga.json              # Saga state file
-    <step-name>/           # Per-step artifacts (future)
-      input.json
-      output.json
-      session.log
+    saga.json                    # Saga execution state and history
+    enrichment.json              # Enrichment context (initial_prompt_path, previous_step_output, etc.)
+    <step-name>_stderr.txt       # Verification script stderr (if step failed)
+    <step-name>/
+      attempt_1/
+        input.txt                # Step prompt (enriched with variables)
+        output.txt               # Agent output/stdout
+        verification.txt         # Verification script stdout (becomes next step's previous_step_output)
+      attempt_2/
+        input.txt
+        output.txt
+        verification.txt
 ```
 
 **Location:** The `.process/` directory is created in the same directory where the orchestrator is invoked (current working directory).
+
+**Attempt Directories:** Each step execution creates an `attempt_N/` subdirectory to support retry logic. On retry, a new `attempt_N+1/` directory is created with the accumulated prompt from all previous attempts.
 
 ### Saga State File Format
 
@@ -81,54 +90,65 @@ The `saga.json` file contains:
 
 ```json
 {
-  "saga_id": "a3f2b9c1",
-  "saga_definition": "/path/to/sagas/example-saga.json",
-  "original_input": "/path/to/input.txt",
-  "created_at": "2026-05-05T21:17:00Z",
-  "updated_at": "2026-05-05T21:18:30Z",
-  "status": "in_progress",
-  "current_node": "step-2",
+  "saga_id": "c13128b7",
+  "saga_definition": "/mnt/data/0_repo/agentic-dev-ecosystem-template/sagas/sdlc-analysis.json",
+  "original_input": "./docs/ex/story.md",
+  "created_at": "2026-05-08T15:34:09.906306",
+  "updated_at": "2026-05-08T15:36:27.003563",
+  "status": "failed",
+  "current_node": "analyze",
   "state": [
     {
       "node": "start",
       "status": "success",
-      "started_at": "2026-05-05T21:17:00Z",
-      "completed_at": "2026-05-05T21:17:00Z",
+      "started_at": "2026-05-08T15:34:09.906306",
+      "completed_at": "2026-05-08T15:34:09.906306",
+      "exit_code": null,
       "session_id": null
     },
     {
-      "node": "step-1",
-      "status": "starting",
-      "started_at": "2026-05-05T21:17:01Z",
-      "completed_at": null,
-      "session_id": null
-    },
-    {
-      "node": "step-1",
+      "node": "extract",
       "status": "completed",
-      "started_at": "2026-05-05T21:17:01Z",
-      "completed_at": "2026-05-05T21:18:15Z",
+      "started_at": "2026-05-08T15:34:09.906563",
+      "completed_at": "2026-05-08T15:34:41.948881",
       "exit_code": 0,
-      "session_id": "devin-session-12345"
+      "session_id": null
     },
     {
-      "node": "step-2",
-      "status": "starting",
-      "started_at": "2026-05-05T21:18:16Z",
-      "completed_at": null,
+      "node": "analyze",
+      "status": "failed",
+      "started_at": "2026-05-08T15:34:41.949159",
+      "completed_at": "2026-05-08T15:36:27.003550",
+      "exit_code": 1,
       "session_id": null
     }
   ],
-  "subsagas": [
-    {
-      "node": "retry-workflow",
-      "saga_id": "b7e4c2d9",
-      "status": "in_progress",
-      "started_at": "2026-05-05T21:18:30Z"
-    }
-  ]
+  "subsagas": []
 }
 ```
+
+### Enrichment File Format
+
+The `enrichment.json` file contains context variables that are substituted into step prompts and passed to verification scripts. See [ADR-010: Verification Script Saga Context Access](ADR-010-verification-script-saga-context.md) for details.
+
+```json
+{
+  "saga_id": "c13128b7",
+  "state_storage_location": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/saga-c13128b7",
+  "initial_prompt_path": "./docs/ex/story.md",
+  "custom_variables": {},
+  "previous_step_output": "/mnt/data/0_repo/agentic-dev-ecosystem-template/docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.intent.json",
+  "previous_step_error": ""
+}
+```
+
+**Fields:**
+- `saga_id` (string): Unique saga identifier (matches saga.json)
+- `state_storage_location` (string): Absolute path to saga state directory
+- `initial_prompt_path` (string): Path to initial saga input (available as `{{initial_prompt_path}}` in prompts)
+- `custom_variables` (object): User-defined variables from saga definition
+- `previous_step_output` (string): Stdout from previous step's verification script (available as `{{previous_step_output}}` in prompts)
+- `previous_step_error` (string): Error message from previous step if it failed
 
 ### State Object Fields
 
@@ -156,6 +176,33 @@ The `saga.json` file contains:
 - `saga_id` (string): Hash ID of the child saga instance
 - `status` (enum): `starting`, `in_progress`, `completed`, `failed`
 - `started_at` (ISO 8601): When sub-saga was invoked
+
+### Step Attempt Artifacts
+
+Each step execution creates an `attempt_N/` directory containing:
+
+**input.txt**
+- The enriched step prompt (with `{{variable}}` substitutions applied)
+- Used to debug what the agent actually received
+- Includes accumulated context from previous attempts on retries
+
+**output.txt**
+- Raw stdout from the agent (Devin CLI output)
+- Contains the agent's response and any generated files/code
+
+**verification.txt**
+- Stdout from the verification script
+- On success (exit code 0), this becomes `previous_step_output` for the next step
+- On failure (exit code 2), verification stderr is written to `<step-name>_stderr.txt` at saga root
+
+**Retry Logic**
+- On step failure with exit code 2 (self-correction needed), a new `attempt_N+1/` directory is created
+- The new attempt's `input.txt` contains an accumulated prompt combining:
+  1. Original step prompt
+  2. Output from attempt 1
+  3. Verification feedback from attempt 1
+  4. (Repeat for each previous attempt)
+- This allows the agent to see its previous attempts and feedback
 
 ### State Lifecycle
 
@@ -407,10 +454,39 @@ def _extract_session_id(self, output: str) -> Optional[str]:
 - State synchronization across machines
 - Centralized state storage (S3, database)
 
+## Implementation Status (Updated May 8, 2026)
+
+### Completed
+
+- [x] Saga ID generation with hash function
+- [x] `.process/saga-<hash>/` directory creation
+- [x] `saga.json` state file with execution history
+- [x] State tracking before/after each step
+- [x] Attempt directories for retry logic
+- [x] Enrichment context in `enrichment.json`
+- [x] Verification script output capture
+- [x] Step artifact storage (input.txt, output.txt, verification.txt)
+- [x] Accumulated prompt composition for retries
+- [x] Step-level stderr capture
+
+### In Progress
+
+- [ ] Resume capability (--resume flag)
+- [ ] Session ID capture from Devin output
+- [ ] Sub-saga tracking in parent state
+
+### Not Yet Implemented
+
+- [ ] State file rotation and cleanup
+- [ ] State validation and repair tools
+- [ ] Distributed execution support
+- [ ] Write-ahead logging for atomic updates
+
 ## Related Decisions
 
 - [ADR-008: Devin CLI Saga Orchestration](ADR-008-devin-saga-orchestration.md) - This extends the orchestrator with state persistence
-- [ADR-004: Skill Output Contracts & Sentinel Files](ADR-004-skill-output-contracts.md) - Artifact storage will follow similar patterns
+- [ADR-010: Verification Script Saga Context Access](ADR-010-verification-script-saga-context.md) - Verification scripts receive saga state as arguments
+- [ADR-004: Skill Output Contracts & Sentinel Files](ADR-004-skill-output-contracts.md) - Artifact storage follows similar patterns
 
 ## Migration Path
 
