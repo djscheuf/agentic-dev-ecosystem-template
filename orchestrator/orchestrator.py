@@ -259,7 +259,12 @@ class Orchestrator:
                 text=True
             )
             
-            verification_output = result.stdout if result.stdout else ""
+            # If verification failed (exit code 2), use stderr as feedback for self-correction
+            # Otherwise use stdout (e.g., for successful verification output)
+            if result.returncode == 2 and result.stderr:
+                verification_output = result.stderr
+            else:
+                verification_output = result.stdout if result.stdout else ""
             
             # Write stderr if present (for debugging feedback)
             if result.stderr:

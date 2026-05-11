@@ -457,7 +457,7 @@ class SagaExecutor:
                 
                 # Check traversal limit on the 'then' connection
                 limit = conn.max_retries
-                if limit is not None and count > limit:
+                if limit is not None and count >= limit:
                     self.logger.log(f"Self-correction limit exceeded for '{current_node}' (limit: {limit})")
                     return None, True
                 

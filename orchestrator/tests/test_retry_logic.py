@@ -644,3 +644,81 @@ class TestInstrumentation:
         assert event_data["existing_attempts"] == 1
         assert event_data["accumulated_prompt_size"] > 0
         assert event_data["previous_attempts_included"] == 1
+
+
+class TestVerificationFeedbackCapture:
+    """Test that verification stderr is captured for self-correction."""
+
+    def test_run_verification_captures_stderr_on_failure(self, tmp_path, monkeypatch):
+        """Test that _run_verification captures stderr when verification fails (exit code 2)."""
+        monkeypatch.chdir(tmp_path)
+        
+        step_dir = tmp_path / "steps" / "test-step"
+        step_dir.mkdir(parents=True)
+        
+        verify_script = step_dir / "verify.sh"
+        verify_script.write_text(
+            "#!/bin/bash\n"
+            "echo 'Error: validation failed' >&2\n"
+            "echo 'Missing field: title' >&2\n"
+            "exit 2\n"
+        )
+        verify_script.chmod(0o755)
+        
+        orchestrator = Orchestrator(logging_dir=tmp_path)
+        
+        exit_code, verification_output = orchestrator._run_verification(
+            step_dir=step_dir,
+            verify_script="verify.sh",
+            step_name="test-step"
+        )
+        
+        assert exit_code == 2
+        assert "Error: validation failed" in verification_output
+        assert "Missing field: title" in verification_output
+
+    def test_run_verification_captures_stdout_on_success(self, tmp_path, monkeypatch):
+        """Test that _run_verification captures stdout when verification succeeds (exit code 0)."""
+        monkeypatch.chdir(tmp_path)
+        
+        step_dir = tmp_path / "steps" / "test-step"
+        step_dir.mkdir(parents=True)
+        
+        verify_script = step_dir / "verify.sh"
+        verify_script.write_text(
+            "#!/bin/bash\n"
+            "echo 'Verification passed'\n"
+            "exit 0\n"
+        )
+        verify_script.chmod(0o755)
+        
+        orchestrator = Orchestrator(logging_dir=tmp_path)
+        
+        exit_code, verification_output = orchestrator._run_verification(
+            step_dir=step_dir,
+            verify_script="verify.sh",
+            step_name="test-step"
+        )
+        
+        assert exit_code == 0
+        assert "Verification passed" in verification_output
+
+    def test_verification_feedback_in_accumulated_prompt(self, tmp_path, monkeypatch):
+        """Test that verification stderr feedback is included in accumulated prompt for retries."""
+        monkeypatch.chdir(tmp_path)
+        
+        saga_id = "testverify"
+        node_name = "validate-output"
+        
+        orchestrator = Orchestrator(logging_dir=tmp_path)
+        
+        attempt_1_dir = orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
+        orchestrator._write_attempt_input(attempt_1_dir, "original prompt")
+        orchestrator._write_attempt_output(attempt_1_dir, "agent output")
+        orchestrator._write_attempt_verification(attempt_1_dir, "Schema validation failed: missing field 'title'")
+        
+        accumulated = orchestrator._compose_accumulated_prompt(saga_id, node_name)
+        
+        assert "original prompt" in accumulated
+        assert "agent output" in accumulated
+        assert "Schema validation failed: missing field 'title'" in accumulated
