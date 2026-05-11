@@ -71,6 +71,12 @@ For each criterion extract:
 
 Fill in the appropriate section of the JSON.
 
+### 7. Write the Sentinel File
+Create a new file called `extract-story-intent.done.json`, following the `schema/sentinel.schema.json` schema. Put this file under `saga-{{SAGA_ID}}` directory.
+- Set the `step_name` to `extract-story-intent`
+- Set the `status` to `completed`
+- Set the `verify_params` property to an object with the `extracted_intent_path` field set to the path of the extracted intent file, and the `reference_document` field set to the `{{initial_prompt_path}}`.
+
 ## Output Requirements
 
 The output JSON file must:

@@ -24,16 +24,16 @@ exit_if_failed() {
 }
 
 verify_structure() {
-  local story_path="$1"
+  local intent_path="$1"
   local schema_path="$STEP_DIR/schema/story-intent.schema.json"
   
-  if [[ ! -f "$story_path" ]]; then
-    fail "Story file not found: $story_path"
+  if [[ ! -f "$intent_path" ]]; then
+    fail "Story file not found: $intent_path"
     return
   fi
   
-  if ! jq empty "$story_path" 2>/dev/null; then
-    fail "Story file is not valid JSON: $story_path"
+  if ! jq empty "$intent_path" 2>/dev/null; then
+    fail "Story file is not valid JSON: $intent_path"
     return
   fi
   
@@ -43,7 +43,7 @@ verify_structure() {
   fi
   
   local story
-  story=$(jq '.' "$story_path")
+  story=$(jq '.' "$intent_path")
   
   local required_props=("raw_request" "title" "story" "target_persona" "capability_breakdown" "acceptance_criteria")
   for prop in "${required_props[@]}"; do
@@ -115,10 +115,10 @@ verify_structure() {
 }
 
 verify_story_completeness() {
-  local story_path="$1"
+  local intent_path="$1"
   local story
   
-  story=$(jq '.' "$story_path")
+  story=$(jq '.' "$intent_path")
   
   local required_fields=("title" "story" "target_persona" "capability_breakdown" "acceptance_criteria")
   for field in "${required_fields[@]}"; do
@@ -187,10 +187,10 @@ verify_story_completeness() {
 }
 
 verify_consistency() {
-  local story_path="$1"
+  local intent_path="$1"
   local story
   
-  story=$(jq '.' "$story_path")
+  story=$(jq '.' "$intent_path")
   
   if jq -e '.acceptance_criteria and .target_persona' <<< "$story" &>/dev/null; then
     local persona_name
@@ -218,39 +218,70 @@ verify_consistency() {
 }
 
 find_intent_file() {
-  local search_dir="${1:-$PROJECT_DIR}"
+  local saga_state_path="${1:-}"
   
-  local intent_files
-  intent_files=$(find "$search_dir" -name "*.intent.json" -type f 2>/dev/null | head -n 1)
-  
-  if [[ -z "$intent_files" ]]; then
+  if [[ -z "$saga_state_path" ]]; then
     echo "" >&2
-    echo "ERROR: No *.intent.json file found in $search_dir" >&2
-    echo "The step should have created a file matching *.intent.json" >&2
+    echo "ERROR: No saga state path provided" >&2
     return 1
   fi
   
-  echo "$intent_files"
+  local sentinel_file="$saga_state_path/extract-story-intent.done.json"
+  
+  if [[ ! -f "$sentinel_file" ]]; then
+    echo "" >&2
+    echo "ERROR: Sentinel file not found: $sentinel_file" >&2
+    return 1
+  fi
+  
+  local intent_path
+  intent_path=$(jq -r '.verify_params.extracted_intent_path' "$sentinel_file" 2>/dev/null)
+  
+  if [[ -z "$intent_path" || "$intent_path" == "null" ]]; then
+    echo "" >&2
+    echo "ERROR: extracted_intent_path not found in sentinel file: $sentinel_file" >&2
+    return 1
+  fi
+  
+  if [[ ! -f "$intent_path" ]]; then
+    echo "" >&2
+    echo "ERROR: Intent file not found at path: $intent_path" >&2
+    return 1
+  fi
+  
+  echo "$intent_path"
+  return 0
 }
 
 main() {
-  echo "[Verify] Searching for generated intent file..." >&2
+  local saga_state_path="${1:-}"
   
-  local story_path
-  if ! story_path=$(find_intent_file); then
+  echo "[Verify] Searching for generated intent file..." >&2
+  if [[ -n "$saga_state_path" ]]; then
+    echo "[Verify] Using saga state path: $saga_state_path" >&2
+  fi
+  
+  local intent_path
+  if ! intent_path=$(find_intent_file "$saga_state_path"); then
     exit 2
   fi
   
-  echo "[Verify] Found intent file: $story_path" >&2
+  echo "[Verify] Found intent file: $intent_path" >&2
   
-  verify_structure "$story_path"
-  verify_story_completeness "$story_path"
-  verify_consistency "$story_path"
+  verify_structure "$intent_path"
+  verify_story_completeness "$intent_path"
+  verify_consistency "$intent_path"
   
-  exit_if_failed
+  if [[ ${#FAILURES[@]} -gt 0 ]]; then
+    local sentinel_file="$saga_state_path/extract-story-intent.done.json"
+    if [[ -f "$sentinel_file" ]]; then
+      rm "$sentinel_file"
+    fi
+    exit_if_failed
+  fi
   
   echo -e "${GREEN}[Verify] ✓ Verification passed${NC}" >&2
-  echo "$story_path"
+  echo "$intent_path"
 }
 
 main "$@"

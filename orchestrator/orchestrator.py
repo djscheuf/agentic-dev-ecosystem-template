@@ -125,7 +125,7 @@ class Orchestrator:
         verify_script = step_def.get("verify")
         verification_output = ""
         if verify_script:
-            exit_code, verification_output = self._run_verification(step_dir, verify_script, step_name or step_id)
+            exit_code, verification_output = self._run_verification(step_dir, verify_script, step_name or step_id, saga_id)
         else:
             exit_code = 0
         
@@ -218,7 +218,8 @@ class Orchestrator:
         self,
         step_dir: Path,
         verify_script: str,
-        step_name: str
+        step_name: str,
+        saga_id: Optional[str] = None
     ) -> Tuple[int, str]:
         """Run verification script.
         
@@ -226,6 +227,7 @@ class Orchestrator:
             step_dir: The step directory
             verify_script: Path to verification script (relative or absolute)
             step_name: The step name for file prefixes
+            saga_id: Optional saga instance ID to pass to verify script
         
         Returns:
             Tuple[int, str]: (exit_code, verification_output)
@@ -244,8 +246,14 @@ class Orchestrator:
             return 1, ""
         
         try:
+            # Build command with saga state path if available
+            cmd = ["bash", str(script_path)]
+            if saga_id:
+                saga_state_path = Path.cwd() / ".process" / f"saga-{saga_id}"
+                cmd.append(str(saga_state_path))
+                
             result = subprocess.run(
-                ["bash", str(script_path)],
+                cmd,
                 check=False,
                 capture_output=True,
                 text=True
