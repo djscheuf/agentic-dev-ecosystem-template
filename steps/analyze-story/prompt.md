@@ -2,10 +2,12 @@
 
 Analyze the extracted story document, capturing capability, acceptance criteria, edge cases, dependencies and open design questions.
 
+**Input Document**: {{previous_step_output}}
+
 ## Steps
 
 ### 1. Read the Extracted Intent
-- Read the extracted intent JSON document provided via `previous_step_output`.
+- Read the extracted intent JSON document at: {{previous_step_output}}
 
 ### 2. Read the provided document
 - Read the contents of the raw_prompt field in the extracted intent JSON document, either the file under the provided path or the verbatim text.
