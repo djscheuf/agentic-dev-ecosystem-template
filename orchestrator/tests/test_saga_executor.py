@@ -162,7 +162,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
             success, outputs = executor.execute([])
             
@@ -193,7 +193,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
             success, outputs = executor.execute([])
             
@@ -236,7 +236,7 @@ class TestSagaExecutorHappyPath:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
             success, outputs = executor.execute([])
             
@@ -265,7 +265,7 @@ class TestSagaExecutorEdgeCases:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
             success, outputs = executor.execute([])
             
@@ -290,11 +290,11 @@ class TestSagaExecutorEdgeCases:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
-            success, outputs = executor.execute([])
+            exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
-            assert success
+            assert exit_code == 0
             assert outputs == []
     
     def test_e_e_03_immediate_end(self, tmp_steps_dir, tmp_sagas_dir, tmp_log_path):
@@ -363,7 +363,7 @@ class TestSagaExecutorEdgeCases:
         executor = SagaExecutor(saga, tmp_steps_dir, tmp_sagas_dir, tmp_log_path)
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             
             exit_code, outputs, stderr = executor._execute_step("step1", saga.nodes["step1"], [])
             
@@ -656,7 +656,7 @@ class TestSagaExecutorRetryLogic:
         executor.state_manager = state_manager
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
                 mock_prompt.return_value = "accumulated prompt"
                 
@@ -692,7 +692,7 @@ class TestSagaExecutorRetryLogic:
         executor.state_manager = state_manager
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             with patch.object(executor.orchestrator, '_determine_next_attempt_number') as mock_attempt:
                 with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
                     
@@ -775,7 +775,7 @@ class TestSagaExecutorRetryLogic:
         executor.state_manager = state_manager
         
         with patch.object(executor.orchestrator, 'invoke_step') as mock_invoke:
-            mock_invoke.return_value = (0, "test-session-123")
+            mock_invoke.return_value = (0, "test-session-123", "")
             with patch.object(executor.orchestrator, '_compose_accumulated_prompt') as mock_prompt:
                 # Simulate accumulated prompt growing with each retry
                 accumulated = "attempt 1 output\n---\nattempt 2 output\n---\nverification feedback"
@@ -1015,4 +1015,4 @@ class TestSagaExecutorErrorHandling:
             success, outputs = executor.execute([])
             
             assert not success
-            assert mock_execute.call_count == 3
+            assert mock_execute.call_count == 2

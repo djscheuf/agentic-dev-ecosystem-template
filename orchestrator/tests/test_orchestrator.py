@@ -31,12 +31,13 @@ class TestOrchestratorInvokeStep:
         with patch.object(orchestrator, '_invoke_wrapper') as mock_invoke:
             mock_invoke.return_value = ("output", "session-123")
             
-            output, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="test-step",
                 steps_dir=tmp_path / "steps",
                 prompt="test prompt"
             )
             
+            assert exit_code == 0
             mock_invoke.assert_called_once()
     
     def test_orchestrator_invokes_verification_script(self, tmp_path):
@@ -64,7 +65,7 @@ class TestOrchestratorInvokeStep:
         with patch.object(orchestrator, '_invoke_wrapper') as mock_invoke:
             mock_invoke.return_value = ("output", "session-123")
             
-            exit_code, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="test-step",
                 steps_dir=tmp_path / "steps",
                 prompt="test prompt"
@@ -138,7 +139,7 @@ class TestOrchestratorInvokeStep:
             mock_invoke.return_value = ("output", "session-123")
             
             # Should not raise, but should log error
-            exit_code, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="test-step",
                 steps_dir=tmp_path / "steps",
                 prompt="test prompt"

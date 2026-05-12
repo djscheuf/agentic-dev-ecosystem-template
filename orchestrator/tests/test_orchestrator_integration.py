@@ -48,7 +48,7 @@ class TestOrchestratorIntegration:
                 "config": "production"
             }
             
-            exit_code, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="integration-test",
                 steps_dir=tmp_path / "steps",
                 prompt="Process {{input}} with {{config}}",
@@ -94,7 +94,7 @@ class TestOrchestratorIntegration:
         with patch.object(orchestrator.wrapper, 'execute_prompt') as mock_execute:
             mock_execute.return_value = ("Resumed output", "session-abc123")
             
-            exit_code, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="resume-test",
                 steps_dir=tmp_path / "steps",
                 prompt="Continue processing",
@@ -163,7 +163,7 @@ class TestOrchestratorIntegration:
         with patch.object(orchestrator.wrapper, 'execute_prompt') as mock_execute:
             mock_execute.return_value = ("output", "session-123")
             
-            exit_code, session_id = orchestrator.invoke_step(
+            exit_code, session_id, verification_output = orchestrator.invoke_step(
                 step_id="verify-fail-test",
                 steps_dir=tmp_path / "steps",
                 prompt="Test prompt"

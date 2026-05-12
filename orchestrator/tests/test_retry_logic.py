@@ -20,7 +20,7 @@ class TestAttemptDirectoryCreation:
         
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
         
-        expected_dir = tmp_path / ".sagas" / saga_id / node_name / "attempt_1"
+        expected_dir = tmp_path / ".process" / f"saga-{saga_id}" / node_name / "attempt_1"
         assert expected_dir.exists()
         assert expected_dir.is_dir()
 
@@ -35,7 +35,7 @@ class TestAttemptDirectoryCreation:
         
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
         
-        saga_dir = tmp_path / ".sagas" / saga_id
+        saga_dir = tmp_path / ".process" / f"saga-{saga_id}"
         node_dir = saga_dir / node_name
         attempt_dir = node_dir / "attempt_1"
         
@@ -56,7 +56,7 @@ class TestAttemptDirectoryCreation:
             orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=attempt)
         
         for attempt in range(1, 4):
-            expected_dir = tmp_path / ".sagas" / saga_id / node_name / f"attempt_{attempt}"
+            expected_dir = tmp_path / ".process" / f"saga-{saga_id}" / node_name / f"attempt_{attempt}"
             assert expected_dir.exists()
             assert expected_dir.is_dir()
 
@@ -72,7 +72,7 @@ class TestAttemptDirectoryCreation:
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
         
-        expected_dir = tmp_path / ".sagas" / saga_id / node_name / "attempt_1"
+        expected_dir = tmp_path / ".process" / f"saga-{saga_id}" / node_name / "attempt_1"
         assert expected_dir.exists()
 
 
@@ -219,7 +219,7 @@ class TestAttemptNumberDetermination:
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=1)
         orchestrator._create_attempt_directory(saga_id, node_name, attempt_number=2)
         
-        attempt_dir_2 = tmp_path / ".sagas" / saga_id / node_name / "attempt_2"
+        attempt_dir_2 = tmp_path / ".process" / f"saga-{saga_id}" / node_name / "attempt_2"
         (attempt_dir_2 / "input.txt").write_text("incomplete")
         
         next_attempt = orchestrator._determine_next_attempt_number(saga_id, node_name)
@@ -242,8 +242,8 @@ class TestAttemptNumberDetermination:
         
         assert next_attempt == 2
         assert new_dir.exists()
-        assert (tmp_path / ".sagas" / saga_id / node_name / "attempt_1").exists()
-        assert (tmp_path / ".sagas" / saga_id / node_name / "attempt_2").exists()
+        assert (tmp_path / ".process" / f"saga-{saga_id}" / node_name / "attempt_1").exists()
+        assert (tmp_path / ".process" / f"saga-{saga_id}" / node_name / "attempt_2").exists()
 
     def test_previous_attempts_remain_intact_on_retry(self, tmp_path, monkeypatch):
         """Test that previous attempt directories and files remain intact on retry."""

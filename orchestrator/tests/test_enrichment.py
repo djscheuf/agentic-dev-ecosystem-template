@@ -491,7 +491,7 @@ class TestSagaExecutorEnrichment:
         
         assert enrichment.saga_id == executor.state_manager.saga_id
         assert str(executor.state_manager.saga_dir) == enrichment.state_storage_location
-        assert enrichment.initial_prompt_path == saga_path
+        assert enrichment.initial_prompt_path == original_input
 
 
 class TestStepPromptEnrichment:
