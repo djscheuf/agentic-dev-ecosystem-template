@@ -1,4 +1,0 @@
-{
-    "extracted_intent_path": "path/to/extracted/intent.json",
-    "reference_document": "{path/to/reference/document} or {verbatim story prompt}"
-}
