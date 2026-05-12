@@ -6,7 +6,7 @@
       "type": "step",
       "reference": "extract-story-intent"
     },
-    "analyze": {
+    "anlaysis": {
       "type": "step",
       "reference": "analyze-story"
     }
@@ -15,16 +15,16 @@
     {
       "node": "extract",
       "then": {
-        "target": "analyze"
+        "target": "anlaysis"
       },
-      "max_attempts": 2
+      "max_attempts": 3
     },
     {
-      "node": "analyze",
+      "node": "anlaysis",
       "then": {
         "target": "end"
       },
-      "max_attempts": 2
+      "max_attempts": 3
     }
   ]
 }
