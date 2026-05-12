@@ -486,6 +486,7 @@ def _extract_session_id(self, output: str) -> Optional[str]:
 
 - [ADR-008: Devin CLI Saga Orchestration](ADR-008-devin-saga-orchestration.md) - This extends the orchestrator with state persistence
 - [ADR-010: Verification Script Saga Context Access](ADR-010-verification-script-saga-context.md) - Verification scripts receive saga state as arguments
+- [ADR-011: Single Orchestrator Instance per Work Tree](ADR-011-single-orchestrator-instance.md) - Enables simple file-based storage without distributed locking
 - [ADR-004: Skill Output Contracts & Sentinel Files](ADR-004-skill-output-contracts.md) - Artifact storage follows similar patterns
 
 ## Migration Path

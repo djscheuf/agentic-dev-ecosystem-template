@@ -14,6 +14,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-008: Devin CLI Saga Orchestration](decisions/ADR-008-devin-saga-orchestration.md)
 - [ADR-009: Saga State Persistence with File-Based Storage](decisions/ADR-009-saga-state-persistence.md)
 - [ADR-010: Verification Script Saga Context Access](decisions/ADR-010-verification-script-saga-context.md)
+- [ADR-011: Single Orchestrator Instance per Work Tree](decisions/ADR-011-single-orchestrator-instance.md)
 
 ## Services & Components
 

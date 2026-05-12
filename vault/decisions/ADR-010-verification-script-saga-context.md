@@ -95,6 +95,7 @@ main() {
 
 - [ADR-009: Saga State Persistence](ADR-009-saga-state-persistence.md) - Defines enrichment.json structure
 - [ADR-008: Devin CLI Saga Orchestration](ADR-008-devin-saga-orchestration.md) - Defines saga execution model
+- [ADR-011: Single Orchestrator Instance per Work Tree](ADR-011-single-orchestrator-instance.md) - Enables simple file detection patterns in verification scripts
 
 ## Examples
 

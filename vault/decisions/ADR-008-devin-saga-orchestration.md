@@ -311,6 +311,7 @@ orchestrator/
 - [ADR-004: Skill Output Contracts & Sentinel Files](ADR-004-skill-output-contracts.md) - Sentinel files moved to step governance (not orchestration concern)
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](ADR-005-analysis-separation.md) - Verification scripts unchanged
 - [ADR-007: Skill Input Independence](ADR-007-skill-input-independence.md) - Steps remain loosely coupled
+- [ADR-011: Single Orchestrator Instance per Work Tree](ADR-011-single-orchestrator-instance.md) - Foundational assumption for orchestrator design
 
 ## Future Enhancements
 
