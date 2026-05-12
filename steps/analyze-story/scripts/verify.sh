@@ -6,6 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STEP_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SCHEMA_PATH="$STEP_DIR/schema/analysis.schema.json"
 
 RED='\033[0;31m'
@@ -20,7 +21,8 @@ fail() {
 
 exit_if_failed() {
   if [[ ${#FAILURES[@]} -gt 0 ]]; then
-    printf '%s\n' "${FAILURES[@]}"
+    echo -e "${RED}Verification failed:${NC}" >&2
+    printf '%s\n' "${FAILURES[@]}" >&2
     exit 2
   fi
 }
@@ -52,6 +54,15 @@ verify_structure() {
       fail "Schema validation failed: Missing required property '$prop'"
     fi
   done
+  
+  # recommendation is optional
+  if jq -e '.recommendation' <<< "$analysis" &>/dev/null; then
+    local rec
+    rec=$(jq -r '.recommendation' <<< "$analysis")
+    if [[ -z "$rec" || "$rec" == "null" ]]; then
+      fail "Schema validation failed: recommendation field is present but empty"
+    fi
+  fi
   
   if jq -e '.story' <<< "$analysis" &>/dev/null; then
     local story_obj
@@ -278,49 +289,61 @@ verify_consistency() {
 }
 
 find_analysis_file() {
-  local working_dir="$1"
+  local working_dir="${1:-}"
   
-  local analysis_files
-  analysis_files=$(find "$working_dir" -maxdepth 1 -name "*.analysis.json" -type f 2>/dev/null | head -n 1)
+  # Try to find *.analysis.json from uncommitted git changes
+  echo "[Verify] Searching for *.analysis.json in uncommitted git changes..." >&2
   
-  if [[ -z "$analysis_files" ]]; then
-    echo ""
+  local analysis_files=()
+  while IFS= read -r file; do
+    if [[ "$file" == *.analysis.json ]]; then
+      analysis_files+=("$file")
+    fi
+  done < <(git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null)
+  
+  if [[ ${#analysis_files[@]} -eq 0 ]]; then
+    echo "" >&2
+    echo "ERROR: No *.analysis.json files found in uncommitted git changes" >&2
     return 1
   fi
   
-  echo "$analysis_files"
+  if [[ ${#analysis_files[@]} -gt 1 ]]; then
+    echo "" >&2
+    echo "ERROR: Multiple *.analysis.json files found in uncommitted changes:" >&2
+    for file in "${analysis_files[@]}"; do
+      echo "  - $file" >&2
+    done
+    echo "Please commit or remove all but one analysis file" >&2
+    return 1
+  fi
+  
+  local analysis_path="${analysis_files[0]}"
+  
+  # Convert to absolute path if relative
+  if [[ ! "$analysis_path" = /* ]]; then
+    analysis_path="$PROJECT_DIR/$analysis_path"
+  fi
+  
+  if [[ ! -f "$analysis_path" ]]; then
+    echo "" >&2
+    echo "ERROR: Analysis file not found at path: $analysis_path" >&2
+    return 1
+  fi
+  
+  echo "$analysis_path"
+  return 0
 }
 
 main() {
-  local saga_state_dir="$1"
-  local enrichment_dict_path="$2"
-  
-  if [[ -z "$saga_state_dir" ]] || [[ -z "$enrichment_dict_path" ]]; then
-    echo "Usage: verify.sh <saga_state_dir> <enrichment_dict_path>" >&2
-    exit 2
-  fi
-  
-  if [[ ! -f "$enrichment_dict_path" ]]; then
-    echo "Enrichment dictionary file not found: $enrichment_dict_path"
-    exit 2
-  fi
-  
-  local initial_prompt_path
-  initial_prompt_path=$(jq -r '.initial_prompt_path // empty' "$enrichment_dict_path")
-  
-  if [[ -z "$initial_prompt_path" ]]; then
-    echo "Enrichment dictionary missing 'initial_prompt_path'"
-    exit 2
-  fi
-  
-  local working_dir
-  working_dir=$(dirname "$initial_prompt_path")
+  local saga_state_dir="${1:-}"
+  local enrichment_dict_path="${2:-}"
   
   local analysis_path
-  if ! analysis_path=$(find_analysis_file "$working_dir"); then
-    echo "Analysis file not found in $working_dir"
+  if ! analysis_path=$(find_analysis_file); then
     exit 2
   fi
+  
+  echo "[Verify] Found analysis file: $analysis_path" >&2
   
   verify_structure "$analysis_path"
   verify_completeness "$analysis_path"
@@ -328,6 +351,7 @@ main() {
   
   exit_if_failed
   
+  echo -e "${GREEN}[Verify] ✓ Verification passed${NC}" >&2
   echo "$analysis_path"
 }
 
