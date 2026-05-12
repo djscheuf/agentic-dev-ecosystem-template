@@ -10,5 +10,6 @@
         "Write(.git*)",
         "Write(orchestrator/**)"
     ]
-    }
+}
+
 }
