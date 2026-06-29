@@ -1,0 +1,122 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: EDD on Extract Intent Skill
+
+# Define prompts to test - template that includes base prompt
+prompts:
+  - "@SKILL.md {{request}}"
+
+# External evaluation script for custom deterministic evaluations
+# This script contains custom assertion functions used in tests
+defaultTest:
+  options:
+    # ========================================
+    # RUBRIC GRADER — NODE.JS (Cross-platform)
+    # ========================================
+    # Combined scripts auto-detect mode: provider vs grader
+    # Grader mode: prompt is JSON array [{role, content}, ...]
+    # Provider mode: prompt is plain text
+    #
+    # Devin CLI grader — ACTIVE
+    provider: 'exec: node ../devin.js'
+    
+# Use devin cli as a provider via script execution
+providers:
+  # ========================================
+  # NODE.JS VERSIONS (Cross-platform)
+  # ========================================
+  # Combined scripts auto-detect mode: provider vs grader
+  # Grader mode: prompt is JSON array [{role, content}, ...]
+  # Provider mode: prompt is plain text
+  #
+  # Devin CLI provider — ACTIVE
+  - id: 'exec: node ../devin.js'
+    config:
+      model: 'SWE-1.6'
+
+# Test cases with different evaluation types
+tests:
+  # ========================================
+  # DETERMINISTIC EVALUATIONS (contains/equiv)
+  # ========================================
+  - vars:
+      request: '@example_story.md'
+    description: 'Simple Calculator Story'
+    assert:
+      - type: contains
+        value: 'add'
+      - type: contains
+        value: 'subtract'
+
+  # ========================================
+  # RUBRIC-BASED EVALUATIONS WITH SCORING
+  # ========================================
+  # Each llm-rubric assertion evaluates a single quality dimension independently.
+  # - threshold: minimum score (0.0–1.0) required to pass this assertion
+  # - metric:    named label shown in the promptfoo web UI results table
+  # - weight:    relative importance when computing the overall test score
+  #
+  # This lets you see per-dimension scores, set different pass bars for
+  # critical vs. nice-to-have criteria, and weight what matters most.
+
+  - vars:
+      request: 'Explain the concept of recursion in programming'
+    description: 'Recursion explanation - rubric with per-dimension scoring'
+    assert:
+      # Core definition — highest weight; must score at least 0.7
+      - type: llm-rubric
+        value: Response clearly 
+        threshold: 0.7
+        metric: clarity
+        weight: 2
+
+      # Code example — important for a technical explanation
+      - type: llm-rubric
+        value: The response includes at least one working code example that demonstrates recursion
+        threshold: 0.7
+        metric: code-example
+        weight: 1.5
+
+      # Base/recursive case — critical for correctness; strict threshold
+      - type: llm-rubric
+        value: The response explicitly explains both the base case (stopping condition) and the recursive case
+        threshold: 0.8
+        metric: base-case-explained
+        weight: 2
+
+      # Risks — nice to have; lower threshold and weight
+      - type: llm-rubric
+        value: The response mentions stack overflow or call stack depth as a potential pitfall
+        threshold: 0.4
+        metric: mentions-risks
+        weight: 1
+
+  # ========================================
+  # SCRIPT-BASED DETERMINISTIC EVALUATIONS
+  # ========================================
+  # These evaluations call functions exported from eval-script.js directly.
+  # Syntax: file://path/to/script.js:functionName
+
+  # - vars:
+  #     request: 'Output a function to validate an email address'
+  #   description: 'Email validation - script-based eval'
+  #   assert:
+  #     - type: javascript
+  #       value: file://eval-script.js:hasCodeFormatting
+  #     - type: javascript
+  #       value: file://eval-script.js:explainsWhy
+  #     - type: javascript
+  #       value: file://eval-script.js:mentionsBestPractices
+
+  # - vars:
+  #     request: 'Explain the difference between == and === in JavaScript'
+  #   description: 'Equality operators - script-based eval'
+  #   assert:
+  #     - type: javascript
+  #       value: file://eval-script.js:hasCodeFormatting
+  #     - type: javascript
+  #       value: file://eval-script.js:explainsWhy
+  #     - type: javascript
+  #       value: file://eval-script.js:isConcise
+
+# Output configuration
+outputPath: results.html
