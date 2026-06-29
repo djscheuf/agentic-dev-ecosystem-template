@@ -49,8 +49,65 @@ function isConcise(output) {
   return wordCount >= 50 && wordCount <= 500;
 }
 
-function matchesSchema(output, schema) {
-  // TODO: Implement schema validation
+// interface GradingResult {
+//   pass: boolean;
+//   score: number;
+//   reason: string;
+//   componentResults?: GradingResult[];
+// }
+
+function matchesSchema(output, context) {
+  
+  const schemaPath = context.config.schemaPath;
+  
+  if (!schemaPath) {
+    return {
+      pass: false,
+      score: 0,
+      reason: 'Schema path not provided',
+    };
+  }
+  
+  const fs = require('fs');
+  const path = require('path');
+
+  const absolutePath = path.resolve(schemaPath);
+  const schema = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+
+  let jsonObject;
+
+  try {
+    const jsonMatch = output.match(/```json\s*([\s\S]*?)\s*```/);
+    if (!jsonMatch) {
+      return {
+        pass: false,
+        score: 0,
+        reason: 'No JSON code block found in output',
+      };
+    }
+    jsonObject = JSON.parse(jsonMatch[1]);
+  } catch (e) {
+    return {
+      pass: false,
+      score: 0,
+      reason: `Failed to parse JSON from output: ${e.message}`,
+    };
+  }
+
+  const schemaProperties = Object.keys(schema || {});
+  const jsonObjectKeys = Object.keys(jsonObject);
+  const missingProperties = schemaProperties.filter(prop => !jsonObjectKeys.includes(prop));
+
+  if (missingProperties.length > 0) {
+    return {
+      pass: false,
+      score: 0,
+      reason: `Missing required properties: ${missingProperties.join(', ')}`,
+    };
+  }
+
+  // TODO: Implement schema validation using schemaPath
+
   return true;
 }
 

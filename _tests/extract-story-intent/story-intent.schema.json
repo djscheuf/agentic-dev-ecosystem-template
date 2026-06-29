@@ -1,0 +1,56 @@
+{
+  "raw_request": "{link to original story document}",
+  "title": "User can search for products by keyword",
+  "story": {
+    "so_that": "{value of USer story}",
+    "as_a": "{Persona Name}",
+    "i_want": "{proposed action of story}"
+  },
+  "target_persona": {
+    "name": "Sarah - E-commerce Shopper",
+    "role": "Customer",
+    "technical_level": "Intermediate",
+    "journey":{
+      "before": "{description}",
+      "during": "{description}",
+      "after": "{description}"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "{description}",
+    "inputs": ["{list}"],
+    "outputs": ["{list}"],
+    "state_changes": ["{list}"],
+    "affected_components":{}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Search returns products matching the keyword in title or description",
+      "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
+      "type": "Functional",
+      "jtbd": "{Verb} {Object} {Context}",
+      "persona_served": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "Search results are displayed within 2 seconds",
+      "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
+      "type": "Non-functional",
+      "jtbd": "Avoid waiting for search results",
+      "persona_served": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "Empty search returns all products",
+      "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
+      "type": "Happy path",
+      "jtbd": "See all available products",
+      "persona_served": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "No results message shown when search matches nothing",
+      "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
+      "type": "Error handling",
+      "jtbd": "Know when search yields no results",
+      "persona_served": "Sarah - E-commerce Shopper"
+    }
+  ]
+}

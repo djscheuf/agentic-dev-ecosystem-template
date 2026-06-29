@@ -3,7 +3,7 @@ description: EDD on Extract Intent Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - "@SKILL.md {{request}}"
+  - "@SKILL.md Use the provided skill to extract intent from the following story: {{request}} ```json"
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -31,21 +31,21 @@ providers:
   # Devin CLI provider — ACTIVE
   - id: 'exec: node ../devin.js'
     config:
-      model: 'SWE-1.6'
+      model: 'haiku'
 
 # Test cases with different evaluation types
 tests:
   # ========================================
   # DETERMINISTIC EVALUATIONS (contains/equiv)
   # ========================================
-  - vars:
-      request: '@example_story.md'
-    description: 'Simple Calculator Story'
-    assert:
-      - type: contains
-        value: 'add'
-      - type: contains
-        value: 'subtract'
+  # - vars:
+  #     request: '@example_story.md'
+  #   description: 'Simple Calculator Story - Canary Test'
+  #   assert:
+  #     - type: contains
+  #       value: 'add'
+  #     - type: contains
+  #       value: 'subtract'
 
   # ========================================
   # RUBRIC-BASED EVALUATIONS WITH SCORING
@@ -59,36 +59,27 @@ tests:
   # critical vs. nice-to-have criteria, and weight what matters most.
 
   - vars:
-      request: 'Explain the concept of recursion in programming'
-    description: 'Recursion explanation - rubric with per-dimension scoring'
+      request: '@example_story.md'
+    description: 'Simple Calculator Story'
     assert:
-      # Core definition — highest weight; must score at least 0.7
+      # Core definition
       - type: llm-rubric
-        value: Response clearly 
-        threshold: 0.7
-        metric: clarity
-        weight: 2
-
-      # Code example — important for a technical explanation
-      - type: llm-rubric
-        value: The response includes at least one working code example that demonstrates recursion
-        threshold: 0.7
-        metric: code-example
-        weight: 1.5
-
-      # Base/recursive case — critical for correctness; strict threshold
-      - type: llm-rubric
-        value: The response explicitly explains both the base case (stopping condition) and the recursive case
+        value: "Response clearly captures story in the So that ..., As A ..., I want ... format"
         threshold: 0.8
-        metric: base-case-explained
-        weight: 2
-
-      # Risks — nice to have; lower threshold and weight
-      - type: llm-rubric
-        value: The response mentions stack overflow or call stack depth as a potential pitfall
-        threshold: 0.4
-        metric: mentions-risks
+        metric: clarity
         weight: 1
+      # Persona Capture
+      - type: llm-rubric
+        value: "Response clearly captures a target user, with meaningful, specific value cases rather than generic descriptions"
+        threshold: 0.7
+        metric: target_user
+        weight: 2
+      # Capability Breakdown
+      - type: llm-rubric
+        value: "Response captures capability breakdown with core action, inputs, outputs, state changes, and affected components, clearly linked to provided story"
+        threshold: 0.7
+        metric: capability_breakdown
+        weight: 2
 
   # ========================================
   # SCRIPT-BASED DETERMINISTIC EVALUATIONS
@@ -96,27 +87,14 @@ tests:
   # These evaluations call functions exported from eval-script.js directly.
   # Syntax: file://path/to/script.js:functionName
 
-  # - vars:
-  #     request: 'Output a function to validate an email address'
-  #   description: 'Email validation - script-based eval'
-  #   assert:
-  #     - type: javascript
-  #       value: file://eval-script.js:hasCodeFormatting
-  #     - type: javascript
-  #       value: file://eval-script.js:explainsWhy
-  #     - type: javascript
-  #       value: file://eval-script.js:mentionsBestPractices
-
-  # - vars:
-  #     request: 'Explain the difference between == and === in JavaScript'
-  #   description: 'Equality operators - script-based eval'
-  #   assert:
-  #     - type: javascript
-  #       value: file://eval-script.js:hasCodeFormatting
-  #     - type: javascript
-  #       value: file://eval-script.js:explainsWhy
-  #     - type: javascript
-  #       value: file://eval-script.js:isConcise
+  - vars:
+      request: '@example_story.md'
+    description: 'Output Schema Validation - Script Based'
+    assert:
+      - type: javascript
+        value: file://../eval-script.js:matchesSchema
+        config:
+          schemaPath: './story-intent.schema.json'
 
 # Output configuration
 outputPath: results.html
