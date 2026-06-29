@@ -102,4 +102,4 @@ function matchesSchema(output, context) {
   return true;
 }
 
-module.exports = { hasCodeFormatting, explainsWhy, mentionsBestPractices, isConcise, matchesSchema };
+module.exports = { hasCodeFormatting, explainsWhy, isConcise, matchesSchema };
