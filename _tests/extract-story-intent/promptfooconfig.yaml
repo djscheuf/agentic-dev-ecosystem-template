@@ -33,19 +33,23 @@ providers:
     config:
       model: 'haiku'
 
+  - id: 'exec: node ../devin.js'
+    config:
+      model: 'SWE 1.6'
+
 # Test cases with different evaluation types
 tests:
   # ========================================
   # DETERMINISTIC EVALUATIONS (contains/equiv)
   # ========================================
-  # - vars:
-  #     request: '@example_story.md'
-  #   description: 'Simple Calculator Story - Canary Test'
-  #   assert:
-  #     - type: contains
-  #       value: 'add'
-  #     - type: contains
-  #       value: 'subtract'
+  - vars:
+      request: '@example_story.md'
+    description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
+    assert:
+      - type: contains
+        value: 'functional'
+      - type: contains
+        value: 'non-functional'
 
   # ========================================
   # RUBRIC-BASED EVALUATIONS WITH SCORING
@@ -79,6 +83,12 @@ tests:
         value: "Response captures capability breakdown with core action, inputs, outputs, state changes, and affected components, clearly linked to provided story"
         threshold: 0.7
         metric: capability_breakdown
+        weight: 2
+      # Jobs to be Done Linking
+      - type: llm-rubric
+        value: "All Listed Acceptance Criteria are clearly linked to a Jobs to be Done, which is meaningfully tied to the target user's goals. "
+        threshold: 0.7
+        metric: jobs-to-be-done
         weight: 2
 
   # ========================================
