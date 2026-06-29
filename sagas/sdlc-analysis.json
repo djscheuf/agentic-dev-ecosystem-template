@@ -9,6 +9,14 @@
     "anlaysis": {
       "type": "step",
       "reference": "analyze-story"
+    },
+    "grade": {
+      "type": "step",
+      "reference": "grade-story-analysis"
+    },
+    "improve-analysis": {
+      "type": "step",
+      "reference": "improve-story-analysis"
     }
   },
   "connections": [
@@ -22,7 +30,24 @@
     {
       "node": "anlaysis",
       "then": {
+        "target": "grade"
+      },
+      "max_attempts": 3
+    },
+    {
+      "node": "grade",
+      "pass": {
         "target": "end"
+      },
+      "fail": {
+        "target": "improve-analysis",
+        "max_attempts": 3
+      }
+    },
+    {
+      "node": "improve-analysis",
+      "then": {
+        "target": "grade"
       },
       "max_attempts": 3
     }
