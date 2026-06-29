@@ -30,18 +30,6 @@ function explainsWhy(output) {
 }
 
 /**
- * Check if response mentions best practices, caveats, or practical guidance
- */
-function mentionsBestPractices(output) {
-  const practiceIndicators = [
-    'best practice', 'edge case', 'consider', 'note', 'warning', 'however',
-    'recommend', 'avoid', 'prefer', 'always', 'never', 'make sure',
-    'pattern', 'approach', 'important', 'useful',
-  ];
-  return practiceIndicators.some(indicator => output.toLowerCase().includes(indicator));
-}
-
-/**
  * Check response length is within a reasonable range (50–500 words)
  */
 function isConcise(output) {
@@ -68,12 +56,6 @@ function matchesSchema(output, context) {
     };
   }
   
-  const fs = require('fs');
-  const path = require('path');
-
-  const absolutePath = path.resolve(schemaPath);
-  const schema = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
-
   let jsonObject;
 
   try {
@@ -94,19 +76,28 @@ function matchesSchema(output, context) {
     };
   }
 
-  const schemaProperties = Object.keys(schema || {});
-  const jsonObjectKeys = Object.keys(jsonObject);
-  const missingProperties = schemaProperties.filter(prop => !jsonObjectKeys.includes(prop));
+  const Ajv = require("ajv")
+  const schema = require(schemaPath)
+  
+  console.log("output", output)
+  console.log("schema", JSON.stringify(schema, null, 2))
+  console.log("jsonObject", JSON.stringify(jsonObject, null, 2))
 
-  if (missingProperties.length > 0) {
+  const ajv = new Ajv()
+  const validate = ajv.compile(schema)
+  const valid = validate(jsonObject)
+  
+  console.log("valid", valid)
+  console.log("errors", JSON.stringify(validate.errors, null, 2))
+  
+  if (!valid) {
     return {
       pass: false,
       score: 0,
-      reason: `Missing required properties: ${missingProperties.join(', ')}`,
+      reason: `JSON does not match schema: ${validate.errors.map(e => e.message).join(', ')}`,
     };
   }
 
-  // TODO: Implement schema validation using schemaPath
 
   return true;
 }
