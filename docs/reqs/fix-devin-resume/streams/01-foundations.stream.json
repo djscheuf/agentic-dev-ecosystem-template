@@ -1,0 +1,72 @@
+{
+  "source_story": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.analysis.json",
+  "overall_design": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json",
+  "story": {
+    "as_a": "Saga Orchestrator System",
+    "i_want": "Implement conversation accumulation pattern for retry logic when Devin session resumption is not viable",
+    "so_that": "Failed verification steps can be retried with full conversation context, allowing agents to see and fix previous errors"
+  },
+  "related_acceptance_criteria": [
+    {
+      "criterion": "File naming is clear and self-documenting",
+      "gherkin": "Given state files, When examined, Then file names (input.txt, output.txt, verification.txt) clearly indicate their purpose",
+      "status": "pending"
+    },
+    {
+      "criterion": "Existing saga execution flow preserved (no breaking changes)",
+      "gherkin": "Given existing sagas, When executed with new code, Then they continue to work without modification",
+      "status": "pending"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "criterion": "Node directory already exists from previous saga run",
+      "gherkin": "Given node directory exists from previous saga, When new saga runs same node, Then new attempt subdirectory is created with incremented number",
+      "status": "pending"
+    },
+    {
+      "criterion": "Attempt subdirectories partially created (crash recovery)",
+      "gherkin": "Given attempt subdirectory exists but files are incomplete, When retry logic checks for next attempt, Then next attempt number is correctly determined",
+      "status": "pending"
+    }
+  ],
+  "dependencies": [],
+  "steps": [
+    {
+      "description": "Design and document the new directory structure (.sagas/<saga-id>/<node-name>/attempt_<N>/) and file layout (input.txt, output.txt, verification.txt)",
+      "layer": "design",
+      "status": "pending",
+      "depends_on": []
+    },
+    {
+      "description": "Create unit tests for directory structure creation and file writing",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Create unit tests for attempt number determination logic",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    },
+    {
+      "description": "Create integration tests for backward compatibility with existing sagas",
+      "layer": "testing",
+      "status": "pending",
+      "depends_on": ["Step 1"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "vault/decisions/ADR-008-devin-saga-orchestration.md - Saga orchestration architecture",
+      "vault/decisions/ADR-009-saga-state-persistence.md - File-based state persistence pattern",
+      "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json - Design document with file structure specification"
+    ],
+    "code": [
+      "orchestrator/orchestrator.py - Current _write_session_state() implementation",
+      "orchestrator/saga_executor.py - Current saga execution flow",
+      "orchestrator/tests/test_saga_state.py - Existing state management tests"
+    ]
+  }
+}

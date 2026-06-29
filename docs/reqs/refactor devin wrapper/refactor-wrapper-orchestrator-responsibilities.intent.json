@@ -1,0 +1,100 @@
+{
+  "raw_request": "docs/reqs/refactor devin wrapper/refactor-wrapper-orchestrator-responsibilities.md",
+  "story_format": {
+    "as_a": "Orchestrator and Saga Executor",
+    "i_want": "Clear separation of concerns between the DevinWrapper (thin CLI adapter) and the Orchestrator (instrumentation and state management)",
+    "so_that": "The codebase is maintainable, testable, and can support multiple agent types in the future"
+  },
+  "target_persona": {
+    "persona_name": "Orchestrator Developer",
+    "role": "Infrastructure/Framework Developer",
+    "technical_level": "Expert",
+    "frequency_of_use": "Daily",
+    "environment": "Development/Testing",
+    "permissions": "Can modify orchestrator, wrapper, and saga execution logic",
+    "context": "Responsible for maintaining the saga execution framework and ensuring clean architecture patterns"
+  },
+  "capability_breakdown": {
+    "core_action": "Refactor DevinWrapper to be a thin CLI adapter and move instrumentation logic to Orchestrator",
+    "inputs_required": [
+      "Current DevinWrapper implementation",
+      "Current Orchestrator/Saga Executor implementation",
+      "Step definition data structure",
+      "Agent configuration format"
+    ],
+    "outputs_expected": [
+      "Refactored DevinWrapper with minimal responsibilities",
+      "Enhanced Orchestrator with expanded responsibilities",
+      "Generic AgentWrapper interface for future extensibility",
+      "Updated saga execution flow"
+    ],
+    "state_changes": [
+      "Session ID management moves to Orchestrator",
+      "Logging and output redirection moves to Orchestrator",
+      "Verification script invocation moves to Orchestrator",
+      "Timeout enforcement moves to Orchestrator"
+    ],
+    "side_effects": [
+      "Existing saga execution tests may need updates",
+      "Session resumption logic needs refactoring",
+      "Verification script invocation needs relocation"
+    ],
+    "affected_components": [
+      "orchestrator/devin_wrapper.py",
+      "orchestrator/saga_executor.py",
+      "orchestrator/enrichment.py",
+      "orchestrator/run_saga.py"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "criteria": "DevinWrapper accepts prompt, agent_config, optional timeout, and optional session_id",
+      "gherkin": "Given a prompt and agent configuration, When DevinWrapper.execute_prompt is called, Then it returns (output, session_id) tuple",
+      "type": "functional",
+      "jtbd": "Execute prompt with agent CLI tool",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "DevinWrapper does not manage session files, logging, or verification scripts",
+      "gherkin": "Given DevinWrapper execution, When the wrapper completes, Then no session files or logs are written by the wrapper",
+      "type": "constraint",
+      "jtbd": "Keep wrapper stateless",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "Orchestrator loads step definition data and enriches prompts before calling wrapper",
+      "gherkin": "Given a step_id, When orchestrator.invoke_step is called, Then the orchestrator loads step data and enriches the prompt",
+      "type": "functional",
+      "jtbd": "Enrich prompt with context before execution",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "Orchestrator manages session lifecycle (session_id.txt, feedback.txt, stderr.txt)",
+      "gherkin": "Given wrapper execution, When orchestrator receives output, Then orchestrator writes session state files",
+      "type": "functional",
+      "jtbd": "Manage session state persistence",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "Orchestrator invokes verification scripts after step execution",
+      "gherkin": "Given step execution completion, When orchestrator processes results, Then orchestrator invokes the step's verification script",
+      "type": "functional",
+      "jtbd": "Run verification after step execution",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "Generic AgentWrapper interface enables future agent implementations",
+      "gherkin": "Given a new agent type, When implementing AgentWrapper interface, Then the new agent can be used without modifying orchestrator",
+      "type": "non-functional",
+      "jtbd": "Support multiple agent types",
+      "persona_served": "Orchestrator Developer"
+    },
+    {
+      "criteria": "Timeout enforcement happens at orchestrator level, not wrapper level",
+      "gherkin": "Given a timeout parameter, When orchestrator calls wrapper, Then orchestrator enforces the timeout around the wrapper call",
+      "type": "constraint",
+      "jtbd": "Enforce execution timeout",
+      "persona_served": "Orchestrator Developer"
+    }
+  ]
+}

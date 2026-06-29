@@ -1,0 +1,8 @@
+{
+  "prompt": "prompt.md",
+  "model": "claude-haiku-4.5",
+  "budget": 5,
+  "timeout": 180,
+  "verify": "scripts/verify.sh",
+  "agent_config": "agent-config.json"
+}

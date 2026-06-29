@@ -1,0 +1,37 @@
+{
+  "name": "composite-example",
+  "max_recursion_depth": 10,
+  "start": "validate",
+  "nodes": {
+    "validate": {
+      "type": "step",
+      "reference": "example",
+      "timeout": 60
+    },
+    "retry-workflow": {
+      "type": "saga",
+      "reference": "retry-saga.json",
+      "timeout": 300
+    },
+    "final-check": {
+      "type": "step",
+      "reference": "example",
+      "timeout": 30
+    }
+  },
+  "connections": [
+    {
+      "node": "validate",
+      "pass": {"target": "retry-workflow"},
+      "fail": {"target": "end"}
+    },
+    {
+      "node": "retry-workflow",
+      "then": {"target": "final-check"}
+    },
+    {
+      "node": "final-check",
+      "then": {"target": "end"}
+    }
+  ]
+}

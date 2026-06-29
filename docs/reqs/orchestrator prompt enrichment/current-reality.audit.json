@@ -1,0 +1,123 @@
+{
+  "project_structure": {
+    "type": "Python CLI Application",
+    "tech_stack": {
+      "language": "Python 3.x",
+      "frameworks": ["Devin CLI", "subprocess"],
+      "testing": "pytest",
+      "data_formats": ["JSON"]
+    },
+    "key_directories": {
+      "orchestrator": "Saga orchestration engine",
+      "steps": "Step definitions and implementations",
+      "sagas": "Saga workflow definitions",
+      ".process": "Runtime state and logs"
+    }
+  },
+  "current_reality": {
+    "saga_orchestration": {
+      "status": "Implemented (ADR-008, ADR-009)",
+      "components": [
+        "SagaExecutor - Graph-based workflow execution with routing",
+        "SagaStateManager - File-based state persistence",
+        "DevinWrapper - Devin CLI execution wrapper",
+        "saga_models.py - Data structures for saga definitions"
+      ],
+      "capabilities": [
+        "Deterministic step sequencing",
+        "Verification-driven routing (pass/fail/self-correction)",
+        "State persistence to .process/saga-<hash>/ directories",
+        "Sub-saga composition",
+        "Traversal limits and recursion depth protection"
+      ]
+    },
+    "prompt_handling": {
+      "current_approach": "Prompts loaded from files or inline strings",
+      "prompt_sources": [
+        "Step definition 'prompt' field (file path or inline text)",
+        "Input files appended to prompt"
+      ],
+      "limitations": [
+        "No variable substitution in prompts",
+        "No saga context available to steps",
+        "No enrichment dictionary mechanism",
+        "No previous_step_output propagation"
+      ]
+    },
+    "state_management": {
+      "current_approach": "Saga state persisted in .process/saga-<hash>/saga.json",
+      "state_contents": {
+        "saga_id": "Unique 8-character hash",
+        "saga_definition": "Path to saga definition file",
+        "original_input": "Initial input path or content",
+        "created_at": "Saga creation timestamp",
+        "updated_at": "Last state update timestamp",
+        "status": "Saga execution status",
+        "current_node": "Currently executing node",
+        "state": "Array of StateEntry objects (node execution history)",
+        "subsagas": "Array of SubSagaEntry objects (child saga references)"
+      },
+      "missing_features": [
+        "Enrichment dictionary not persisted",
+        "previous_step_output not tracked",
+        "Step output logging separate from state",
+        "Verify script parameters don't include state context"
+      ]
+    },
+    "verify_script_contract": {
+      "current_approach": "Verify scripts invoked with no parameters",
+      "execution": "bash {verify_script}",
+      "outputs": {
+        "exit_code": "0 for success, 1 for hard failure, 2 for self-correction",
+        "stderr": "Captured for self-correction feedback"
+      },
+      "limitations": [
+        "No access to saga state directory",
+        "No access to enrichment dictionary",
+        "Cannot derive working directories from context",
+        "Error messages not propagated to next step"
+      ]
+    },
+    "saga_definition_schema": {
+      "current_fields": [
+        "name",
+        "max_recursion_depth",
+        "start",
+        "nodes",
+        "connections"
+      ],
+      "missing_fields": [
+        "enrichment - Custom variables for prompt enrichment"
+      ]
+    }
+  },
+  "relevant_adrs": [
+    "ADR-008: Devin CLI Saga Orchestration - Graph-based execution with verification",
+    "ADR-009: Saga State Persistence - File-based state storage and recovery"
+  ],
+  "related_code_patterns": {
+    "state_management": "SagaStateManager uses atomic writes (write to temp, then replace)",
+    "error_handling": "Exit codes used for routing decisions (0=pass, 1=fail, 2=self-correct)",
+    "logging": "Unified execution logger with indentation for nesting depth",
+    "file_organization": "Step definitions in steps/<name>/step.json with optional scripts/ and prompts/ subdirectories"
+  },
+  "existing_tests": [
+    "test_saga_state.py - State persistence tests",
+    "test_state_integration.py - Integration tests for state tracking",
+    "test_saga_executor.py - Executor tests"
+  ],
+  "architectural_constraints": [
+    "State persistence is file-based (no database)",
+    "Saga definitions are JSON files (no dynamic generation)",
+    "Verify scripts are shell scripts (bash)",
+    "Devin CLI is the execution engine (non-interactive mode)",
+    "Timeouts enforced via subprocess (hard limits)"
+  ],
+  "implementation_readiness": {
+    "saga_state_infrastructure": "Ready - SagaStateManager already handles file I/O",
+    "saga_executor_integration": "Ready - SagaExecutor already manages state",
+    "devin_wrapper_integration": "Needs enhancement - Verify script invocation needs parameters",
+    "saga_definition_schema": "Needs enhancement - Add enrichment field",
+    "variable_substitution": "New - Needs implementation"
+  }
+}

@@ -1,0 +1,267 @@
+{
+  "source_story": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.analysis.json",
+  "overall_design": "docs/reqs/fix-devin-resume/fix-devin-resume-retry-logic.design.json",
+  "story": {
+    "as_a": "Saga Orchestrator System",
+    "i_want": "Implement conversation accumulation pattern for retry logic when Devin session resumption is not viable",
+    "so_that": "Failed verification steps can be retried with full conversation context, allowing agents to see and fix previous errors"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Each step execution creates a node-specific directory",
+      "gherkin": "Given a saga step execution, When the step completes, Then a node-specific directory is created at .sagas/<saga-id>/<node-name>/attempt_<N>/",
+      "status": "pending"
+    },
+    {
+      "criterion": "Three files captured per attempt: input.txt, output.txt, verification.txt",
+      "gherkin": "Given a step execution, When state is captured, Then input.txt, output.txt, and verification.txt are written to the attempt directory",
+      "status": "pending"
+    },
+    {
+      "criterion": "Retry attempts compose accumulated conversation history",
+      "gherkin": "Given a failed verification, When a retry is triggered, Then the new prompt contains original input + all previous outputs + all previous verification feedback",
+      "status": "pending"
+    },
+    {
+      "criterion": "Each retry creates a new Devin agent (no session resumption)",
+      "gherkin": "Given a retry attempt, When the orchestrator executes the step, Then a new Devin agent is created (not resuming a previous session)",
+      "status": "pending"
+    },
+    {
+      "criterion": "Retry limit enforced via existing traversal limit mechanism",
+      "gherkin": "Given a step with retry attempts, When the traversal limit is reached, Then no further retries are attempted",
+      "status": "pending"
+    },
+    {
+      "criterion": "File naming is clear and self-documenting",
+      "gherkin": "Given state files, When examined, Then file names (input.txt, output.txt, verification.txt) clearly indicate their purpose",
+      "status": "pending"
+    },
+    {
+      "criterion": "Existing saga execution flow preserved (no breaking changes)",
+      "gherkin": "Given existing sagas, When executed with new code, Then they continue to work without modification",
+      "status": "pending"
+    },
+    {
+      "criterion": "Logs clearly show retry attempts and accumulated prompt sizes",
+      "gherkin": "Given a retry attempt, When logs are examined, Then they show attempt number and accumulated prompt size",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "First attempt (no previous attempts to accumulate)",
+      "gherkin": "Given a step execution on first attempt, When state is captured, Then input.txt contains original prompt only",
+      "status": "pending"
+    },
+    {
+      "criterion": "Accumulated prompt exceeds token limits",
+      "gherkin": "Given accumulated prompt exceeds token limits, When retry is attempted, Then agent returns error and verification fails",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verification script produces no output",
+      "gherkin": "Given verification script runs successfully with no output, When state is captured, Then verification.txt is empty or contains success indicator",
+      "status": "pending"
+    },
+    {
+      "criterion": "Node directory already exists from previous saga run",
+      "gherkin": "Given node directory exists from previous saga, When new saga runs same node, Then new attempt subdirectory is created with incremented number",
+      "status": "pending"
+    },
+    {
+      "criterion": "Attempt subdirectories partially created (crash recovery)",
+      "gherkin": "Given attempt subdirectory exists but files are incomplete, When retry logic checks for next attempt, Then next attempt number is correctly determined",
+      "status": "pending"
+    },
+    {
+      "criterion": "Multiple retries with growing prompt size",
+      "gherkin": "Given 5+ retry attempts, When accumulated prompt is composed, Then all previous outputs and verification feedback are included",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "orchestrator": [
+      "Orchestrator._write_session_state() - Modify to create node directories and write three files",
+      "Orchestrator._determine_attempt_number() - New method to discover next attempt number",
+      "Orchestrator.compose_retry_prompt() - New method to load previous attempts and build accumulated prompt"
+    ],
+    "saga_executor": [
+      "SagaExecutor._execute_step() - Modify to detect retries and call compose_retry_prompt()",
+      "SagaExecutor._execute_node() - Modify to pass saga context to orchestrator"
+    ],
+    "devin_wrapper": [
+      "DevinWrapper.execute_prompt() - No changes needed (already handles new prompts)"
+    ],
+    "file_system": [
+      ".sagas/<saga-id>/<node-name>/attempt_<N>/ - New directory structure",
+      "input.txt - New state file (accumulated prompt)",
+      "output.txt - Renamed from stdout.txt",
+      "verification.txt - Renamed from stderr.txt"
+    ]
+  },
+  "steps": [
+    {
+      "description": "Phase 1: Modify Orchestrator._write_session_state() to create node-specific directories and write three state files (input.txt, output.txt, verification.txt)",
+      "layer": "orchestrator",
+      "status": "pending",
+      "dependencies": []
+    },
+    {
+      "description": "Phase 1: Implement Orchestrator._determine_attempt_number() to scan existing attempt directories and return next attempt number",
+      "layer": "orchestrator",
+      "status": "pending",
+      "dependencies": ["Step 1"]
+    },
+    {
+      "description": "Phase 2: Implement Orchestrator.compose_retry_prompt() to load previous attempts from node directory and build accumulated conversation",
+      "layer": "orchestrator",
+      "status": "pending",
+      "dependencies": ["Step 2"]
+    },
+    {
+      "description": "Phase 2: Modify SagaExecutor._execute_step() to detect retries by checking for existing attempt directories",
+      "layer": "saga_executor",
+      "status": "pending",
+      "dependencies": ["Step 2"]
+    },
+    {
+      "description": "Phase 2: Modify SagaExecutor._execute_step() to call compose_retry_prompt() when retry is detected",
+      "layer": "saga_executor",
+      "status": "pending",
+      "dependencies": ["Step 3", "Step 4"]
+    },
+    {
+      "description": "Phase 3: Modify SagaExecutor._execute_node() to pass saga_id, node_name, and attempt_number to orchestrator",
+      "layer": "saga_executor",
+      "status": "pending",
+      "dependencies": ["Step 2"]
+    },
+    {
+      "description": "Phase 3: Update Orchestrator.invoke_step() signature to accept saga_id, node_name, and attempt_number parameters",
+      "layer": "orchestrator",
+      "status": "pending",
+      "dependencies": ["Step 1", "Step 6"]
+    },
+    {
+      "description": "Phase 3: Add logging for retry attempts and accumulated prompt sizes to SagaExecutor",
+      "layer": "saga_executor",
+      "status": "pending",
+      "dependencies": ["Step 5"]
+    },
+    {
+      "description": "Phase 4 (Optional): Remove deprecated session ID tracking code from Orchestrator",
+      "layer": "orchestrator",
+      "status": "pending",
+      "dependencies": ["Step 7"]
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "Test _determine_attempt_number() returns 1 for new node directory",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test _determine_attempt_number() returns N+1 for existing attempts",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test _determine_attempt_number() handles partial directory creation",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test compose_retry_prompt() loads previous attempts correctly",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test compose_retry_prompt() builds accumulated prompt with correct format",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test _write_session_state() creates node-specific directory structure",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test _write_session_state() writes three files (input.txt, output.txt, verification.txt)",
+        "layer": "orchestrator"
+      },
+      {
+        "description": "Test _execute_step() detects retry by checking for existing attempts",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test _execute_step() calls compose_retry_prompt() on retry",
+        "layer": "saga_executor"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "Test full retry flow: initial execution -> verification failure -> retry with accumulated prompt",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test multiple retries with growing accumulated prompt",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test retry limit enforcement via traversal limit",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test backward compatibility: existing sagas work without modification",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test state file structure is created correctly across retries",
+        "layer": "orchestrator"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "Test saga with verification failure retries successfully with accumulated context",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test saga respects traversal limit and exits after max retries",
+        "layer": "saga_executor"
+      },
+      {
+        "description": "Test attempt directories and files are preserved for debugging",
+        "layer": "file_system"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Accumulated prompt size grows linearly with retry attempts and may exceed token limits",
+      "mitigation": "Log accumulated prompt size at each retry. Let agent fail naturally if token limit exceeded. Future enhancement: implement prompt compression if needed.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Directory structure changes could break existing saga state files",
+      "mitigation": "Implement backward compatibility: support both old (.process/<step>/) and new (.sagas/<saga-id>/<node-name>/attempt_<N>/) structures. Gradual migration.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Partial directory creation during crash could leave inconsistent state",
+      "mitigation": "Implement robust attempt number detection that handles incomplete directories. Use atomic file writes where possible.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Verification script output format may vary, making parsing unreliable",
+      "mitigation": "Store raw verification output in verification.txt. No parsing required. Agent sees full context.",
+      "layer": "orchestrator"
+    },
+    {
+      "risk": "Storage grows unbounded with retry attempts and saga executions",
+      "mitigation": "Preserve all attempts for debugging (as required). Implement optional cleanup on saga completion (future enhancement).",
+      "layer": "file_system"
+    },
+    {
+      "risk": "Retry detection logic could miss attempts due to directory scanning issues",
+      "mitigation": "Implement robust directory scanning with error handling. Test edge cases (missing directories, permission issues, etc.).",
+      "layer": "orchestrator"
+    }
+  ]
+}

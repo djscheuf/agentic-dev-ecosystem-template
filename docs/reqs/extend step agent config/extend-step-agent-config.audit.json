@@ -1,0 +1,276 @@
+{
+  "audit_date": "2026-05-06",
+  "analysis_file": "extend-step-agent-config.analysis.json",
+  "project_structure": {
+    "type": "Monorepo",
+    "purpose": "Agentic development ecosystem template with saga-based orchestration",
+    "primary_language": "Python",
+    "key_directories": {
+      "orchestrator/": "Saga orchestration engine and Devin CLI wrapper",
+      "steps/": "Individual step definitions with prompts and verification scripts",
+      "sagas/": "Saga workflow definitions (JSON graphs)",
+      "vault/": "Architectural decisions and project knowledge",
+      "docs/": "Documentation and requirements"
+    }
+  },
+  "tech_stack": {
+    "language": "Python 3",
+    "frameworks": ["Pathlib (path handling)", "Subprocess (process management)", "JSON (configuration)"],
+    "testing": "pytest",
+    "key_libraries": ["dataclasses (data structures)", "typing (type hints)"],
+    "external_tools": ["Devin CLI (agent execution)"]
+  },
+  "relevant_adrs": [
+    {
+      "adr": "ADR-008: Devin CLI Saga Orchestration",
+      "relevance": "Critical - Defines the saga orchestration architecture that this requirement extends",
+      "key_points": [
+        "Devin CLI runs in non-interactive mode (-p flag) for deterministic execution",
+        "StepDefinition class loads step.json with prompt, model, budget, timeout, verify fields",
+        "DevinWrapper.build_devin_command() currently uses hardcoded --agent-config .devin/agent-config.json",
+        "Saga executor calls DevinWrapper for each step execution",
+        "Graph-based routing with pass/fail branching based on exit codes"
+      ]
+    }
+  ],
+  "current_implementation": {
+    "step_definition_structure": {
+      "file": "orchestrator/devin_wrapper.py",
+      "class": "StepDefinition",
+      "current_fields": [
+        "prompt (required) - string or file path",
+        "model (required) - model identifier",
+        "budget (optional) - ACU budget (not enforced)",
+        "timeout (optional) - execution timeout in seconds",
+        "verify (optional) - path to verification script"
+      ],
+      "missing_field": "agent_config - NOT YET IMPLEMENTED"
+    },
+    "devin_wrapper_command_building": {
+      "file": "orchestrator/devin_wrapper.py",
+      "method": "build_devin_command()",
+      "current_behavior": "Line 66: cmd.extend(['--agent-config', '.devin/agent-config.json'])",
+      "limitation": "Hardcoded global config path; no support for step-specific configs",
+      "needed_change": "Use step-specific config if available, fall back to global config"
+    },
+    "saga_executor_step_execution": {
+      "file": "orchestrator/saga_executor.py",
+      "method": "_execute_step()",
+      "current_behavior": "Lines 220-227: Loads step definition and creates DevinWrapper instance",
+      "interaction": "Passes inputs to wrapper but no config path handling",
+      "needed_change": "May need to pass config path to wrapper or let wrapper load from step definition"
+    },
+    "saga_models": {
+      "file": "orchestrator/saga_models.py",
+      "class": "NodeDefinition",
+      "current_fields": ["type", "reference", "timeout"],
+      "decision_needed": "Should NodeDefinition include agent_config field, or should it be in step.json only?"
+    },
+    "global_agent_config": {
+      "file": ".devin/agent-config.json",
+      "structure": {
+        "permissions": {
+          "allow": ["Write(src/**)", "Write(tests/**)", "Write(docs/**)"],
+          "deny": ["Write(*.lock)", "Write(.env*)", "Write(.git*)", "Write(orchestrator/**)"]
+        }
+      },
+      "note": "Reference implementation for step-specific configs"
+    }
+  },
+  "existing_patterns": [
+    {
+      "pattern": "Path resolution relative to step directory",
+      "example": "StepDefinition.get_prompt_content() resolves prompt paths relative to step_def_dir",
+      "file": "orchestrator/devin_wrapper.py:34-43",
+      "applicability": "Should use same pattern for agent_config path resolution"
+    },
+    {
+      "pattern": "Optional fields with fallback",
+      "example": "verify field is optional; if not specified, verification is skipped",
+      "file": "orchestrator/devin_wrapper.py:166-170",
+      "applicability": "agent_config should follow same optional pattern with global fallback"
+    },
+    {
+      "pattern": "File existence validation",
+      "example": "Verification script path is validated before execution",
+      "file": "orchestrator/devin_wrapper.py:180-182",
+      "applicability": "Should validate agent_config file existence"
+    },
+    {
+      "pattern": "Saga validation before execution",
+      "example": "saga_validator.py checks all references exist before execution",
+      "file": "orchestrator/saga_validator.py",
+      "applicability": "Saga validation should check agent_config files if specified"
+    }
+  ],
+  "design_precedents": [
+    {
+      "precedent": "Configuration via JSON files",
+      "evidence": "Step definitions, saga definitions, and agent config all use JSON",
+      "implication": "agent_config field should be a simple string (file path), not inline config"
+    },
+    {
+      "precedent": "Relative path resolution",
+      "evidence": "Prompts and verification scripts resolved relative to step directory",
+      "implication": "agent_config paths should resolve relative to step directory by default"
+    },
+    {
+      "precedent": "Backward compatibility",
+      "evidence": "Optional fields throughout (budget, timeout, verify)",
+      "implication": "agent_config must be optional; existing steps must work without it"
+    },
+    {
+      "precedent": "Early validation",
+      "evidence": "Saga validator checks references before execution",
+      "implication": "Agent config validation should happen at saga validation time, not execution time"
+    }
+  ],
+  "implementation_scope": {
+    "files_to_modify": [
+      {
+        "file": "orchestrator/devin_wrapper.py",
+        "changes": [
+          "Add agent_config field to StepDefinition.__init__()",
+          "Add get_agent_config_path() method to resolve config path",
+          "Update build_devin_command() to use step-specific config if available"
+        ]
+      },
+      {
+        "file": "orchestrator/saga_executor.py",
+        "changes": [
+          "Update saga validation to check agent_config file existence",
+          "No changes needed to _execute_step() if config is loaded by StepDefinition"
+        ]
+      },
+      {
+        "file": "orchestrator/saga_validator.py",
+        "changes": [
+          "Add validation for agent_config file existence in _validate_step_definition()"
+        ]
+      }
+    ],
+    "files_to_create": [
+      {
+        "file": "steps/*/agent-config.json",
+        "purpose": "Example step-specific agent configurations (optional, for documentation)"
+      }
+    ],
+    "schema_updates": [
+      {
+        "schema": "Step definition JSON schema",
+        "change": "Add optional agent_config field (string, file path)"
+      }
+    ]
+  },
+  "risk_assessment": {
+    "low_risk_items": [
+      "Adding optional field to StepDefinition - backward compatible",
+      "Path resolution - follows existing pattern",
+      "Fallback to global config - simple conditional logic"
+    ],
+    "medium_risk_items": [
+      "Saga validation changes - must not break existing sagas",
+      "Path resolution edge cases - relative vs absolute, traversal",
+      "Error messages - must be clear when config is missing"
+    ],
+    "high_risk_items": [
+      "Devin CLI flag support - must verify --agent-config works in non-interactive mode",
+      "Backward compatibility - all existing steps must continue to work"
+    ]
+  },
+  "testing_considerations": {
+    "unit_tests_needed": [
+      "StepDefinition with agent_config field",
+      "StepDefinition without agent_config field (fallback)",
+      "Path resolution (relative, absolute, traversal)",
+      "DevinWrapper command building with step-specific config",
+      "Missing config file error handling",
+      "Empty/null agent_config handling"
+    ],
+    "integration_tests_needed": [
+      "Saga execution with step-specific configs",
+      "Saga validation with missing config files",
+      "Backward compatibility with existing steps"
+    ],
+    "test_fixtures": [
+      "Step with agent-config.json",
+      "Step without agent-config.json",
+      "Step with invalid config path",
+      "Step with absolute config path"
+    ]
+  },
+  "open_design_decisions": [
+    {
+      "decision": "Config merging strategy",
+      "options": [
+        "Replace: Step-specific config completely replaces global config",
+        "Merge: Combine step-specific and global configs (union of permissions)"
+      ],
+      "recommendation": "Replace - simpler, more predictable, better for least-privilege",
+      "impact": "Affects implementation complexity and security model"
+    },
+    {
+      "decision": "Validation responsibility",
+      "options": [
+        "Wrapper validates: Check config structure in StepDefinition or DevinWrapper",
+        "Delegate to Devin: Pass config to CLI, let it validate"
+      ],
+      "recommendation": "Wrapper validates - better error messages, fail fast",
+      "impact": "Affects error handling and user experience"
+    },
+    {
+      "decision": "NodeDefinition extension",
+      "options": [
+        "Add agent_config to NodeDefinition in saga_models.py",
+        "Keep agent_config in step.json only"
+      ],
+      "recommendation": "Keep in step.json only - simpler, less coupling",
+      "impact": "Affects saga definition schema and executor logic"
+    }
+  ],
+  "dependencies": {
+    "internal_dependencies": [
+      "StepDefinition class (must be extended)",
+      "DevinWrapper class (must use step-specific config)",
+      "Saga validator (must check config file existence)",
+      "Existing tests (must not break)"
+    ],
+    "external_dependencies": [
+      "Devin CLI - must support --agent-config flag in non-interactive mode",
+      "Python pathlib - for path resolution (already in use)"
+    ],
+    "knowledge_dependencies": [
+      "Devin CLI permission model and --agent-config behavior",
+      "Current agent-config.json structure",
+      "Saga validation flow"
+    ]
+  },
+  "implementation_complexity": {
+    "overall_assessment": "Low to Medium",
+    "complexity_breakdown": {
+      "StepDefinition changes": "Low - simple field addition and path resolution",
+      "DevinWrapper changes": "Low - conditional logic for config selection",
+      "Saga validator changes": "Low - add file existence check",
+      "Path resolution": "Medium - handle relative, absolute, and edge cases",
+      "Testing": "Medium - multiple scenarios and edge cases"
+    },
+    "estimated_effort": "2-3 days for experienced Python developer",
+    "risk_factors": [
+      "Path resolution edge cases",
+      "Backward compatibility verification",
+      "Devin CLI flag support verification"
+    ]
+  },
+  "summary": {
+    "current_state": "Global agent-config.json hardcoded in DevinWrapper.build_devin_command()",
+    "target_state": "Each step can specify its own agent-config.json; fallback to global if not specified",
+    "key_changes": [
+      "Add optional agent_config field to StepDefinition",
+      "Implement path resolution for agent_config (relative to step directory)",
+      "Update DevinWrapper to use step-specific config if available",
+      "Add validation in saga validator to check config file existence"
+    ],
+    "backward_compatibility": "Fully maintained - existing steps without agent_config will use global config",
+    "security_benefit": "Principle of least privilege - each step only gets permissions it needs"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "story_format": {
+    "as_a": "Step developer",
+    "i_want": "Each step to implement its own agent-config that specifies permissions required for that step's actions",
+    "so_that": "The Devin agent can run with minimal necessary permissions in non-interactive mode, improving security and control"
+  },
+  "target_persona": {
+    "name": "Step Developer",
+    "role": "Orchestration Engineer",
+    "technical_level": "Expert",
+    "frequency_of_use": "Per-step during development",
+    "environment": "CLI/Orchestrator",
+    "permissions": "Can define step configurations, read/write step definitions",
+    "context": "Develops individual steps that run via Devin CLI in non-interactive mode. Needs fine-grained control over what permissions each step's agent receives.",
+    "related_actions": [
+      "Create step definition (step.json)",
+      "Define verification scripts",
+      "Configure step inputs/outputs",
+      "Test step execution"
+    ]
+  },
+  "capability_breakdown": {
+    "core_action": "Extend step architecture to support per-step agent configuration",
+    "inputs_required": [
+      "Step definition (step.json)",
+      "Agent configuration (agent-config.json) with permissions"
+    ],
+    "outputs_expected": [
+      "Step executes with specified permissions",
+      "Devin wrapper receives and applies step-specific config"
+    ],
+    "state_changes": [
+      "Step definition now includes optional agent-config field",
+      "Devin wrapper loads step-specific config instead of global config"
+    ],
+    "side_effects": [
+      "Backward compatibility: steps without agent-config use global config",
+      "Improved security: steps only get permissions they need"
+    ],
+    "affected_components": [
+      "step.json schema",
+      "StepDefinition class",
+      "DevinWrapper class",
+      "saga_executor.py"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config' field, When the step is executed, Then the specified config is used",
+      "type": "functional",
+      "jtbd": "Configure step-specific agent permissions",
+      "persona": "Step Developer"
+    },
+    {
+      "criterion": "If step has no agent_config, fall back to global .devin/agent-config.json",
+      "gherkin": "Given a step.json without 'agent_config' field, When the step is executed, Then the global agent config is used",
+      "type": "functional",
+      "jtbd": "Maintain backward compatibility with existing steps",
+      "persona": "Step Developer"
+    },
+    {
+      "criterion": "DevinWrapper receives agent-config path and passes it to Devin CLI",
+      "gherkin": "Given a step with agent_config, When DevinWrapper builds the Devin command, Then --agent-config flag uses the step-specific config",
+      "type": "functional",
+      "jtbd": "Pass step-specific config to Devin agent",
+      "persona": "Step Developer"
+    },
+    {
+      "criterion": "Step-specific agent-config is resolved relative to step directory",
+      "gherkin": "Given a step.json with agent_config: 'agent-config.json', When the path is resolved, Then it points to <step-dir>/agent-config.json",
+      "type": "functional",
+      "jtbd": "Resolve config paths correctly",
+      "persona": "Step Developer"
+    },
+    {
+      "criterion": "Validation ensures agent_config file exists if specified",
+      "gherkin": "Given a step.json with non-existent agent_config file, When validation runs, Then an error is raised",
+      "type": "constraint",
+      "jtbd": "Validate step configuration",
+      "persona": "Step Developer"
+    }
+  ],
+  "raw_request": "User request: Extend step architecture so each step can implement its own agent-config, passed to devin wrapper for permission control in non-interactive mode"
+}

@@ -11,3 +11,12 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](decisions/ADR-005-analysis-separation.md)
 - [ADR-006: Grader Skill Pattern](decisions/ADR-006-grader-skill-pattern.md)
 - [ADR-007: Skill Input Independence](decisions/ADR-007-skill-input-independence.md)
+- [ADR-008: Devin CLI Saga Orchestration](decisions/ADR-008-devin-saga-orchestration.md)
+- [ADR-009: Saga State Persistence with File-Based Storage](decisions/ADR-009-saga-state-persistence.md)
+- [ADR-010: Verification Script Saga Context Access](decisions/ADR-010-verification-script-saga-context.md)
+- [ADR-011: Single Orchestrator Instance per Work Tree](decisions/ADR-011-single-orchestrator-instance.md)
+
+## Services & Components
+
+- [Saga State Enrichment](services/saga-enrichment.md) - Context enrichment for saga execution
+- [Saga Storage Structure](services/saga-storage-structure.md) - Reference guide to saga directory layout and file formats

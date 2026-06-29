@@ -1,0 +1,275 @@
+{
+  "raw_request": "docs/reqs/orchestrator prompt enrichment/01-saga-state-enrichment-requirements.md",
+  "title": "Enrich step prompts with saga state variables at invocation time",
+  "story": {
+    "so_that": "Subsequent agents can reference context about the Saga execution without requiring external lookups, enabling proper output placement, context-aware prompting, and deterministic step-to-step communication",
+    "as_a": "Saga orchestrator system",
+    "i_want": "Enrich step prompts with Saga state variables at invocation time, maintaining a prompt enrichment dictionary with saga context (ID, state location, initial prompt path, custom variables) and a previous_step_output variable that is updated after each completed step"
+  },
+  "target_persona": {
+    "role": "Workflow execution engine",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Saga is initialized with definition and input",
+      "during": "Steps are executed sequentially with enriched prompts and state tracking",
+      "after": "Saga completes with full execution history and state persistence"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Maintain and propagate saga context variables (enrichment dictionary) through step execution, with variable substitution in prompts and capture of step outputs",
+    "inputs": [
+      "Saga definition (with optional enrichment configuration)",
+      "Initial input path or content",
+      "Step definitions with prompt templates",
+      "Verify script outputs (stdout)",
+      "Verification failure messages"
+    ],
+    "outputs": [
+      "Enriched step prompts with substituted variables",
+      "Persisted enrichment dictionary (enrichment.json)",
+      "Updated previous_step_output variable in saga state",
+      "Verify script invocation with state directory and enrichment path parameters"
+    ],
+    "state_changes": [
+      "Enrichment dictionary created during saga initialization",
+      "previous_step_output updated after each step completion",
+      "Saga state file includes enrichment context",
+      "Verification errors captured in enrichment context"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "SagaExecutor - orchestration logic for variable substitution",
+        "SagaStateManager - persistence of enrichment dictionary",
+        "DevinWrapper - pass enrichment context to verify scripts"
+      ],
+      "database": [
+        "Saga state file structure - includes enrichment.json"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Orchestrator maintains a prompt enrichment dictionary with Saga ID, state storage location, initial prompt path, and custom variables",
+      "gherkin": "Given a saga with enrichment configuration, when the saga is initialized, then the enrichment dictionary contains saga_id, state_storage_location, initial_prompt_path, and custom variables",
+      "type": "Functional",
+      "jtbd": "Initialize enrichment dictionary with saga context",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Enrichment dictionary is persisted as JSON in the saga state directory",
+      "gherkin": "Given an initialized saga, when the enrichment dictionary is created, then it is written to {saga_state_dir}/enrichment.json",
+      "type": "Functional",
+      "jtbd": "Persist enrichment dictionary to file",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Step prompts are enriched with variables from the enrichment dictionary before DevinWrapper invocation",
+      "gherkin": "Given a step prompt with template variables like {{saga_id}}, when the step is about to execute, then variables are substituted using the enrichment dictionary",
+      "type": "Functional",
+      "jtbd": "Substitute variables in step prompts",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "previous_step_output variable is updated after each completed step with verify script output",
+      "gherkin": "Given a completed step with verify script output, when the step completes successfully, then previous_step_output is set to the verify script's stdout",
+      "type": "Functional",
+      "jtbd": "Capture and propagate step output",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Verify scripts receive saga state directory and enrichment dictionary path as parameters",
+      "gherkin": "Given a verify script, when it is invoked, then it receives two parameters: saga_state_dir and enrichment_dict_path",
+      "type": "Functional",
+      "jtbd": "Pass state context to verify scripts",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Enrichment dictionary is restored when a saga is resumed",
+      "gherkin": "Given a saga that was previously executed, when the saga is resumed, then the enrichment dictionary is loaded from the persisted state",
+      "type": "Functional",
+      "jtbd": "Restore enrichment context on resume",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Child saga's verify script output becomes parent saga's previous_step_output",
+      "gherkin": "Given a parent saga with a child saga node, when the child saga completes, then its verify script output becomes the parent's previous_step_output",
+      "type": "Functional",
+      "jtbd": "Chain saga results through output mechanism",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Saga definitions support enrichment configuration with custom variables",
+      "gherkin": "Given a saga definition with enrichment field like {\"enrichment\": {\"code_directory\": \"/path/to/code\"}}, when the saga is loaded, then custom variables are included in the enrichment dictionary",
+      "type": "Functional",
+      "jtbd": "Support custom enrichment variables",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Verification failures provide error messages that are captured and used to enrich follow-on prompts",
+      "gherkin": "Given a failed verification with error message, when the next step is about to execute, then the error message is available in the enrichment context as previous_step_error",
+      "type": "Functional",
+      "jtbd": "Propagate verification errors as context",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Step output logging is separate from previous_step_output mechanism",
+      "gherkin": "Given a completed step, when step output is logged, then it is recorded separately from the previous_step_output variable in saga state",
+      "type": "Functional",
+      "jtbd": "Maintain separate output logging",
+      "persona_served": "Saga Orchestrator System"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty initial_prompt_path",
+      "gherkin": "Given a saga initialized without initial_prompt_path, when verify scripts are invoked, then they receive null/empty path and handle gracefully",
+      "type": "Edge case",
+      "jtbd": "Handle missing initial prompt path",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Special characters in enrichment variables",
+      "gherkin": "Given enrichment variables with special characters or unicode, when variable substitution occurs, then special characters are properly escaped",
+      "type": "Edge case",
+      "jtbd": "Handle special characters in variables",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Very large previous_step_output",
+      "gherkin": "Given a verify script producing large output (MB+), when step completes, then output is truncated and logged separately",
+      "type": "Edge case",
+      "jtbd": "Handle large step outputs",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "First step execution with no previous_step_output",
+      "gherkin": "Given the first step in a saga, when it executes, then previous_step_output is initialized to empty string",
+      "type": "Edge case",
+      "jtbd": "Initialize previous step output",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Verify script failure on first step",
+      "gherkin": "Given a failed verify script on the first step, when the next step executes, then error message is available as previous_step_error",
+      "type": "Edge case",
+      "jtbd": "Propagate first step errors",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Nested sub-sagas with enrichment",
+      "gherkin": "Given a child saga within a parent saga, when the child saga initializes, then it creates its own enrichment dictionary",
+      "type": "Edge case",
+      "jtbd": "Isolate child saga enrichment",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Saga resumption with modified enrichment",
+      "gherkin": "Given a resumed saga, when enrichment is loaded from persisted state, then it matches the original enrichment",
+      "type": "Edge case",
+      "jtbd": "Restore enrichment on resume",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Enrichment file corruption",
+      "gherkin": "Given a corrupted enrichment.json file, when the saga loads it, then a clear error message is provided",
+      "type": "Edge case",
+      "jtbd": "Handle corrupted enrichment files",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Variable substitution with undefined variables",
+      "gherkin": "Given a step prompt with undefined variables, when substitution occurs, then undefined variables remain as-is with a warning logged",
+      "type": "Edge case",
+      "jtbd": "Handle undefined variables",
+      "persona_served": "Saga Orchestrator System"
+    },
+    {
+      "criterion": "Circular variable references",
+      "gherkin": "Given enrichment variables with circular references, when substitution occurs, then single-pass substitution is performed without recursion",
+      "type": "Edge case",
+      "jtbd": "Prevent circular substitution",
+      "persona_served": "Saga Orchestrator System"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Should enrichment variables support nested/hierarchical access (e.g., {{enrichment.code_directory}})?",
+      "impacts": ["Variable substitution logic", "Enrichment dictionary structure", "Prompt template design"]
+    },
+    {
+      "question": "What is the maximum size for previous_step_output before truncation?",
+      "impacts": ["Saga state file size", "Performance", "Storage requirements"]
+    },
+    {
+      "question": "Should previous_step_error be separate from previous_step_output or combined?",
+      "impacts": ["Enrichment dictionary structure", "Verify script contract", "Error handling"]
+    },
+    {
+      "question": "How should circular variable references be handled?",
+      "impacts": ["Variable substitution logic", "Error handling", "Robustness"]
+    },
+    {
+      "question": "Should enrichment dictionary be inherited by child sagas or isolated?",
+      "impacts": ["Sub-saga handling", "Variable scope", "Composition patterns"]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "SagaExecutor - needs enhancement for variable substitution",
+        "SagaStateManager - needs enrichment dictionary persistence",
+        "DevinWrapper - needs to pass enrichment context to verify scripts",
+        "saga_models.py - needs enrichment field in saga definition"
+      ],
+      "new_code": [
+        "Enrichment dictionary data structure",
+        "Variable substitution utility function",
+        "Enrichment persistence methods in SagaStateManager",
+        "Verify script parameter builder"
+      ],
+      "infrastructure": [
+        "File system storage for enrichment.json",
+        "Saga state directory structure"
+      ],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [
+        "ADR-009: Saga State Persistence (already implemented)"
+      ],
+      "blocks": [
+        "Extract Story Intent verify script update",
+        "Other verify scripts that need enrichment context"
+      ],
+      "related": [
+        "ADR-008: Devin CLI Saga Orchestration",
+        "ADR-009: Saga State Persistence"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Saga orchestration patterns",
+        "Prompt engineering and variable substitution",
+        "Verify script contract and responsibilities"
+      ],
+      "technical_knowledge": [
+        "Python string formatting and template substitution",
+        "JSON serialization and deserialization",
+        "File I/O and state management"
+      ],
+      "stakeholder_questions": [
+        "Should enrichment variables support nested/hierarchical access?",
+        "What is the maximum size for previous_step_output?",
+        "Should previous_step_error be separate from previous_step_output?",
+        "How should circular variable references be handled?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  }
+}

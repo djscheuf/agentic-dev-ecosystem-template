@@ -1,0 +1,7 @@
+{
+  "prompt": "Analyze the provided files and identify potential improvements.",
+  "model": "claude-haiku-4.5",
+  "budget": 50,
+  "timeout": 30,
+  "verify": "scripts/verify-example.sh"
+}

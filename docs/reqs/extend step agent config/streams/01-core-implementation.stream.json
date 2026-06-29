@@ -1,0 +1,146 @@
+{
+  "stream_name": "Core Implementation",
+  "stream_id": "01-core-implementation",
+  "stream_date": "2026-05-06",
+  "stream_summary": "Extend StepDefinition and DevinWrapper classes to support per-step agent configurations. This is the foundation workstream that enables all other work.",
+  "stream_priority": "Critical",
+  "stream_phase": "Foundations",
+  "related_acceptance_criteria": [
+    {
+      "criterion": "Step definition can include optional 'agent_config' field pointing to a config file",
+      "gherkin": "Given a step.json with 'agent_config': 'agent-config.json', When the step is executed, Then DevinWrapper uses that config file",
+      "type": "functional"
+    },
+    {
+      "criterion": "If step has no agent_config, fall back to global .devin/agent-config.json",
+      "gherkin": "Given a step.json without 'agent_config' field, When the step is executed, Then DevinWrapper uses .devin/agent-config.json",
+      "type": "functional"
+    },
+    {
+      "criterion": "DevinWrapper receives agent-config path and passes it to Devin CLI",
+      "gherkin": "Given a step with agent_config field, When DevinWrapper.build_devin_command() is called, Then the command includes --agent-config <path>",
+      "type": "functional"
+    },
+    {
+      "criterion": "Step-specific agent-config is resolved relative to step directory",
+      "gherkin": "Given a step in steps/my-step/ with agent_config: 'agent-config.json', When the path is resolved, Then it resolves to steps/my-step/agent-config.json",
+      "type": "functional"
+    },
+    {
+      "criterion": "Absolute paths in agent_config are supported",
+      "gherkin": "Given a step with agent_config: '/absolute/path/agent-config.json', When the path is resolved, Then it uses the absolute path",
+      "type": "functional"
+    }
+  ],
+  "related_edge_cases": [
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is empty string",
+      "criterion": "Given agent_config: '', When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config field is null",
+      "criterion": "Given agent_config: null, When step executes, Then global config is used"
+    },
+    {
+      "category": "INPUT_EDGE_CASES",
+      "case": "agent_config path contains relative traversal (../)",
+      "criterion": "Given agent_config: '../other-step/agent-config.json', When resolved, Then it points to correct location"
+    },
+    {
+      "category": "STATE_EDGE_CASES",
+      "case": "Both step-specific and global config exist",
+      "criterion": "Given both configs exist, When step executes, Then step-specific config is used"
+    }
+  ],
+  "dependencies": [],
+  "stream_steps": [
+    {
+      "step_number": 1,
+      "title": "Extend StepDefinition Class",
+      "description": "Add agent_config field to StepDefinition and implement path resolution",
+      "tasks": [
+        "Add agent_config field to __init__() - extract from data dict",
+        "Handle empty/null values - treat as not specified",
+        "Implement get_agent_config_path() method",
+        "Resolve paths relative to step_def_dir",
+        "Support both relative and absolute paths",
+        "Add docstrings and type hints"
+      ],
+      "acceptance_criteria": [
+        "StepDefinition accepts agent_config field from step.json",
+        "get_agent_config_path() returns None if agent_config not specified",
+        "Relative paths resolve to step directory",
+        "Absolute paths are returned as-is",
+        "Empty/null values treated as not specified"
+      ],
+      "artifacts_produced": [
+        "Modified orchestrator/devin_wrapper.py with extended StepDefinition class"
+      ],
+      "estimated_effort": "2 hours"
+    },
+    {
+      "step_number": 2,
+      "title": "Update DevinWrapper.build_devin_command()",
+      "description": "Modify command building to use step-specific config if available",
+      "tasks": [
+        "Get agent_config_path from StepDefinition",
+        "Use step-specific config if available",
+        "Fall back to global config if not specified",
+        "Pass --agent-config flag with correct path",
+        "Add logging for config selection",
+        "Update docstrings"
+      ],
+      "acceptance_criteria": [
+        "DevinWrapper uses step-specific config if available",
+        "Falls back to global config if agent_config not specified",
+        "Devin command includes --agent-config flag",
+        "Path is correctly resolved before passing to CLI"
+      ],
+      "artifacts_produced": [
+        "Modified orchestrator/devin_wrapper.py with updated DevinWrapper class"
+      ],
+      "dependencies": [
+        "Step 1: Extend StepDefinition Class"
+      ],
+      "estimated_effort": "1.5 hours"
+    }
+  ],
+  "relevant_context": [
+    {
+      "type": "ADR",
+      "reference": "ADR-008: Devin CLI Saga Orchestration",
+      "relevance": "Defines saga orchestration architecture and DevinWrapper responsibilities"
+    },
+    {
+      "type": "Code",
+      "reference": "orchestrator/devin_wrapper.py - StepDefinition class",
+      "relevance": "Current implementation that needs to be extended"
+    },
+    {
+      "type": "Code",
+      "reference": "orchestrator/devin_wrapper.py - DevinWrapper.build_devin_command()",
+      "relevance": "Current hardcoded --agent-config flag that needs to be updated"
+    },
+    {
+      "type": "Pattern",
+      "reference": "StepDefinition.get_prompt_content()",
+      "relevance": "Existing pattern for path resolution relative to step directory"
+    },
+    {
+      "type": "Design",
+      "reference": "extend-step-agent-config.design.json",
+      "relevance": "Architectural decisions and implementation approach"
+    }
+  ],
+  "success_criteria": [
+    "StepDefinition class accepts and stores agent_config field",
+    "Path resolution works for relative and absolute paths",
+    "DevinWrapper uses step-specific config if available",
+    "Fallback to global config works correctly",
+    "All code follows existing patterns and style"
+  ],
+  "estimated_effort": "3.5 hours",
+  "notes": "This workstream is the foundation for all other work. Must be completed before validation and testing workstreams can proceed."
+}

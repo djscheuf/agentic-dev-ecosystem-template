@@ -1,0 +1,348 @@
+{
+  "source_story": "docs/reqs/orchestrator prompt enrichment/saga-state-enrichment.analysis.json",
+  "overall_design": "docs/reqs/orchestrator prompt enrichment/saga-state-enrichment.design.json",
+  "story": {
+    "so_that": "Subsequent agents can reference context about the Saga execution without requiring external lookups, enabling proper output placement, context-aware prompting, and deterministic step-to-step communication",
+    "as_a": "Saga orchestrator system",
+    "i_want": "Enrich step prompts with Saga state variables at invocation time, maintaining a prompt enrichment dictionary with saga context (ID, state location, initial prompt path, custom variables) and a previous_step_output variable that is updated after each completed step"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Orchestrator maintains a prompt enrichment dictionary with Saga ID, state storage location, initial prompt path, and custom variables",
+      "gherkin": "Given a saga with enrichment configuration, when the saga is initialized, then the enrichment dictionary contains saga_id, state_storage_location, initial_prompt_path, and custom variables",
+      "status": "pending"
+    },
+    {
+      "criterion": "Enrichment dictionary is persisted as JSON in the saga state directory",
+      "gherkin": "Given an initialized saga, when the enrichment dictionary is created, then it is written to {saga_state_dir}/enrichment.json",
+      "status": "pending"
+    },
+    {
+      "criterion": "Step prompts are enriched with variables from the enrichment dictionary before DevinWrapper invocation",
+      "gherkin": "Given a step prompt with template variables like {{saga_id}}, when the step is about to execute, then variables are substituted using the enrichment dictionary",
+      "status": "pending"
+    },
+    {
+      "criterion": "previous_step_output variable is updated after each completed step with verify script output",
+      "gherkin": "Given a completed step with verify script output, when the step completes successfully, then previous_step_output is set to the verify script's stdout",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verify scripts receive saga state directory and enrichment dictionary path as parameters",
+      "gherkin": "Given a verify script, when it is invoked, then it receives two parameters: saga_state_dir and enrichment_dict_path",
+      "status": "pending"
+    },
+    {
+      "criterion": "Enrichment dictionary is restored when a saga is resumed",
+      "gherkin": "Given a saga that was previously executed, when the saga is resumed, then the enrichment dictionary is loaded from the persisted state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Child saga's verify script output becomes parent saga's previous_step_output",
+      "gherkin": "Given a parent saga with a child saga node, when the child saga completes, then its verify script output becomes the parent's previous_step_output",
+      "status": "pending"
+    },
+    {
+      "criterion": "Saga definitions support enrichment configuration with custom variables",
+      "gherkin": "Given a saga definition with enrichment field like {\"enrichment\": {\"code_directory\": \"/path/to/code\"}}, when the saga is loaded, then custom variables are included in the enrichment dictionary",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verification failures provide error messages that are captured and used to enrich follow-on prompts",
+      "gherkin": "Given a failed verification with error message, when the next step is about to execute, then the error message is available in the enrichment context as previous_step_error",
+      "status": "pending"
+    },
+    {
+      "criterion": "Step output logging is separate from previous_step_output mechanism",
+      "gherkin": "Given a completed step, when step output is logged, then it is recorded separately from the previous_step_output variable in saga state",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty initial_prompt_path",
+      "gherkin": "Given a saga initialized without initial_prompt_path, when verify scripts are invoked, then they receive null/empty path and handle gracefully",
+      "status": "pending"
+    },
+    {
+      "criterion": "Special characters in enrichment variables",
+      "gherkin": "Given enrichment variables with special characters or unicode, when variable substitution occurs, then special characters are properly escaped",
+      "status": "pending"
+    },
+    {
+      "criterion": "Very large previous_step_output",
+      "gherkin": "Given a verify script producing large output (MB+), when step completes, then output is truncated and logged separately",
+      "status": "pending"
+    },
+    {
+      "criterion": "First step execution with no previous_step_output",
+      "gherkin": "Given the first step in a saga, when it executes, then previous_step_output is initialized to empty string",
+      "status": "pending"
+    },
+    {
+      "criterion": "Verify script failure on first step",
+      "gherkin": "Given a failed verify script on the first step, when the next step executes, then error message is available as previous_step_error",
+      "status": "pending"
+    },
+    {
+      "criterion": "Nested sub-sagas with enrichment",
+      "gherkin": "Given a child saga within a parent saga, when the child saga initializes, then it creates its own enrichment dictionary",
+      "status": "pending"
+    },
+    {
+      "criterion": "Saga resumption with modified enrichment",
+      "gherkin": "Given a resumed saga, when enrichment is loaded from persisted state, then it matches the original enrichment",
+      "status": "pending"
+    },
+    {
+      "criterion": "Enrichment file corruption",
+      "gherkin": "Given a corrupted enrichment.json file, when the saga loads it, then a clear error message is provided",
+      "status": "pending"
+    },
+    {
+      "criterion": "Variable substitution with undefined variables",
+      "gherkin": "Given a step prompt with undefined variables, when substitution occurs, then undefined variables remain as-is with a warning logged",
+      "status": "pending"
+    },
+    {
+      "criterion": "Circular variable references",
+      "gherkin": "Given enrichment variables with circular references, when substitution occurs, then single-pass substitution is performed without recursion",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "orchestration": [
+      "SagaExecutor - Initialize enrichment, substitute variables, capture outputs",
+      "SagaStateManager - Persist and load enrichment dictionary"
+    ],
+    "execution": [
+      "DevinWrapper - Invoke verify scripts with enrichment parameters, capture outputs"
+    ],
+    "schema": [
+      "saga_models.py - Add enrichment field to saga definition"
+    ]
+  },
+  "steps": [
+    {
+      "description": "Create EnrichmentDictionary data structure and SagaStateManager methods (save_enrichment, load_enrichment)",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC1", "AC2", "AC6"]
+    },
+    {
+      "description": "Add enrichment field to saga_models.py SagaDefinition schema with validation",
+      "layer": "schema",
+      "status": "pending",
+      "acceptance_criteria": ["AC8"]
+    },
+    {
+      "description": "Implement variable substitution utility function with single-pass {{variable}} syntax",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC3"]
+    },
+    {
+      "description": "Update SagaExecutor to initialize enrichment dictionary during saga initialization",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC1", "AC2"]
+    },
+    {
+      "description": "Update SagaExecutor to enrich step prompts before execution",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC3"]
+    },
+    {
+      "description": "Update DevinWrapper to invoke verify scripts with saga_state_dir and enrichment_dict_path parameters",
+      "layer": "execution",
+      "status": "pending",
+      "acceptance_criteria": ["AC5"]
+    },
+    {
+      "description": "Update DevinWrapper to capture verify script stdout and stderr",
+      "layer": "execution",
+      "status": "pending",
+      "acceptance_criteria": ["AC4", "AC9"]
+    },
+    {
+      "description": "Update SagaExecutor to capture step outputs and update enrichment dictionary",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC4", "AC9"]
+    },
+    {
+      "description": "Update SagaExecutor to handle sub-saga enrichment isolation and output propagation",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC7"]
+    },
+    {
+      "description": "Update SagaStateManager to restore enrichment on saga resume",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC6"]
+    },
+    {
+      "description": "Implement step output logging separate from enrichment state",
+      "layer": "orchestration",
+      "status": "pending",
+      "acceptance_criteria": ["AC10"]
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "Test EnrichmentDictionary creation with saga context",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC1"
+      },
+      {
+        "description": "Test enrichment.json persistence and atomic writes",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC2"
+      },
+      {
+        "description": "Test variable substitution with defined and undefined variables",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC3"
+      },
+      {
+        "description": "Test previous_step_output capture from verify script stdout",
+        "layer": "execution",
+        "acceptance_criteria": "AC4"
+      },
+      {
+        "description": "Test verify script invocation with enrichment parameters",
+        "layer": "execution",
+        "acceptance_criteria": "AC5"
+      },
+      {
+        "description": "Test enrichment dictionary loading on saga resume",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC6"
+      },
+      {
+        "description": "Test custom variables loading from saga definition",
+        "layer": "schema",
+        "acceptance_criteria": "AC8"
+      },
+      {
+        "description": "Test error message capture as previous_step_error",
+        "layer": "execution",
+        "acceptance_criteria": "AC9"
+      },
+      {
+        "description": "Test special characters in enrichment variables",
+        "layer": "orchestration",
+        "acceptance_criteria": "Edge case: Special characters"
+      },
+      {
+        "description": "Test large output truncation and separate logging",
+        "layer": "orchestration",
+        "acceptance_criteria": "Edge case: Very large previous_step_output"
+      },
+      {
+        "description": "Test enrichment.json corruption handling",
+        "layer": "orchestration",
+        "acceptance_criteria": "Edge case: Enrichment file corruption"
+      },
+      {
+        "description": "Test undefined variable handling in prompts",
+        "layer": "orchestration",
+        "acceptance_criteria": "Edge case: Variable substitution with undefined variables"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "Test enrichment dictionary lifecycle through saga execution",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC1, AC2, AC3, AC4"
+      },
+      {
+        "description": "Test verify script receives and can read enrichment dictionary",
+        "layer": "execution",
+        "acceptance_criteria": "AC5"
+      },
+      {
+        "description": "Test sub-saga enrichment isolation and parent output update",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC7"
+      },
+      {
+        "description": "Test saga resumption with enrichment restoration",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC6"
+      },
+      {
+        "description": "Test enrichment propagation through multi-step saga",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC3, AC4, AC9"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "Test complete saga execution with enrichment and variable substitution",
+        "layer": "orchestration",
+        "acceptance_criteria": "All AC"
+      },
+      {
+        "description": "Test saga with custom enrichment variables from definition",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC1, AC3, AC8"
+      },
+      {
+        "description": "Test saga resumption preserves enrichment context",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC6"
+      },
+      {
+        "description": "Test nested sagas with isolated enrichment contexts",
+        "layer": "orchestration",
+        "acceptance_criteria": "AC7"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Enrichment file corruption on disk I/O failure",
+      "mitigation": "Use atomic writes (write to temp file, then replace) in SagaStateManager, validate JSON on load with clear error messages",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Large previous_step_output causing saga state file bloat",
+      "mitigation": "Implement output truncation (>10KB warning), log separately, store reference in enrichment",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Undefined variables in prompts causing silent failures",
+      "mitigation": "Single-pass substitution leaves undefined variables as-is, log warnings, allow agent to handle",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Circular variable references causing infinite loops",
+      "mitigation": "Single-pass substitution only, no recursive resolution",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Verify script contract change breaking existing verify scripts",
+      "mitigation": "Update verify script invocation to pass parameters, provide migration guide for existing scripts",
+      "layer": "execution"
+    },
+    {
+      "risk": "Sub-saga enrichment isolation causing unexpected behavior",
+      "mitigation": "Document enrichment scope clearly, test sub-saga composition thoroughly",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Enrichment dictionary becoming out of sync with saga state",
+      "mitigation": "Keep enrichment.json and saga.json in sync, use atomic writes for both",
+      "layer": "orchestration"
+    },
+    {
+      "risk": "Performance impact from enrichment persistence on every step",
+      "mitigation": "Benchmark enrichment I/O, consider batching if needed, profile in integration tests",
+      "layer": "orchestration"
+    }
+  ]
+}

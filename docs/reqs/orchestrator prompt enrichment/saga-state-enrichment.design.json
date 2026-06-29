@@ -1,0 +1,384 @@
+{
+  "story_path": "docs/reqs/orchestrator prompt enrichment/saga-state-enrichment.analysis.json",
+  "repo_state_before_design": "docs/reqs/orchestrator prompt enrichment/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "Saga initialization: Create enrichment dictionary with saga_id, state_storage_location, initial_prompt_path, and custom variables from saga definition",
+      "layers_involved": ["SagaExecutor", "SagaStateManager"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "SagaStateManager",
+          "contract_used": "save_enrichment",
+          "data_shape": {
+            "saga_id": "string",
+            "state_storage_location": "string",
+            "initial_prompt_path": "string",
+            "custom_variables": "object"
+          }
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "Enrichment dictionary persisted to enrichment.json in saga state directory",
+      "layers_involved": ["SagaStateManager"],
+      "handshake_points": []
+    },
+    {
+      "step": 3,
+      "description": "Before step execution, prompt template variables are substituted using enrichment dictionary",
+      "layers_involved": ["SagaExecutor", "DevinWrapper"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "DevinWrapper",
+          "contract_used": "execute_with_enrichment",
+          "data_shape": {
+            "enrichment_dict": "object",
+            "prompt_template": "string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "Step executes with enriched prompt via DevinWrapper",
+      "layers_involved": ["DevinWrapper"],
+      "handshake_points": []
+    },
+    {
+      "step": 5,
+      "description": "Verify script receives saga state directory and enrichment dictionary path as parameters",
+      "layers_involved": ["DevinWrapper"],
+      "handshake_points": []
+    },
+    {
+      "step": 6,
+      "description": "Verify script output (stdout) is captured and becomes previous_step_output",
+      "layers_involved": ["DevinWrapper", "SagaExecutor"],
+      "handshake_points": [
+        {
+          "from_layer": "DevinWrapper",
+          "to_layer": "SagaExecutor",
+          "contract_used": "step_output_capture",
+          "data_shape": {
+            "exit_code": "int",
+            "stdout": "string",
+            "stderr": "string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "description": "Next step's prompt is enriched with previous_step_output and previous_step_error",
+      "layers_involved": ["SagaExecutor", "DevinWrapper"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "DevinWrapper",
+          "contract_used": "execute_with_enrichment",
+          "data_shape": {
+            "enrichment_dict": "object",
+            "previous_step_output": "string",
+            "previous_step_error": "string"
+          }
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "description": "Child saga completes and its verify script output becomes parent's previous_step_output",
+      "layers_involved": ["SagaExecutor"],
+      "handshake_points": []
+    },
+    {
+      "step": 9,
+      "description": "Saga is resumed from persisted state and enrichment dictionary is restored",
+      "layers_involved": ["SagaStateManager", "SagaExecutor"],
+      "handshake_points": [
+        {
+          "from_layer": "SagaExecutor",
+          "to_layer": "SagaStateManager",
+          "contract_used": "load_enrichment",
+          "data_shape": {
+            "enrichment_dict": "object"
+          }
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "enrichment_dictionary_created",
+      "description": "Enrichment dictionary initialized with saga context",
+      "layers_involved": ["SagaExecutor", "SagaStateManager"],
+      "data_points": [
+        {"point": "saga_id", "description": "Unique saga identifier"},
+        {"point": "initial_prompt_path", "description": "Working directory for documents"},
+        {"point": "custom_variables_count", "description": "Number of custom variables"}
+      ]
+    },
+    {
+      "event_name": "prompt_variable_substitution",
+      "description": "Variables substituted in step prompt",
+      "layers_involved": ["SagaExecutor"],
+      "data_points": [
+        {"point": "step_name", "description": "Name of step being executed"},
+        {"point": "variables_substituted_count", "description": "Number of variables substituted"},
+        {"point": "undefined_variables", "description": "Variables not found in enrichment"}
+      ]
+    },
+    {
+      "event_name": "previous_step_output_captured",
+      "description": "Step output captured for next step",
+      "layers_involved": ["DevinWrapper", "SagaExecutor"],
+      "data_points": [
+        {"point": "step_name", "description": "Name of completed step"},
+        {"point": "output_length", "description": "Length of captured output"},
+        {"point": "truncated", "description": "Whether output was truncated"}
+      ]
+    },
+    {
+      "event_name": "verify_script_invoked",
+      "description": "Verify script executed with enrichment context",
+      "layers_involved": ["DevinWrapper"],
+      "data_points": [
+        {"point": "step_name", "description": "Name of step"},
+        {"point": "exit_code", "description": "Verify script exit code"},
+        {"point": "output_length", "description": "Length of verify script output"}
+      ]
+    },
+    {
+      "event_name": "enrichment_error_captured",
+      "description": "Verification error captured for enrichment",
+      "layers_involved": ["DevinWrapper", "SagaExecutor"],
+      "data_points": [
+        {"point": "step_name", "description": "Name of step"},
+        {"point": "error_message_length", "description": "Length of error message"}
+      ]
+    },
+    {
+      "event_name": "enrichment_persistence_error",
+      "description": "Error persisting enrichment dictionary",
+      "layers_involved": ["SagaStateManager"],
+      "data_points": [
+        {"point": "saga_id", "description": "Saga identifier"},
+        {"point": "error_message", "description": "Error details"}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "SagaExecutor",
+      "new_responsibilities": [
+        {
+          "responsibility": "Initialize enrichment dictionary with saga context",
+          "intent": "Orchestrator has visibility into saga execution flow and can collect all context needed for enrichment"
+        },
+        {
+          "responsibility": "Substitute variables in step prompts before execution",
+          "intent": "Orchestrator controls step invocation and can enrich prompts at the right time"
+        },
+        {
+          "responsibility": "Capture step outputs and update enrichment",
+          "intent": "Orchestrator receives step outputs and can propagate them to enrichment"
+        },
+        {
+          "responsibility": "Handle sub-saga enrichment isolation",
+          "intent": "Orchestrator manages sub-saga execution and can isolate enrichment contexts"
+        }
+      ]
+    },
+    {
+      "layer": "SagaStateManager",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist enrichment dictionary to enrichment.json",
+          "intent": "State manager owns saga state persistence and can write enrichment atomically"
+        },
+        {
+          "responsibility": "Load enrichment dictionary on saga resume",
+          "intent": "State manager handles saga recovery and can restore enrichment context"
+        },
+        {
+          "responsibility": "Validate enrichment dictionary JSON format",
+          "intent": "State manager validates all state files and can catch corruption early"
+        }
+      ]
+    },
+    {
+      "layer": "DevinWrapper",
+      "new_responsibilities": [
+        {
+          "responsibility": "Invoke verify script with enrichment parameters",
+          "intent": "Wrapper controls verify script invocation and can pass state directory and enrichment path"
+        },
+        {
+          "responsibility": "Capture verify script stdout and stderr",
+          "intent": "Wrapper executes verify scripts and can capture their outputs for enrichment"
+        }
+      ]
+    },
+    {
+      "layer": "saga_models",
+      "new_responsibilities": [
+        {
+          "responsibility": "Define enrichment field in saga definition schema",
+          "intent": "Models define saga structure and can support enrichment configuration"
+        },
+        {
+          "responsibility": "Validate enrichment configuration on saga load",
+          "intent": "Models validate saga definitions and can catch enrichment errors early"
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "EnrichmentDictionary",
+      "description": "Saga context variables for prompt enrichment",
+      "changes": {
+        "added": {
+          "saga_id": "string - Unique saga identifier",
+          "state_storage_location": "string - Path to saga state directory",
+          "initial_prompt_path": "string - Working directory for documents",
+          "previous_step_output": "string - Output from previous step's verify script",
+          "previous_step_error": "string - Error message from previous step's verify script",
+          "custom_variables": "object - User-defined variables from saga definition"
+        },
+        "modified": [],
+        "removed": []
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SagaDefinitionSchema",
+      "description": "Saga definition extended with enrichment configuration",
+      "changes": {
+        "added": {
+          "enrichment": "object - Custom variables for prompt enrichment (optional)"
+        },
+        "modified": [],
+        "removed": []
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "save_enrichment",
+      "description": "Persist enrichment dictionary to enrichment.json",
+      "changes": {
+        "added": {
+          "operation": "SagaStateManager.save_enrichment(enrichment_dict: Dict)",
+          "parameters": ["enrichment_dict"],
+          "returns": "None",
+          "errors": ["IOError", "JSONError"]
+        },
+        "modified": [],
+        "removed": []
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "load_enrichment",
+      "description": "Load enrichment dictionary from enrichment.json",
+      "changes": {
+        "added": {
+          "operation": "SagaStateManager.load_enrichment() -> Dict",
+          "parameters": [],
+          "returns": "enrichment_dict",
+          "errors": ["FileNotFoundError", "JSONError"]
+        },
+        "modified": [],
+        "removed": []
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "verify_script_invocation",
+      "description": "Verify script receives enrichment context as parameters",
+      "changes": {
+        "added": {
+          "invocation": "bash {verify_script} {saga_state_dir} {enrichment_dict_path}",
+          "exit_codes": "0=success, 1=hard failure, 2=self-correction",
+          "stdout": "Becomes previous_step_output",
+          "stderr": "Becomes previous_step_error"
+        },
+        "modified": [],
+        "removed": []
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Enrichment dictionary stored in separate enrichment.json file",
+      "justification": "Keeps saga.json focused on execution history, enrichment.json on context. Cleaner separation of concerns.",
+      "basis": "ADR-009 - Saga State Persistence pattern of separate state files",
+      "impact": "Slightly more I/O, but modularity and clarity benefits outweigh the cost",
+      "answers_open_question": "How to organize enrichment state"
+    },
+    {
+      "decision": "Variable substitution uses single-pass {{variable}} syntax with flat namespace",
+      "justification": "Simple, predictable, no recursive resolution complexity. Sufficient for requirements.",
+      "basis": "Requirement states 'arbitrary additional variables', not hierarchical access",
+      "impact": "Simpler implementation, less flexible but meets all acceptance criteria",
+      "answers_open_question": "Should enrichment variables support nested/hierarchical access?"
+    },
+    {
+      "decision": "Verify scripts receive saga_state_dir and enrichment_dict_path as command-line parameters",
+      "justification": "Gives verify scripts access to enrichment context without modifying wrapper behavior. Clear contract.",
+      "basis": "Verify script contract in requirements (section 6)",
+      "impact": "Verify scripts must be updated to accept parameters, but enables full context access",
+      "answers_open_question": "How should verify scripts access enrichment context?"
+    },
+    {
+      "decision": "previous_step_output and previous_step_error are separate enrichment fields",
+      "justification": "Allows steps to distinguish between success output and error context. Clearer semantics.",
+      "basis": "Requirements section 3 and 6 distinguish between output and error handling",
+      "impact": "Clearer semantics, easier for prompts to reference, more flexible error handling",
+      "answers_open_question": "Should previous_step_error be separate from previous_step_output?"
+    },
+    {
+      "decision": "Child sagas create isolated enrichment dictionaries, parent receives child output as previous_step_output",
+      "justification": "Prevents child sagas from polluting parent context. Enables independent resume. Matches composition patterns.",
+      "basis": "ADR-008 - Sub-saga composition patterns and isolation principles",
+      "impact": "Child saga output becomes parent's previous_step_output, not full enrichment inheritance",
+      "answers_open_question": "Should enrichment dictionary be inherited by child sagas or isolated?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should enrichment variables support nested/hierarchical access (e.g., {{enrichment.code_directory}})?",
+      "answer": "No, use flat namespace with {{variable}} syntax",
+      "justification": "Simpler implementation, sufficient for requirements. Can add nesting support later if needed.",
+      "basis": "Requirement states 'arbitrary additional variables', not hierarchical access patterns"
+    },
+    {
+      "question": "What is the maximum size for previous_step_output before truncation?",
+      "answer": "No hard limit, but large outputs (>10KB) should be logged separately with warning",
+      "justification": "Saga state file should remain manageable. Large outputs are rare and should be handled specially.",
+      "basis": "Pattern from ADR-009 (state file design) and edge case analysis"
+    },
+    {
+      "question": "Should previous_step_error be separate from previous_step_output or combined?",
+      "answer": "Keep separate: previous_step_output for success, previous_step_error for failures",
+      "justification": "Clearer semantics. Steps can distinguish between success output and error context.",
+      "basis": "Requirements section 3 and 6 distinguish between output and error handling"
+    },
+    {
+      "question": "How should circular variable references be handled?",
+      "answer": "Single-pass substitution only, no recursive resolution",
+      "justification": "Prevents infinite loops and complexity. Sufficient for requirements.",
+      "basis": "Edge case analysis identified circular references as potential issue"
+    },
+    {
+      "question": "Should enrichment dictionary be inherited by child sagas or isolated?",
+      "answer": "Child sagas create isolated enrichment, parent receives child output as previous_step_output",
+      "justification": "Prevents variable pollution. Enables independent saga execution and resume.",
+      "basis": "ADR-008 - Sub-saga composition patterns"
+    }
+  ]
+}

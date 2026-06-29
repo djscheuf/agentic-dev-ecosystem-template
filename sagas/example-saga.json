@@ -1,0 +1,19 @@
+{
+  "name": "example-saga",
+  "start": "example",
+  "nodes": {
+    "example": {
+      "type": "step",
+      "reference": "example",
+      "timeout": 60
+    }
+  },
+  "connections": [
+    {
+      "node": "example",
+      "then": {
+        "target": "end"
+      }
+    }
+  ]
+}
