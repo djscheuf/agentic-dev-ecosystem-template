@@ -9,9 +9,9 @@ description: Extract a user story from a given document or text, into a json for
 - Read the provided document or text. You will be extracting information from this document to create the user story JSON. 
 
 ### 2. Create JSON File
-- create a new json file in the same directory as the document or text, the {Verb Object Context} of the user story as the filename. e.g. "create-object-with-validation.intent.json"
+- create a new json object
 - The json will follow `/schema/story-intent.schema.json`. 
-- set the raw_request to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
+- set the "rawRequest" to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
 
 ### 3. Extract User Story
 ```
@@ -73,12 +73,5 @@ For each extract:
 
 Fill in the appropriate section of the JSON. 
 
-### 7. Write the Sentinel File
-- create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
-- the sentinel file will follow `/schema/sentinel.schema.json`. 
-- set the task field to "{skill-name}".
-- the verify_params of the sentinel file will follow `/schema/verify-params.schema.json`. 
-- set the verify_params as follows:
-    - set "extracted_intent_path" as the path to the extracted intent file  relative to repo root.
-    - set "reference_document" as the path to the initial document provided, if a file was sent, relative to repo root. 
-
+### 7. Return the JSON Object
+- Return the completed JSON object to the user in a code snippet (```json {object here}```)

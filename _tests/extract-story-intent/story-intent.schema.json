@@ -1,56 +1,313 @@
 {
-  "raw_request": "{link to original story document}",
-  "title": "User can search for products by keyword",
-  "story": {
-    "so_that": "{value of USer story}",
-    "as_a": "{Persona Name}",
-    "i_want": "{proposed action of story}"
-  },
-  "target_persona": {
-    "name": "Sarah - E-commerce Shopper",
-    "role": "Customer",
-    "technical_level": "Intermediate",
-    "journey":{
-      "before": "{description}",
-      "during": "{description}",
-      "after": "{description}"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "raw_request": {
+      "type": "string",
+      "description": "Raw request",
+      "examples": [
+        "{link to original story document}"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Title",
+      "examples": [
+        "User can search for products by keyword"
+      ]
+    },
+    "story": {
+      "type": "object",
+      "description": "Story",
+      "properties": {
+        "so_that": {
+          "type": "string",
+          "description": "So that",
+          "examples": [
+            "{value of USer story}"
+          ]
+        },
+        "as_a": {
+          "type": "string",
+          "description": "As a",
+          "examples": [
+            "{Persona Name}"
+          ]
+        },
+        "i_want": {
+          "type": "string",
+          "description": "I want",
+          "examples": [
+            "{proposed action of story}"
+          ]
+        }
+      },
+      "required": [
+        "so_that",
+        "as_a",
+        "i_want"
+      ],
+      "examples": [
+        {
+          "so_that": "{value of USer story}",
+          "as_a": "{Persona Name}",
+          "i_want": "{proposed action of story}"
+        }
+      ]
+    },
+    "target_persona": {
+      "type": "object",
+      "description": "Target persona",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name",
+          "examples": [
+            "Sarah - E-commerce Shopper"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "description": "Role",
+          "examples": [
+            "Customer"
+          ]
+        },
+        "technical_level": {
+          "type": "string",
+          "description": "Technical level",
+          "examples": [
+            "Intermediate"
+          ]
+        },
+        "journey": {
+          "type": "object",
+          "description": "Journey",
+          "properties": {
+            "before": {
+              "type": "string",
+              "description": "Before",
+              "examples": [
+                "{description}"
+              ]
+            },
+            "during": {
+              "type": "string",
+              "description": "During",
+              "examples": [
+                "{description}"
+              ]
+            },
+            "after": {
+              "type": "string",
+              "description": "After",
+              "examples": [
+                "{description}"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "during",
+            "after"
+          ],
+          "examples": [
+            {
+              "before": "{description}",
+              "during": "{description}",
+              "after": "{description}"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "technical_level",
+        "journey"
+      ],
+      "examples": [
+        {
+          "name": "Sarah - E-commerce Shopper",
+          "role": "Customer",
+          "technical_level": "Intermediate",
+          "journey": {
+            "before": "{description}",
+            "during": "{description}",
+            "after": "{description}"
+          }
+        }
+      ]
+    },
+    "capability_breakdown": {
+      "type": "object",
+      "description": "Capability breakdown",
+      "properties": {
+        "core_action": {
+          "type": "string",
+          "description": "Core action",
+          "examples": [
+            "{description}"
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "description": "Inputs",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "outputs": {
+          "type": "array",
+          "description": "Outputs",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "state_changes": {
+          "type": "array",
+          "description": "State changes",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "affected_components": {
+          "type": "object",
+          "description": "Affected components",
+          "properties": {},
+          "examples": [
+            {}
+          ]
+        }
+      },
+      "required": [
+        "core_action",
+        "inputs",
+        "outputs",
+        "state_changes",
+        "affected_components"
+      ],
+      "examples": [
+        {
+          "core_action": "{description}",
+          "inputs": [
+            "{list}"
+          ],
+          "outputs": [
+            "{list}"
+          ],
+          "state_changes": [
+            "{list}"
+          ],
+          "affected_components": {}
+        }
+      ]
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "description": "Acceptance criteria",
+      "items": {
+        "type": "object",
+        "properties": {
+          "criterion": {
+            "type": "string",
+            "description": "Criterion",
+            "examples": [
+              "Search returns products matching the keyword in title or description"
+            ]
+          },
+          "gherkin": {
+            "type": "string",
+            "description": "Gherkin",
+            "examples": [
+              "Given a customer is on the product page When they enter a search term Then products containing that term are displayed"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Type",
+            "examples": [
+              "Functional"
+            ]
+          },
+          "jtbd": {
+            "type": "string",
+            "description": "Jtbd",
+            "examples": [
+              "{Verb} {Object} {Context}"
+            ]
+          },
+          "persona_served": {
+            "type": "string",
+            "description": "Persona served",
+            "examples": [
+              "Sarah - E-commerce Shopper"
+            ]
+          }
+        },
+        "required": [
+          "criterion",
+          "gherkin",
+          "type",
+          "jtbd",
+          "persona_served"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "criterion": "Search returns products matching the keyword in title or description",
+            "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
+            "type": "Functional",
+            "jtbd": "{Verb} {Object} {Context}",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Search results are displayed within 2 seconds",
+            "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
+            "type": "Non-functional",
+            "jtbd": "Avoid waiting for search results",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Empty search returns all products",
+            "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
+            "type": "Happy path",
+            "jtbd": "See all available products",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "No results message shown when search matches nothing",
+            "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
+            "type": "Error handling",
+            "jtbd": "Know when search yields no results",
+            "persona_served": "Sarah - E-commerce Shopper"
+          }
+        ]
+      ]
     }
   },
-  "capability_breakdown": {
-    "core_action": "{description}",
-    "inputs": ["{list}"],
-    "outputs": ["{list}"],
-    "state_changes": ["{list}"],
-    "affected_components":{}
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "Search returns products matching the keyword in title or description",
-      "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
-      "type": "Functional",
-      "jtbd": "{Verb} {Object} {Context}",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Search results are displayed within 2 seconds",
-      "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
-      "type": "Non-functional",
-      "jtbd": "Avoid waiting for search results",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Empty search returns all products",
-      "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
-      "type": "Happy path",
-      "jtbd": "See all available products",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "No results message shown when search matches nothing",
-      "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
-      "type": "Error handling",
-      "jtbd": "Know when search yields no results",
-      "persona_served": "Sarah - E-commerce Shopper"
-    }
+  "required": [
+    "raw_request",
+    "title",
+    "story",
+    "target_persona",
+    "capability_breakdown",
+    "acceptance_criteria"
   ]
 }

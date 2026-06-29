@@ -3,7 +3,7 @@ description: EDD on Extract Intent Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - "@SKILL.md Use the provided skill to extract intent from the following story: {{request}} ```json"
+  - "@SKILL.md Use the provided skill to extract intent from the following story: {{request}}. Give me the extracted intent in JSON format."
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -94,7 +94,7 @@ tests:
       - type: javascript
         value: file://../eval-script.js:matchesSchema
         config:
-          schemaPath: './story-intent.schema.json'
+          schemaPath: './extract-story-intent/story-intent.schema.json'
 
 # Output configuration
 outputPath: results.html
