@@ -4,7 +4,7 @@
     "promptfoo": "^0.121.17"
   },
   "scripts": {
-    "test": "promptfoo eval --no-cache --config $1",
+    "test": "promptfoo eval --no-cache --config ",
     "view": "promptfoo view"
   }
 
