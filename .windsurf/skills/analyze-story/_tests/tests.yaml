@@ -55,4 +55,4 @@
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/analyze-story/schema/analyze-story.schema.json'
+        schemaPath: './.windsurf/skills/analyze-story/schema/analysis.schema.json'
