@@ -1,123 +1,811 @@
 {
-  "raw_request": "{link to original story document}",
-  "title": "User can search for products by keyword",
-  "story": {
-    "so_that": "{value of USer story}",
-    "as_a": "{Persona Name}",
-    "i_want": "{proposed action of story}"
-  },
-  "target_persona": {
-    "role": "Customer",
-    "technical_level": "Intermediate",
-    "journey":{
-      "before": "{description}",
-      "during": "{description}",
-      "after": "{description}"
-    }
-  },
-  "capability_breakdown": {
-    "core_action": "{description}",
-    "inputs": ["{list}",...],
-    "outputs": ["{list}",...],
-    "state_changes": ["{list}",...],
-    "affected_components":{
-      "ui": ["{list}",...],
-      "api": ["{list}",...],
-      "database": ["{list}",...],
-      "external_services": ["{list}",...]
-    }
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "Search returns products matching the keyword in title or description",
-      "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
-      "type": "Functional",
-      "jtbd": "{Verb} {Object} {Context}",
-      "persona_served": "Sarah - E-commerce Shopper"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "raw_request": {
+      "type": "string",
+      "description": "Raw request",
+      "examples": [
+        "{link to original story document}"
+      ]
     },
-    {
-      "criterion": "Search results are displayed within 2 seconds",
-      "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
-      "type": "Non-functional",
-      "jtbd": "Avoid waiting for search results",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Empty search returns all products",
-      "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
-      "type": "Happy path",
-      "jtbd": "See all available products",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "No results message shown when search matches nothing",
-      "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
-      "type": "Error handling",
-      "jtbd": "Know when search yields no results",
-      "persona_served": "Sarah - E-commerce Shopper"
-    }
-  ],
-  "edge_cases": [
-    {
-      "criterion": "Special characters in search query",
-      "gherkin": "Given a search query with special characters When search is submitted Then results are filtered appropriately",
-      "type": "Edge case",
-      "jtbd": "Handle special characters in search",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Very long search string (1000+ characters)",
-      "gherkin": "Given a search query with 1000+ characters When search is submitted Then results are filtered appropriately",
-      "type": "Edge case",
-      "jtbd": "Handle very long search strings",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Empty product catalog",
-      "gherkin": "Given an empty product catalog When search is submitted Then 'No products found' message is displayed",
-      "type": "Edge case",
-      "jtbd": "Handle empty product catalog",
-      "persona_served": "Sarah - E-commerce Shopper"
-    },
-    {
-      "criterion": "Search service unavailable",
-      "gherkin": "Given search service is unavailable When search is submitted Then error message is displayed",
-      "type": "Edge case",
-      "jtbd": "Handle search service unavailability",
-      "persona_served": "Sarah - E-commerce Shopper"
-    }
-  ],
-  "questions": [
-    {
-      "question": "What is the maximum length for tactic title?",
-      "impacts": ["database schema", "UI display", "API responses"]
-    },
-    {
-      "question": "Should search be case-sensitive?",
-      "impacts": ["search algorithm", "user experience"]
-    }, {...}
-  ],
-  "dependencies": {
-    "technical": {
-      "existing_code": ["Classes, services to modify"],
-      "new_code": ["What needs to be created"],
-      "infrastructure": ["Databases, queues, etc."],
-      "external_services": ["APIs, integrations"]
+    "title": {
+      "type": "string",
+      "description": "Title",
+      "examples": [
+        "User can search for products by keyword"
+      ]
     },
     "story": {
-      "blocked_by": ["stories that must complete first"],
-      "blocks": ["stories waiting on this"],
-      "related": ["stories that share components"]
+      "type": "object",
+      "description": "Story",
+      "properties": {
+        "so_that": {
+          "type": "string",
+          "description": "So that",
+          "examples": [
+            "{value of USer story}"
+          ]
+        },
+        "as_a": {
+          "type": "string",
+          "description": "As a",
+          "examples": [
+            "{Persona Name}"
+          ]
+        },
+        "i_want": {
+          "type": "string",
+          "description": "I want",
+          "examples": [
+            "{proposed action of story}"
+          ]
+        }
+      },
+      "required": [
+        "so_that",
+        "as_a",
+        "i_want"
+      ],
+      "examples": [
+        {
+          "so_that": "{value of USer story}",
+          "as_a": "{Persona Name}",
+          "i_want": "{proposed action of story}"
+        }
+      ]
     },
-    "knowledge": {
-      "domain_knowledge": ["Business rules to learn"],
-      "technical_knowledge": ["Technologies to understand"],
-      "stakeholder_questions": ["Clarifications needed"]
+    "target_persona": {
+      "type": "object",
+      "description": "Target persona",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Role",
+          "examples": [
+            "Customer"
+          ]
+        },
+        "technical_level": {
+          "type": "string",
+          "description": "Technical level",
+          "examples": [
+            "Intermediate"
+          ]
+        },
+        "journey": {
+          "type": "object",
+          "description": "Journey",
+          "properties": {
+            "before": {
+              "type": "string",
+              "description": "Before",
+              "examples": [
+                "{description}"
+              ]
+            },
+            "during": {
+              "type": "string",
+              "description": "During",
+              "examples": [
+                "{description}"
+              ]
+            },
+            "after": {
+              "type": "string",
+              "description": "After",
+              "examples": [
+                "{description}"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "during",
+            "after"
+          ],
+          "examples": [
+            {
+              "before": "{description}",
+              "during": "{description}",
+              "after": "{description}"
+            }
+          ]
+        }
+      },
+      "required": [
+        "role",
+        "technical_level",
+        "journey"
+      ],
+      "examples": [
+        {
+          "role": "Customer",
+          "technical_level": "Intermediate",
+          "journey": {
+            "before": "{description}",
+            "during": "{description}",
+            "after": "{description}"
+          }
+        }
+      ]
+    },
+    "capability_breakdown": {
+      "type": "object",
+      "description": "Capability breakdown",
+      "properties": {
+        "core_action": {
+          "type": "string",
+          "description": "Core action",
+          "examples": [
+            "{description}"
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "description": "Inputs",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "outputs": {
+          "type": "array",
+          "description": "Outputs",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "state_changes": {
+          "type": "array",
+          "description": "State changes",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "{list}"
+            ]
+          ]
+        },
+        "affected_components": {
+          "type": "object",
+          "description": "Affected components",
+          "properties": {
+            "ui": {
+              "type": "array",
+              "description": "Ui",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "{list}"
+                ]
+              ]
+            },
+            "api": {
+              "type": "array",
+              "description": "Api",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "{list}"
+                ]
+              ]
+            },
+            "database": {
+              "type": "array",
+              "description": "Database",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "{list}"
+                ]
+              ]
+            },
+            "external_services": {
+              "type": "array",
+              "description": "External services",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "{list}"
+                ]
+              ]
+            }
+          },
+          "required": [
+            "ui",
+            "api",
+            "database",
+            "external_services"
+          ],
+          "examples": [
+            {
+              "ui": [
+                "{list}"
+              ],
+              "api": [
+                "{list}"
+              ],
+              "database": [
+                "{list}"
+              ],
+              "external_services": [
+                "{list}"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "core_action",
+        "inputs",
+        "outputs",
+        "state_changes",
+        "affected_components"
+      ],
+      "examples": [
+        {
+          "core_action": "{description}",
+          "inputs": [
+            "{list}"
+          ],
+          "outputs": [
+            "{list}"
+          ],
+          "state_changes": [
+            "{list}"
+          ],
+          "affected_components": {
+            "ui": [
+              "{list}"
+            ],
+            "api": [
+              "{list}"
+            ],
+            "database": [
+              "{list}"
+            ],
+            "external_services": [
+              "{list}"
+            ]
+          }
+        }
+      ]
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "description": "Acceptance criteria",
+      "items": {
+        "type": "object",
+        "properties": {
+          "criterion": {
+            "type": "string",
+            "description": "Criterion",
+            "examples": [
+              "Search returns products matching the keyword in title or description"
+            ]
+          },
+          "gherkin": {
+            "type": "string",
+            "description": "Gherkin",
+            "examples": [
+              "Given a customer is on the product page When they enter a search term Then products containing that term are displayed"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Type",
+            "examples": [
+              "Functional"
+            ]
+          },
+          "jtbd": {
+            "type": "string",
+            "description": "Jtbd",
+            "examples": [
+              "{Verb} {Object} {Context}"
+            ]
+          },
+          "persona_served": {
+            "type": "string",
+            "description": "Persona served",
+            "examples": [
+              "Sarah - E-commerce Shopper"
+            ]
+          }
+        },
+        "required": [
+          "criterion",
+          "gherkin",
+          "type",
+          "jtbd",
+          "persona_served"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "criterion": "Search returns products matching the keyword in title or description",
+            "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
+            "type": "Functional",
+            "jtbd": "{Verb} {Object} {Context}",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Search results are displayed within 2 seconds",
+            "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
+            "type": "Non-functional",
+            "jtbd": "Avoid waiting for search results",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Empty search returns all products",
+            "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
+            "type": "Happy path",
+            "jtbd": "See all available products",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "No results message shown when search matches nothing",
+            "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
+            "type": "Error handling",
+            "jtbd": "Know when search yields no results",
+            "persona_served": "Sarah - E-commerce Shopper"
+          }
+        ]
+      ]
+    },
+    "edge_cases": {
+      "type": "array",
+      "description": "Edge cases",
+      "items": {
+        "type": "object",
+        "properties": {
+          "criterion": {
+            "type": "string",
+            "description": "Criterion",
+            "examples": [
+              "Special characters in search query"
+            ]
+          },
+          "gherkin": {
+            "type": "string",
+            "description": "Gherkin",
+            "examples": [
+              "Given a search query with special characters When search is submitted Then results are filtered appropriately"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Type",
+            "examples": [
+              "Edge case"
+            ]
+          },
+          "jtbd": {
+            "type": "string",
+            "description": "Jtbd",
+            "examples": [
+              "Handle special characters in search"
+            ]
+          },
+          "persona_served": {
+            "type": "string",
+            "description": "Persona served",
+            "examples": [
+              "Sarah - E-commerce Shopper"
+            ]
+          }
+        },
+        "required": [
+          "criterion",
+          "gherkin",
+          "type",
+          "jtbd",
+          "persona_served"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "criterion": "Special characters in search query",
+            "gherkin": "Given a search query with special characters When search is submitted Then results are filtered appropriately",
+            "type": "Edge case",
+            "jtbd": "Handle special characters in search",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Very long search string (1000+ characters)",
+            "gherkin": "Given a search query with 1000+ characters When search is submitted Then results are filtered appropriately",
+            "type": "Edge case",
+            "jtbd": "Handle very long search strings",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Empty product catalog",
+            "gherkin": "Given an empty product catalog When search is submitted Then 'No products found' message is displayed",
+            "type": "Edge case",
+            "jtbd": "Handle empty product catalog",
+            "persona_served": "Sarah - E-commerce Shopper"
+          },
+          {
+            "criterion": "Search service unavailable",
+            "gherkin": "Given search service is unavailable When search is submitted Then error message is displayed",
+            "type": "Edge case",
+            "jtbd": "Handle search service unavailability",
+            "persona_served": "Sarah - E-commerce Shopper"
+          }
+        ]
+      ]
+    },
+    "questions": {
+      "type": "array",
+      "description": "Questions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Question",
+            "examples": [
+              "What is the maximum length for tactic title?"
+            ]
+          },
+          "impacts": {
+            "type": "array",
+            "description": "Impacts",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              [
+                "database schema",
+                "UI display",
+                "API responses"
+              ]
+            ]
+          }
+        },
+        "required": [
+          "question",
+          "impacts"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "question": "What is the maximum length for tactic title?",
+            "impacts": [
+              "database schema",
+              "UI display",
+              "API responses"
+            ]
+          },
+          {
+            "question": "Should search be case-sensitive?",
+            "impacts": [
+              "search algorithm",
+              "user experience"
+            ]
+          }
+        ]
+      ]
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Dependencies",
+      "properties": {
+        "technical": {
+          "type": "object",
+          "description": "Technical",
+          "properties": {
+            "existing_code": {
+              "type": "array",
+              "description": "Existing code",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Classes, services to modify"
+                ]
+              ]
+            },
+            "new_code": {
+              "type": "array",
+              "description": "New code",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "What needs to be created"
+                ]
+              ]
+            },
+            "infrastructure": {
+              "type": "array",
+              "description": "Infrastructure",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Databases, queues, etc."
+                ]
+              ]
+            },
+            "external_services": {
+              "type": "array",
+              "description": "External services",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "APIs, integrations"
+                ]
+              ]
+            }
+          },
+          "required": [
+            "existing_code",
+            "new_code",
+            "infrastructure",
+            "external_services"
+          ],
+          "examples": [
+            {
+              "existing_code": [
+                "Classes, services to modify"
+              ],
+              "new_code": [
+                "What needs to be created"
+              ],
+              "infrastructure": [
+                "Databases, queues, etc."
+              ],
+              "external_services": [
+                "APIs, integrations"
+              ]
+            }
+          ]
+        },
+        "story": {
+          "type": "object",
+          "description": "Story",
+          "properties": {
+            "blocked_by": {
+              "type": "array",
+              "description": "Blocked by",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "stories that must complete first"
+                ]
+              ]
+            },
+            "blocks": {
+              "type": "array",
+              "description": "Blocks",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "stories waiting on this"
+                ]
+              ]
+            },
+            "related": {
+              "type": "array",
+              "description": "Related",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "stories that share components"
+                ]
+              ]
+            }
+          },
+          "required": [
+            "blocked_by",
+            "blocks",
+            "related"
+          ],
+          "examples": [
+            {
+              "blocked_by": [
+                "stories that must complete first"
+              ],
+              "blocks": [
+                "stories waiting on this"
+              ],
+              "related": [
+                "stories that share components"
+              ]
+            }
+          ]
+        },
+        "knowledge": {
+          "type": "object",
+          "description": "Knowledge",
+          "properties": {
+            "domain_knowledge": {
+              "type": "array",
+              "description": "Domain knowledge",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Business rules to learn"
+                ]
+              ]
+            },
+            "technical_knowledge": {
+              "type": "array",
+              "description": "Technical knowledge",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Technologies to understand"
+                ]
+              ]
+            },
+            "stakeholder_questions": {
+              "type": "array",
+              "description": "Stakeholder questions",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Clarifications needed"
+                ]
+              ]
+            }
+          },
+          "required": [
+            "domain_knowledge",
+            "technical_knowledge",
+            "stakeholder_questions"
+          ],
+          "examples": [
+            {
+              "domain_knowledge": [
+                "Business rules to learn"
+              ],
+              "technical_knowledge": [
+                "Technologies to understand"
+              ],
+              "stakeholder_questions": [
+                "Clarifications needed"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "technical",
+        "story",
+        "knowledge"
+      ],
+      "examples": [
+        {
+          "technical": {
+            "existing_code": [
+              "Classes, services to modify"
+            ],
+            "new_code": [
+              "What needs to be created"
+            ],
+            "infrastructure": [
+              "Databases, queues, etc."
+            ],
+            "external_services": [
+              "APIs, integrations"
+            ]
+          },
+          "story": {
+            "blocked_by": [
+              "stories that must complete first"
+            ],
+            "blocks": [
+              "stories waiting on this"
+            ],
+            "related": [
+              "stories that share components"
+            ]
+          },
+          "knowledge": {
+            "domain_knowledge": [
+              "Business rules to learn"
+            ],
+            "technical_knowledge": [
+              "Technologies to understand"
+            ],
+            "stakeholder_questions": [
+              "Clarifications needed"
+            ]
+          }
+        }
+      ]
+    },
+    "complexity": {
+      "type": "object",
+      "description": "Complexity",
+      "properties": {
+        "story_points": {
+          "type": "integer",
+          "description": "Story points",
+          "examples": [
+            5
+          ]
+        },
+        "risk_level": {
+          "type": "string",
+          "description": "Risk level",
+          "examples": [
+            "Medium"
+          ]
+        },
+        "uncertainty": {
+          "type": "string",
+          "description": "Uncertainty",
+          "examples": [
+            "Low"
+          ]
+        }
+      },
+      "required": [
+        "story_points",
+        "risk_level",
+        "uncertainty"
+      ],
+      "examples": [
+        {
+          "story_points": 5,
+          "risk_level": "Medium",
+          "uncertainty": "Low"
+        }
+      ]
     }
   },
-  "complexity": {
-    "story_points": 5,
-    "risk_level": "Medium",
-    "uncertainty": "Low"
-  }
+  "required": [
+    "raw_request",
+    "title",
+    "story",
+    "target_persona",
+    "capability_breakdown",
+    "acceptance_criteria",
+    "edge_cases",
+    "questions",
+    "dependencies",
+    "complexity"
+  ]
 }

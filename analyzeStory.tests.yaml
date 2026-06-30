@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: EDD on Analyze Story Skill
+
+# Define prompts to test - template that includes base prompt
+prompts:
+  - file://./.windsurf/skills/analyze-story/_tests/prompt.md
+
+# External evaluation script for custom deterministic evaluations
+# This script contains custom assertion functions used in tests
+defaultTest:
+  options:
+    # ========================================
+    # RUBRIC GRADER — NODE.JS (Cross-platform)
+    # ========================================
+    # Combined scripts auto-detect mode: provider vs grader
+    # Grader mode: prompt is JSON array [{role, content}, ...]
+    # Provider mode: prompt is plain text
+    #
+    # Devin CLI grader — ACTIVE
+    provider: 'exec: node ./devin.js'
+    
+# Use devin cli as a provider via script execution
+providers:
+  # ========================================
+  # NODE.JS VERSIONS (Cross-platform)
+  # ========================================
+  # Combined scripts auto-detect mode: provider vs grader
+  # Grader mode: prompt is JSON array [{role, content}, ...]
+  # Provider mode: prompt is plain text
+  #
+  # Devin CLI provider — ACTIVE
+  - id: 'exec: node ./devin.js'
+    config:
+      model: 'claude-haiku-4.5'
+
+  - id: 'exec: node ./devin.js'
+    config:
+      model: 'SWE 1.6'
+
+# Test cases loaded from external file
+tests: file://./.windsurf/skills/analyze-story/_tests/tests.yaml
+
+# Output configuration
+outputPath: results.analyzeStory.html
