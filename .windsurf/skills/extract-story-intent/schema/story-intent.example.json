@@ -1,0 +1,56 @@
+{
+  "rawRequest": "{link to original story document}",
+  "title": "User can search for products by keyword",
+  "story": {
+    "soThat": "{value of USer story}",
+    "asA": "{Persona Name}",
+    "iWant": "{proposed action of story}"
+  },
+  "targetPersona": {
+    "name": "Sarah - E-commerce Shopper",
+    "role": "Customer",
+    "technicalLevel": "Intermediate",
+    "journey":{
+      "before": "{description}",
+      "during": "{description}",
+      "after": "{description}"
+    }
+  },
+  "capabilityBreakdown": {
+    "coreAction": "{description}",
+    "inputs": ["{list}"],
+    "outputs": ["{list}"],
+    "stateChanges": ["{list}"],
+    "affectedComponents":{}
+  },
+  "acceptanceCriteria": [
+    {
+      "criterion": "Search returns products matching the keyword in title or description",
+      "gherkin": "Given a customer is on the product page When they enter a search term Then products containing that term are displayed",
+      "type": "Functional",
+      "jtbd": "{Verb} {Object} {Context}",
+      "personaServed": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "Search results are displayed within 2 seconds",
+      "gherkin": "Given a search query is submitted When results are rendered Then load time is under 2 seconds",
+      "type": "Non-functional",
+      "jtbd": "Avoid waiting for search results",
+      "personaServed": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "Empty search returns all products",
+      "gherkin": "Given search field is empty When search is submitted Then all available products are shown",
+      "type": "Happy path",
+      "jtbd": "See all available products",
+      "personaServed": "Sarah - E-commerce Shopper"
+    },
+    {
+      "criterion": "No results message shown when search matches nothing",
+      "gherkin": "Given a search term with no matches When search completes Then 'No products found' message is displayed",
+      "type": "Error handling",
+      "jtbd": "Know when search yields no results",
+      "personaServed": "Sarah - E-commerce Shopper"
+    }
+  ]
+}
