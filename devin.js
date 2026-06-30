@@ -14,6 +14,10 @@ const prompt = process.argv[2];
 const options = process.argv[3];
 const context = process.argv[4];
 
+// console.log('Devin CLI: prompt:', prompt);
+// console.log('Devin CLI: options:', options);
+// console.log('Devin CLI: context:', context);
+
 // Detect mode: if prompt looks like a JSON array, use grader mode
 let isGraderMode = false;
 try {
