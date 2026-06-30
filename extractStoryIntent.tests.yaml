@@ -41,4 +41,4 @@ providers:
 tests: file://./.windsurf/skills/extract-story-intent/_tests/tests.yaml
 
 # Output configuration
-outputPath: results_extractStoryIntent.html
+outputPath: results.extractStoryIntent.html
