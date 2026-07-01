@@ -40,7 +40,9 @@ providers:
       model: 'SWE-1.6'
 
 # Test cases loaded from external file
-tests: file://./.windsurf/skills/extract-story-intent/_tests/tests.yaml
+tests: 
+  - file://./.windsurf/skills/extract-story-intent/_tests/tests.yaml
+  - file://./.windsurf/skills/extract-story-intent/_tests/tacticStory.tests.yaml
 
 # Output configuration
 outputPath: results.extractStoryIntent.html
