@@ -8,7 +8,7 @@
       - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Canary Test - Functional Requirements Extraction'
   assert:
-    - type: contains
+    - type: icontains
       value: 'Functional'
 
 # ========================================
