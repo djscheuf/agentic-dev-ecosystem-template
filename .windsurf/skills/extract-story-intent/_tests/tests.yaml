@@ -2,8 +2,10 @@
 # DETERMINISTIC EVALUATIONS (contains/equiv)
 # ========================================
 - vars:
-    request: '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-  description: 'Simple Calculator Story - Canary Test'
+    request: 
+      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+  description: 'Canary Test - Functional Requirements Extraction'
   assert:
     - type: contains
       value: 'Functional'
@@ -20,8 +22,10 @@
 # critical vs. nice-to-have criteria, and weight what matters most.
 
 - vars:
-    request: '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-  description: 'Simple Calculator Story'
+    request: 
+      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+  description: 'Extraction Components'
   assert:
     # Core definition
     - type: llm-rubric
@@ -55,7 +59,9 @@
 # Syntax: file://path/to/script.js:functionName
 
 - vars:
-    request: '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
+    request: 
+      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
