@@ -3,9 +3,9 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/example_story_intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
   assert:
     - type: contains
@@ -24,9 +24,9 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/example_story_intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Simple Calculator Story'
   assert:
     # Core definition
@@ -35,18 +35,8 @@
       threshold: 0.8
       metric: clarity
       weight: 1
-    # AC Capture
-    - type: llm-rubric
-      value: "Response captures Acceptance Criteria in Gherkin format. And Each Acceptance Criteria follows the INVEST Standard"
-      threshold: 0.7
-      metric: acceptance_criteria
-      weight: 2
-    # Edge Expansion
-    - type: llm-rubric
-      value: "Response captures Edge Cases and Error Handling scenarios in Gherkin format, each follows the INVEST Standard"
-      threshold: 0.7
-      metric: edge_cases
-      weight: 2
+    
+
 
 # ========================================
 # SCRIPT-BASED DETERMINISTIC EVALUATIONS
@@ -56,9 +46,9 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/example_story_intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript

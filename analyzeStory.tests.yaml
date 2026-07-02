@@ -40,7 +40,9 @@ providers:
       model: 'SWE-1.6'
 
 # Test cases loaded from external file
-tests: file://./.windsurf/skills/analyze-story/_tests/tests.yaml
+tests: 
+  - file://./.windsurf/skills/analyze-story/_tests/base.tests.yaml
+  - file://./.windsurf/skills/analyze-story/_tests/partial_slice.tests.yaml
 
 # Output configuration
 outputPath: results.analyzeStory.html

@@ -1,0 +1,65 @@
+# ========================================
+# DETERMINISTIC EVALUATIONS (contains/equiv)
+# ========================================
+- vars:
+    request: '@./windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
+  description: 'Frontend Only Story'
+  assert:
+    # System Components
+    - type: llm-rubric
+      value: "Response captures affected components in capabilities analysis, and the listed components are focused Frontend or display-layer related. Backend and Persistence layers should list no needed changes."
+      threshold: 0.7
+      metric: system_components
+      weight: 2
+    # Edge Expansion
+    - type: llm-rubric
+      value: "Response captures Edge Cases and Error Handling scenarios, focusing on the front-end or display-layer concerns. Backend and Persistence layers should list no needed changes"
+      threshold: 0.7
+      metric: edge_cases
+      weight: 1
+    
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+- vars:
+    request: '@./windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
+  description: 'Backend Only Story'
+  assert:
+    # System Components
+    - type: llm-rubric
+      value: "Response captures affected components in capabilities analysis, and the listed components are ONLY Backend or persistence-layer related. Frontend and display layers should list no needed changes."
+      threshold: 0.7
+      metric: system_components
+      weight: 2
+    # Edge Expansion
+    - type: llm-rubric
+      value: "Response captures Edge Cases and Error Handling scenarios, focusing on the backend or persistence-layer concerns. Frontend and display layers should list no needed changes."
+      threshold: 0.7
+      metric: edge_cases
+      weight: 1
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@./windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: './.windsurf/skills/analyze-story/schema/analysis.schema.json'
