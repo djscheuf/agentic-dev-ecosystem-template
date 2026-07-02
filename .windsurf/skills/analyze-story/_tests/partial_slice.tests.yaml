@@ -7,7 +7,7 @@
   assert:
     # System Components
     - type: llm-rubric
-      value: "Response captures affected components in capabilities analysis, and the listed components are focused Frontend or display-layer related. Backend and Persistence layers should list no needed changes."
+      value: "Response captures affected components in capabilities analysis. Overwhelming majority of listed components are Frontend or display-layer related. Backend and Persistence layers should list no needed changes."
       threshold: 0.7
       metric: system_components
       weight: 2
@@ -35,7 +35,7 @@
   assert:
     # System Components
     - type: llm-rubric
-      value: "Response captures affected components in capabilities analysis, and the listed components are ONLY Backend or persistence-layer related. Frontend and display layers should list no needed changes."
+      value: "Response captures affected components in capabilities analysis. Overwhelming majority of listed components are Backend or persistence-layer related. Frontend and display layers should list no needed changes."
       threshold: 0.7
       metric: system_components
       weight: 2

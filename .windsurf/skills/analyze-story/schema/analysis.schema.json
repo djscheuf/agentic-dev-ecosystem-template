@@ -805,7 +805,6 @@
     "acceptance_criteria",
     "edge_cases",
     "questions",
-    "dependencies",
-    "complexity"
+    "dependencies"
   ]
 }
