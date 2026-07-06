@@ -31,7 +31,7 @@
       - '@./windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
       - '@./windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
       - '@./windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
-  description: 'Simple Calculator Story'
+  description: 'Happy Path'
   assert:
     # Core definition
     - type: llm-rubric
