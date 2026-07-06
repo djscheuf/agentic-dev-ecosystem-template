@@ -73,10 +73,6 @@
   "dependencies": {
     "technical": {
       "existing_code": [
-        "Tactic view component (display promotion type)",
-        "Search results table component (display promotion type)",
-        "Promotion type filter dropdown component",
-        "API service that fetches tactics and promotion types"
       ],
       "new_code": [],
       "infrastructure": [],
