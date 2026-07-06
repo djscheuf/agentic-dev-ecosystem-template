@@ -31,6 +31,9 @@ Each dimension is scored on a **0-3 scale**:
 - How will this change their behavior or outcome?
 - Is this value observable or measurable?
 
+#### Trouble Cases:
+- Goal exists, but does not describe Why = Generic or Unclear. Just because we have "so that..." clause doesn't make it a valuable business goal. What benefit does the business get, not what action we expect! Suggest clarifying questions to help improve goal clarity, and business intents.
+
 ---
 
 ### 2. **Scope Definition & Vertical Slice**
