@@ -73,6 +73,9 @@ Each dimension is scored on a **0-3 scale**:
 - Can these criteria be translated directly into test cases?
 - Are there any criteria that are actually implementation details?
 
+#### Trouble Case:
+- No Edge Cases are Documented = Incomplete Acceptance Criteria. Suggest adding edge cases, and provide examples of cases to consider. 
+
 ---
 
 ### 4. **Story Format & Narrative Clarity**
@@ -114,6 +117,9 @@ Each dimension is scored on a **0-3 scale**:
 - Are all prerequisites in place or scheduled?
 - Is the team blocked on any external decision or deliverable?
 - Can scope be adjusted to eliminate external dependencies?
+
+#### Trouble Case:
+- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Provide examples of dependencies to consider. 
 
 ## Common Gaps & Remediation
 
