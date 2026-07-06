@@ -1,0 +1,109 @@
+{
+  "raw_request": "docs/ex/fe-only/display_name_story.md",
+  "title": "Show Display name",
+  "story": {
+    "so_that": "show then display name for promotion types",
+    "as_a": "User",
+    "i_want": "the system to display display names instead of internal IDs"
+  },
+  "target_persona": {
+    "name": "User",
+    "role": "User",
+    "technical_level": "Beginner",
+    "journey": {
+      "before": "User navigates to the tactics management interface, looking for tactics associated with specific promotion types",
+      "during": "User searches or filters tactics by promotion type, expecting to see written names in the tactic view, search results table, and filter dropdown",
+      "after": "User can quickly identify and work with tactics by promotion type without needing to reference ID-to-name mappings"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Display promotion type names instead of internal IDs across the UI (tactic view, search results, filter dropdown)",
+    "inputs": [
+      "Promotion type ID",
+      "Promotion type display name (from backend)"
+    ],
+    "outputs": [
+      "Written promotion type name displayed in tactic view",
+      "Written promotion type name displayed in search results table",
+      "Written promotion type name displayed in filter dropdown"
+    ],
+    "state_changes": [
+      "UI rendering changes to show display_name field instead of ID"
+    ],
+    "affected_components": {
+      "ui": [
+        "Tactic view component",
+        "Search results table component",
+        "Promotion type filter dropdown component"
+      ],
+      "api": [
+        "No API changes required (display_name already available from backend)"
+      ],
+      "database": [
+        "No database changes required (display_name field already exists)"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Promotion type displayed as written name in tactic view",
+      "gherkin": "Given I am a registered Internal Requester When I view a Tactic Then the promotion type is displayed as a written name AND the display name is consistent across all views",
+      "type": "Functional",
+      "jtbd": "View promotion type as written name",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search results table displays promotion types as written names",
+      "gherkin": "Given I am an Internal Requester When I search for tactics Then the search table displays promotion types as written names",
+      "type": "Functional",
+      "jtbd": "See promotion type names in search results",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Filter dropdown displays promotion types as written names",
+      "gherkin": "Given I am an Internal Requester When I open the select filter for promotion type Then the filter displays promotion types as written names AND the Search filter works as before",
+      "type": "Functional",
+      "jtbd": "Filter tactics by written promotion type names",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "edge_cases": [
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Tactic view component (display promotion type)",
+        "Search results table component (display promotion type)",
+        "Promotion type filter dropdown component",
+        "API service that fetches tactics and promotion types"
+      ],
+      "new_code": [],
+      "infrastructure": [],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "Any story related to promotion type management or display"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+      ],
+      "technical_knowledge": [
+      ],
+      "stakeholder_questions": [
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 3,
+    "risk_level": "Low",
+    "uncertainty": "Low"
+  },
+  "open_questions": [
+  ],
+  "recommendation": "N/A"
+}
