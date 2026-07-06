@@ -107,7 +107,7 @@ Each dimension is scored on a **0-3 scale**:
 
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
-| **0** | Story has unresolved external dependencies; team cannot proceed | Requires API from another team that doesn't exist; requires design from external stakeholder |
+| **0** | Story has unresolved external dependencies or NO identified dependencies; team cannot proceed | Requires API from another team that doesn't exist; requires design from external stakeholder |
 | **1** | Story has dependencies that are documented but not resolved | "Waiting for backend team to expose endpoint" |
 | **2** | Story has no external dependencies, or dependencies are clearly documented and scheduled | "Depends on Feature X (scheduled for Sprint N)" |
 | **3** | Story is fully autonomous; team has all information and resources to complete it | No external dependencies; all prerequisites are met or in-scope |
