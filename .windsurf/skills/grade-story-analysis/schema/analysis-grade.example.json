@@ -1,0 +1,27 @@
+{
+    "business_value": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "scope": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "acceptance_criteria": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "story_format": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "dependencies": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    }
+}
