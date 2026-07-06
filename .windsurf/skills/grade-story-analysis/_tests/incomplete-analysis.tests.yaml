@@ -9,6 +9,32 @@
 # This lets you see per-dimension scores, set different pass bars for
 # critical vs. nice-to-have criteria, and weight what matters most.
 
+
+# ========================================
+# INCOMPLETE Business Value ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+  description: 'Incomplete Business value Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Business Value Section should have a score of 0 or 1."
+      threshold: 0.8
+      metric: bv-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Business Value Section's Reason should mention unclear business goal, or taht it is vague and generic as reason for the score. "
+      threshold: 0.7
+      metric: bv-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Business Value Section's Recommendation should include clarifying questions to help improve goal clarity, and business intents. "
+      threshold: 0.7
+      metric: bv-recommendation
+      weight: 1
+
 # ========================================
 # INCOMPLETE AC ANALYSIS
 # ========================================
@@ -24,7 +50,7 @@
       metric: ac-scores
       weight: 1
     - type: llm-rubric
-      value: "The Acceptance Criteria Section's Reason should mention incomplete acceptance criteria as the drivign reason for the score. "
+      value: "The Acceptance Criteria Section's Reason should mention incomplete acceptance criteria, or something similar as the drivign reason for the score. "
       threshold: 0.7
       metric: ac-reasons
       weight: 1
@@ -84,32 +110,6 @@
       threshold: 0.7
       metric: format-recommendation
       weight: 1
-
-# ========================================
-# INCOMPLETE Goal ANALYSIS
-# ========================================
-- vars:
-    request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
-  description: 'Incomplete Goal Analysis'
-  assert:
-    # Core definition
-    - type: llm-rubric
-      value: "The Goal Section should have a score of 0 or 1."
-      threshold: 0.8
-      metric: goal-scores
-      weight: 1
-    - type: llm-rubric
-      value: "The Goal Section's Reason should mention unclear business goal, or taht it is vague and generic as reason for the score. "
-      threshold: 0.7
-      metric: goal-reasons
-      weight: 1
-    - type: llm-rubric
-      value: "The Goal Section's Recommendation should include clarifying questions to help improve goal clarity, and business intents. "
-      threshold: 0.7
-      metric: goal-recommendation
-      weight: 1
-
 
 
 # ========================================
