@@ -65,7 +65,7 @@ Each dimension is scored on a **0-3 scale**:
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
 | **0** | No acceptance criteria, or criteria are vague/untestable | "System should work well" or "User should be happy" |
-| **1** | Criteria exist but are incomplete or mix implementation details with requirements | "Use React" or "Implement caching" without stating what the user can do |
+| **1** | Criteria exist but are incomplete, such as missing edge cases or mix implementation details with requirements | "Use React" or "Implement caching" without stating what the user can do |
 | **2** | Criteria are testable and cover happy path + nearby edge cases; implementation-agnostic | Given-When-Then format used; 3-5 clear criteria |
 | **3** | Criteria are precise, testable, and comprehensive; include happy path, edge cases, and business rules; translatable to test cases | Given-When-Then format; each criterion is a distinct test case; covers both positive and negative scenarios |
 
@@ -77,7 +77,7 @@ Each dimension is scored on a **0-3 scale**:
 - Are there any criteria that are actually implementation details?
 
 #### Trouble Case:
-- No Edge Cases are Documented = Incomplete Acceptance Criteria. Suggest adding edge cases, and provide examples of cases to consider. 
+- No Edge Cases are Documented = Incomplete Acceptance Criteria, score 1 or less. Suggest adding edge cases, and provide examples of cases to consider. 
 
 ---
 
