@@ -77,7 +77,7 @@ Each dimension is scored on a **0-3 scale**:
 - Are there any criteria that are actually implementation details?
 
 #### Trouble Case:
-- No Edge Cases are Documented = Incomplete Acceptance Criteria. Suggest adding edge cases, and provide examples of cases to consider. 
+- No Edge Cases are Documented = Incomplete Acceptance Criteria. Automatic point deduction! Suggest adding edge cases, and provide examples of cases to consider. 
 
 ---
 
