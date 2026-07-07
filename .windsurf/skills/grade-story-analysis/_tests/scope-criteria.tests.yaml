@@ -1,0 +1,52 @@
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+# ========================================
+# Excess Scope ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+  description: 'Excess Scope Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Scope Section should have a score of 0 or 1."
+      threshold: 0.8
+      metric: scope-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Scope Section's Reason should mention that the story spans multiple systems."
+      threshold: 0.7
+      metric: scope-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Scope Section's Recommendation should include comment on how to improve scope-control, such as story splitting, looking for a thin vertical slice."
+      threshold: 0.7
+      metric: scope-recommendation
+      weight: 1
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
