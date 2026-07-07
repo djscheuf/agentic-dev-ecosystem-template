@@ -30,7 +30,7 @@
       metric: bv-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Business Value Section's Recommendation should include clarifying questions to help improve goal clarity, and business intents. "
+      value: "The Business Value Section's Recommendation should include recommendations for rewriting the goal. Watch for suggestions with question words like who, what, where, when, and why. "
       threshold: 0.7
       metric: bv-recommendation
       weight: 1
