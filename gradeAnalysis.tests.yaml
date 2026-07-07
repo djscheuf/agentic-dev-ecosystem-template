@@ -47,7 +47,7 @@ providers:
 
 # Test cases loaded from external file
 tests: 
-  # - file://./.windsurf/skills/grade-story-analysis/_tests/base.tests.yaml
+  - file://./.windsurf/skills/grade-story-analysis/_tests/base.tests.yaml
   - file://./.windsurf/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml
 
 # Output configuration
