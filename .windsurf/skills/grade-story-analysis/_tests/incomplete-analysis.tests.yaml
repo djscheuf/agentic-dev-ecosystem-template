@@ -87,7 +87,7 @@
       weight: 1
 
 # ========================================
-# INCOMPLETE REASONING ANALYSIS
+# INCOMPLETE Story ANALYSIS
 # ========================================
 - vars:
     request: 
@@ -96,17 +96,17 @@
   assert:
     # Core definition
     - type: llm-rubric
-      value: "The Format Section should have a score of 0 or 1."
+      value: "The Format Section should have a score of 1 or 2."
       threshold: 0.8
       metric: format-scores
       weight: 1
     - type: llm-rubric
-      value: "The Format Section's Reason should mention unclear actor or unclear intent as reason for the score. "
+      value: "The Format Section's Reason should mention the proper format structure. May indicate some room for improvement of the story."
       threshold: 0.7
       metric: format-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Format Section's Recommendation should include clarifying questions to help improve story clarity. "
+      value: "The Format Section's Recommendation should include comment on how to improve the story, highlighting the so-so User Persona. "
       threshold: 0.7
       metric: format-recommendation
       weight: 1
