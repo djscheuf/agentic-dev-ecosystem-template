@@ -67,7 +67,7 @@ For each extract:
 - verbatim criteria
 - gherkin/scenario expression
 - type {functional, non-functional, business rule, constraint}
-- job to be done (jtbd) in Verb Object Context format if possible
+- job to be done (jtbd) in Verb Object Context format if possible, ensure the JTBD is stated from the user's perspective, and value. e.g. 'Enforce System Standards' becomes something like 'Enter valid data' or 'Complete form without errors'
 - persona served
 ```
 

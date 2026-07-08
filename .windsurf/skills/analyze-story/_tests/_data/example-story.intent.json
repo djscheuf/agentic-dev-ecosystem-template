@@ -1,0 +1,55 @@
+{
+  "raw_request": "docs/ex/example_story.md",
+  "title": "Add Two Positive Integers",
+  "story": {
+    "so_that": "I can perform basic addition operations",
+    "as_a": "user",
+    "i_want": "be able to add two positive integers together"
+  },
+  "target_persona": {
+    "name": "Basic User - Calculator User",
+    "role": "End User",
+    "technical_level": "Novice",
+    "journey": {
+      "before": "User needs to perform addition calculations manually or use external tools",
+      "during": "User opens the calculator application, enters two positive integers, and submits the addition request",
+      "after": "User receives the sum and can perform additional calculations or exit the application"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Accept two positive integers as input and return their sum",
+    "inputs": [
+      "First positive integer",
+      "Second positive integer"
+    ],
+    "outputs": [
+      "Sum of the two integers",
+      "Error message (for invalid inputs)"
+    ],
+    "state_changes": [],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Add Two Positive Integers - System returns the sum of two positive integers",
+      "gherkin": "Given I am a user AND I provide two positive integers When I submit the addition request Then the system returns the sum of the two integers",
+      "type": "Functional",
+      "jtbd": "Calculate sum of two positive integers",
+      "persona_served": "Basic User - Calculator User"
+    },
+    {
+      "criterion": "Add Negative Numbers - System returns an error message for mixed sign inputs",
+      "gherkin": "Given I am a user AND I provide one negative integer and one positive integer When I submit the addition request Then the system returns an error message",
+      "type": "Business rule",
+      "jtbd": "Reject addition of negative numbers",
+      "persona_served": "Basic User - Calculator User"
+    },
+    {
+      "criterion": "Add Zero - System returns the positive integer when adding zero",
+      "gherkin": "Given I am a user AND I provide one zero and one positive integer When I submit the addition request Then the system returns the positive integer",
+      "type": "Functional",
+      "jtbd": "Handle zero as addend",
+      "persona_served": "Basic User - Calculator User"
+    }
+  ]
+}

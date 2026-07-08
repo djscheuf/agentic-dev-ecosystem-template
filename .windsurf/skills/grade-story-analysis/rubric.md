@@ -31,6 +31,9 @@ Each dimension is scored on a **0-3 scale**:
 - How will this change their behavior or outcome?
 - Is this value observable or measurable?
 
+#### Trouble Cases:
+- Goal exists, but does not describe Why = Generic or Unclear. Just because we have "so that..." clause doesn't make it a valuable business goal. Recommend clarification. Ask:What benefit does the business get? Who gets that value? When and Where do they get it? What is the desired impact of this change?
+
 ---
 
 ### 2. **Scope Definition & Vertical Slice**
@@ -62,7 +65,7 @@ Each dimension is scored on a **0-3 scale**:
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
 | **0** | No acceptance criteria, or criteria are vague/untestable | "System should work well" or "User should be happy" |
-| **1** | Criteria exist but are incomplete or mix implementation details with requirements | "Use React" or "Implement caching" without stating what the user can do |
+| **1** | Criteria exist but are incomplete, such as missing edge cases or mix implementation details with requirements | "Use React" or "Implement caching" without stating what the user can do |
 | **2** | Criteria are testable and cover happy path + nearby edge cases; implementation-agnostic | Given-When-Then format used; 3-5 clear criteria |
 | **3** | Criteria are precise, testable, and comprehensive; include happy path, edge cases, and business rules; translatable to test cases | Given-When-Then format; each criterion is a distinct test case; covers both positive and negative scenarios |
 
@@ -72,6 +75,9 @@ Each dimension is scored on a **0-3 scale**:
 - Are edge cases and business rules captured?
 - Can these criteria be translated directly into test cases?
 - Are there any criteria that are actually implementation details?
+
+#### Trouble Case:
+- No Edge Cases are Documented = Incomplete Acceptance Criteria. Automatic point deduction! Suggest adding edge cases, and provide examples of cases to consider. 
 
 ---
 
@@ -104,7 +110,7 @@ Each dimension is scored on a **0-3 scale**:
 
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
-| **0** | Story has unresolved external dependencies; team cannot proceed | Requires API from another team that doesn't exist; requires design from external stakeholder |
+| **0** | Story has unresolved external dependencies or NO identified dependencies; team cannot proceed | Requires API from another team that doesn't exist; requires design from external stakeholder |
 | **1** | Story has dependencies that are documented but not resolved | "Waiting for backend team to expose endpoint" |
 | **2** | Story has no external dependencies, or dependencies are clearly documented and scheduled | "Depends on Feature X (scheduled for Sprint N)" |
 | **3** | Story is fully autonomous; team has all information and resources to complete it | No external dependencies; all prerequisites are met or in-scope |
@@ -114,6 +120,9 @@ Each dimension is scored on a **0-3 scale**:
 - Are all prerequisites in place or scheduled?
 - Is the team blocked on any external decision or deliverable?
 - Can scope be adjusted to eliminate external dependencies?
+
+#### Trouble Case:
+- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Provide examples of dependencies to consider. 
 
 ## Common Gaps & Remediation
 

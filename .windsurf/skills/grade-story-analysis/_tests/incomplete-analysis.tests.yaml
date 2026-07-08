@@ -1,0 +1,131 @@
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+
+# ========================================
+# INCOMPLETE Business Value ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+  description: 'Incomplete Business value Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Business Value Section should have a score of 0 or 1."
+      threshold: 0.8
+      metric: bv-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Business Value Section's Reason should mention unclear business goal, or taht it is vague and generic as reason for the score. "
+      threshold: 0.7
+      metric: bv-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Business Value Section's Recommendation should include recommendations for rewriting the goal. Watch for suggestions with question words like who, what, where, when, and why. "
+      threshold: 0.7
+      metric: bv-recommendation
+      weight: 1
+
+# ========================================
+# INCOMPLETE AC ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+  description: 'Incomplete AC Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Acceptance Criteria Section should have a score of 0 or 1."
+      threshold: 0.8
+      metric: ac-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Acceptance Criteria Section's Reason should mention incomplete acceptance criteria, or something similar as the drivign reason for the score. "
+      threshold: 0.7
+      metric: ac-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Acceptance Criteria Section's Recommendation should include recommendations on cases to consider to improve the score. "
+      threshold: 0.7
+      metric: ac-recommendation
+      weight: 1
+
+
+# ========================================
+# INCOMPLETE DEPENDENCY ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+  description: 'Incomplete Dependency Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Dependency Section should have a score of 0 or 1."
+      threshold: 0.8
+      metric: dependency-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Dependency Section's Reason should mention missing dependencies as the driving reason for the score. "
+      threshold: 0.7
+      metric: dependency-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Dependency Section's Recommendation should include recommendations of dependencies to consider. "
+      threshold: 0.7
+      metric: dependency-recommendation
+      weight: 1
+
+# ========================================
+# INCOMPLETE Story ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+  description: 'Incomplete Story Analysis'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "The Format Section should have a score of 1 or 2."
+      threshold: 0.8
+      metric: format-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Format Section's Reason should mention the proper format structure. May indicate some room for improvement of the story."
+      threshold: 0.7
+      metric: format-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Format Section's Recommendation should include comment on how to improve the story, highlighting the so-so User Persona. "
+      threshold: 0.7
+      metric: format-recommendation
+      weight: 1
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@./windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'

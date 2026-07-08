@@ -1,0 +1,416 @@
+{
+  "raw_request": "docs/ex/admin_story.md",
+  "title": "Administer Tactic Types and Delivery Methods",
+  "story": {
+    "so_that": "manage which tactic types and delivery methods are available for requestors to select in order forms",
+    "as_a": "Administrator",
+    "i_want": "add, remove, turn on or turn off tactic types and their linked delivery methods (mail, mobile app, in-story kiosk)"
+  },
+  "target_persona": {
+    "name": "Administrator",
+    "role": "Administrator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Administrator needs to configure the system to control which tactic types and delivery methods are available to requestors",
+      "during": "Administrator navigates to the Tactic Type & Delivery Method section, reviews current settings, makes changes in draft mode, and saves when ready",
+      "after": "Changes take effect immediately, affecting what requestors can select in order forms while preserving historical data"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Manage tactic types and their associated delivery methods through an admin interface with draft-save workflow",
+    "inputs": [
+      "Tactic type name",
+      "Delivery method name",
+      "Active/inactive status toggle",
+      "Print support requirement flag",
+      "Parent type reference for delivery methods"
+    ],
+    "outputs": [
+      "List of tactic types with linked delivery methods",
+      "Active/inactive status indicators",
+      "Confirmation messages for save operations",
+      "Draft state indicators"
+    ],
+    "state_changes": [
+      "Tactic type created/updated in draft",
+      "Delivery method created/updated in draft",
+      "Active/inactive status toggled in draft",
+      "Draft changes persisted to database on save",
+      "Historical records preserved when deactivating"
+    ],
+    "affected_components": {
+      "ui": [
+        "Admin interface tactic-admin section",
+        "Tactic Type & Delivery Method management screen",
+        "List view with status indicators",
+        "Add/edit form for tactic types",
+        "Add/edit form for delivery methods",
+        "Draft/Save controls",
+        "Status toggle buttons"
+      ],
+      "api": [
+        "GET /admin/tactic-types (list with filtering)",
+        "POST /admin/tactic-types (create)",
+        "PUT /admin/tactic-types/:id (update)",
+        "GET /admin/delivery-methods (list with filtering)",
+        "POST /admin/delivery-methods (create)",
+        "PUT /admin/delivery-methods/:id (update)",
+        "POST /admin/draft/save (save draft changes)",
+        "POST /admin/draft/discard (discard draft changes)"
+      ],
+      "database": [
+        "tactic_types table (id, name, created_at, updated_at)",
+        "delivery_methods table (id, name, parent_type_id, requires_print_support, is_active, created_at, updated_at)",
+        "draft_changes table or versioning system (to track draft state)",
+        "audit_log table (to track changes and preserve history)"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Administrator can view tactic types and delivery methods in list format",
+      "gherkin": "Given I am an Administrator\nWhen I navigate to the Tactic Type & Delivery Method section\nThen I see a list of tactic types with their linked delivery methods",
+      "type": "Functional",
+      "jtbd": "View available tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Active or inactive status is visible for each tactic type and delivery method",
+      "gherkin": "When I view the tactic types list\nThen each tactic type and delivery method shows its active/inactive status",
+      "type": "Functional",
+      "jtbd": "Identify which tactic types and delivery methods are currently active",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Administrator can toggle active/inactive status",
+      "gherkin": "When I click on a tactic type or delivery method\nThen I can toggle its active/inactive status",
+      "type": "Functional",
+      "jtbd": "Toggle active/inactive status for tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Administrator can add new tactic types and delivery methods",
+      "gherkin": "When I click add new tactic type or delivery method\nThen I can enter the required information and save it",
+      "type": "Functional",
+      "jtbd": "Create new tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Active tactic types and methods are visible to requestors in order forms",
+      "gherkin": "Given a tactic type and delivery method is marked active\nWhen a requestor views the order form\nThen they can select that tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Make tactic types and delivery methods available to requestors",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Inactive tactic types and methods are not visible to any users",
+      "gherkin": "Given a tactic type and delivery method is marked inactive\nWhen a requestor or any user views the order form\nThen they cannot select that tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Hide tactic types and delivery methods from requestors",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Inactive tactic types and methods remain in historical records",
+      "gherkin": "Given a tactic type and delivery method is marked inactive\nWhen viewing historical requests that used that tactic/method\nThen the historical record still shows the tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Preserve historical data when deactivating tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods are unique by Name and ParentType combination",
+      "gherkin": "When creating a delivery method\nThen the combination of Name and ParentType must be unique",
+      "type": "Constraint",
+      "jtbd": "Ensure delivery method uniqueness",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Tactic types and delivery methods cannot be deleted, only marked inactive",
+      "gherkin": "When managing tactic types or delivery methods\nThen deletion is not permitted, only marking as inactive",
+      "type": "Constraint",
+      "jtbd": "Prevent accidental data loss by disallowing deletion",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Only tactic types with at least one delivery method are displayed",
+      "gherkin": "When displaying tactic types in the admin interface\nThen only show tactic types that have at least one associated delivery method",
+      "type": "Functional",
+      "jtbd": "Filter tactic types to show only those with delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Changes are held in draft mode until explicitly saved",
+      "gherkin": "When making changes to tactic types or delivery methods\nThen changes are held in draft mode until explicitly saved\nAnd users can review all changes before committing",
+      "type": "Functional",
+      "jtbd": "Review and confirm changes before saving",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods can specify print support requirement",
+      "gherkin": "When creating or editing a delivery method\nThen I can specify whether it requires print support",
+      "type": "Functional",
+      "jtbd": "Specify print support requirement for delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods have active or inactive status",
+      "gherkin": "When managing delivery methods\nThen each method has an active or inactive status",
+      "type": "Functional",
+      "jtbd": "Track active/inactive status for delivery methods",
+      "persona_served": "Administrator"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Attempting to create delivery method with duplicate Name+ParentType",
+      "gherkin": "Given a delivery method with Name 'Email' and ParentType 'Direct' exists\nWhen I attempt to create another delivery method with the same Name and ParentType\nThen an error message is displayed and the creation is prevented",
+      "type": "Edge case",
+      "jtbd": "Prevent duplicate delivery method creation",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Attempting to save draft with invalid data",
+      "gherkin": "Given I have made changes with missing required fields\nWhen I click Save\nThen validation errors are displayed and save is prevented",
+      "type": "Edge case",
+      "jtbd": "Validate draft before saving",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Discarding draft changes",
+      "gherkin": "Given I have made changes in draft mode\nWhen I click Discard\nThen all draft changes are lost and the interface reverts to the last saved state",
+      "type": "Edge case",
+      "jtbd": "Discard unsaved draft changes",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Tactic type with no delivery methods",
+      "gherkin": "Given a tactic type exists with no associated delivery methods\nWhen viewing the tactic types list\nThen the tactic type is not displayed",
+      "type": "Edge case",
+      "jtbd": "Hide tactic types without delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Deactivating a tactic type that is used in active orders",
+      "gherkin": "Given a tactic type is used in active/pending orders\nWhen I mark it as inactive\nThen the tactic type becomes unavailable for new orders but existing orders are unaffected",
+      "type": "Edge case",
+      "jtbd": "Handle deactivation of in-use tactic types",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Concurrent edits by multiple administrators",
+      "gherkin": "Given two administrators are editing the same tactic type simultaneously\nWhen both attempt to save\nThen the second save is prevented or merged appropriately with conflict resolution",
+      "type": "Edge case",
+      "jtbd": "Handle concurrent modifications",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Very long tactic type or delivery method names",
+      "gherkin": "Given I enter a very long name (e.g., 500+ characters)\nWhen I attempt to save\nThen either the input is truncated or an error is displayed",
+      "type": "Edge case",
+      "jtbd": "Handle long input strings",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Special characters in tactic type or delivery method names",
+      "gherkin": "Given I enter special characters (e.g., @, #, %, emoji) in a name field\nWhen I save\nThen the special characters are either accepted or rejected consistently",
+      "type": "Edge case",
+      "jtbd": "Handle special characters in names",
+      "persona_served": "Administrator"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the maximum length for tactic type and delivery method names?",
+      "impacts": [
+        "database schema (column size)",
+        "UI display (text truncation)",
+        "API validation",
+        "form input constraints"
+      ]
+    },
+    {
+      "question": "How should concurrent edits by multiple administrators be handled?",
+      "impacts": [
+        "draft management strategy",
+        "locking mechanism",
+        "conflict resolution",
+        "user experience"
+      ]
+    },
+    {
+      "question": "Should there be a confirmation dialog when deactivating a tactic type or delivery method that is in use?",
+      "impacts": [
+        "user experience",
+        "data integrity",
+        "business rules"
+      ]
+    },
+    {
+      "question": "What is the scope of 'draft mode'? Does it apply to the entire form or individual changes?",
+      "impacts": [
+        "state management",
+        "database schema",
+        "API design",
+        "user experience"
+      ]
+    },
+    {
+      "question": "Should administrators be able to see which orders/requests use a specific tactic type or delivery method?",
+      "impacts": [
+        "UI features",
+        "API endpoints",
+        "database queries",
+        "performance"
+      ]
+    },
+    {
+      "question": "What audit trail or logging is required for tactic type and delivery method changes?",
+      "impacts": [
+        "database schema",
+        "API endpoints",
+        "compliance requirements",
+        "performance"
+      ]
+    },
+    {
+      "question": "Are there any role-based access controls needed beyond 'Administrator'?",
+      "impacts": [
+        "authentication/authorization",
+        "API security",
+        "UI visibility",
+        "business rules"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Admin interface framework (tactic-admin)",
+        "Authentication/authorization system",
+        "Database connection and ORM",
+        "API routing and middleware"
+      ],
+      "new_code": [
+        "Tactic types management service",
+        "Delivery methods management service",
+        "Draft state management service",
+        "Validation service for unique constraints",
+        "Admin UI components for tactic management",
+        "API endpoints for CRUD operations"
+      ],
+      "infrastructure": [
+        "tactic_types table",
+        "delivery_methods table",
+        "draft_changes table or versioning mechanism",
+        "audit_log table"
+      ],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [
+        "Authentication/authorization system must be in place",
+        "Admin interface framework must be established"
+      ],
+      "blocks": [
+        "Requestor order form feature (depends on available tactic types and delivery methods)",
+        "Reporting/analytics features that reference tactic types and delivery methods"
+      ],
+      "related": [
+        "Requestor order form feature",
+        "Admin dashboard",
+        "Audit logging system",
+        "User management"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "What constitutes a 'tactic type' in the business domain",
+        "What constitutes a 'delivery method' in the business domain",
+        "Business rules for tactic type and delivery method combinations",
+        "How tactic types and delivery methods are used in order workflows"
+      ],
+      "technical_knowledge": [
+        "Admin interface framework used",
+        "Database design patterns for hierarchical data (tactic types and delivery methods)",
+        "Draft/versioning patterns",
+        "API design best practices"
+      ],
+      "stakeholder_questions": [
+        "What are the specific tactic types and delivery methods that should be supported?",
+        "Are there any business rules about which tactic types can have which delivery methods?",
+        "What is the expected frequency of changes to tactic types and delivery methods?",
+        "Should there be notifications when tactic types or delivery methods are deactivated?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  },
+  "open_questions": [
+    {
+      "question": "What is the maximum length for tactic type and delivery method names?",
+      "impacts": [
+        "database schema (column size)",
+        "UI display (text truncation)",
+        "API validation",
+        "form input constraints"
+      ]
+    },
+    {
+      "question": "How should concurrent edits by multiple administrators be handled?",
+      "impacts": [
+        "draft management strategy",
+        "locking mechanism",
+        "conflict resolution",
+        "user experience"
+      ]
+    },
+    {
+      "question": "Should there be a confirmation dialog when deactivating a tactic type or delivery method that is in use?",
+      "impacts": [
+        "user experience",
+        "data integrity",
+        "business rules"
+      ]
+    },
+    {
+      "question": "What is the scope of 'draft mode'? Does it apply to the entire form or individual changes?",
+      "impacts": [
+        "state management",
+        "database schema",
+        "API design",
+        "user experience"
+      ]
+    },
+    {
+      "question": "Should administrators be able to see which orders/requests use a specific tactic type or delivery method?",
+      "impacts": [
+        "UI features",
+        "API endpoints",
+        "database queries",
+        "performance"
+      ]
+    },
+    {
+      "question": "What audit trail or logging is required for tactic type and delivery method changes?",
+      "impacts": [
+        "database schema",
+        "API endpoints",
+        "compliance requirements",
+        "performance"
+      ]
+    },
+    {
+      "question": "Are there any role-based access controls needed beyond 'Administrator'?",
+      "impacts": [
+        "authentication/authorization",
+        "API security",
+        "UI visibility",
+        "business rules"
+      ]
+    }
+  ],
+  "recommendation": "Proceed with implementation. This is a moderately complex feature with clear requirements. The main uncertainties are around draft mode scope and concurrent editing, which should be clarified with stakeholders before implementation begins. The story has good acceptance criteria coverage and identified edge cases."
+}

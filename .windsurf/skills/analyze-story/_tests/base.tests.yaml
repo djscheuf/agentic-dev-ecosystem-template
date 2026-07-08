@@ -1,0 +1,57 @@
+# ========================================
+# DETERMINISTIC EVALUATIONS (contains/equiv)
+# ========================================
+- vars:
+    request: 
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+  description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
+  assert:
+    - type: contains
+      value: 'Functional'
+
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+- vars:
+    request: 
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+  description: 'Simple Calculator Story'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response clearly captures story in the So that ..., As A ..., I want ... format"
+      threshold: 0.8
+      metric: clarity
+      weight: 1
+    
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: './.windsurf/skills/analyze-story/schema/analysis.schema.json'

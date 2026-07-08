@@ -1,27 +1,107 @@
 {
+  "type": "object",
+  "properties": {
     "business_value": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
     },
     "scope": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
     },
     "acceptance_criteria": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
     },
     "story_format": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
     },
     "dependencies": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
     }
+  },
+  "required": [
+    "business_value",
+    "scope",
+    "acceptance_criteria",
+    "story_format",
+    "dependencies"
+  ]
 }

@@ -1,0 +1,133 @@
+{
+  "raw_request": "docs/ex/admin_story.md",
+  "title": "Administer Tactic Types and Delivery Methods",
+  "story": {
+    "so_that": "manage which tactic types and delivery methods are available for requestors to select in order forms",
+    "as_a": "Administrator",
+    "i_want": "add, remove, turn on or turn off tactic types and their linked delivery methods (mail, mobile app, in-story kiosk)"
+  },
+  "target_persona": {
+    "name": "Administrator",
+    "role": "Administrator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Administrator needs to configure the system to control which tactic types and delivery methods are available to requestors",
+      "during": "Administrator navigates to the Tactic Type & Delivery Method section, reviews current settings, makes changes in draft mode, and saves when ready",
+      "after": "Changes take effect immediately, affecting what requestors can select in order forms while preserving historical data"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Manage tactic types and their associated delivery methods through an admin interface",
+    "inputs": [
+      "Tactic type name",
+      "Delivery method name",
+      "Active/inactive status",
+      "Print support requirement flag"
+    ],
+    "outputs": [
+      "List of tactic types with linked delivery methods",
+      "Visibility of active/inactive status",
+      "Confirmation of changes saved"
+    ],
+    "state_changes": [
+      "Tactic type created/updated",
+      "Delivery method created/updated",
+      "Active/inactive status toggled",
+      "Draft changes persisted"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Administrator can view tactic types and delivery methods in list format",
+      "gherkin": "Given I am an Administrator\nWhen I navigate to the Tactic Type & Delivery Method section\nThen I see a list of tactic types with their linked delivery methods",
+      "type": "Functional",
+      "jtbd": "View available tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Active or inactive status is visible for each tactic type and delivery method",
+      "gherkin": "When I view the tactic types list\nThen each tactic type and delivery method shows its active/inactive status",
+      "type": "Functional",
+      "jtbd": "Identify which tactic types and delivery methods are currently active",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Administrator can toggle active/inactive status",
+      "gherkin": "When I click on a tactic type or delivery method\nThen I can toggle its active/inactive status",
+      "type": "Functional",
+      "jtbd": "Toggle active/inactive status for tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Administrator can add new tactic types and delivery methods",
+      "gherkin": "When I click add new tactic type or delivery method\nThen I can enter the required information and save it",
+      "type": "Functional",
+      "jtbd": "Create new tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Active tactic types and methods are visible to requestors in order forms",
+      "gherkin": "Given a tactic type and delivery method is marked active\nWhen a requestor views the order form\nThen they can select that tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Make tactic types and delivery methods available to requestors",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Inactive tactic types and methods are not visible to any users",
+      "gherkin": "Given a tactic type and delivery method is marked inactive\nWhen a requestor or any user views the order form\nThen they cannot select that tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Hide tactic types and delivery methods from requestors",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Inactive tactic types and methods remain in historical records",
+      "gherkin": "Given a tactic type and delivery method is marked inactive\nWhen viewing historical requests that used that tactic/method\nThen the historical record still shows the tactic type and delivery method",
+      "type": "Business rule",
+      "jtbd": "Preserve historical data when deactivating tactic types and delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods are unique by Name and ParentType combination",
+      "gherkin": "When creating a delivery method\nThen the combination of Name and ParentType must be unique",
+      "type": "Constraint",
+      "jtbd": "Ensure delivery method uniqueness",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Tactic types and delivery methods cannot be deleted, only marked inactive",
+      "gherkin": "When managing tactic types or delivery methods\nThen deletion is not permitted, only marking as inactive",
+      "type": "Constraint",
+      "jtbd": "Prevent accidental data loss by disallowing deletion",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Only tactic types with at least one delivery method are displayed",
+      "gherkin": "When displaying tactic types in the admin interface\nThen only show tactic types that have at least one associated delivery method",
+      "type": "Functional",
+      "jtbd": "Filter tactic types to show only those with delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Changes are held in draft mode until explicitly saved",
+      "gherkin": "When making changes to tactic types or delivery methods\nThen changes are held in draft mode until explicitly saved\nAnd users can review all changes before committing",
+      "type": "Functional",
+      "jtbd": "Review and confirm changes before saving",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods can specify print support requirement",
+      "gherkin": "When creating or editing a delivery method\nThen I can specify whether it requires print support",
+      "type": "Functional",
+      "jtbd": "Specify print support requirement for delivery methods",
+      "persona_served": "Administrator"
+    },
+    {
+      "criterion": "Delivery methods have active or inactive status",
+      "gherkin": "When managing delivery methods\nThen each method has an active or inactive status",
+      "type": "Functional",
+      "jtbd": "Track active/inactive status for delivery methods",
+      "persona_served": "Administrator"
+    }
+  ]
+}
