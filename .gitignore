@@ -1,2 +1,5 @@
 node_modules
 results.*.html
+
+*.zip
+*.tar.gz
