@@ -3,9 +3,9 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
   assert:
     - type: contains
@@ -24,9 +24,9 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Simple Calculator Story'
   assert:
     # Core definition
@@ -46,12 +46,12 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/analyze-story/schema/analysis.schema.json'
+        schemaPath: '../.windsurf/skills/analyze-story/schema/analysis.schema.json'

@@ -3,7 +3,7 @@ description: EDD on Analyze Story Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://./.windsurf/skills/analyze-story/_tests/prompt.md
+  - file://../.windsurf/skills/analyze-story/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -41,8 +41,8 @@ providers:
 
 # Test cases loaded from external file
 tests: 
-  - file://./.windsurf/skills/analyze-story/_tests/base.tests.yaml
-  - file://./.windsurf/skills/analyze-story/_tests/partial_slice.tests.yaml
+  - file://../.windsurf/skills/analyze-story/_tests/base.tests.yaml
+  - file://../.windsurf/skills/analyze-story/_tests/partial_slice.tests.yaml
 
 # Output configuration
 outputPath: results.analyzeStory.html
