@@ -1,64 +1,587 @@
 {
-  "run_date": "20251015T085100Z",
-  "target_story": "path/to/analysis/file",
-  "project_structure": {
-    "root": "path/to/project/root",
-    "description": "Description of the project structure and purpose",
-    "tech_stack": {
-          "programming_languages": ["Python","typescript"],
-          "frameworks": [],
-          "libraries": [],
-          "unit_testing_tools": []
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "run_date": {
+      "type": "string",
+      "description": "Run date",
+      "examples": [
+        "20251015T085100Z"
+      ]
+    },
+    "target_story": {
+      "type": "string",
+      "description": "Target story",
+      "examples": [
+        "path/to/analysis/file"
+      ]
+    },
+    "project_structure": {
+      "type": "object",
+      "description": "Project structure",
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Root",
+          "examples": [
+            "path/to/project/root"
+          ]
         },
-    "subprojects": [
-      { 
-        "root": "path/to/subproject/root" ,
-        "description": "Description of the subproject and it's propose",
+        "description": {
+          "type": "string",
+          "description": "Description",
+          "examples": [
+            "Description of the project structure and purpose"
+          ]
+        },
         "tech_stack": {
-          "programming_language": "Python",
-          "frameworks": [],
-          "libraries": [],
-          "unit_testing_tools": []
+          "type": "object",
+          "description": "Tech stack",
+          "properties": {
+            "programming_languages": {
+              "type": "array",
+              "description": "Programming languages",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                [
+                  "Python",
+                  "typescript"
+                ]
+              ]
+            },
+            "frameworks": {
+              "type": "array",
+              "description": "Frameworks",
+              "examples": [
+                []
+              ]
+            },
+            "libraries": {
+              "type": "array",
+              "description": "Libraries",
+              "examples": [
+                []
+              ]
+            },
+            "unit_testing_tools": {
+              "type": "array",
+              "description": "Unit testing tools",
+              "examples": [
+                []
+              ]
+            }
+          },
+          "required": [
+            "programming_languages",
+            "frameworks",
+            "libraries",
+            "unit_testing_tools"
+          ],
+          "examples": [
+            {
+              "programming_languages": [
+                "Python",
+                "typescript"
+              ],
+              "frameworks": [],
+              "libraries": [],
+              "unit_testing_tools": []
+            }
+          ]
+        },
+        "subprojects": {
+          "type": "array",
+          "description": "Subprojects",
+          "items": {
+            "type": "object",
+            "properties": {
+              "root": {
+                "type": "string",
+                "description": "Root",
+                "examples": [
+                  "path/to/subproject/root"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "description": "Description",
+                "examples": [
+                  "Description of the subproject and it's propose"
+                ]
+              },
+              "tech_stack": {
+                "type": "object",
+                "description": "Tech stack",
+                "properties": {
+                  "programming_language": {
+                    "type": "string",
+                    "description": "Programming language",
+                    "examples": [
+                      "Python"
+                    ]
+                  },
+                  "frameworks": {
+                    "type": "array",
+                    "description": "Frameworks",
+                    "examples": [
+                      []
+                    ]
+                  },
+                  "libraries": {
+                    "type": "array",
+                    "description": "Libraries",
+                    "examples": [
+                      []
+                    ]
+                  },
+                  "unit_testing_tools": {
+                    "type": "array",
+                    "description": "Unit testing tools",
+                    "examples": [
+                      []
+                    ]
+                  }
+                },
+                "required": [
+                  "programming_language",
+                  "frameworks",
+                  "libraries",
+                  "unit_testing_tools"
+                ],
+                "examples": [
+                  {
+                    "programming_language": "Python",
+                    "frameworks": [],
+                    "libraries": [],
+                    "unit_testing_tools": []
+                  }
+                ]
+              }
+            },
+            "required": [
+              "root",
+              "description",
+              "tech_stack"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "root": "path/to/subproject/root",
+                "description": "Description of the subproject and it's propose",
+                "tech_stack": {
+                  "programming_language": "Python",
+                  "frameworks": [],
+                  "libraries": [],
+                  "unit_testing_tools": []
+                }
+              }
+            ]
+          ]
         }
       },
-      {...}
-    ]
+      "required": [
+        "root",
+        "description",
+        "tech_stack",
+        "subprojects"
+      ],
+      "examples": [
+        {
+          "root": "path/to/project/root",
+          "description": "Description of the project structure and purpose",
+          "tech_stack": {
+            "programming_languages": [
+              "Python",
+              "typescript"
+            ],
+            "frameworks": [],
+            "libraries": [],
+            "unit_testing_tools": []
+          },
+          "subprojects": [
+            {
+              "root": "path/to/subproject/root",
+              "description": "Description of the subproject and it's propose",
+              "tech_stack": {
+                "programming_language": "Python",
+                "frameworks": [],
+                "libraries": [],
+                "unit_testing_tools": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "vault_audit": {
+      "type": "object",
+      "description": "Vault audit",
+      "properties": {
+        "decisions": {
+          "type": "array",
+          "description": "Decisions",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/adr"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this decision applies to design for the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/adr",
+                "why": "How this decision applies to design for the current story"
+              }
+            ]
+          ]
+        },
+        "persona": {
+          "type": "array",
+          "description": "Persona",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/persona"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this story interacts with given persona"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/persona",
+                "why": "How this story interacts with given persona"
+              }
+            ]
+          ]
+        },
+        "target_architecture": {
+          "type": "array",
+          "description": "Target architecture",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/architecture"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this architecture applies design for the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/architecture",
+                "why": "How this architecture applies design for the current story"
+              }
+            ]
+          ]
+        }
+      },
+      "required": [
+        "decisions",
+        "persona",
+        "target_architecture"
+      ],
+      "examples": [
+        {
+          "decisions": [
+            {
+              "path": "path/to/some/adr",
+              "why": "How this decision applies to design for the current story"
+            }
+          ],
+          "persona": [
+            {
+              "path": "path/to/some/persona",
+              "why": "How this story interacts with given persona"
+            }
+          ],
+          "target_architecture": [
+            {
+              "path": "path/to/some/architecture",
+              "why": "How this architecture applies design for the current story"
+            }
+          ]
+        }
+      ]
+    },
+    "code_audit": {
+      "type": "object",
+      "description": "Code audit",
+      "properties": {
+        "components": {
+          "type": "array",
+          "description": "Components",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/component"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this component relates to the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/component",
+                "why": "How this component relates to the current story"
+              }
+            ]
+          ]
+        },
+        "services": {
+          "type": "array",
+          "description": "Services",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/service"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this service relates to the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/service",
+                "why": "How this service relates to the current story"
+              }
+            ]
+          ]
+        },
+        "models": {
+          "type": "array",
+          "description": "Models",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/model"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this model relates to the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/model",
+                "why": "How this model relates to the current story"
+              }
+            ]
+          ]
+        },
+        "apis": {
+          "type": "array",
+          "description": "Apis",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/api"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this api relates to the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/api",
+                "why": "How this api relates to the current story"
+              }
+            ]
+          ]
+        },
+        "tests": {
+          "type": "array",
+          "description": "Tests",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path",
+                "examples": [
+                  "path/to/some/test"
+                ]
+              },
+              "why": {
+                "type": "string",
+                "description": "Why",
+                "examples": [
+                  "How this test relates to the current story"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "why"
+            ]
+          },
+          "examples": [
+            [
+              {
+                "path": "path/to/some/test",
+                "why": "How this test relates to the current story"
+              }
+            ]
+          ]
+        }
+      },
+      "required": [
+        "components",
+        "services",
+        "models",
+        "apis",
+        "tests"
+      ],
+      "examples": [
+        {
+          "components": [
+            {
+              "path": "path/to/some/component",
+              "why": "How this component relates to the current story"
+            }
+          ],
+          "services": [
+            {
+              "path": "path/to/some/service",
+              "why": "How this service relates to the current story"
+            }
+          ],
+          "models": [
+            {
+              "path": "path/to/some/model",
+              "why": "How this model relates to the current story"
+            }
+          ],
+          "apis": [
+            {
+              "path": "path/to/some/api",
+              "why": "How this api relates to the current story"
+            }
+          ],
+          "tests": [
+            {
+              "path": "path/to/some/test",
+              "why": "How this test relates to the current story"
+            }
+          ]
+        }
+      ]
+    }
   },
-  
-  "vault_audit": {
-    "decisions": [{
-      "path": "path/to/some/adr",
-      "why": "How this decision applies to design for the current story"
-    }],
-    "persona": [{
-      "path": "path/to/some/persona",
-      "why": "How this story interacts with given persona"
-    }],
-    "target_architecture": [{
-      "path": "path/to/some/architecture",
-      "why": "How this architecture applies design for the current story"
-    }]
-  },
-  "code_audit": {
-    "components": [{
-      "path": "path/to/some/component",
-      "why": "How this component relates to the current story"
-    }],
-    "services": [{
-      "path": "path/to/some/service",
-      "why": "How this service relates to the current story"
-    }],
-    "models": [{
-      "path": "path/to/some/model",
-      "why": "How this model relates to the current story"
-    }],
-    "apis": [{
-      "path": "path/to/some/api",
-      "why": "How this api relates to the current story"
-    }],
-    "tests": [{
-      "path": "path/to/some/test",
-      "why": "How this test relates to the current story"
-    }]
-  }
+  "required": [
+    "run_date",
+    "target_story",
+    "project_structure",
+    "vault_audit",
+    "code_audit"
+  ]
 }
