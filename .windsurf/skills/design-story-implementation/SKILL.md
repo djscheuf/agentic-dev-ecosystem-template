@@ -8,7 +8,7 @@ description: Design the implementation of a new user story based on the current 
 - Read the story analysis document provided by the user. This document contains the user story in a structured format, as well as some basic analysis of the upcoming functionality. The document will follow the schema defined in `/schema/analysis.schema.json`.
 
 ### 2. Read the current reality audit file
-- Read the current reality audit file provided by the user. This file contains the current application reality, as well as some basic analysis of the upcoming functionality. The file will follow the schema defined in `/schema/audit.schema.json`.
+- Read the current reality audit file provided by the user. This file contains the current application reality, as well as some basic analysis of the upcoming functionality.
 
 ### 3. Create the design document
 - Create a design document in the same directory, as the provided analysis and audit json files, named `{story title}.design.json`.
