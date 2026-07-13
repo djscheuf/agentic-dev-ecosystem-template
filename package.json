@@ -4,7 +4,8 @@
     "promptfoo": "^0.121.17"
   },
   "scripts": {
-    "test": "promptfoo eval --no-cache --config ",
+    "test": "cd evals && promptfoo eval --no-cache --config $1",
+    "test:verbose": "cd evals && promptfoo eval --no-cache --verbose --config $1 > test.log",
     "view": "promptfoo view"
   }
 

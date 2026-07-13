@@ -3,7 +3,7 @@ description: EDD on Extract Intent Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://./.windsurf/skills/extract-story-intent/_tests/prompt.md
+  - file://../.windsurf/skills/extract-story-intent/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -41,7 +41,7 @@ providers:
 
 # Test cases loaded from external file
 tests: 
-  - file://./.windsurf/skills/extract-story-intent/_tests/tests.yaml
+  - file://../.windsurf/skills/extract-story-intent/_tests/tests.yaml
 
 # Output configuration
 outputPath: results.extractStoryIntent.html

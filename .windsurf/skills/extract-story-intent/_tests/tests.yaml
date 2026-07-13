@@ -3,9 +3,9 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Canary Test - Functional Requirements Extraction'
   assert:
     - type: icontains
@@ -24,9 +24,9 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Extraction Components'
   assert:
     # Core definition
@@ -62,12 +62,12 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/extract-story-intent/schema/story-intent.schema.json'
+        schemaPath: '../.windsurf/skills/extract-story-intent/schema/story-intent.schema.json'
