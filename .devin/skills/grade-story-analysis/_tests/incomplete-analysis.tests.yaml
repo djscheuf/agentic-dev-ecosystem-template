@@ -130,7 +130,9 @@
 
 - vars:
     request: 
-      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
