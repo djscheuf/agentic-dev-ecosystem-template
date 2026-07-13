@@ -1,84 +1,520 @@
 {
-  "story_path": "string (path to user story analysis JSON)",
-  "repo_state_before_design": "string (path to repo state audit before design)",
-  "workflow_sequence": [
-    {
-      "step": "number",
-      "description": "string",
-      "layers_involved": ["string"],
-      "handshake_points": [
-        {
-          "from_layer": "string",
-          "to_layer": "string",
-          "contract_used": "string (reference to contract name)",
-          "data_shape": "object"
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "story_path": {
+      "type": "string",
+      "description": "Story path",
+      "examples": [
+        "string (path to user story analysis JSON)"
       ]
-    }
-  ],
-  "instrumentation_events": [
-    {
-      "event_name": "string",
-      "description": "string",
-      "layers_involved": ["string"],
-      "data_points": [
-        {
-          "point": "string",
-          "description": "string"
-        }
-      ]
-    }
-  ],
-  "layer_responsibilities": [
-    {
-      "layer": "string (Frontend|Backend|DataPipeline|etc)",
-      "new_responsibilities": [
-        {
-          "responsibility": "string",
-          "intent": "string (why this layer owns it)",
-        }
-      ]
-    }
-  ],
-  "contracts": [
-    {
-      "contract_type": "string (DataModel|APIContract|InteractionPattern)",
-      "name": "string",
-      "description": "string",
-      "changes": {
-        "added": "object or array (new fields/endpoints/steps)",
-        "modified": "object or array (changed fields/endpoints/steps)",
-        "removed": "object or array (deprecated fields/endpoints/steps)"
-      }
-    }
-  ],
-  "architectural_decisions": [
-    {
-      "decision": "string",
-      "justification": "string",
-      "basis": "ADR-NNN, {source}, or Explicit Architectural Change from Story",
-      "impact": "(scope of change)",
-      "answers_open_question": "string (reference to open question from story analysis, if applicable)"
-    }
-  ],
-  "questions_addressed": [
-    {
-      "question": "What is the maximum length for tactic title?",
-      "answer": "25 Characters",
-      "justification": "To ensure the title is concise and easy to read",
-      "basis": "Product Owner's requirement from original story's tech notes"
     },
-    {
-      "question": "Should search be case-sensitive?",
-      "answer": "Yes, search will be case sensitive, on textual fields via a Contains search. Non-text fields will look for exact matches with a starts-with search.",
-      "justification": "This limits the need to transform user input data in text fields. And provide consistent behavior from a user perspective.",
-      "basis": "Good UX practice per {source}"
+    "repo_state_before_design": {
+      "type": "string",
+      "description": "Repo state before design",
+      "examples": [
+        "string (path to repo state audit before design)"
+      ]
     },
-    {
-      "question": "Should searches be cached?",
-      "answer": "Yes, searches will be cached with a 5 min TTL.",
-      "justifications": "To improve performance and reduce database load",
-      "basis": "ADR-NNN - Search Caching Strategy"
+    "workflow_sequence": {
+      "type": "array",
+      "description": "Workflow sequence",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string",
+            "description": "Step",
+            "examples": [
+              "number"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "examples": [
+              "string"
+            ]
+          },
+          "layers_involved": {
+            "type": "array",
+            "description": "Layers involved",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              [
+                "string"
+              ]
+            ]
+          },
+          "handshake_points": {
+            "type": "array",
+            "description": "Handshake points",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from_layer": {
+                  "type": "string",
+                  "description": "From layer",
+                  "examples": [
+                    "string"
+                  ]
+                },
+                "to_layer": {
+                  "type": "string",
+                  "description": "To layer",
+                  "examples": [
+                    "string"
+                  ]
+                },
+                "contract_used": {
+                  "type": "string",
+                  "description": "Contract used",
+                  "examples": [
+                    "string (reference to contract name)"
+                  ]
+                },
+                "data_shape": {
+                  "type": "string",
+                  "description": "Data shape",
+                  "examples": [
+                    "object"
+                  ]
+                }
+              },
+              "required": [
+                "from_layer",
+                "to_layer",
+                "contract_used",
+                "data_shape"
+              ]
+            },
+            "examples": [
+              [
+                {
+                  "from_layer": "string",
+                  "to_layer": "string",
+                  "contract_used": "string (reference to contract name)",
+                  "data_shape": "object"
+                }
+              ]
+            ]
+          }
+        },
+        "required": [
+          "step",
+          "description",
+          "layers_involved",
+          "handshake_points"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "step": "number",
+            "description": "string",
+            "layers_involved": [
+              "string"
+            ],
+            "handshake_points": [
+              {
+                "from_layer": "string",
+                "to_layer": "string",
+                "contract_used": "string (reference to contract name)",
+                "data_shape": "object"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "instrumentation_events": {
+      "type": "array",
+      "description": "Instrumentation events",
+      "items": {
+        "type": "object",
+        "properties": {
+          "event_name": {
+            "type": "string",
+            "description": "Event name",
+            "examples": [
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "examples": [
+              "string"
+            ]
+          },
+          "layers_involved": {
+            "type": "array",
+            "description": "Layers involved",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              [
+                "string"
+              ]
+            ]
+          },
+          "data_points": {
+            "type": "array",
+            "description": "Data points",
+            "items": {
+              "type": "object",
+              "properties": {
+                "point": {
+                  "type": "string",
+                  "description": "Point",
+                  "examples": [
+                    "string"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description",
+                  "examples": [
+                    "string"
+                  ]
+                }
+              },
+              "required": [
+                "point",
+                "description"
+              ]
+            },
+            "examples": [
+              [
+                {
+                  "point": "string",
+                  "description": "string"
+                }
+              ]
+            ]
+          }
+        },
+        "required": [
+          "event_name",
+          "description",
+          "layers_involved",
+          "data_points"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "event_name": "string",
+            "description": "string",
+            "layers_involved": [
+              "string"
+            ],
+            "data_points": [
+              {
+                "point": "string",
+                "description": "string"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "layer_responsibilities": {
+      "type": "array",
+      "description": "Layer responsibilities",
+      "items": {
+        "type": "object",
+        "properties": {
+          "layer": {
+            "type": "string",
+            "description": "Layer",
+            "examples": [
+              "string (Frontend|Backend|DataPipeline|etc)"
+            ]
+          },
+          "new_responsibilities": {
+            "type": "array",
+            "description": "New responsibilities",
+            "items": {
+              "type": "object",
+              "properties": {
+                "responsibility": {
+                  "type": "string",
+                  "description": "Responsibility",
+                  "examples": [
+                    "string"
+                  ]
+                },
+                "intent": {
+                  "type": "string",
+                  "description": "Intent",
+                  "examples": [
+                    "string (why this layer owns it)"
+                  ]
+                }
+              },
+              "required": [
+                "responsibility",
+                "intent"
+              ]
+            },
+            "examples": [
+              [
+                {
+                  "responsibility": "string",
+                  "intent": "string (why this layer owns it)"
+                }
+              ]
+            ]
+          }
+        },
+        "required": [
+          "layer",
+          "new_responsibilities"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "layer": "string (Frontend|Backend|DataPipeline|etc)",
+            "new_responsibilities": [
+              {
+                "responsibility": "string",
+                "intent": "string (why this layer owns it)"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "contracts": {
+      "type": "array",
+      "description": "Contracts",
+      "items": {
+        "type": "object",
+        "properties": {
+          "contract_type": {
+            "type": "string",
+            "description": "Contract type",
+            "examples": [
+              "string (DataModel|APIContract|InteractionPattern)"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Name",
+            "examples": [
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "examples": [
+              "string"
+            ]
+          },
+          "changes": {
+            "type": "object",
+            "description": "Changes",
+            "properties": {
+              "added": {
+                "type": "string",
+                "description": "Added",
+                "examples": [
+                  "object or array (new fields/endpoints/steps)"
+                ]
+              },
+              "modified": {
+                "type": "string",
+                "description": "Modified",
+                "examples": [
+                  "object or array (changed fields/endpoints/steps)"
+                ]
+              },
+              "removed": {
+                "type": "string",
+                "description": "Removed",
+                "examples": [
+                  "object or array (deprecated fields/endpoints/steps)"
+                ]
+              }
+            },
+            "required": [
+              "added",
+              "modified",
+              "removed"
+            ],
+            "examples": [
+              {
+                "added": "object or array (new fields/endpoints/steps)",
+                "modified": "object or array (changed fields/endpoints/steps)",
+                "removed": "object or array (deprecated fields/endpoints/steps)"
+              }
+            ]
+          }
+        },
+        "required": [
+          "contract_type",
+          "name",
+          "description",
+          "changes"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "contract_type": "string (DataModel|APIContract|InteractionPattern)",
+            "name": "string",
+            "description": "string",
+            "changes": {
+              "added": "object or array (new fields/endpoints/steps)",
+              "modified": "object or array (changed fields/endpoints/steps)",
+              "removed": "object or array (deprecated fields/endpoints/steps)"
+            }
+          }
+        ]
+      ]
+    },
+    "architectural_decisions": {
+      "type": "array",
+      "description": "Architectural decisions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "description": "Decision",
+            "examples": [
+              "string"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Justification",
+            "examples": [
+              "string"
+            ]
+          },
+          "basis": {
+            "type": "string",
+            "description": "Basis",
+            "examples": [
+              "ADR-NNN, {source}, or Explicit Architectural Change from Story"
+            ]
+          },
+          "impact": {
+            "type": "string",
+            "description": "Impact",
+            "examples": [
+              "(scope of change)"
+            ]
+          },
+          "answers_open_question": {
+            "type": "string",
+            "description": "Answers open question",
+            "examples": [
+              "string (reference to open question from story analysis, if applicable)"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "justification",
+          "basis",
+          "impact",
+          "answers_open_question"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "decision": "string",
+            "justification": "string",
+            "basis": "ADR-NNN, {source}, or Explicit Architectural Change from Story",
+            "impact": "(scope of change)",
+            "answers_open_question": "string (reference to open question from story analysis, if applicable)"
+          }
+        ]
+      ]
+    },
+    "questions_addressed": {
+      "type": "array",
+      "description": "Questions addressed",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Question",
+            "examples": [
+              "What is the maximum length for tactic title?"
+            ]
+          },
+          "answer": {
+            "type": "string",
+            "description": "Answer",
+            "examples": [
+              "25 Characters"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Justification",
+            "examples": [
+              "To ensure the title is concise and easy to read"
+            ]
+          },
+          "basis": {
+            "type": "string",
+            "description": "Basis",
+            "examples": [
+              "Product Owner's requirement from original story's tech notes"
+            ]
+          }
+        },
+        "required": [
+          "question",
+          "answer",
+          "justification",
+          "basis"
+        ]
+      },
+      "examples": [
+        [
+          {
+            "question": "What is the maximum length for tactic title?",
+            "answer": "25 Characters",
+            "justification": "To ensure the title is concise and easy to read",
+            "basis": "Product Owner's requirement from original story's tech notes"
+          },
+          {
+            "question": "Should search be case-sensitive?",
+            "answer": "Yes, search will be case sensitive, on textual fields via a Contains search. Non-text fields will look for exact matches with a starts-with search.",
+            "justification": "This limits the need to transform user input data in text fields. And provide consistent behavior from a user perspective.",
+            "basis": "Good UX practice per {source}"
+          },
+          {
+            "question": "Should searches be cached?",
+            "answer": "Yes, searches will be cached with a 5 min TTL.",
+            "justifications": "To improve performance and reduce database load",
+            "basis": "ADR-NNN - Search Caching Strategy"
+          }
+        ]
+      ]
     }
+  },
+  "required": [
+    "story_path",
+    "repo_state_before_design",
+    "workflow_sequence",
+    "instrumentation_events",
+    "layer_responsibilities",
+    "contracts",
+    "architectural_decisions",
+    "questions_addressed"
   ]
 }
