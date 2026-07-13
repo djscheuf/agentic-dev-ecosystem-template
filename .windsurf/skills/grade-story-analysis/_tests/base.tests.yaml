@@ -3,9 +3,9 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
   description: 'Canary Test (Reason)'
   assert:
     - type: icontains
@@ -28,9 +28,9 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
   description: 'Happy Path'
   assert:
     # Core definition
@@ -55,12 +55,12 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
+        schemaPath: '../.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'

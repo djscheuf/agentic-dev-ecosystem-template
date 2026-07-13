@@ -3,7 +3,7 @@ description: EDD on Grade Story Analysis
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://./.windsurf/skills/grade-story-analysis/_tests/prompt.md
+  - file://../.windsurf/skills/grade-story-analysis/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -47,9 +47,9 @@ providers:
 
 # Test cases loaded from external file
 tests: 
-  - file://./.windsurf/skills/grade-story-analysis/_tests/base.tests.yaml
-  - file://./.windsurf/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
-  - file://./.windsurf/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
+  - file://../.windsurf/skills/grade-story-analysis/_tests/base.tests.yaml
+  - file://../.windsurf/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
+  - file://../.windsurf/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
 
 # Output configuration
 outputPath: results.gradeAnalysis.html

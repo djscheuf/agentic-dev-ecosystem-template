@@ -14,7 +14,7 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
   description: 'Excess Scope Analysis'
   assert:
     # Core definition
@@ -43,10 +43,10 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
+        schemaPath: '../.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
