@@ -25,7 +25,7 @@ Model the user's flow through the system as a sequence of domain events (not UI 
 Update the relevant section of the JSON
 
 ### 5. Define Instrumentation Events
-Identify key events that should be instrumented for observability and monitoring.
+Identify key events that should be instrumented for observability and monitoring. Use the `VerbObjectContext` or `VerbObject` naming pattern.
 
 Update the relevant section of the JSON
 
