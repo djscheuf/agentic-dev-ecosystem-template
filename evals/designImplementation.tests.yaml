@@ -35,9 +35,9 @@ providers:
   #     model: 'claude-haiku-4.5'
 
   - id: 'exec: node ./devin.js'
-    label: 'SWE-1.6'
+    label: 'SWE-1.7'
     config:
-      model: 'SWE-1.6'
+      model: 'SWE-1.7'
   
   # - id: 'exec: node ./devin.js'
   #   label: 'Sonnet'
