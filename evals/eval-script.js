@@ -60,14 +60,19 @@ function matchesSchema(output, context) {
 
   try {
     const jsonMatch = output.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      return {
-        pass: false,
-        score: 0,
-        reason: 'No JSON code block found in output',
-      };
+    if (jsonMatch) {
+      jsonObject = JSON.parse(jsonMatch[1]);
+    } else {
+      try {
+        jsonObject = JSON.parse(output);
+      } catch (e) {
+        return {
+          pass: false,
+          score: 0,
+          reason: 'No JSON code block found and output is not valid JSON',
+        };
+      }
     }
-    jsonObject = JSON.parse(jsonMatch[1]);
   } catch (e) {
     return {
       pass: false,
@@ -87,14 +92,19 @@ function matchesSchema(output, context) {
   const validate = ajv.compile(schema)
   const valid = validate(jsonObject)
   
-  // console.log("valid", valid)
-  // console.log("errors", JSON.stringify(validate.errors, null, 2))
-  
   if (!valid) {
+    const errorDetails = validate.errors.map(e => {
+      const path = e.instancePath || 'root';
+      const keyword = e.keyword;
+      const message = e.message;
+      const params = JSON.stringify(e.params);
+      return `${path} (${keyword}): ${message} ${params}`;
+    }).join('; ');
+    
     return {
       pass: false,
       score: 0,
-      reason: `JSON does not match schema: ${validate.errors.map(e => e.message).join(', ')}`,
+      reason: `JSON does not match schema. Errors: ${errorDetails}`,
     };
   }
 
