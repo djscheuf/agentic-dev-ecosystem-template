@@ -1,4 +1,78 @@
 ID,Created,Type,Description,Pass Rate,# Tests
+eval-DCh-2026-07-14T18:59:31,2026-07-14T18:59:31.916Z,Eval,"EDD on Grade Story Analysis",94.44,18
+eval-37C-2026-07-14T17:53:21,2026-07-14T17:53:21.820Z,Eval,"EDD on Analyze Story Skill",79.49,13
+eval-GV5-2026-07-14T17:40:59,2026-07-14T17:40:59.647Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-iqg-2026-07-14T17:40:19,2026-07-14T17:40:19.637Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-XyN-2026-07-14T17:33:27,2026-07-14T17:33:27.918Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-n6a-2026-07-14T17:18:09,2026-07-14T17:18:09.311Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-wcx-2026-07-14T16:19:34,2026-07-14T16:19:34.903Z,Eval,"EDD on Extract Intent Skill",74.07,9
+eval-cD1-2026-07-14T15:36:49,2026-07-14T15:36:49.804Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-g44-2026-07-14T15:36:22,2026-07-14T15:36:22.488Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,0
+eval-ZTU-2026-07-14T14:44:58,2026-07-14T14:44:58.113Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-76S-2026-07-14T14:31:41,2026-07-14T14:31:41.793Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-vA2-2026-07-14T14:30:39,2026-07-14T14:30:39.369Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,2
+eval-n8U-2026-07-14T14:29:05,2026-07-14T14:29:05.315Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,2
+eval-F6w-2026-07-14T14:28:17,2026-07-14T14:28:17.835Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,2
+eval-hSw-2026-07-14T14:18:34,2026-07-14T14:18:34.784Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,0
+eval-Yl6-2026-07-13T21:21:25,2026-07-13T21:21:25.755Z,Eval,"EDD on Design Story Implementation skill",66.67,3
+eval-SX1-2026-07-13T21:21:11,2026-07-13T21:21:11.640Z,Eval,"EDD on Design Story Implementation skill",0.00,0
+eval-QZA-2026-07-13T20:56:22,2026-07-13T20:56:22.514Z,Eval,"EDD on Design Story Implementation skill",66.67,3
+eval-WRj-2026-07-13T20:53:32,2026-07-13T20:53:32.098Z,Eval,"EDD on Design Story Implementation skill",33.33,3
+eval-wuR-2026-07-13T20:49:33,2026-07-13T20:49:33.058Z,Eval,"EDD on Design Story Implementation skill",33.33,3
+eval-7Z0-2026-07-13T20:20:51,2026-07-13T20:20:51.554Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-phe-2026-07-13T20:20:05,2026-07-13T20:20:05.175Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-Np1-2026-07-13T20:12:23,2026-07-13T20:12:23.970Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-2XF-2026-07-13T20:12:08,2026-07-13T20:12:08.583Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",0.00,0
+eval-VOJ-2026-07-13T20:11:02,2026-07-13T20:11:02.105Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-s4q-2026-07-13T20:09:35,2026-07-13T20:09:35.587Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-n9B-2026-07-13T20:08:32,2026-07-13T20:08:32.592Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-qHt-2026-07-13T19:54:48,2026-07-13T19:54:48.303Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-shO-2026-07-13T19:20:32,2026-07-13T19:20:32.272Z,Eval,"EDD on Design Story Implementation skill",0.00,3
+eval-clW-2026-07-13T16:57:36,2026-07-13T16:57:36.121Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-ZqN-2026-07-13T15:41:26,2026-07-13T15:41:26.461Z,Eval,"EDD on Grade Story Analysis",88.89,18
+eval-glm-2026-07-13T15:16:28,2026-07-13T15:16:28.708Z,Eval,"EDD on Analyze Story Skill",80.77,13
+eval-odN-2026-07-13T15:03:43,2026-07-13T15:03:43.442Z,Eval,"EDD on Extract Intent Skill",83.33,9
+eval-Mr0-2026-07-13T14:44:19,2026-07-13T14:44:19.075Z,Eval,"EDD on Extract Intent Skill",61.11,9
+eval-R2a-2026-07-13T14:41:06,2026-07-13T14:41:06.409Z,Eval,"EDD on Extract Intent Skill",0.00,0
+eval-iJr-2026-07-13T14:40:48,2026-07-13T14:40:48.620Z,Eval,"EDD on Extract Intent Skill",0.00,9
+eval-A9A-2026-07-13T14:39:58,2026-07-13T14:39:58.995Z,Eval,"EDD on Extract Intent Skill",0.00,9
+eval-oxE-2026-07-13T14:39:46,2026-07-13T14:39:46.605Z,Eval,"EDD on Extract Intent Skill",0.00,9
+eval-mYV-2026-07-13T14:39:22,2026-07-13T14:39:22.588Z,Eval,"EDD on Extract Intent Skill",0.00,0
+eval-Vtm-2026-07-13T14:38:47,2026-07-13T14:38:47.742Z,Eval,"EDD on Extract Intent Skill",100.00,1
+eval-EXi-2026-07-10T14:27:03,2026-07-10T14:27:03.122Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",75.00,2
+eval-uHp-2026-07-10T14:25:02,2026-07-10T14:25:02.629Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-GdI-2026-07-10T14:23:45,2026-07-10T14:23:45.930Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-lsi-2026-07-10T14:22:53,2026-07-10T14:22:53.642Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-0X6-2026-07-10T14:20:40,2026-07-10T14:20:40.130Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-nSy-2026-07-10T14:16:54,2026-07-10T14:16:54.000Z,Eval,"Evaluation Driven Development demonstration with promptfoo for ""How to Trust AI"" ImprovingU",50.00,2
+eval-bTv-2026-07-09T15:54:07,2026-07-09T15:54:07.578Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-0yu-2026-07-09T15:49:57,2026-07-09T15:49:57.558Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-9lD-2026-07-09T15:48:07,2026-07-09T15:48:07.101Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-FNC-2026-07-09T15:47:42,2026-07-09T15:47:42.656Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",0.00,2
+eval-YYG-2026-07-09T15:27:40,2026-07-09T15:27:40.666Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-2EW-2026-07-09T15:00:21,2026-07-09T15:00:21.335Z,Eval,"Load-Bearing, and Model Economics",62.50,4
+eval-VZm-2026-07-09T14:45:29,2026-07-09T14:45:29.420Z,Eval,"Load-Bearing, and Model Economics",25.00,4
+eval-UZz-2026-07-09T14:44:46,2026-07-09T14:44:46.285Z,Eval,"Load-Bearing, and Model Economics",50.00,1
+eval-VfO-2026-07-09T14:41:54,2026-07-09T14:41:54.400Z,Eval,"Load-Bearing, and Model Economics",37.50,4
+eval-ZoJ-2026-07-09T14:36:48,2026-07-09T14:36:48.629Z,Eval,"Load-Bearing, and Model Economics",37.50,4
+eval-f6f-2026-07-09T14:34:03,2026-07-09T14:34:03.775Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-UFF-2026-07-09T14:32:37,2026-07-09T14:32:37.153Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-Jxj-2026-07-09T14:21:20,2026-07-09T14:21:20.946Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-QDn-2026-07-09T14:19:43,2026-07-09T14:19:43.067Z,Eval,"Load-Bearing, and Model Economics",75.00,2
+eval-j1A-2026-07-09T14:16:36,2026-07-09T14:16:36.338Z,Eval,"Load-Bearing, and Model Economics",50.00,2
+eval-b6N-2026-07-09T14:13:31,2026-07-09T14:13:31.374Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-CK7-2026-07-09T14:03:19,2026-07-09T14:03:19.130Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-zHC-2026-07-09T14:01:27,2026-07-09T14:01:27.582Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-oKq-2026-07-09T13:58:20,2026-07-09T13:58:20.951Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-Lai-2026-07-09T13:57:25,2026-07-09T13:57:25.515Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",0.00,2
+eval-by1-2026-07-09T13:56:27,2026-07-09T13:56:27.225Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",0.00,0
+eval-BGx-2026-07-09T13:55:11,2026-07-09T13:55:11.972Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",0.00,2
+eval-wzY-2026-07-09T13:46:07,2026-07-09T13:46:07.077Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",50.00,2
+eval-aWy-2026-07-09T13:44:35,2026-07-09T13:44:35.143Z,Eval,"Hello-World Evaluation Driven Development demonstration with promptfoo",0.00,0
+eval-c2r-2026-07-09T13:39:11,2026-07-09T13:39:11.093Z,Eval,"Hello-WorldEvaluation Driven Development demonstration with promptfoo",0.00,0
+eval-ZNq-2026-07-09T13:38:41,2026-07-09T13:38:41.895Z,Eval,"Hello-WorldEvaluation Driven Development demonstration with promptfoo",0.00,1
+eval-xpp-2026-07-09T13:13:55,2026-07-09T13:13:55.878Z,Eval,"Hello-WorldEvaluation Driven Development demonstration with promptfoo",0.00,0
+eval-b3z-2026-07-09T13:12:59,2026-07-09T13:12:59.086Z,Eval,"Evaluation Driven Development demonstration with promptfoo, Hello-WorldEvaluation Driven Development demonstration with promptfoo",0.00,0
 eval-JoA-2026-07-07T19:23:39,2026-07-07T19:23:39.118Z,Eval,"EDD on Grade Story Analysis",91.67,18
 eval-ccY-2026-07-07T18:56:06,2026-07-07T18:56:06.396Z,Eval,"EDD on Grade Story Analysis",91.18,17
 eval-VBW-2026-07-07T18:32:59,2026-07-07T18:32:59.741Z,Eval,"EDD on Grade Story Analysis",96.88,16
