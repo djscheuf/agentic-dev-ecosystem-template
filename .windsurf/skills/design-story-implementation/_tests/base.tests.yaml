@@ -12,14 +12,6 @@
 # ========================================
 # RUBRIC-BASED EVALUATIONS WITH SCORING
 # ========================================
-# Each llm-rubric assertion evaluates a single quality dimension independently.
-# - threshold: minimum score (0.0–1.0) required to pass this assertion
-# - metric:    named label shown in the promptfoo web UI results table
-# - weight:    relative importance when computing the overall test score
-#
-# This lets you see per-dimension scores, set different pass bars for
-# critical vs. nice-to-have criteria, and weight what matters most.
-
 - vars:
     analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
     current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
@@ -52,11 +44,54 @@
       metric: adrs
       weight: 2
     - type: llm-rubric
-      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo."
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
       threshold: 0.8
       metric: assumptions
       weight: 4
     
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.audit.json'
+  description: 'Backend Only'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response succinctly models User's flow thru the application for the given story"
+      threshold: 0.8
+      metric: user-flow
+      weight: 2
+    - type: llm-rubric
+      value: "Response defines instrumentation events, using `VerbObjectContext` naming pattern, events emerge from User flow."
+      threshold: 0.8
+      metric: instrumentation
+      weight: 1
+    - type: llm-rubric
+      value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
+      threshold: 0.8
+      metric: responsibilities
+      weight: 4
+    - type: llm-rubric
+      value: "Response defines contracts between layers, using responsibility heuristics. Data model first. Frontend needs drive backend requirements. Backend needs drive data layer requirements."
+      threshold: 0.8
+      metric: contracts
+      weight: 2
+    - type: llm-rubric
+      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations."
+      threshold: 0.8
+      metric: adrs
+      weight: 2
+    - type: llm-rubric
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
+      threshold: 0.8
+      metric: assumptions
+      weight: 4
+    - type: llm-rubric
+      value: "Response focuses on backend improvements, avoiding frontend changes, focusing on improved endpoint performance."
+      threshold: 0.8
+      metric: focus
+      weight: 4
+    
+
 
 # ========================================
 # SCRIPT-BASED DETERMINISTIC EVALUATIONS
