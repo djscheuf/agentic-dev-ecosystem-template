@@ -24,7 +24,7 @@
       metric: user-flow
       weight: 2
     - type: llm-rubric
-      value: "Response defines instrumentation events, using `VerbObjectContext` naming pattern, events emerge from User flow."
+      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
       threshold: 0.8
       metric: instrumentation
       weight: 1
@@ -61,7 +61,7 @@
       metric: user-flow
       weight: 2
     - type: llm-rubric
-      value: "Response defines instrumentation events, using `VerbObjectContext` naming pattern, events emerge from User flow."
+      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
       threshold: 0.8
       metric: instrumentation
       weight: 1
