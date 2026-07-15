@@ -149,15 +149,15 @@ function renderPrompt(promptText, documentRoot) {
 
 // Helper function to make HTTP request to Ollama
 function callOllama(input, systemPrompt) {
+
+  const composePrompt = systemPrompt ? `${systemPrompt}\n\n${input}` : input;
+
   return new Promise((resolve, reject) => {
     const payloadObj = {
       model: model,
-      input: input,
+      input: composePrompt,
       stream: false
     };
-    if (systemPrompt) {
-      payloadObj.system_prompt = systemPrompt;
-    }
     const payload = JSON.stringify(payloadObj);
 
     const requestOptions = {
