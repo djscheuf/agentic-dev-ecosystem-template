@@ -17,7 +17,7 @@ defaultTest:
     # Provider mode: prompt is plain text
     #
     # Devin CLI grader — ACTIVE
-    provider: 'exec: node ./devin.js'
+    provider: 'SWE-1.7'
     
 # Use devin cli as a provider via script execution
 providers:
@@ -29,15 +29,16 @@ providers:
   # Provider mode: prompt is plain text
   #
   # Devin CLI provider — ACTIVE
-  - id: 'exec: node ./devin.js'
-    label: 'Haiku'
-    config:
-      model: 'claude-haiku-4.5'
       
   - id: 'exec: node ./devin.js'
     label: 'SWE-1.7'
     config:
       model: 'SWE-1.7'
+
+  - id: 'exec: node ./devin.js'
+    label: 'Kimi'
+    config:
+      model: 'Kimi-K2.7'
 
 # Test cases loaded from external file
 tests: 
