@@ -16,21 +16,8 @@ defaultTest:
     # Grader mode: prompt is JSON array [{role, content}, ...]
     # Provider mode: prompt is plain text
     #
-    # Devin CLI grader — ACTIVE
-    # provider: 'exec: node ./devin.js'
-
-    # Ollama Grader
-    provider:
-      - id: 'exec: node ./ollama.js'
-        # label: 'Ollama Qwen'
-        label: 'Ollama Mistral'
-        config:
-          host: localhost
-          port: 1234
-          endpoint: '/api/v1/chat'
-          # model: 'qwen/qwen3-8b'
-          model: 'mistralai/mistral-7b-instruct-v0.3'
-          documentRoot: '../.windsurf/skills/extract-story-intent/_tests'
+    # Reference provider by label from providers section below
+    provider: 'Ollama Mistral'
 
     
 # Use devin cli as a provider via script execution
