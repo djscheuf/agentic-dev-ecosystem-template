@@ -21,23 +21,12 @@ defaultTest:
     
 # Use devin cli as a provider via script execution
 providers:
-  # ========================================
-  # NODE.JS VERSIONS (Cross-platform)
-  # ========================================
-  # Combined scripts auto-detect mode: provider vs grader
-  # Grader mode: prompt is JSON array [{role, content}, ...]
-  # Provider mode: prompt is plain text
-  #
-  # Devin CLI provider — ACTIVE
+  - file://./stdProviders.config.yaml
+
   - id: 'exec: node ./devin.js'
     label: 'Haiku'
     config:
       model: 'claude-haiku-4.5'
-
-  - id: 'exec: node ./devin.js'
-    label: 'SWE-1.7'
-    config:
-      model: 'SWE-1.7'
 
 # Test cases loaded from external file
 tests: 
