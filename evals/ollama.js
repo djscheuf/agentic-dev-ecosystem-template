@@ -19,7 +19,7 @@ const context = process.argv[4];
 // Parse options to extract host, port, endpoint, model, and documentRoot
 let host = 'localhost'; // Default local host
 let port = 11434; // Default Ollama port
-let endpoint = '/api/v1/chat'; // Default LM Studio endpoint
+let endpoint = '/api/chat'; // Default Ollama endpoint
 let model = 'llama2'; // Default model
 let documentRoot = null; // Optional document root for file rendering
 if (options && options !== '{}') {
@@ -148,14 +148,16 @@ function renderPrompt(promptText, documentRoot) {
 }
 
 // Helper function to make HTTP request to Ollama
-function callOllama(input, systemPrompt) {
-
-  const composePrompt = systemPrompt ? `${systemPrompt}\n\n${input}` : input;
+function callOllama(input) {
+  const messages = [{
+    role: 'user',
+    content: input
+  }];
 
   return new Promise((resolve, reject) => {
     const payloadObj = {
       model: model,
-      input: composePrompt,
+      messages: messages,
       stream: false
     };
     const payload = JSON.stringify(payloadObj);
@@ -163,7 +165,7 @@ function callOllama(input, systemPrompt) {
     const requestOptions = {
       hostname: host,
       port: port,
-      path: endpoint,
+      path: endpoint.startsWith('/') ? endpoint : '/' + endpoint,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -186,13 +188,19 @@ function callOllama(input, systemPrompt) {
 
         try {
           const response = JSON.parse(data);
-          const output = response.output;
-          if (Array.isArray(output) && output.length > 0) {
-            const messageOutput = output.find(o => o.type === 'message');
-            resolve(messageOutput ? messageOutput.content : output[0].content);
+          // Handle both native Ollama format and OpenAI-compatible format
+          let content;
+          if (response.message && response.message.content) {
+            // Native Ollama format
+            content = response.message.content;
+          } else if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
+            // OpenAI-compatible format (/v1/chat/completions)
+            content = response.choices[0].message.content;
           } else {
-            reject(new Error('Unexpected Ollama response format'));
+            reject(new Error(`Unexpected Ollama response format: ${JSON.stringify(response)}. Expected message.content or choices[0].message.content field.`));
+            return;
           }
+          resolve(content);
         } catch (e) {
           reject(new Error(`Failed to parse Ollama response: ${e.message}`));
         }
@@ -231,11 +239,20 @@ async function main() {
         userMsg = prompt;
       }
 
-      const output = await callOllama(userMsg, systemMsg);
+      // Merge system prompt into user message for model compatibility
+      // Some models (like Mistral) don't support system role in their Jinja templates
+      const mergedUserMsg = systemMsg + '\n\n' + userMsg;
+      let output = await callOllama(mergedUserMsg);
+
+      const jsonMatch = output.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        output = jsonMatch[1].trim();
+      }
+      
       console.log(output);
     } else {
       // ===== PROVIDER MODE =====
-      let userPrompt = prompt;
+        let userPrompt = prompt;
       
       // Render file references if documentRoot is provided
       if (documentRoot) {
