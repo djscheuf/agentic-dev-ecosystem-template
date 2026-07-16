@@ -21,24 +21,7 @@ defaultTest:
     
 # Use devin cli as a provider via script execution
 providers:
-  # ========================================
-  # NODE.JS VERSIONS (Cross-platform)
-  # ========================================
-  # Combined scripts auto-detect mode: provider vs grader
-  # Grader mode: prompt is JSON array [{role, content}, ...]
-  # Provider mode: prompt is plain text
-  #
-  # Devin CLI provider — ACTIVE
-      
-  - id: 'exec: node ./devin.js'
-    label: 'SWE-1.7'
-    config:
-      model: 'SWE-1.7'
-
-  - id: 'exec: node ./devin.js'
-    label: 'Kimi'
-    config:
-      model: 'Kimi-K2.7'
+  - file://./stdProviders.config.yaml
 
 # Test cases loaded from external file
 tests: 
