@@ -34,12 +34,12 @@
       metric: responsibilities
       weight: 4
     - type: llm-rubric
-      value: "Response defines contracts between layers, using responsibility heuristics. Data model first. Frontend needs drive backend requirements. Backend needs drive data layer requirements."
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
       threshold: 0.8
       metric: contracts
       weight: 2
     - type: llm-rubric
-      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations."
+      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
       threshold: 0.8
       metric: adrs
       weight: 2
@@ -71,12 +71,12 @@
       metric: responsibilities
       weight: 4
     - type: llm-rubric
-      value: "Response defines contracts between layers, using responsibility heuristics. Data model first. Frontend needs drive backend requirements. Backend needs drive data layer requirements."
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
       threshold: 0.8
       metric: contracts
       weight: 2
     - type: llm-rubric
-      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations."
+      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
       threshold: 0.8
       metric: adrs
       weight: 2
@@ -91,6 +91,48 @@
       metric: focus
       weight: 4
     
+
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.audit.json'
+  description: 'Frontend Only'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response succinctly models User's flow thru the application for the given story"
+      threshold: 0.8
+      metric: user-flow
+      weight: 2
+    - type: llm-rubric
+      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+      threshold: 0.8
+      metric: instrumentation
+      weight: 1
+    - type: llm-rubric
+      value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
+      threshold: 0.8
+      metric: responsibilities
+      weight: 4
+    - type: llm-rubric
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
+      threshold: 0.8
+      metric: contracts
+      weight: 2
+    - type: llm-rubric
+      value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
+      threshold: 0.8
+      metric: adrs
+      weight: 2
+    - type: llm-rubric
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
+      threshold: 0.8
+      metric: assumptions
+      weight: 4
+    - type: llm-rubric
+      value: "Response focuses on frontend improvements, avoiding backend changes, focusing on improved user experience."
+      threshold: 0.8
+      metric: focus
+      weight: 4
 
 
 # ========================================
