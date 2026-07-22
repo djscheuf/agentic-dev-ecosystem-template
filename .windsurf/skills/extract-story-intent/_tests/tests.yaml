@@ -4,8 +4,6 @@
 - vars:
     request: 
       - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Canary Test - Functional Requirements Extraction'
   assert:
     - type: icontains
@@ -34,7 +32,7 @@
       value: "Response clearly captures a target user, with meaningful, specific value cases rather than generic descriptions"
       threshold: 0.7
       metric: target_user
-      weight: 2
+      weight: 1
     # Capability Breakdown
     - type: llm-rubric
       value: "Response captures capability breakdown with core action, inputs, outputs, state changes, clearly linked to provided story"

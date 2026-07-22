@@ -14,20 +14,15 @@ description: Extract a user story from a given document or text, into a json for
 - set the raw_request to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
 
 ### 3. Extract User Story
-```
-Extract components from the story format:
-
+Extract:
 SO THAT [benefit]    → Why? What value does this provide?
 AS A [role]          → Who is the user? What's their context?
 I WANT [capability]  → What feature/behavior is requested?
-```
 
 Fill in the appropriate section of the json with this information
 
 ### 4. Extract Target Persona
-```
-Document the target persona:
-
+Document:
 USER PROFILE:
 ├── Persona Name: [e.g., Sarah - E-commerce Shopper]
 ├── Role: [e.g., Customer, Admin, Guest]
@@ -40,8 +35,6 @@ Questions to answer:
 - What other actions does this user typically perform?
 - What's their journey before/after this feature?
 - Are there different user types affected?
-```
-
 
 Fill in the appropriate section of the json with this information
 
