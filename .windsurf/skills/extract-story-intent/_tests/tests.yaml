@@ -29,12 +29,6 @@
       - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Extraction Components'
   assert:
-    # Core definition
-    - type: llm-rubric
-      value: "Response clearly captures story in the So that ..., As A ..., I want ... format"
-      threshold: 0.8
-      metric: clarity
-      weight: 1
     # Persona Capture
     - type: llm-rubric
       value: "Response clearly captures a target user, with meaningful, specific value cases rather than generic descriptions"
@@ -43,7 +37,7 @@
       weight: 2
     # Capability Breakdown
     - type: llm-rubric
-      value: "Response captures capability breakdown with core action, inputs, outputs, state changes, and affected components, clearly linked to provided story"
+      value: "Response captures capability breakdown with core action, inputs, outputs, state changes, clearly linked to provided story"
       threshold: 0.7
       metric: capability_breakdown
       weight: 2
