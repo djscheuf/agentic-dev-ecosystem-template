@@ -20,7 +20,7 @@ function _parseJsonOutput(output) {
     }
 }
 
-const ADR_AC_BasisPattern = /ADR-\d+|Acceptance Criteria|Criterion/i;
+const ADR_AC_BasisPattern = /ADR-\d+|Acceptance Criteria|Criterion|AC/i;
 const Audit_CodePath_BasisPattern = /Audit|src\/[a-zA-Z0-9\/_\-\.]+\.(ts|tsx|cs|json)/i;
 
 
