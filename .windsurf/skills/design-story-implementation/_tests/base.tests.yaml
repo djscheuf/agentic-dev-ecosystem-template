@@ -23,12 +23,11 @@
       threshold: 0.8
       metric: user-flow
       weight: 2
-    - type: llm-rubric
-      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
-      threshold: 0.8
-      metric: instrumentation
-      # Might be able to do this one as a deterministic check.
-      weight: 1
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
     - type: llm-rubric
       value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
       threshold: 0.8
@@ -39,14 +38,10 @@
       threshold: 0.8
       metric: contracts
       weight: 2
-      # Might be able to do this one as a deterministic check.
-    # - type: llm-rubric
-    #   value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
-    #   threshold: 0.8
-    #   metric: adrs
-    #   weight: 2
     - type: javascript
-      value: file://./designChecks.js:hasSoundDecisionBasis
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
     - type: llm-rubric
       value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
       threshold: 0.8
@@ -64,11 +59,11 @@
       threshold: 0.8
       metric: user-flow
       weight: 2
-    - type: llm-rubric
-      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
-      threshold: 0.8
-      metric: instrumentation
-      weight: 1
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
     - type: llm-rubric
       value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
       threshold: 0.8
@@ -79,13 +74,10 @@
       threshold: 0.8
       metric: contracts
       weight: 2
-    # - type: llm-rubric
-    #   value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
-    #   threshold: 0.8
-    #   metric: adrs
-    #   weight: 2
     - type: javascript
-      value: file://./designChecks.js:hasSoundDecisionBasis
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
     - type: llm-rubric
       value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
       threshold: 0.8
@@ -109,11 +101,11 @@
       threshold: 0.8
       metric: user-flow
       weight: 2
-    - type: llm-rubric
-      value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
-      threshold: 0.8
-      metric: instrumentation
-      weight: 1
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
     - type: llm-rubric
       value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
       threshold: 0.8
@@ -124,13 +116,10 @@
       threshold: 0.8
       metric: contracts
       weight: 2
-    # - type: llm-rubric
-    #   value: "Response identifies architectural decisions, documents rationale, favors existing ADRs, and calls out deviations, if any."
-    #   threshold: 0.8
-    #   metric: adrs
-    #   weight: 2
     - type: javascript
-      value: file://./designChecks.js:hasSoundDecisionBasis
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
     - type: llm-rubric
       value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
       threshold: 0.8
