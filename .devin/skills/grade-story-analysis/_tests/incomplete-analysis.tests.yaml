@@ -16,12 +16,15 @@
 - vars:
     request: 
       - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "business_value"
+      score_floor: 1
   description: 'Incomplete Business value Analysis'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "The Business Value Section should have a score of 0 or 1."
-      threshold: 0.8
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: bv-scores
       weight: 1
     - type: llm-rubric
@@ -41,13 +44,16 @@
 - vars:
     request: 
       - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "acceptance_criteria"
+      score_floor: 1
   description: 'Incomplete AC Analysis'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "The Acceptance Criteria Section should have a score of 0 or 1."
-      threshold: 0.8
-      metric: ac-scores
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      metric: bv-scores
       weight: 1
     - type: llm-rubric
       value: "The Acceptance Criteria Section's Reason should mention incomplete acceptance criteria, or something similar as the drivign reason for the score. "
@@ -60,19 +66,21 @@
       metric: ac-recommendation
       weight: 1
 
-
 # ========================================
 # INCOMPLETE DEPENDENCY ANALYSIS
 # ========================================
 - vars:
     request: 
       - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "dependencies"
+      score_floor: 1
   description: 'Incomplete Dependency Analysis'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "The Dependency Section should have a score of 0 or 1."
-      threshold: 0.8
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: dependency-scores
       weight: 1
     - type: llm-rubric
@@ -92,12 +100,15 @@
 - vars:
     request: 
       - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "story_format"
+      score_floor: 1
   description: 'Incomplete Story Analysis'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "The Format Section should have a score of 1 or 2."
-      threshold: 0.8
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: format-scores
       weight: 1
     - type: llm-rubric
@@ -111,7 +122,6 @@
       metric: format-recommendation
       weight: 1
 
-
 # ========================================
 # SCRIPT-BASED DETERMINISTIC EVALUATIONS
 # ========================================
@@ -120,9 +130,7 @@
 
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript

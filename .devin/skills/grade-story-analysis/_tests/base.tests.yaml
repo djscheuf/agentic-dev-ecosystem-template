@@ -34,9 +34,8 @@
   description: 'Happy Path'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "All Sections have a Score. All Scores are either 0, 1, 2, or 3."
-      threshold: 0.8
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:allScoresWithinBounds
       metric: scores
       weight: 1
     - type: llm-rubric
