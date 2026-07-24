@@ -1,0 +1,188 @@
+{
+  "raw_request": "docs/reqs/_tech/0U - Search Optimization/story.md",
+  "title": "Improve Search Performance",
+  "story": {
+    "so_that": "search for active tactics efficiently",
+    "as_a": "User",
+    "i_want": "receive first page search results within 3 seconds"
+  },
+  "target_persona": {
+    "name": "Internal Requester",
+    "role": "Internal Requester",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "User navigates to search page with existing filters",
+      "during": "User enters search criteria and applies filters, waiting for results",
+      "after": "User reviews search results and may refine search or select a tactic"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Search for active tactics with filters and receive results within 3 seconds",
+    "inputs": [
+      "Search query",
+      "Filter parameters (existing filters)",
+      "Pagination parameters"
+    ],
+    "outputs": [
+      "Search results list",
+      "Result count",
+      "Pagination metadata"
+    ],
+    "state_changes": [],
+    "affected_components": {
+      "ui": [
+        "Search results page",
+        "Filter panel",
+        "Loading indicators"
+      ],
+      "api": [
+        "Search endpoint (existing, must remain unchanged)",
+        "Filter endpoints (existing)"
+      ],
+      "database": [
+        "Tactic table queries",
+        "Filter-related queries",
+        "Indexing strategy"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Existing Filters continue to work",
+      "gherkin": "Given I am an Internal Requester When I use any existing search filters Then the filters continue to work as before And the search results are returned within 3 seconds",
+      "type": "Functional",
+      "jtbd": "Apply search filters and get results quickly",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Results Update on new Search",
+      "gherkin": "Given I am an Internal Requester and I previously completed a search and a NEW Tactic was just created When I search again Then the new tactic should be included in the search results AND the search results should be returned within 3 seconds",
+      "type": "Functional",
+      "jtbd": "See newly created tactics in search results",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search performance baseline",
+      "gherkin": "Given a search query is submitted When results are rendered Then load time is under 3 seconds",
+      "type": "Non-functional",
+      "jtbd": "Avoid waiting for search results",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Search with no results",
+      "gherkin": "Given a search query with no matching tactics When search completes Then 'No tactics found' message is displayed within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Know when search yields no results",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search with large result set",
+      "gherkin": "Given a search query matching 1000+ tactics When search completes Then first page results are returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle large result sets efficiently",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Concurrent search requests",
+      "gherkin": "Given multiple users performing searches simultaneously When searches are submitted Then each returns results within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle concurrent search load",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search with complex filters",
+      "gherkin": "Given a search with multiple complex filters applied When search completes Then results are returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle complex filter combinations efficiently",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "What is the current baseline search performance? Are there specific queries that are slow?",
+      "impacts": [
+        "optimization strategy",
+        "database indexing decisions",
+        "performance testing approach"
+      ]
+    },
+    {
+      "question": "What are the current filter types and complexity? How are they implemented?",
+      "impacts": [
+        "query optimization approach",
+        "database schema changes",
+        "API contract preservation"
+      ]
+    },
+    {
+      "question": "What is the expected data volume (number of tactics) for the search?",
+      "impacts": [
+        "indexing strategy",
+        "pagination approach",
+        "caching decisions"
+      ]
+    },
+    {
+      "question": "Are there any caching strategies already in place that should be leveraged?",
+      "impacts": [
+        "optimization approach",
+        "cache invalidation strategy",
+        "data freshness requirements"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Search API endpoint",
+        "Filter implementation",
+        "Tactic repository/data access layer",
+        "Database connection and query execution"
+      ],
+      "new_code": [
+        "Database indexes (if needed)",
+        "Query optimization logic",
+        "Performance monitoring/metrics"
+      ],
+      "infrastructure": [
+        "Database with tactic table",
+        "Search API server"
+      ],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "Any other stories that depend on search performance",
+        "Stories that modify tactic data structure"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Tactic business domain",
+        "Filter requirements and logic",
+        "Active tactic definition"
+      ],
+      "technical_knowledge": [
+        "Database query optimization",
+        "Indexing strategies",
+        "Performance profiling and monitoring"
+      ],
+      "stakeholder_questions": [
+        "Performance SLA confirmation (3 seconds)",
+        "Data freshness requirements",
+        "Acceptable optimization trade-offs"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  },
+  "recommendation": "Proceed with implementation. Recommend starting with database query analysis and indexing optimization, followed by performance testing to validate the 3-second SLA. Clarify open questions with stakeholders before finalizing optimization approach."
+}

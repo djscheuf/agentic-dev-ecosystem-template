@@ -1,0 +1,172 @@
+{
+  "run_date": "20260713T114700Z",
+  "target_story": "docs/reqs/_tech/0U - Search Optimization/story.md",
+  "project_structure": {
+    "root": ".",
+    "description": "Monorepo with .NET backend API and React frontend UI for Tactic Management system",
+    "tech_stack": {
+      "programming_languages": [
+        "C#",
+        "TypeScript",
+        "JavaScript"
+      ],
+      "frameworks": [
+        "ASP.NET Core",
+        "Entity Framework Core",
+        "React",
+        "TanStack Query"
+      ],
+      "libraries": [
+        "MediatR",
+        "FluentValidation",
+        "Radix UI",
+        "TailwindCSS"
+      ],
+      "unit_testing_tools": [
+        "xUnit",
+        "NSubstitute",
+        "Vitest",
+        "Playwright"
+      ]
+    },
+    "subprojects": [
+      {
+        "root": "src/api",
+        "description": ".NET backend API using CQRS pattern with MediatR",
+        "tech_stack": {
+          "programming_language": "C#",
+          "frameworks": [
+            "ASP.NET Core 8",
+            "Entity Framework Core"
+          ],
+          "libraries": [
+            "MediatR",
+            "FluentValidation",
+            "Microsoft.Data.SqlClient"
+          ],
+          "unit_testing_tools": [
+            "xUnit",
+            "NSubstitute"
+          ]
+        }
+      },
+      {
+        "root": "src/ui",
+        "description": "React frontend with TanStack Query for state management",
+        "tech_stack": {
+          "programming_language": "TypeScript",
+          "frameworks": [
+            "React 18",
+            "TanStack Query",
+            "React Router"
+          ],
+          "libraries": [
+            "Radix UI",
+            "TailwindCSS",
+            "Lucide Icons"
+          ],
+          "unit_testing_tools": [
+            "Vitest",
+            "Playwright"
+          ]
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "docs/adrs/20251218-20-reference-data-memory-caching.md",
+        "why": "Demonstrates IMemoryCache pattern for performance optimization; applicable to search result caching strategy"
+      },
+      {
+        "path": "docs/adrs/20260129-30-read-write-authorization-separation.md",
+        "why": "Defines role-based authorization filtering integrated into search queries via TacticReadAuthorizationService"
+      },
+      {
+        "path": "docs/adrs/20251022-02-cqrs-api-contracts.md",
+        "why": "Establishes CQRS pattern used for GetUserTacticsQuery search implementation"
+      },
+      {
+        "path": "docs/adrs/20260205-31-database-generated-offer-codes.md",
+        "why": "OfferCode is database-generated IDENTITY column; impacts search indexing strategy"
+      }
+    ],
+    "persona": [
+      {
+        "path": "User Personas.md",
+        "why": "Defines user roles (Requester, ProofReader, etc.) who perform search operations"
+      }
+    ],
+    "target_architecture": [
+      {
+        "path": "docs/api/ARCHITECTURE.md",
+        "why": "Documents API architecture including search endpoint design and CQRS pattern"
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [
+      {
+        "path": "src/ui/apps/tactic-builder/src/pages/List/List.tsx",
+        "why": "Main search UI component with filter controls and results table"
+      },
+      {
+        "path": "src/ui/apps/tactic-builder/src/pages/List/hooks/use-tactic-table.ts",
+        "why": "Search state management with debouncing (300ms) and filter handling"
+      }
+    ],
+    "services": [
+      {
+        "path": "src/api/Repositories/TacticRepository.cs",
+        "why": "Core search implementation with GetUserTacticsWithFiltersAsync and GetAllTacticsAsync methods"
+      },
+      {
+        "path": "src/api/Queries/GetUserTacticsQueryHandler.cs",
+        "why": "CQRS query handler orchestrating search with authorization and pagination"
+      },
+      {
+        "path": "src/api/Strategies/SearchTermFilterStrategy.cs",
+        "why": "Multi-field text search implementation across Description, Notes, OfferVerbiage, etc."
+      },
+      {
+        "path": "src/ui/apps/tactic-builder/src/shared/apis/tactics-api.ts",
+        "why": "Frontend API client for getTactics() search endpoint"
+      }
+    ],
+    "models": [
+      {
+        "path": "src/api/Models/Tactic.cs",
+        "why": "Core Tactic entity with searchable fields (Description, Notes, OfferVerbiage, OfferCode)"
+      },
+      {
+        "path": "src/api/Filters/TacticFilterCriteria.cs",
+        "why": "Filter criteria object encapsulating all search parameters"
+      },
+      {
+        "path": "src/api/Queries/GetUserTacticsQuery.cs",
+        "why": "CQRS query record defining search parameters (term, status, filters, pagination)"
+      }
+    ],
+    "apis": [
+      {
+        "path": "src/api/Controllers/TacticsController.cs",
+        "why": "GetTactics endpoint accepting search term, filters, pagination, and sort parameters"
+      }
+    ],
+    "tests": [
+      {
+        "path": "src/api/tests/TacticManagement.Application.Tests/Queries/GetUserTacticsQueryHandler.SearchAndFiltersTests.cs",
+        "why": "Unit tests for search functionality with various filter combinations"
+      },
+      {
+        "path": "src/api/tests/TacticManagement.Infrastructure.Tests/Repositories/Filters/Strategies/SearchTermFilterStrategyTests.cs",
+        "why": "Tests for multi-field search term filtering logic"
+      },
+      {
+        "path": "src/ui/apps/tactic-builder/src/pages/List/hooks/use-tactic-table.test.ts",
+        "why": "Frontend tests for search state management and debouncing"
+      }
+    ]
+  }
+}

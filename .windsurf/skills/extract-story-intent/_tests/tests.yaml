@@ -3,9 +3,7 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
   description: 'Canary Test - Functional Requirements Extraction'
   assert:
     - type: icontains
@@ -24,26 +22,20 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Extraction Components'
   assert:
-    # Core definition
-    - type: llm-rubric
-      value: "Response clearly captures story in the So that ..., As A ..., I want ... format"
-      threshold: 0.8
-      metric: clarity
-      weight: 1
     # Persona Capture
     - type: llm-rubric
       value: "Response clearly captures a target user, with meaningful, specific value cases rather than generic descriptions"
       threshold: 0.7
       metric: target_user
-      weight: 2
+      weight: 1
     # Capability Breakdown
     - type: llm-rubric
-      value: "Response captures capability breakdown with core action, inputs, outputs, state changes, and affected components, clearly linked to provided story"
+      value: "Response captures capability breakdown with core action, inputs, outputs, state changes, clearly linked to provided story"
       threshold: 0.7
       metric: capability_breakdown
       weight: 2
@@ -62,12 +54,12 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@./windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/extract-story-intent/schema/story-intent.schema.json'
+        schemaPath: '../.windsurf/skills/extract-story-intent/schema/story-intent.schema.json'

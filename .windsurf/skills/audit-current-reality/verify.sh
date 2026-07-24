@@ -123,6 +123,77 @@ verify_audit_structure() {
   fi
 }
 
+# Verify all paths in the audit file exist
+verify_audit_paths() {
+  local audit_path="$1"
+  local repo_root="$2"
+  
+  if [[ ! -f "$audit_path" ]]; then
+    return
+  fi
+  
+  local audit
+  audit=$(jq '.' "$audit_path")
+  
+  # Collect all paths from vault_audit
+  if jq -e '.vault_audit' <<< "$audit" &>/dev/null; then
+    local vault_audit
+    vault_audit=$(jq '.vault_audit' <<< "$audit")
+    
+    for array_prop in "decisions" "persona" "target_architecture"; do
+      if jq -e ".$array_prop" <<< "$vault_audit" &>/dev/null; then
+        local array_data
+        array_data=$(jq ".$array_prop" <<< "$vault_audit")
+        local item_count
+        item_count=$(jq 'length' <<< "$array_data")
+        
+        for idx in $(seq 0 $((item_count - 1))); do
+          local item
+          item=$(jq ".[$idx]" <<< "$array_data")
+          local path
+          path=$(jq -r '.path // empty' <<< "$item")
+          
+          if [[ -n "$path" ]]; then
+            local full_path="$repo_root/$path"
+            if [[ ! -e "$full_path" ]]; then
+              fail "Path does not exist (vault_audit.$array_prop[$idx]): $path"
+            fi
+          fi
+        done
+      fi
+    done
+  fi
+  
+  # Collect all paths from code_audit
+  if jq -e '.code_audit' <<< "$audit" &>/dev/null; then
+    local code_audit
+    code_audit=$(jq '.code_audit' <<< "$audit")
+    
+    for array_prop in "components" "services" "models" "apis" "tests"; do
+      if jq -e ".$array_prop" <<< "$code_audit" &>/dev/null; then
+        local array_data
+        array_data=$(jq ".$array_prop" <<< "$code_audit")
+        local item_count
+        item_count=$(jq 'length' <<< "$array_data")
+        
+        for idx in $(seq 0 $((item_count - 1))); do
+          local item
+          item=$(jq ".[$idx]" <<< "$array_data")
+          local path
+          path=$(jq -r '.path // empty' <<< "$item")
+          
+          if [[ -n "$path" ]]; then
+            local full_path="$repo_root/$path"
+            if [[ ! -e "$full_path" ]]; then
+              fail "Path does not exist (code_audit.$array_prop[$idx]): $path"
+            fi
+          fi
+        done
+      fi
+    done
+  fi
+}
+
 # Main execution
 main() {
   local sentinel_path="$1"
@@ -150,6 +221,7 @@ main() {
   
   # Run verifications
   verify_audit_structure "$audit_path"
+  verify_audit_paths "$audit_path" "$PROJECT_DIR"
   
   # Delete sentinel file after verification
   rm -f "$sentinel_path"

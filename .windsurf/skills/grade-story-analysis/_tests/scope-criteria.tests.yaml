@@ -14,13 +14,16 @@
 # ========================================
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "scope"
+      score_floor: 1
   description: 'Excess Scope Analysis'
   assert:
     # Core definition
-    - type: llm-rubric
-      value: "The Scope Section should have a score of 0 or 1."
-      threshold: 0.8
+    - type: javascript
+      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: scope-scores
       weight: 1
     - type: llm-rubric
@@ -43,10 +46,10 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
+        schemaPath: '../.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'

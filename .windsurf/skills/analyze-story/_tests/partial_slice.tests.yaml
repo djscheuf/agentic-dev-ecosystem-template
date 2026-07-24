@@ -2,7 +2,7 @@
 # DETERMINISTIC EVALUATIONS (contains/equiv)
 # ========================================
 - vars:
-    request: '@./windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
+    request: '@../.windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
   description: 'Frontend Only Story'
   assert:
     # System Components
@@ -30,7 +30,7 @@
 # critical vs. nice-to-have criteria, and weight what matters most.
 
 - vars:
-    request: '@./windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
+    request: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
   description: 'Backend Only Story'
   assert:
     # System Components
@@ -55,11 +55,11 @@
 
 - vars:
     request: 
-      - '@./windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
-      - '@./windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/display_name_story.intent.json'
+      - '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.intent.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/analyze-story/schema/analysis.schema.json'
+        schemaPath: '../.windsurf/skills/analyze-story/schema/analysis.schema.json'

@@ -1,0 +1,149 @@
+# ========================================
+# DETERMINISTIC EVALUATIONS (contains/equiv)
+# ========================================
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+  description: 'Canary Test'
+  assert:
+    - type: contains
+      value: 'layer_responsibilities'
+
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+  description: 'Happy Path'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response succinctly models User's flow thru the application for the given story"
+      threshold: 0.8
+      metric: user-flow
+      weight: 2
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
+    - type: llm-rubric
+      value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
+      threshold: 0.8
+      metric: responsibilities
+      weight: 4
+    - type: llm-rubric
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
+      threshold: 0.8
+      metric: contracts
+      weight: 2
+    - type: javascript
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
+    - type: llm-rubric
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
+      threshold: 0.8
+      metric: assumptions
+      weight: 4
+    
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.audit.json'
+  description: 'Backend Only'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response succinctly models User's flow thru the application for the given story"
+      threshold: 0.8
+      metric: user-flow
+      weight: 2
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
+    - type: llm-rubric
+      value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
+      threshold: 0.8
+      metric: responsibilities
+      weight: 4
+    - type: llm-rubric
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
+      threshold: 0.8
+      metric: contracts
+      weight: 2
+    - type: javascript
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
+    - type: llm-rubric
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
+      threshold: 0.8
+      metric: assumptions
+      weight: 4
+    - type: llm-rubric
+      value: "Response focuses on backend improvements, avoiding frontend changes, focusing on improved endpoint performance."
+      threshold: 0.8
+      metric: focus
+      weight: 4
+    
+
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.audit.json'
+  description: 'Frontend Only'
+  assert:
+    # Core definition
+    - type: llm-rubric
+      value: "Response succinctly models User's flow thru the application for the given story"
+      threshold: 0.8
+      metric: user-flow
+      weight: 2
+    # - type: llm-rubric
+    #   value: "Response defines instrumentation events, using `VerbObjectContext` or `VerbObject` naming pattern, events emerge from User flow."
+    #   threshold: 0.8
+    #   metric: instrumentation
+    #   weight: 1
+    - type: llm-rubric
+      value: "Response assigns layer responsibilities, using responsibility heuristics. Front-end: Display, Accessibility, Sequence. Backend: Business logic, Security, Performance, Scope, Caching. Database: Data storage, Data integrity, Heavy computations."
+      threshold: 0.8
+      metric: responsibilities
+      weight: 4
+    - type: llm-rubric
+      value: "Response defines contracts between layers, making minimum changes to accomplish the goal."
+      threshold: 0.8
+      metric: contracts
+      weight: 2
+    - type: javascript
+      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      metric: sound-decision-basis
+      weight: 2
+    - type: llm-rubric
+      value: "Response documents ambiguities with assumed answers and basis/rationale for each assumption, justifying assumptions with industry standard practice or specific ADRs for the repo, or the analysis for the story."
+      threshold: 0.8
+      metric: assumptions
+      weight: 4
+    - type: llm-rubric
+      value: "Response focuses on frontend improvements, avoiding backend changes, focusing on improved user experience."
+      threshold: 0.8
+      metric: focus
+      weight: 4
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.windsurf/skills/design-story-implementation/schema/design.schema.json'
