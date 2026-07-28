@@ -3,15 +3,9 @@
 # ========================================
 - vars:
     request: 
-<<<<<<< HEAD
-      - '@../.windsurf/skills/analyze-story/_tests/_data/example-story.intent.json'
-      - '@../.windsurf/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
-      - '@../.windsurf/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
-=======
       - '@../.devin/skills/analyze-story/_tests/_data/example-story.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
->>>>>>> f84f16c (refactor(analyze story tests))
   description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
   assert:
     - type: contains

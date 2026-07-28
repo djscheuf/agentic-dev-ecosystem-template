@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
-description: EDD on Grade Story Analysis
+description: EDD on Analyze Story Analysis
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://../.devin/skills/grade-story-analysis/_tests/prompt.md
+  - file://../.devin/skills/analyze-story/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -37,9 +37,8 @@ providers:
   
 # Test cases loaded from external file
 tests: 
-  - file://../.devin/skills/grade-story-analysis/_tests/base.tests.yaml
-  - file://../.devin/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
-  - file://../.devin/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
+  - file://../.devin/skills/analyze-story/_tests/base.tests.yaml
+  - file://../.devin/skills/analyze-story/_tests/partial_slice.tests.yaml
 
 # Output configuration
-outputPath: results.gradeAnalysis.html
+outputPath: results.analyzeStory.html
