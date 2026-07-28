@@ -2,8 +2,8 @@
 # DETERMINISTIC EVALUATIONS (contains/equiv)
 # ========================================
 - vars:
-    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
-    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+    analysis: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.audit.json'
   description: 'Canary Test'
   assert:
     - type: contains
@@ -13,8 +13,8 @@
 # RUBRIC-BASED EVALUATIONS WITH SCORING
 # ========================================
 - vars:
-    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
-    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+    analysis: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.audit.json'
   description: 'Happy Path'
   assert:
     # Core definition
@@ -39,7 +39,7 @@
       metric: contracts
       weight: 2
     - type: javascript
-      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      value: file://../.devin/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
       metric: sound-decision-basis
       weight: 2
     - type: llm-rubric
@@ -49,8 +49,8 @@
       weight: 4
     
 - vars:
-    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.analysis.json'
-    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/improve-search-performance.audit.json'
+    analysis: '@../.devin/skills/design-story-implementation/_tests/_data/improve-search-performance.analysis.json'
+    current_reality: '@../.devin/skills/design-story-implementation/_tests/_data/improve-search-performance.audit.json'
   description: 'Backend Only'
   assert:
     # Core definition
@@ -75,7 +75,7 @@
       metric: contracts
       weight: 2
     - type: javascript
-      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      value: file://../.devin/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
       metric: sound-decision-basis
       weight: 2
     - type: llm-rubric
@@ -91,8 +91,8 @@
     
 
 - vars:
-    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.analysis.json'
-    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/add-user-badges.audit.json'
+    analysis: '@../.devin/skills/design-story-implementation/_tests/_data/add-user-badges.analysis.json'
+    current_reality: '@../.devin/skills/design-story-implementation/_tests/_data/add-user-badges.audit.json'
   description: 'Frontend Only'
   assert:
     # Core definition
@@ -117,7 +117,7 @@
       metric: contracts
       weight: 2
     - type: javascript
-      value: file://../.windsurf/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
+      value: file://../.devin/skills/design-story-implementation/_tests/designChecks.js:hasSoundDecisionBasis
       metric: sound-decision-basis
       weight: 2
     - type: llm-rubric
@@ -139,11 +139,11 @@
 # Syntax: file://path/to/script.js:functionName
 
 - vars:
-    analysis: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.analysis.json'
-    current_reality: '@../.windsurf/skills/analyze-story/_tests/_data/admin-tactic-types.audit.json'
+    analysis: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.analysis.json'
+    current_reality: '@../.devin/skills/design-story-implementation/_tests/_data/admin-tactic-types.audit.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: '../.windsurf/skills/design-story-implementation/schema/design.schema.json'
+        schemaPath: '../.devin/skills/design-story-implementation/schema/design.schema.json'
