@@ -27,4 +27,4 @@ Address any verification errors before proceeding.
 ### Step 3: Grade the Design
 grade the design based on the Design Quality Rubric using the `grade-story-design` skill on the design file from the previous step.
 
-Address any verification errors before proceeding. 
+Address any verification errors before proceeding.

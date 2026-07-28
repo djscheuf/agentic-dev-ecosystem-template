@@ -28,4 +28,4 @@ Address any verification errors before proceeding.
 ### Step 3: Grade the Analysis
 grade the analysis based on the User Story Quality Rubric using the `grade-story-analysis` skill on the analysis file from the previous step.
 
-Address any verification errors before proceeding. 
+Address any verification errors before proceeding.

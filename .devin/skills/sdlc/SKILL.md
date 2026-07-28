@@ -1,6 +1,7 @@
 ---
-description: Systematically analyze a user story to understand requirements, identify edge cases, assess complexity, Then prepare Design an approach based on suitable architecture and design patterns, and Plan implementation steps. 
+description: Systematically analyze a user story to understand requirements, identify edge cases, assess complexity, Then prepare Design an approach based on suitable architecture and design patterns, and Plan implementation steps.
 ---
+
 # SDLC - Software Delivery Lifecycle
 
 ## Workflow Steps
