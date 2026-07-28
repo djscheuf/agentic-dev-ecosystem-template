@@ -46,38 +46,38 @@ The most powerful hook capability is capturing the conversation history between 
 
 ## Hook Configuration
 
-Hooks are configured in `.windsurf/hooks.json`:
+Hooks are configured in `.devin/hooks.json`:
 
 ```json
 {
   "hooks": {
     "pre_write_code": [
       {
-        "command": ".windsurf/scripts/verify-secrets.sh --scope=staged",
+        "command": ".devin/scripts/verify-secrets.sh --scope=staged",
         "show_output": true
       }
     ],
     "post_write_code": [
       {
-        "command": ".windsurf/scripts/post-edit-verify-windsurf.sh",
+        "command": ".devin/scripts/post-edit-verify-windsurf.sh",
         "show_output": true
       }
     ],
     "pre_run_command": [
       {
-        "command": ".windsurf/scripts/pre-tool-verify-windsurf.sh",
+        "command": ".devin/scripts/pre-tool-verify-windsurf.sh",
         "show_output": true
       }
     ],
     "post_cascade_response": [
       {
-        "command": ".windsurf/scripts/post-cascade-verify-cycle.sh",
+        "command": ".devin/scripts/post-cascade-verify-cycle.sh",
         "show_output": true
       }
     ],
     "post_cascade_response_with_transcript": [
       {
-        "command": "node .windsurf/scripts/audit-logger.js",
+        "command": "node .devin/scripts/audit-logger.js",
         "show_output": true
       }
     ]
@@ -101,9 +101,9 @@ Scans files before they're written to detect common secret patterns:
 
 **Usage:**
 ```bash
-.windsurf/scripts/verify-secrets.sh --scope=staged
-.windsurf/scripts/verify-secrets.sh --scope=changed
-.windsurf/scripts/verify-secrets.sh --scope=all
+.devin/scripts/verify-secrets.sh --scope=staged
+.devin/scripts/verify-secrets.sh --scope=changed
+.devin/scripts/verify-secrets.sh --scope=all
 ```
 
 ### Post-Edit Verification (`post-edit-verify-windsurf.sh`)
@@ -200,7 +200,7 @@ Never lose track of how features were implemented:
 
 ## Getting Started
 
-1. **Review hook configuration** in `.windsurf/hooks.json`
+1. **Review hook configuration** in `.devin/hooks.json`
 2. **Customize verification scripts** for your project structure
 3. **Test hooks manually** before relying on automatic execution
 4. **Monitor hook output** during Cascade conversations
@@ -210,14 +210,14 @@ Never lose track of how features were implemented:
 
 ### Adding New Hooks
 
-1. Create a new script in `.windsurf/scripts/`
-2. Make it executable: `chmod +x .windsurf/scripts/your-hook.sh`
-3. Add entry to `.windsurf/hooks.json`
+1. Create a new script in `.devin/scripts/`
+2. Make it executable: `chmod +x .devin/scripts/your-hook.sh`
+3. Add entry to `.devin/hooks.json`
 4. Test manually before enabling
 
 ### Modifying Existing Hooks
 
-All hook scripts are in `.windsurf/scripts/` and can be customized:
+All hook scripts are in `.devin/scripts/` and can be customized:
 - Adjust verification strictness
 - Add project-specific checks
 - Modify output formatting
@@ -239,7 +239,7 @@ To temporarily disable a hook, comment it out in `hooks.json` or remove the entr
 
 ### Hook Not Running
 
-- Verify `.windsurf/hooks.json` is valid JSON
+- Verify `.devin/hooks.json` is valid JSON
 - Check that scripts are executable (`chmod +x`)
 - Review Windsurf hook logs for errors
 
@@ -263,5 +263,5 @@ To temporarily disable a hook, comment it out in `hooks.json` or remove the entr
 
 ## Further Reading
 
-- [Windsurf Hooks Documentation](https://docs.windsurf.ai/hooks) - Official Windsurf documentation
+- [Windsurf Hooks Documentation](https://docs.devin.ai/hooks) - Official Windsurf documentation
 - [Git Hooks](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) - Traditional Git hooks for comparison

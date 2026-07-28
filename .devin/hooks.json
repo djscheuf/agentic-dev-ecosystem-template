@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "pre_write_code": [
+      {
+        "command": ".devin/scripts/verify-secrets.sh --scope=staged",
+        "show_output": true
+      }
+    ],
+    "post_write_code": [
+        {
+          "command": ".devin/scripts/post-edit-verify-windsurf.sh",
+          "show_output": true
+        },
+        {
+          "command": ".devin/scripts/post-edit-verify-skill.sh",
+          "show_output": true
+        }
+    ],
+    "pre_run_command": [
+      {
+        "command": ".devin/scripts/pre-tool-verify-windsurf.sh",
+        "show_output": true
+      }
+    ],
+    "post_cascade_response": [
+      {
+        "command": ".devin/scripts/post-cascade-verify-cycle.sh",
+        "show_output": true
+      }
+    ],
+    "post_cascade_response_with_transcript": [
+      {
+        "command": "node .devin/scripts/audit-logger.js",
+        "show_output": true
+      }
+    ]
+  }
+}
