@@ -70,4 +70,4 @@
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/extract-story-intent/schema/story-intent.schema.json'
+        schemaPath: './.devin/skills/extract-story-intent/schema/story-intent.schema.json'

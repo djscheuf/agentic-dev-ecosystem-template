@@ -26,7 +26,7 @@ if [[ -z "$task" ]]; then
 fi
 
 # Construct path to verify script
-verify_script="$HOOK_PROJECT_DIR/.windsurf/skills/$task/verify.sh"
+verify_script="$HOOK_PROJECT_DIR/.devin/skills/$task/verify.sh"
 
 # Check if verify script exists
 if [[ ! -f "$verify_script" ]]; then

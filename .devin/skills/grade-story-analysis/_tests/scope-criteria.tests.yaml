@@ -49,4 +49,4 @@
     - type: javascript
       value: file://./eval-script.js:matchesSchema
       config:
-        schemaPath: './.windsurf/skills/grade-story-analysis/schema/analysis-grade.schema.json'
+        schemaPath: './.devin/skills/grade-story-analysis/schema/analysis-grade.schema.json'

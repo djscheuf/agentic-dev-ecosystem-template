@@ -65,13 +65,13 @@ The infrastructure knowledge must remain embedded in the workflow steps to maint
    - What services need to be healthy for tests to run?
    - Where are run logs captured?
 
-2. **Update the workflow files** (`.windsurf/workflows/debug-e2e-*.md`):
+2. **Update the workflow files** (`.devin/workflows/debug-e2e-*.md`):
    - Replace docker-compose references with your orchestration system
    - Update environment variable check commands
    - Modify health check patterns
    - Adjust run log locations and analysis commands
 
-3. **Update the skills** (`.windsurf/skills/running-e2e-tests/`):
+3. **Update the skills** (`.devin/skills/running-e2e-tests/`):
    - Replace test execution commands with your project's commands
    - Update test results directory locations
    - Modify artifact collection patterns

@@ -353,7 +353,7 @@ Ready to create your own persona?
 2. Invoke `@active-partner` 
 3. Describe what you want to create
 4. Work through the clarifying questions
-5. Capture the persona in `.windsurf/rules/your-persona.md`
+5. Capture the persona in `.devin/rules/your-persona.md`
 6. Test it in your actual work
 7. Refine based on experience
 

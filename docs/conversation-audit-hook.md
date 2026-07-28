@@ -287,14 +287,14 @@ Same developer implements authorization feature:
 
 ## Configuration
 
-The audit hook is configured in `.windsurf/hooks.json`:
+The audit hook is configured in `.devin/hooks.json`:
 
 ```json
 {
   "hooks": {
     "post_cascade_response_with_transcript": [
       {
-        "command": "node .windsurf/scripts/audit-logger.js",
+        "command": "node .devin/scripts/audit-logger.js",
         "show_output": true
       }
     ]
@@ -366,7 +366,7 @@ Common issues:
 
 Verify hook configuration:
 ```bash
-cat .windsurf/hooks.json | jq '.hooks.post_cascade_response_with_transcript'
+cat .devin/hooks.json | jq '.hooks.post_cascade_response_with_transcript'
 ```
 
 Check that:

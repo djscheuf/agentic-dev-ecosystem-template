@@ -17,7 +17,7 @@ This repository serves as a template for establishing effective AI-assisted deve
 
 When joining an existing project, start with documentation:
 
-1. **[Explore Codebase](.windsurf/workflows/explore-codebase.md)** → Generate living documentation of the existing system
+1. **[Explore Codebase](.devin/workflows/explore-codebase.md)** → Generate living documentation of the existing system
    - Input: Existing codebase
    - Output: Structured documentation of architecture, patterns, and key components
 
@@ -33,7 +33,7 @@ For new projects, establish standards first:
 
 For implementing user stories with defined personas, user value, and BDD-style acceptance criteria:
 
-1. **[Analyze User Story](.windsurf/workflows/analyze-user-story.md)** → Deep analysis of requirements
+1. **[Analyze User Story](.devin/workflows/analyze-user-story.md)** → Deep analysis of requirements
    - Input: User story (persona + value + BDD acceptance criteria)
    - Output: Analysis document with clarifying questions
    
@@ -41,15 +41,15 @@ For implementing user stories with defined personas, user value, and BDD-style a
    - Input: Responses to analysis questions
    - Output: Confirmed understanding and refined requirements
 
-3. **[Planning](.windsurf/workflows/planning.md)** → Generate implementation plan
+3. **[Planning](.devin/workflows/planning.md)** → Generate implementation plan
    - Input: Analyzed and clarified user story
    - Output: Step-by-step implementation plan
 
-4. **[Design Buddy](.windsurf/rules/design-buddy.md) Conversation** → Evaluate design and refine plan
+4. **[Design Buddy](.devin/rules/design-buddy.md) Conversation** → Evaluate design and refine plan
    - Input: Implementation plan
    - Output: Design-reviewed plan focused on effective solutions rather than problem fixation
 
-5. **[TDD Workflow](.windsurf/workflows/tdd-workflow.md)** → Iterative test-driven implementation
+5. **[TDD Workflow](.devin/workflows/tdd-workflow.md)** → Iterative test-driven implementation
    - Input: Implementation plan
    - Process: For each step:
      - Think about what to implement
@@ -64,12 +64,12 @@ For implementing user stories with defined personas, user value, and BDD-style a
 
 For debugging failing E2E tests with a systematic, evidence-based approach:
 
-1. **[Debug E2E Review](.windsurf/workflows/debug-e2e-review.md)** → Classify failures and gather evidence
+1. **[Debug E2E Review](.devin/workflows/debug-e2e-review.md)** → Classify failures and gather evidence
    - Input: Test failure information (terminal output or test-results folder)
    - Process: For each failing test, classify as setup failure or test execution failure
    - Output: Debugging session document with classified failures and evidence
    
-2. **[Debug E2E Hypothesis](.windsurf/workflows/debug-e2e-hypothesis.md)** → Form root cause hypotheses
+2. **[Debug E2E Hypothesis](.devin/workflows/debug-e2e-hypothesis.md)** → Form root cause hypotheses
    - Input: Classified failures with evidence
    - Process: 
      - Path A: Setup failures → Infrastructure/environment analysis
@@ -77,7 +77,7 @@ For debugging failing E2E tests with a systematic, evidence-based approach:
      - Prioritize hypotheses (setup failures always first)
    - Output: Prioritized hypothesis list with validation results
 
-3. **[Debug E2E Fix](.windsurf/workflows/debug-e2e-fix.md)** → Apply TDD-style fixes
+3. **[Debug E2E Fix](.devin/workflows/debug-e2e-fix.md)** → Apply TDD-style fixes
    - Input: Validated hypothesis
    - Process: For each hypothesis (highest priority first):
      - Think: Plan the fix
@@ -103,7 +103,7 @@ For debugging failing E2E tests with a systematic, evidence-based approach:
 ## Repository Structure
 
 ```
-.windsurf/
+.devin/
 ├── rules/          # Coding standards and AI interaction patterns
 ├── workflows/      # Step-by-step process definitions
 ├── skills/         # Specialized capabilities and knowledge
@@ -128,24 +128,24 @@ I often use manually activated rules for 'Persona's like:
 Workflows provide structured processes for common development tasks:
 
 **Development Workflows:**
-- **[explore-codebase](.windsurf/workflows/explore-codebase.md)**: Generate documentation for existing projects
-- **[analyze-user-story](.windsurf/workflows/analyze-user-story.md)**: Deep analysis of user stories
-- **[planning](.windsurf/workflows/planning.md)**: Generate implementation plans
-- **[tdd-workflow](.windsurf/workflows/tdd-workflow.md)**: Test-driven development iteration
+- **[explore-codebase](.devin/workflows/explore-codebase.md)**: Generate documentation for existing projects
+- **[analyze-user-story](.devin/workflows/analyze-user-story.md)**: Deep analysis of user stories
+- **[planning](.devin/workflows/planning.md)**: Generate implementation plans
+- **[tdd-workflow](.devin/workflows/tdd-workflow.md)**: Test-driven development iteration
 
 **E2E Debugging Workflows:**
-- **[debug-e2e-workflow](.windsurf/workflows/debug-e2e-workflow.md)**: Complete E2E test debugging workflow (composite orchestrator)
-- **[debug-e2e-review](.windsurf/workflows/debug-e2e-review.md)**: Review test failures and classify failure types
-- **[debug-e2e-hypothesis](.windsurf/workflows/debug-e2e-hypothesis.md)**: Form and validate root cause hypotheses
-- **[debug-e2e-fix](.windsurf/workflows/debug-e2e-fix.md)**: Apply TDD-style fixes to validated hypotheses
+- **[debug-e2e-workflow](.devin/workflows/debug-e2e-workflow.md)**: Complete E2E test debugging workflow (composite orchestrator)
+- **[debug-e2e-review](.devin/workflows/debug-e2e-review.md)**: Review test failures and classify failure types
+- **[debug-e2e-hypothesis](.devin/workflows/debug-e2e-hypothesis.md)**: Form and validate root cause hypotheses
+- **[debug-e2e-fix](.devin/workflows/debug-e2e-fix.md)**: Apply TDD-style fixes to validated hypotheses
 
 ### Skills
 
 Skills provide specialized knowledge and capabilities:
 
 **E2E Testing Skills:**
-- **[e2e-logging-and-artifacts](.windsurf/skills/e2e-logging-and-artifacts/)**: Set up comprehensive logging infrastructure for Playwright E2E tests
-- **[running-e2e-tests](.windsurf/skills/running-e2e-tests/)**: Execute E2E tests with proper commands and patterns
+- **[e2e-logging-and-artifacts](.devin/skills/e2e-logging-and-artifacts/)**: Set up comprehensive logging infrastructure for Playwright E2E tests
+- **[running-e2e-tests](.devin/skills/running-e2e-tests/)**: Execute E2E tests with proper commands and patterns
 
 ### Hooks
 
@@ -194,8 +194,8 @@ My additions to this ecosystem include:
 ## Getting Started
 
 1. **Fork this repository** to create your own development ecosystem
-2. **Review and customize rules** in `.windsurf/rules/` to match your coding standards
-3. **Explore workflows** in `.windsurf/workflows/` to understand available processes
+2. **Review and customize rules** in `.devin/rules/` to match your coding standards
+3. **Explore workflows** in `.devin/workflows/` to understand available processes
 4. **Try a workflow sequence** based on your current project phase (brownfield/greenfield/feature development)
 
 ## Additional Guides

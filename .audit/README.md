@@ -30,7 +30,7 @@ This directory contains automatically captured logs of Cascade conversations for
 The audit system uses Windsurf's `post_cascade_response_with_transcript` hook to automatically capture conversation data:
 
 1. **Hook triggers** after each Cascade response
-2. **Script runs** (`.windsurf/scripts/audit-logger.js`)
+2. **Script runs** (`.devin/scripts/audit-logger.js`)
 3. **Turn saved** to `turns/` as JSONL
 4. **Markdown updated** in `conversations/` with new interactions
 
@@ -84,7 +84,7 @@ jq '.' turns/{trajectory_id}_*.jsonl
 
 ## Configuration
 
-Hook configuration: `.windsurf/hooks.json`
-Logger script: `.windsurf/scripts/audit-logger.js`
+Hook configuration: `.devin/hooks.json`
+Logger script: `.devin/scripts/audit-logger.js`
 
-To disable audit logging, remove or comment out the hook in `.windsurf/hooks.json`.
+To disable audit logging, remove or comment out the hook in `.devin/hooks.json`.
