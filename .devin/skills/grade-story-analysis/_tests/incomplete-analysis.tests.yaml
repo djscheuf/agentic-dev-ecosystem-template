@@ -15,7 +15,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
     assert_config:
       expected_failing_sections:
         - "business_value"
@@ -24,7 +24,7 @@
   assert:
     # Core definition
     - type: javascript
-      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: bv-scores
       weight: 1
     - type: llm-rubric
@@ -43,7 +43,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
     assert_config:
       expected_failing_sections:
         - "acceptance_criteria"
@@ -52,7 +52,7 @@
   assert:
     # Core definition
     - type: javascript
-      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: bv-scores
       weight: 1
     - type: llm-rubric
@@ -71,7 +71,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
     assert_config:
       expected_failing_sections:
         - "dependencies"
@@ -80,7 +80,7 @@
   assert:
     # Core definition
     - type: javascript
-      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: dependency-scores
       weight: 1
     - type: llm-rubric
@@ -99,7 +99,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
     assert_config:
       expected_failing_sections:
         - "story_format"
@@ -108,7 +108,7 @@
   assert:
     # Core definition
     - type: javascript
-      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: format-scores
       weight: 1
     - type: llm-rubric
@@ -130,7 +130,7 @@
 
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript

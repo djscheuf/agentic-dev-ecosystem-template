@@ -3,7 +3,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/example_story.md'
   description: 'Canary Test - Functional Requirements Extraction'
   assert:
     - type: icontains
@@ -22,9 +22,9 @@
 
 - vars:
     request: 
-      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Extraction Components'
   assert:
     # Persona Capture
@@ -54,9 +54,9 @@
 
 - vars:
     request: 
-      - '@../.windsurf/skills/extract-story-intent/_tests/example_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/tactic_story.md'
-      - '@../.windsurf/skills/extract-story-intent/_tests/admin_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/admin_story.md'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript

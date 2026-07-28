@@ -14,7 +14,7 @@
 # ========================================
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
     assert_config:
       expected_failing_sections:
         - "scope"
@@ -23,7 +23,7 @@
   assert:
     # Core definition
     - type: javascript
-      value: file://../.windsurf/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
       metric: scope-scores
       weight: 1
     - type: llm-rubric
@@ -46,7 +46,7 @@
 
 - vars:
     request: 
-      - '@../.windsurf/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript
