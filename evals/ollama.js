@@ -134,9 +134,9 @@ function renderPrompt(promptText, documentRoot) {
   for (let i = replacements.length - 1; i >= 0; i--) {
     const replacement = replacements[i];
     try {
-      // If reference contains .windsurf or other absolute-ish paths, resolve from cwd
+      // If reference contains .devin or other absolute-ish paths, resolve from cwd
       // Otherwise (simple relative paths like ../SKILL.md), resolve from documentRoot
-      const resolveRoot = replacement.fileName.includes('.windsurf') || replacement.fileName.includes('evals') ? '.' : documentRoot;
+      const resolveRoot = replacement.fileName.includes('.devin') || replacement.fileName.includes('evals') ? '.' : documentRoot;
       const fileContent = renderFile(replacement.fileName, resolveRoot);
       result = result.substring(0, replacement.index) + fileContent + result.substring(replacement.index + replacement.fullMatch.length);
     } catch (e) {

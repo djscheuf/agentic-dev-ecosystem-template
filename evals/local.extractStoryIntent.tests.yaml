@@ -3,7 +3,7 @@ description: Ollama - EDD on Extract Intent Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://../.windsurf/skills/extract-story-intent/_tests/prompt.md
+  - file://../.devin/skills/extract-story-intent/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -50,11 +50,11 @@ providers:
       endpoint: '/api/v1/chat' # defaults to api/v1/chat
       # model: 'qwen/qwen3-8b' # defaults to llama2
       model: 'mistralai/mistral-7b-instruct-v0.3'
-      documentRoot: '../.windsurf/skills/extract-story-intent/_tests'
+      documentRoot: '../.devin/skills/extract-story-intent/_tests'
 
 # Test cases loaded from external file
 tests: 
-  - file://../.windsurf/skills/extract-story-intent/_tests/tests.yaml
+  - file://../.devin/skills/extract-story-intent/_tests/tests.yaml
 
 # Output configuration
 outputPath: results.extractStoryIntent.html
