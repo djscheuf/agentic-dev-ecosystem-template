@@ -65,7 +65,72 @@ AND no Recommendation needed
 
 ## Interface And Contracts Rubric
 
+Given Design Missing Interface And Contracts such as API contracts or component interfaces being absent, or disconnected
+THEN Interface And Contracts Score is 0
+AND Reasoning explains missing interface and contracts like endpoint definitions, payload shapes or component props 
+AND Recommendation suggests specifying API contracts and component interfaces explicitly, including endpoint definitions, payload shapes, and component props.
+
+Given Design has Vague or incomplete Interface And Contracts, interfaces are indicative but not descriptive or complete, such not mapping the whole workflow, or missing error handling. 
+THEN Interface and Contracts Score is 1
+AND Reasoning explains vagueness incomplete contract definitions
+AND Recommendation suggests completing contract definitions with clear endpoint definitions, payload shapes, and component props.
+
+Given Design has partial Interface and Contracts which are missing details for certain workflow steps
+THEN Interface and Contracts Score is 1
+AND Reasoning explains incomplete workflow mapping
+AND Recommendation suggests ensuring that all workflow steps are properly documented with clear interface and contract details.
+
+Given Design exhibits clear interfaces and contracts, but missing error handling or constraints
+THEN Interface And Contracts Score is 2
+AND Reasoning explains clear interface and contract definitions but missing error handling or value constraints
+AND Recommendation suggests adding error handling and constraints to ensure robustness. 
+
+Given Design exhibits clear interfaces and contracts, but whose chain, mapped along the workflow steps exhibits mis-matches in contract shape
+THEN Interface And Contracts Score is 2
+AND Reasoning explains clear interface and contract definitions but contracts along the workflow do not perfectly map along the workflow
+AND Recommendation suggests ensuring that contracts along the workflow are consistent and properly mapped. 
+
+Given Analysis Exemplary Interface and Contracts with an complete contracty definition, 1:1 mappiong between workflow and contracts, with error handling and constrains specified
+THEN Interface And Contracts Score is 3
+AND Reasoning explains exemplary interface and contract definitions
+AND no Recommendation needed
+
 ## Layer Responsibilities & Consistency Rubric
+
+Given Design Missing Layer Responsibilities & Consistencyd
+THEN Layer Responsibilities & Consistency Score is 0
+AND Reasoning explains missing layer responsibilities, explicit boundaries between layers, and clear responsibilities for each layer 
+AND Recommendation suggests specifying layer responsibilities explicitly, including explicit boundaries between layers, and clear responsibilities for each layer.
+
+Given Design contradictory Layer Responsibilities & Consistency where existing layer responsibilities are inconsistent or conflicting with proposed design, such as enforcement of AUthorization in the UI layer, lacking explicit design justification
+THEN Layer Responsibilities & Consistency Score is 0
+AND Reasoning explains contradictory layer responsibilities, without explicit design justification
+AND Recommendation suggests reviewing existing layer responsibilities and confirming proposed design with established patterns unless provided explicit justification for responsibility contradiction.
+
+Given Design has incomplete Layer Responsibilities, layer responsibilities are indicative but not descriptive or complete, such exhibiting gaps around which layer owns certain workflow changes
+THEN Layer Responsibilities & Consistency Score is 1
+AND Reasoning explains incomplete nature of layer responsibility, citing the gap
+AND Recommendation suggests completing layer responsibilities & consistency with clear ownership of each layer, explicit boundaries between layers, and clear responsibilities for each layer, and mapping of all workflow changes to exactly one layer for ownership.
+
+Given Design has ambiguous Layer Responsibilities, layer responsibilities exhibiting overlaps around which layers own certain workflow changes
+THEN Layer Responsibilities & Consistency Score is 1
+AND Reasoning explains ambiguous nature of layer responsibility, citing the overlap
+AND Recommendation suggests completing layer responsibilities & consistency with clear ownership of each layer, explicit boundaries between layers, and clear responsibilities for each layer, and mapping of all workflow changes to exactly one layer for ownership.
+
+Given Design exhibits clear layer responsibilities & consistency, but limited reuse of existing components
+THEN Layer Responsibilities & Consistency Score is 2
+AND Reasoning explains clear layer responsibilities & consistency but limited reuse of existing components 
+AND Recommendation suggests reviewing existing components and reusing them where possible to reduce duplication.
+
+Given Design exhibits clear layer responsibilities & consistency, but leaves deviaition from established patterns unexplained.
+THEN Layer Responsibilities & Consistency Score is 2
+AND Reasoning explains clear layer responsibilities & consistency but unexplained deviation from established patterns
+AND Recommendation suggests explaining/clarifying rational for deviation from established patterns.
+
+Given Analysis Exemplary Layer Responsibilities with all workflow responsibilities clearly assigned with explicit rationale, and clear, unambiguous layer responsibility, as well as reuse of existing components and utilities, all deviations justified
+THEN Layer Responsibilities & Consistency Score is 3
+AND Reasoning explains exemplary layer responsibilities & consistency
+AND no Recommendation needed
 
 ## Instrumentation & Observability Rubric
 
