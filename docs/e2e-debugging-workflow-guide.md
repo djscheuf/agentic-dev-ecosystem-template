@@ -6,11 +6,11 @@ This guide explains the E2E debugging workflow system - a systematic, evidence-b
 
 ## What is the E2E Debugging Workflow?
 
-The E2E debugging workflow is a **composite workflow** that orchestrates three specialized sub-workflows to systematically debug failing E2E tests:
+The E2E debugging workflow is a single skill (`debug-e2e-workflow`) that orchestrates a systematic, evidence-based debugging process. The skill uses three supporting progressive-disclosure documents for phase-level detail:
 
-1. **Review** (`/debug-e2e-review`) - Classify failures and gather evidence
-2. **Hypothesis** (`/debug-e2e-hypothesis`) - Form and validate root cause hypotheses
-3. **Fix** (`/debug-e2e-fix`) - Apply TDD-style fixes and verify
+1. **Review** (`.devin/skills/debug-e2e-workflow/reference/review.md`) - Classify failures and gather evidence
+2. **Hypothesis** (`.devin/skills/debug-e2e-workflow/reference/hypothesis.md`) - Form and validate root cause hypotheses
+3. **Fix** (`.devin/skills/debug-e2e-workflow/reference/fix.md`) - Apply TDD-style fixes and verify
 
 ## ⚠️ Important: Repository-Specific Adaptation Required
 
@@ -65,7 +65,7 @@ The infrastructure knowledge must remain embedded in the workflow steps to maint
    - What services need to be healthy for tests to run?
    - Where are run logs captured?
 
-2. **Update the workflow files** (`.devin/workflows/debug-e2e-*.md`):
+2. **Update the workflow files** (`.devin/skills/debug-e2e-workflow/*.md`):
    - Replace docker-compose references with your orchestration system
    - Update environment variable check commands
    - Modify health check patterns
@@ -189,7 +189,7 @@ Setup Failures Fixed → RE-RUN TESTS → Clean Results → Fix Test Execution F
 
 ## Workflow Phases
 
-### Phase 1: Review (`/debug-e2e-review`)
+### Phase 1: Review (`.devin/skills/debug-e2e-workflow/reference/review.md`)
 
 **Goal:** Classify each failing test as setup failure or test execution failure
 
@@ -211,7 +211,7 @@ Setup Failures Fixed → RE-RUN TESTS → Clean Results → Fix Test Execution F
 - For setup failures: Run log references
 - For test execution failures: Error messages + log evidence
 
-### Phase 2: Hypothesis (`/debug-e2e-hypothesis`)
+### Phase 2: Hypothesis (`.devin/skills/debug-e2e-workflow/reference/hypothesis.md`)
 
 **Goal:** Form explicit, testable hypotheses about root causes
 
@@ -251,7 +251,7 @@ Setup Failures Fixed → RE-RUN TESTS → Clean Results → Fix Test Execution F
 - Validation results
 - Pre-fix verification checklist completed
 
-### Phase 3: Fix (`/debug-e2e-fix`)
+### Phase 3: Fix (`.devin/skills/debug-e2e-workflow/fix.md`)
 
 **Goal:** Apply TDD-style fixes for each validated hypothesis
 
@@ -355,7 +355,7 @@ For each test execution hypothesis:
 │                  (Composite Orchestrator)                    │
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   REVIEW     │→ │  HYPOTHESIS  │→ │     FIX      │      │
+│  │   REVIEW     │→ │ HYPOTHESIS   │→ │   FIX        │      │
 │  │              │  │              │  │              │      │
 │  │ Classify     │  │ Two-Path:    │  │ TDD Loop:    │      │
 │  │ failures     │  │ • Setup      │  │ • Think      │      │
@@ -379,8 +379,8 @@ For each test execution hypothesis:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         WORKFLOWS                            │
-│  /debug-e2e-review  /debug-e2e-hypothesis  /debug-e2e-fix   │
+│              debug-e2e-workflow Phases                      │
+│  review.md  hypothesis.md  fix.md                           │
 └─────────────────────────────────────────────────────────────┘
                             │
                             │ Uses
@@ -440,14 +440,15 @@ For each test execution hypothesis:
 ```
 1. Receive test failure notification (CI or local)
    - Run log automatically captured: e2e-run-logs/e2e-run-YYYYMMDD-HHMM.log
-2. Run: /debug-e2e-review (classify each test: setup vs test execution)
-3. Run: /debug-e2e-hypothesis (two-path analysis)
-4. IF setup failures exist:
-   a. Run: /debug-e2e-fix (for setup failures)
+2. Run `.devin/skills/debug-e2e-workflow/SKILL.md` and follow the orchestrator
+   2a. Skill will follow `review.md` (classify each test: setup vs test execution)
+   2b. Skill will follow `hypothesis.md` (two-path analysis)
+3. IF setup failures exist:
+   a. Skill will follow `fix.md` (for setup failures)
    b. RE-RUN TESTS: cd src/ui && ./scripts/run-e2e-docker.sh
-   c. Return to step 2 with new results
-5. Run: /debug-e2e-fix (for test execution failures)
-6. Final verification and commit
+   c. Return to step 2b with new results
+4. Skill will follow `fix.md` (for test execution failures)
+5. Final verification and commit
 ```
 
 ### Continuing Existing Session
@@ -455,17 +456,15 @@ For each test execution hypothesis:
 1. Open existing session document (docs/ephemyra/debug-e2e-MMDD-HHMM.md)
 2. Review current status
 3. Identify next step:
-   - If in review phase: Continue /debug-e2e-review
-   - If in hypothesis phase: Continue /debug-e2e-hypothesis
-   - If in fix phase: Continue /debug-e2e-fix for next hypothesis
+   - If in review phase: Continue with `review.md`
+   - If in hypothesis phase: Continue with `hypothesis.md`
+   - If in fix phase: Continue with `fix.md` for next hypothesis
 ```
 
 ### Quick Single Test Debug
 ```
-1. Run: /debug-e2e-review (even for single test)
-2. Run: /debug-e2e-hypothesis (form hypothesis)
-3. Run: /debug-e2e-fix (apply fix)
-4. Verify and commit
+1. Run `/debug-e2e-workflow`, and agent will follow the skill flow.
+2. Verify and commit
 ```
 
 ## Troubleshooting the Workflow
