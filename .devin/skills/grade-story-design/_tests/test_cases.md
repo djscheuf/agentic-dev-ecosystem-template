@@ -134,4 +134,32 @@ AND no Recommendation needed
 
 ## Instrumentation & Observability Rubric
 
+Given Design Missing Instrumentation & Observability such as logging, metrics, or observability points
+THEN Instrumentation & Observability Score is 0
+AND Reasoning explains missing instrumentation with no logging, metrics, or observability points defined
+AND Recommendation suggests identifying key workflow milestones for logging and defining observability points.
 
+Given Design has Minimal Instrumentation & Observability, such as a single log point with minimal context and no strategy for error states or performance
+THEN Instrumentation & Observability Score is 1
+AND Reasoning explains minimal instrumentation with only one point and limited context
+AND Recommendation suggests expanding instrumentation to cover major workflow branches and include relevant context.
+
+Given Design has Instrumentation & Observability with limited debugging support, such as logging for the happy path but no coverage of error states
+THEN Instrumentation & Observability Score is 1
+AND Reasoning explains limited debugging support, with error states lacking logging or alerting strategy
+AND Recommendation suggests adding logging/alerting for error states and timing instrumentation for performance-critical paths.
+
+Given Design has Instrumentation & Observability covering 2-3 key workflow milestones with good context but missing error state coverage
+THEN Instrumentation & Observability Score is 2
+AND Reasoning explains good context at key milestones but missing coverage of error states or alerting strategy
+AND Recommendation suggests adding instrumentation points for all error states and defining a logging/alerting strategy.
+
+Given Design has Instrumentation & Observability covering major workflow branches but missing context on data transformations or performance timing
+THEN Instrumentation & Observability Score is 2
+AND Reasoning explains coverage of major branches but missing context such as data transformation validation or performance timing
+AND Recommendation suggests adding relevant context to log events and timing instrumentation for performance-critical paths.
+
+Given Design exhibits Exemplary Instrumentation & Observability with 4+ points, rich context, comprehensive debugging support, and all error states covered
+THEN Instrumentation & Observability Score is 3
+AND Reasoning explains exemplary instrumentation with key milestones, error states, performance timing, and data transformation logging
+AND no Recommendation needed
