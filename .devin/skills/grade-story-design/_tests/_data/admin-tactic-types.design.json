@@ -1,6 +1,6 @@
 {
-  "story_path": "docs/reqs/35 - Admin Tactic Types/administer-tactic-types.analysis.json",
-  "repo_state_before_design": "docs/reqs/35 - Admin Tactic Types/current-reality.audit.json",
+  "story_path": "./administer-tactic-types.analysis.json",
+  "repo_state_before_design": "./admin-tactic-types.audit.json",
   "workflow_sequence": [
     {
       "step": 1,
