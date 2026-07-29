@@ -1,15 +1,15 @@
-# TDD-Red Workflow
+# TDD-Red Phase
 
 ## Purpose
 Write a failing test that defines the expected behavior. The test MUST fail before proceeding.
 
 ## Trigger
-- After completing `tdd-think` with a test plan
+- After completing the Think phase with a test plan
 - Starting the next test case in the plan
 - Test plan exists with prioritized cases
 
 ## Prerequisites
-- Completed `tdd-think` output (test plan)
+- Completed Think phase output (test plan)
 - Test framework configured and working
 - Understanding of the assertion library
 
@@ -118,10 +118,10 @@ Record:
 ## Output
 - A single failing test
 - Clear failure message indicating missing behavior
-- Ready for `tdd-green` phase
+- Ready for the Green phase
 
-## Next Workflow
-→ `tdd-green`: Write minimal code to make the test pass
+## Next Phase
+→ `reference/green.md`: Write minimal code to make the test pass
 
 ## Anti-Patterns to Avoid
 ```
@@ -151,5 +151,5 @@ public void Calculate_WithTwoPositiveNumbers_ReturnsSum()
 
 // Run: dotnet test --filter "Calculate_WithTwoPositiveNumbers"
 // Result: FAIL - Calculator class does not exist
-// ✓ Correct failure - ready for tdd-green
+// ✓ Correct failure - ready for the Green phase
 ```

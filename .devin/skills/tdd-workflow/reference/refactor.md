@@ -1,10 +1,10 @@
-# TDD-Refactor Workflow
+# TDD-Refactor Phase
 
 ## Purpose
 Improve code quality, remove duplication, and enhance design while keeping all tests green.
 
 ## Trigger
-- After `tdd-green` with all tests passing
+- After the Green phase with all tests passing
 - Code smells detected
 - Duplication exists
 - Design can be improved
@@ -234,8 +234,8 @@ public class OrderNotificationService
 - All tests still passing
 - Ready for next TDD cycle or completion
 
-## Next Workflow
-→ `tdd-red`: Start next test case from plan
+## Next Phase
+→ `reference/red.md`: Start next test case from plan
 → OR complete if all tests implemented
 
 ## Anti-Patterns to Avoid

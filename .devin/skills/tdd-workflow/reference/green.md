@@ -1,15 +1,15 @@
-# TDD-Green Workflow
+# TDD-Green Phase
 
 ## Purpose
 Write the MINIMUM code necessary to make the failing test pass. No more, no less.
 
 ## Trigger
-- After `tdd-red` produces a failing test
+- After the Red phase produces a failing test
 - Test failure is understood
 - Ready to implement behavior
 
 ## Prerequisites
-- One failing test from `tdd-red`
+- One failing test from the Red phase
 - Clear understanding of WHY it's failing
 - No other failing tests (fix one at a time)
 
@@ -108,10 +108,10 @@ Remember: Refactoring comes NEXT, not now.
 ## Output
 - All tests passing
 - Minimal implementation in place
-- Ready for `tdd-refactor` phase
+- Ready for the Refactor phase
 
-## Next Workflow
-→ `tdd-refactor`: Improve code quality while keeping tests green
+## Next Phase
+→ `reference/refactor.md`: Improve code quality while keeping tests green
 
 ## The "Fake It Till You Make It" Approach
 

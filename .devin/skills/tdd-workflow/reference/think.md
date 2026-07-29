@@ -1,4 +1,4 @@
-# TDD-Think Workflow
+# TDD-Think Phase
 
 ## Purpose
 Analyze requirements and design test cases before writing any code. This is the planning phase of TDD.
@@ -75,8 +75,8 @@ A structured test plan document with:
 - Expected behaviors
 - Priority order for implementation
 
-## Next Workflow
-→ `tdd-red`: Write the first failing test
+## Next Phase
+→ `reference/red.md`: Write the first failing test
 
 ## Example Output
 ```markdown
