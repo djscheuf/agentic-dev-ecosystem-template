@@ -3,7 +3,9 @@
 # ========================================
 - vars:
     request: 
-      - '@../.devin/skills/grade-story-design/_tests/_data/administer-tactic-types-and-delivery-methods.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Canary Test (Reason)'
   assert:
     - type: icontains
@@ -26,7 +28,9 @@
 
 - vars:
     request: 
-      - '@../.devin/skills/grade-story-design/_tests/_data/administer-tactic-types-and-delivery-methods.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Happy Path'
   assert:
     # Core definition
@@ -48,7 +52,9 @@
 
 - vars:
     request: 
-      - '@../.devin/skills/grade-story-design/_tests/_data/administer-tactic-types-and-delivery-methods.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Output Schema Validation - Script Based'
   assert:
     - type: javascript

@@ -1,1 +1,3 @@
-@../SKILL.md Use the provided skill to grade the provided story analysis: {{request}}. Give me the grading result in JSON format.
+@../SKILL.md 
+Use the provided skill to grade the provided story design: {{request}}. 
+Give me the grading result in JSON format in the chat.

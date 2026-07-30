@@ -1,0 +1,43 @@
+# ========================================
+# INCOMPLETE Design Reasoning
+# ========================================
+- vars:
+    request: 
+      - '@../.devin/skills/grade-story-design/_tests/_data/truncated-display.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "design_reasoning"
+      score_floor: 1
+  description: 'Incomplete Design Reasoning'
+  assert:
+    # Core definition
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: design-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Design Reasoning Section's Reason should mention unclear design justification, or that it is vague or heuristic driven rather than based on the story or existing architecture as reason for the score. "
+      threshold: 0.7
+      metric: design-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Design Reasoning Section's Recommendation should include recommendations for strengthening justification with specific patterns, or grounding decisions in the story or existing architecture. "
+      threshold: 0.7
+      metric: design-recommendation
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@../.devin/skills/grade-story-design/_tests/_data/truncated-display.design.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-design/schema/design-grade.schema.json'
