@@ -3,20 +3,8 @@
   "repo_state_before_design": "./add-user-badge.audit.json",
   "workflow_sequence": [
     {
-      "step": 1,
-      "description": "User authenticates and the tactic-builder app loads; the existing useUser hook (or future auth context) populates React state with the current user's userId and roles from the /user/me endpoint. No new backend or data changes are required.",
-      "layers_involved": ["Frontend"],
-      "handshake_points": []
-    },
-    {
       "step": 2,
       "description": "User navigates to the Search (List) page; the page header section renders the new UserBadge component in the top-right, displaying the user's name (userId) and primary role.",
-      "layers_involved": ["Frontend"],
-      "handshake_points": []
-    },
-    {
-      "step": 3,
-      "description": "User opens a Tactic Detail / Create page; the existing TacticStickyHeader renders the same UserBadge component in its right-hand action area so the badge remains visible in the top-right of the tactic-builder interface without altering existing tactic actions.",
       "layers_involved": ["Frontend"],
       "handshake_points": []
     }
