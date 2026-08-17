@@ -1,27 +1,208 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
     "design_reasoning": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "description": "Design reasoning",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "description": "Score",
+          "examples": [
+            0,1,2,3
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason",
+          "examples": [
+            "reason for score"
+          ]
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommendation",
+          "examples": [
+            "recommendation to improve score"
+          ]
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ],
+      "examples": [
+        {
+          "score": 0,
+          "reason": "",
+          "recommendation": ""
+        }
+      ]
     },
     "workflow_changes": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "description": "Workflow changes",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "description": "Score",
+          "examples": [
+            0,1,2,3
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason",
+          "examples": [
+            "reason for score"
+          ]
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommendation",
+          "examples": [
+            "recommendation to improve score"
+          ]
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ],
+      "examples": [
+        {
+          "score": 0,
+          "reason": "",
+          "recommendation": ""
+        }
+      ]
     },
     "interface_contracts": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "description": "Interface contracts",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "description": "Score",
+          "examples": [
+            0,1,2,3
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason",
+          "examples": [
+            "reason for score"
+          ]
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommendation",
+          "examples": [
+            "recommendation to improve score"
+          ]
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ],
+      "examples": [
+        {
+          "score": 0,
+          "reason": "",
+          "recommendation": ""
+        }
+      ]
     },
     "layer_responsibilities": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "description": "Layer responsibilities",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "description": "Score",
+          "examples": [
+            0,1,2,3
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason",
+          "examples": [
+            "reason for score"
+          ]
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommendation",
+          "examples": [
+            "recommendation to improve score"
+          ]
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ],
+      "examples": [
+        {
+          "score": 0,
+          "reason": "",
+          "recommendation": ""
+        }
+      ]
     },
     "instrumentation": {
-        "score": 0,
-        "reason": "",
-        "recommendation": ""
+      "type": "object",
+      "description": "Instrumentation",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "description": "Score",
+          "examples": [
+            0,1,2,3
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason",
+          "examples": [
+            "reason for score"
+          ]
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Recommendation",
+          "examples": [
+            "recommendation to improve score"
+          ]
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ],
+      "examples": [
+        {
+          "score": 0,
+          "reason": "",
+          "recommendation": ""
+        }
+      ]
     }
+  },
+  "required": [
+    "design_reasoning",
+    "workflow_changes",
+    "interface_contracts",
+    "layer_responsibilities",
+    "instrumentation"
+  ]
 }

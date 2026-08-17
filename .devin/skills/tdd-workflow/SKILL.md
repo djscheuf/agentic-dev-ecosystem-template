@@ -1,3 +1,8 @@
+---
+name: tdd-workflow
+description: Complete Test-Driven Development cycle (Think, Red, Green, Refactor) for implementing a feature or fixing a bug. Use as the top-level entry point for TDD work.
+---
+
 # TDD Workflow (Composite)
 
 ## Purpose
@@ -33,12 +38,12 @@ This workflow orchestrates the four TDD phases in a continuous cycle until the f
 ## Workflow Chain
 
 ### Phase 1: Think
-**Workflow:** /tdd-think.md
+**Reference:** `reference/think.md`
 **Duration:** 10-20 minutes
 **Output:** Prioritized test plan
 
 ```
-Execute: tdd-think
+Execute Think phase (see reference/think.md for full steps)
 ├── Understand requirement
 ├── Identify all test cases
 ├── Prioritize by importance
@@ -51,17 +56,17 @@ Execute: tdd-think
 ```
 FOR each test in test_plan:
     
-    Execute: /tdd-red.md
+    Execute Red phase (see reference/red.md for full steps)
     ├── Write single failing test
     ├── Verify failure is correct
     └── Output: One red test
     
-    Execute: /tdd-green.md
+    Execute Green phase (see reference/green.md for full steps)
     ├── Write minimal passing code
     ├── Verify test passes
     └── Output: All tests green
     
-    Execute: /tdd-refactor.md
+    Execute Refactor phase (see reference/refactor.md for full steps)
     ├── Identify improvements
     ├── Apply refactorings (tests stay green)
     └── Output: Clean code, all green
@@ -76,7 +81,7 @@ FOR each test in test_plan:
 ```
 1. Receive requirement/story
 2. Run: analyze-user-story (if story provided)
-3. Run: tdd-think (creates test plan)
+3. Run Think phase (reference/think.md) — creates test plan
 4. Begin Red-Green-Refactor loop
 ```
 
@@ -84,16 +89,16 @@ FOR each test in test_plan:
 ```
 1. Review existing test plan
 2. Identify next unimplemented test
-3. Run: /tdd-red.md (write next test)
+3. Run Red phase (reference/red.md) — write next test
 4. Continue Red-Green-Refactor loop
 ```
 
 ### Bug Fix Mode
 ```
-1. Run: /tdd-red.md (write test that exposes bug)
+1. Run Red phase (reference/red.md) — write test that exposes bug
 2. Verify test fails (reproduces bug)
-3. Run: /tdd-green.md (fix the bug)
-4. Run: /tdd-refactor.md (clean up if needed)
+3. Run Green phase (reference/green.md) — fix the bug
+4. Run Refactor phase (reference/refactor.md) — clean up if needed
 ```
 
 ## State Tracking
@@ -158,8 +163,8 @@ planning → analyze-user-story → tdd (this workflow)
 
 ### During TDD (if needed)
 ```
-tdd-think → explore-codebase (understand existing patterns)
-tdd-red → explore-codebase (find similar tests)
+Think phase → explore-codebase (understand existing patterns)
+Red phase → explore-codebase (find similar tests)
 ```
 
 ### After TDD

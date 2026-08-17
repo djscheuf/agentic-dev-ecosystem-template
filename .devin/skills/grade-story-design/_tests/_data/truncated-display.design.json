@@ -1,0 +1,121 @@
+{
+  "story_path": "./add-user-badge.analysis.json",
+  "repo_state_before_design": "./add-user-badge.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 2,
+      "description": "User navigates to the Search (List) page; the page header section renders the new UserBadge component in the top-right, displaying the user's name (userId) and primary role.",
+      "layers_involved": ["Frontend"],
+      "handshake_points": []
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "UserBadgeRendered",
+      "description": "Fired when the UserBadge component renders with valid user data, for observability into page-level adoption and role distribution.",
+      "layers_involved": ["Frontend"],
+      "data_points": [
+        { "point": "pageContext", "description": "Page where the badge is shown (search-list or tactic-detail)" },
+        { "point": "roleCount", "description": "Number of roles held by the user" },
+        { "point": "hasUserData", "description": "Whether user data was available at render time" }
+      ]
+    },
+    {
+      "event_name": "UserBadgeDataUnavailable",
+      "description": "Fired when the UserBadge component is rendered but no user data is present, to detect auth/state initialization issues.",
+      "layers_involved": ["Frontend"],
+      "data_points": [
+        { "point": "pageContext", "description": "Page where the badge was rendered without user data" }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Create a reusable UserBadge molecule in the shared UI package that displays a user icon, the user's name, and the user's primary role.",
+          "intent": "Display is a frontend concern; centralizing the badge in packages/ui keeps the two tactic-builder pages consistent and testable."
+        },
+        {
+          "responsibility": "Derive the displayed name from the existing User.userId field and the displayed role from the first entry in User.roles, with fallbacks for missing data.",
+          "intent": "The current User model exposes userId (email) and roles; no backend contract change is needed for this read-only display."
+        },
+        {
+          "responsibility": "Integrate UserBadge into the Search (List) page header and the TacticStickyHeader right action area so it appears in the top-right of tactic-builder pages only.",
+          "intent": "Placement is scoped to the tactic-builder interface per the story's tech note; both existing headers need a top-right anchor."
+        },
+        {
+          "responsibility": "Implement responsive, overflow-safe styling (max-width, truncation, title attribute) for long userIds and role names.",
+          "intent": "Handles the long-name and long-role edge cases without breaking the header layout."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "UserBadgeDisplayModel",
+      "description": "Read-only view of the existing User model used by the badge. No schema or API changes are required.",
+      "changes": {
+        "added": "None; UserBadge consumes existing User { userId: string, roles: Role[], isAuthenticated?: boolean, fromJwt?: boolean, opCo?: string | null, businessEntity?: string | null } from @coupon-builder/models.",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "UserBadgeComponent",
+      "description": "New shared molecule in packages/ui that renders a user icon, name, and role. It accepts an optional User object and an optional base testId.",
+      "changes": {
+        "added": "src/ui/packages/ui/src/components/molecules/UserBadge/UserBadge.tsx with props { user?: User, testId?: string, className?: string }; src/ui/packages/ui/src/components/molecules/UserBadge/UserBadge.testids.ts exporting UserBadgeTestIds { container, userIcon, userName, userRole } as functions of base testId.",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "UserBadgePagePlacement",
+      "description": "Defines where the UserBadge is rendered within the tactic-builder interface.",
+      "changes": {
+        "added": "UserBadge is placed in the top-right of the Search (List) page header section and in the right action area of TacticStickyHeader on Tactic Detail / Create pages.",
+        "modified": "src/ui/apps/tactic-builder/src/pages/List/List.tsx header section; src/ui/packages/ui/src/components/organisms/TacticStickyHeader/TacticStickyHeader.tsx right action area.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "IconsUserGlyph",
+      "description": "Adds a simple user/person icon to the existing Icons atom so the badge uses the project's shared icon system.",
+      "changes": {
+        "added": "Icons.User component in src/ui/packages/ui/src/components/atoms/Icons/Icons.tsx.",
+        "modified": "Icons namespace and IconName type to include 'User'.",
+        "removed": "None"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Implement UserBadge as a shared UI package molecule rather than an inline component in each page.",
+      "justification": "The badge is needed on both Search and Tactic Detail pages; a shared component ensures consistent styling, testIds, and accessibility behavior across the tactic-builder interface.",
+      "basis": "It should be a component, for reuse.",
+      "impact": "New component under src/ui/packages/ui/src/components/molecules/UserBadge; exported from packages/ui index.",
+      "answers_open_question": "What icon library or design system should be used? -> Use the existing project Icons atom with a new User glyph."
+    },
+    {
+      "decision": "Make the badge read-only and non-interactive in this iteration.",
+      "justification": "The story only asks to display name and role; adding a profile/logout menu would introduce new navigation flows and accessibility requirements not requested.",
+      "basis": "Supporting customization would be too hard. ",
+      "impact": "UserBadge renders as a static container with no click handlers or dropdown menu.",
+      "answers_open_question": "Should the badge be clickable/interactive? -> No; it is read-only for this story."
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the exact format for displaying the role name? Should it be the role's display name or system identifier?",
+      "answer": "Display the raw role string returned by the API (e.g., 'ProofReader', 'Requester'). No role-to-display-name mapping is introduced.",
+      "justification": "The User model currently stores role identifiers, and there is no existing role-display-name dictionary in the frontend. This keeps the change minimal and avoids inventing localized labels.",
+      "basis": "Current User model and useUser implementation in src/ui/packages/models/src/user.model.ts and src/ui/apps/tactic-builder/src/shared/hooks/use-user.ts."
+    }
+  ]
+}

@@ -20,8 +20,8 @@ Each dimension is scored on a **0-3 scale**:
 
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
-| **0** | No architectural justification; decisions appear arbitrary or over-engineered | No reference to ADRs or patterns; unnecessary abstractions introduced |
-| **1** | Some decisions justified; significant gaps in reasoning; heuristic-driven | "For simplicity" without architectural context; some over-engineering present |
+| **0** | Lack of architectural justification; Most decisions are ungrounded | No or few reference to ADRs or established patterns; unnecessary abstractions introduced; basis or justification found in opinion or preference |
+| **1** | Most decisions justified but with significant gaps in reasoning; Or design is over-engineered for the task | "For simplicity" without architectural context; decisions related to future-proofing, or performance in excess of requirements |
 | **2** | Most decisions justified by ADRs or patterns; design is mostly minimal; some intents could be clearer | Decisions reference existing patterns; one or two questionable components |
 | **3** | All decisions grounded in ADRs, target architecture, or established patterns; design is lean; intents clearly differentiated | Every component serves a clear purpose; extension favored over creation; defensive programming explicit |
 
@@ -42,7 +42,7 @@ Each dimension is scored on a **0-3 scale**:
 
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
-| **0** | Happy path is missing, vague, or unintelligible; no edge cases identified | Workflow is unclear; no step-by-step description; no error states |
+| **0** | Happy path is missing, vague, or unintelligible; Edge cases missing or absent entirely | Workflow is unclear; no step-by-step description; no error states |
 | **1** | Happy path sketched but incomplete; 1-2 edge cases mentioned with vague divergences | Workflow exists but lacks clarity on layer ownership or data flow; minimal edge case coverage |
 | **2** | Happy path fully specified with layer identification and data flow; 2-3 edge cases with clear divergences | Each step identifies which layer performs the action; data transformations explicit; most edge cases addressed |
 | **3** | Happy path unambiguous and implementable; 4+ edge cases with clear divergences and recovery paths; all acceptance criteria mapped | User journey is step-by-step from trigger to completion; sequence and timing clear; business rules documented; no scope creep |

@@ -1,0 +1,111 @@
+{
+  "run_date": "2026-07-13T11:32:00Z",
+  "target_story": "docs/reqs/35 - Admin Tactic Types/story.md",
+  "status": "INCOMPLETE",
+  "summary": "Admin interface for managing tactic types and delivery methods does not exist. Core domain models and read APIs exist, but admin CRUD operations, UI, and draft mode are not implemented.",
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "docs/adrs/20251218-20-reference-data-memory-caching.md",
+        "why": "Reference data caching strategy - admin changes must invalidate cache"
+      },
+      {
+        "path": "docs/adrs/20260127-28-field-level-authorization-service.md",
+        "why": "Authorization patterns for admin operations"
+      },
+      {
+        "path": "docs/adrs/20260129-30-read-write-authorization-separation.md",
+        "why": "Read/write authorization separation for admin vs requestor roles"
+      }
+    ],
+    "persona": [
+      {
+        "path": "User Personas.md",
+        "why": "Administrator persona definition and responsibilities"
+      }
+    ],
+    "target_architecture": [
+      {
+        "path": "docs/api/ARCHITECTURE.md",
+        "why": "API architecture and admin interface patterns"
+      }
+    ]
+  },
+  "code_audit": {
+    "models": [
+      {
+        "path": "src/api/Models/TacticType.cs",
+        "why": "Domain model missing IsActive property required by story"
+      },
+      {
+        "path": "src/api/Models/DeliveryMethod.cs",
+        "why": "Domain model missing IsActive, RequiresDigitalProvider, RequiresPrinter properties"
+      }
+    ],
+    "apis": [
+      {
+        "path": "src/api/Controllers/ReferenceController.cs",
+        "why": "Read APIs for tactic types and delivery methods exist but don't filter by active status"
+      },
+      {
+        "path": "src/api/Controllers/AdminEntitiesController.cs",
+        "why": "Existing admin controller pattern to follow for new admin endpoints"
+      }
+    ],
+    "services": [
+      {
+        "path": "src/api/Queries/GetDeliveryMethodsQueryHandler.cs",
+        "why": "Reference data caching implementation - admin changes must invalidate cache"
+      },
+      {
+        "path": "src/api/Data/TacticDbContext.cs",
+        "why": "Database schema and EF Core configuration for TacticType and DeliveryMethod"
+      }
+    ],
+    "components": [
+      {
+        "path": "src/ui/admin/pages/App/App.tsx",
+        "why": "Admin UI app exists but is placeholder - needs implementation"
+      }
+    ],
+    "tests": []
+  },
+  "findings": {
+    "domain_models": {
+      "status": "EXISTS_INCOMPLETE",
+      "details": "TacticType and DeliveryMethod models exist but lack IsActive and provider requirement properties needed for admin functionality"
+    },
+    "database_schema": {
+      "status": "PARTIAL",
+      "details": "Tables exist but missing IsActive, RequiresDigitalProvider, RequiresPrinter columns and uniqueness constraint on (DeliveryMethod.Name, TacticTypeId)"
+    },
+    "read_apis": {
+      "status": "EXISTS",
+      "details": "GetTacticTypes and GetDeliveryMethods endpoints exist but don't filter by active status; need separate admin endpoints"
+    },
+    "admin_apis": {
+      "status": "MISSING",
+      "details": "No admin CRUD endpoints for tactic types or delivery methods; no toggle active/inactive endpoints"
+    },
+    "admin_ui": {
+      "status": "MISSING",
+      "details": "tactic-admin app exists but is placeholder with no admin pages or forms implemented"
+    },
+    "authorization": {
+      "status": "PARTIAL",
+      "details": "Admin role exists and authorization framework is in place, but new admin endpoints need authorization checks"
+    },
+    "business_rules": {
+      "status": "MISSING",
+      "details": "No validation for: cannot delete (only mark inactive), inactive hidden from requestors, show only types with methods, draft mode with save"
+    }
+  },
+  "implementation_phases": {
+    "phase_1_database": "Add IsActive, RequiresDigitalProvider, RequiresPrinter columns; add uniqueness constraint",
+    "phase_2_domain_models": "Update TacticType and DeliveryMethod models with new properties",
+    "phase_3_admin_apis": "Create admin CRUD endpoints with authorization and cache invalidation",
+    "phase_4_read_api_updates": "Modify read queries to filter by active status for non-admin users",
+    "phase_5_admin_ui": "Build admin pages with list views, forms, draft mode, and toggle UI",
+    "phase_6_testing": "Create unit and E2E tests for admin workflows"
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "story_path": "./administer-tactic-types.analysis.json",
+  "repo_state_before_design": "./admin-tactic-types.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "Administrator navigates to Tactic Type & Delivery Method admin section; frontend requests the full (unfiltered by active status) list of tactic types with nested delivery methods from the admin API",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "GetAdminTacticTypesAPI",
+          "data_shape": "GET /api/v1/admin/tactic-types -> AdminTacticTypeDto[] (Id, Name, IsActive, DisplayOrder, DeliveryMethods[])"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "Administrator toggles active/inactive on a tactic type or delivery method in the working draft; change is held in local UI state only (not yet persisted)",
+      "layers_involved": ["Frontend"],
+      "handshake_points": []
+    },
+    {
+      "step": 3,
+      "description": "Administrator adds a new tactic type or a new delivery method (with Name, and for delivery methods: RequiresDigitalProvider / RequiresPrinter) to the working draft; frontend performs client-side duplicate check for immediate feedback",
+      "layers_involved": ["Frontend"],
+      "handshake_points": []
+    },
+    {
+      "step": 4,
+      "description": "Administrator clicks Save; frontend submits the full set of draft changes (status toggles + new entities) to the backend, which validates business rules and persists them atomically",
+      "layers_involved": ["Frontend", "Backend", "DataPipeline"],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "SaveTacticTypeAdminChangesAPI",
+          "data_shape": "PATCH /api/v1/admin/tactic-types -> SaveTacticTypeAdminChangesCommand { StatusToggles: [{EntityType, Id, IsActive}], NewTacticTypes: [{Name}], NewDeliveryMethods: [{Name, TacticTypeId, RequiresDigitalProvider, RequiresPrinter}] } -> SaveTacticTypeAdminChangesResponse"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "DataPipeline",
+          "contract_used": "TacticTypeDeliveryMethodDataModel",
+          "data_shape": "EF Core writes to TacticTypes and DeliveryMethods tables within a single transaction; unique constraint enforced on (DeliveryMethod.Name, TacticTypeId)"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "Backend invalidates the reference-data memory cache entries for TacticTypes and DeliveryMethods so that subsequent reads (admin and order form) reflect the new state immediately",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "IMemoryCache invalidation (ADR 20251218-20)",
+          "data_shape": "Remove cache keys: TacticTypes, TacticTypes:Admin, DeliveryMethods:All, DeliveryMethods:{tacticTypeId} for each affected TacticTypeId"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "description": "Requestor opens the order form; read APIs return only active tactic types that have at least one active delivery method, and only active delivery methods within them, reflecting the administrator's changes",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "GetTacticTypesAPI / GetDeliveryMethodsAPI (existing, modified)",
+          "data_shape": "GET /api/v1/reference/tactic-types, GET /api/v1/reference/delivery-methods -> filtered to IsActive=true, tactic types with zero active delivery methods excluded"
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "description": "Requestor views historical order that references a now-inactive tactic type or delivery method; historical read path resolves the reference directly by Id without applying the active-status filter, so the inactive value remains visible",
+      "layers_involved": ["Backend", "DataPipeline"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "DataPipeline",
+          "contract_used": "TacticTypeDeliveryMethodDataModel",
+          "data_shape": "Historical order queries join TacticType/DeliveryMethod by Id (no soft-delete/hard-delete ever occurs, so FK integrity is preserved regardless of IsActive)"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "AdminTacticTypeStatusToggled",
+      "description": "Fired when an administrator toggles a tactic type's or delivery method's active/inactive status as part of a save operation",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "entityType", "description": "TacticType or DeliveryMethod" },
+        { "point": "entityId", "description": "Id of the toggled entity" },
+        { "point": "previousIsActive", "description": "Status before the change" },
+        { "point": "newIsActive", "description": "Status after the change" },
+        { "point": "adminUserId", "description": "Id of the administrator performing the change" },
+        { "point": "correlationId", "description": "Correlation id for tracing the request" }
+      ]
+    },
+    {
+      "event_name": "AdminTacticTypeCreated",
+      "description": "Fired when a new tactic type or delivery method is created via the admin save endpoint",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "entityType", "description": "TacticType or DeliveryMethod" },
+        { "point": "entityId", "description": "Newly generated Id" },
+        { "point": "name", "description": "Name provided by the administrator" },
+        { "point": "parentTacticTypeId", "description": "Present only for DeliveryMethod creation" },
+        { "point": "adminUserId", "description": "Id of the administrator performing the change" }
+      ]
+    },
+    {
+      "event_name": "AdminTacticTypeSaveRejected",
+      "description": "Fired when a save request fails business rule or uniqueness validation, for observability into admin friction and potential duplicate submissions",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "reasonCode", "description": "DuplicateDeliveryMethod | AllDeliveryMethodsInactive | ValidationError | ConcurrencyConflict" },
+        { "point": "adminUserId", "description": "Id of the administrator performing the change" },
+        { "point": "correlationId", "description": "Correlation id for tracing the request" }
+      ]
+    },
+    {
+      "event_name": "ReferenceDataCacheInvalidated",
+      "description": "Fired when admin tactic type/delivery method changes trigger cache invalidation, to monitor cache churn from admin activity",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "cacheKeysInvalidated", "description": "List of cache keys removed" },
+        { "point": "triggeredBy", "description": "SaveTacticTypeAdminChanges" }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        { "responsibility": "Render list view of tactic types with nested delivery methods, active/inactive indicators, and toggle controls", "intent": "Display is a frontend concern; the UI shows current admin-facing state" },
+        { "responsibility": "Maintain draft mode local state (pending toggles and new entries) until explicit Save, with a Discard action", "intent": "Sequence/UX of review-before-commit lives in the frontend per AC 'explicit save in drafting mode'" },
+        { "responsibility": "Client-side optimistic duplicate-name check and max-length validation for immediate feedback", "intent": "Fast feedback loop for UX; not authoritative (backend re-validates)" },
+        { "responsibility": "Disable/hide delete controls, exposing only inactive-toggle for removal semantics", "intent": "Adapts UI to the 'cannot delete, only deactivate' business rule surfaced by backend contract" }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        { "responsibility": "Authorize admin tactic-type/delivery-method endpoints to Admin role only", "intent": "Security enforcement belongs on the backend (Authorize attribute), consistent with AdminEntitiesController pattern" },
+        { "responsibility": "Enforce uniqueness of (DeliveryMethod.Name, TacticTypeId) at command-handling time before persistence", "intent": "Business rule / data integrity enforcement is a backend responsibility, defensible zone ahead of the data layer" },
+        { "responsibility": "Reject attempts to delete; only expose update-status operations (no DELETE endpoint)", "intent": "Constraint enforcement; frontend cannot be trusted to withhold delete requests" },
+        { "responsibility": "Apply active-status + 'has at least one active delivery method' filtering in read/reference query handlers for non-admin (order form) consumers", "intent": "Filter hierarchy and scope of supported functionality is backend logic; admin queries bypass this filter" },
+        { "responsibility": "Invalidate IMemoryCache entries for TacticTypes/DeliveryMethods on every admin write", "intent": "Cache ownership already resides in the backend per ADR 20251218-20; admin writes must not leave the 1-hour stale window uncontrolled" },
+        { "responsibility": "Persist all requested toggles and creations from a single Save action atomically (single DB transaction)", "intent": "Handles the 'rapid status changes' and partial-failure edge cases; last-write-wins is acceptable per existing concurrency posture in this codebase" }
+      ]
+    },
+    {
+      "layer": "DataPipeline",
+      "new_responsibilities": [
+        { "responsibility": "Add IsActive (bit, default 1) to TacticTypes and DeliveryMethods tables", "intent": "Storage of the new domain concept lives in schema/model" },
+        { "responsibility": "Add RequiresDigitalProvider and RequiresPrinter (bit, default 0) to DeliveryMethods table", "intent": "Storage of delivery method type attributes from the story's inputs" },
+        { "responsibility": "Add a unique index on (DeliveryMethods.Name, DeliveryMethods.TacticTypeId)", "intent": "Data integrity constraint enforced at the database level as the last line of defense behind backend validation" },
+        { "responsibility": "Never hard-delete TacticType/DeliveryMethod rows; FK relationships from Tactics remain RESTRICT", "intent": "Preserves historical order references per AC 'inactive tactic types remain visible in historical orders'" }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "TacticTypeDeliveryMethodDataModel",
+      "description": "Extends existing TacticType and DeliveryMethod domain models/tables with active-status and delivery-method-type attributes",
+      "changes": {
+        "added": "TacticType.IsActive (bool, default true); DeliveryMethod.IsActive (bool, default true); DeliveryMethod.RequiresDigitalProvider (bool, default false); DeliveryMethod.RequiresPrinter (bool, default false); unique index IX_DeliveryMethods_Name_TacticTypeId on DeliveryMethod(Name, TacticTypeId)",
+        "modified": "None (existing Id, Name, TacticTypeId, DisplayOrder columns unchanged)",
+        "removed": "None; no delete capability is added to the schema"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "GetAdminTacticTypesAPI",
+      "description": "New admin-only read endpoint returning all tactic types (active and inactive) with nested delivery methods, for the admin list view",
+      "changes": {
+        "added": "GET /api/v1/admin/tactic-types -> AdminTacticTypeDto[] { Id, Name, IsActive, DisplayOrder, DeliveryMethods: [{ Id, Name, IsActive, RequiresDigitalProvider, RequiresPrinter, DisplayOrder }] }, [Authorize(Roles = \"Admin\")], follows AdminEntitiesController pattern",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SaveTacticTypeAdminChangesAPI",
+      "description": "New admin-only write endpoint that atomically applies all pending draft changes (status toggles + new tactic types + new delivery methods) from a single Save action",
+      "changes": {
+        "added": "PATCH /api/v1/admin/tactic-types -> SaveTacticTypeAdminChangesCommand { StatusToggles: [{ EntityType: 'TacticType'|'DeliveryMethod', Id, IsActive }], NewTacticTypes: [{ Name }], NewDeliveryMethods: [{ Name, TacticTypeId, RequiresDigitalProvider, RequiresPrinter }] } -> SaveTacticTypeAdminChangesResponse { UpdatedTacticTypes: AdminTacticTypeDto[] }; returns 409 with reasonCode on duplicate delivery method or validation error; [Authorize(Roles = \"Admin\")]",
+        "modified": "None",
+        "removed": "None (no DELETE endpoint exists or is added, per 'cannot be deleted' constraint)"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ReferenceTacticTypeAndDeliveryMethodReadAPIs",
+      "description": "Existing GET /api/v1/reference/tactic-types and GET /api/v1/reference/delivery-methods endpoints, modified to filter out inactive records for requestor-facing consumption",
+      "changes": {
+        "added": "Filter clause: IsActive = true; TacticTypes additionally excluded when they have zero delivery methods with IsActive = true",
+        "modified": "GetTacticTypesQueryHandler and GetDeliveryMethodsQueryHandler now query only active rows and use distinct cache keys (e.g. 'TacticTypes:Active', 'DeliveryMethods:Active:{tacticTypeId}') so admin (unfiltered) and requestor (filtered) results are never cross-contaminated in cache",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "DraftModeSaveInteraction",
+      "description": "Frontend accumulates changes client-side and submits them in a single batch on explicit Save, rather than auto-saving each toggle/add individually",
+      "changes": {
+        "added": "Client-side draft state (pending toggles, pending new entities) held until Save; Discard action resets to last-fetched server state",
+        "modified": "None (no prior interaction pattern existed since the UI is a placeholder)",
+        "removed": "None"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Follow the existing AdminEntitiesController pattern (CQRS via MediatR, [Authorize(Roles = \"Admin\")], record-based Commands/Queries) for the new admin tactic-type endpoints rather than introducing a new admin framework",
+      "justification": "Minimizes new architectural surface area and keeps admin endpoints consistent and discoverable",
+      "basis": "Pattern precedent in src/api/src/TacticManagement.Api/Controllers/AdminEntitiesController.cs (Story 25A OpCo Entity Admin)",
+      "impact": "New AdminTacticTypesController, Commands/Queries under TacticManagement.Application/TacticTypes/*",
+      "answers_open_question": "N/A - architectural precedent choice, not a story question"
+    },
+    {
+      "decision": "Implement Save as a single batch endpoint (PATCH with StatusToggles + NewTacticTypes + NewDeliveryMethods) instead of one call per toggle/add",
+      "justification": "Matches the story's explicit drafting-mode requirement (AC: 'changes are saved explicitly with a save action') and gives the backend a single transaction boundary to guarantee atomicity of related toggles",
+      "basis": "Explicit Architectural Change from Story (draft mode requirement)",
+      "impact": "New composite command/handler and DTOs; frontend maintains local draft state instead of calling PATCH per field",
+      "answers_open_question": "Should changes be auto-saved or require explicit save action? -> Explicit save; see questions_addressed"
+    },
+    {
+      "decision": "Reuse ADR 20251218-20 sliding-expiration IMemoryCache strategy, and explicitly invalidate affected keys on every admin write rather than waiting for expiration",
+      "justification": "The ADR's 1-hour sliding TTL is fine for rare reference-data changes done outside this story, but this story is precisely the trigger for those changes; admins expect toggles to take effect immediately in the order form (AC: active/inactive visibility)",
+      "basis": "ADR 20251218-20-reference-data-memory-caching.md (Future Considerations: 'Cache Invalidation Endpoint... allow admins to force cache refresh')",
+      "impact": "SaveTacticTypeAdminChanges handler takes a dependency on IMemoryCache to Remove() the relevant keys after successful persistence",
+      "answers_open_question": "N/A"
+    },
+    {
+      "decision": "Use separate cache key namespaces/entries for admin (unfiltered) vs requestor (active-only) reference reads",
+      "justification": "Prevents an admin's unfiltered admin-list fetch from being served from or polluting the requestor-facing active-only cache entry, and vice versa",
+      "basis": "Pattern precedent in ADR 20251218-20 which already differentiates 'Entities:{Type}:All' (admin) from OpCo-filtered keys",
+      "impact": "New cache key constants in GetTacticTypesQueryHandler/GetDeliveryMethodsQueryHandler; new admin query handler uses its own key",
+      "answers_open_question": "N/A"
+    },
+    {
+      "decision": "No DELETE endpoint or hard-delete capability is implemented for TacticType/DeliveryMethod; only IsActive can be set false",
+      "justification": "Directly required by AC ('cannot be deleted, only marked inactive') and protects FK integrity for historical Tactics referencing these rows",
+      "basis": "Explicit Architectural Change from Story (constraint AC)",
+      "impact": "Controller exposes no delete route; repository has no delete method for these entities",
+      "answers_open_question": "How should the system handle deletion requests if deletion is not allowed? -> No delete route exists at all; see questions_addressed"
+    },
+    {
+      "decision": "Concurrent admin edits use last-write-wins with no optimistic concurrency token in this iteration",
+      "justification": "Consistent with the codebase's existing concurrency posture (no RowVersion/ETag pattern observed on other admin-managed reference entities such as Entity/OpCo); introducing optimistic concurrency here would be a scope increase beyond what the story asks for",
+      "basis": "Pattern precedent: UpdateEntityCommandHandler/Entity model have no concurrency token",
+      "impact": "No RowVersion column added; edge case 'concurrent edits' resolves as last save wins, consistent with existing admin entity behavior",
+      "answers_open_question": "Given two administrators are editing tactic types simultaneously When both attempt to save changes Then the last save wins or conflict is detected -> Last save wins; see questions_addressed"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the maximum length for tactic type names and delivery method names?",
+      "answer": "100 characters for both TacticType.Name and DeliveryMethod.Name",
+      "justification": "Consistent, sufficient length for descriptive names while bounding storage and UI layout",
+      "basis": "Existing HasMaxLength(100) convention already applied to TacticType.Name and DeliveryMethod.Name in TacticDbContext.cs"
+    },
+    {
+      "question": "Should changes be auto-saved or require explicit save action?",
+      "answer": "Explicit save action; the UI operates in draft mode and only persists on Save, with a Discard option to revert",
+      "justification": "Explicitly required by acceptance criterion 'Changes are saved explicitly with a save action in drafting mode'",
+      "basis": "administer-tactic-types.analysis.json acceptance_criteria[8]"
+    },
+    {
+      "question": "What happens when an administrator tries to mark all delivery methods of a tactic type as inactive?",
+      "answer": "It is allowed; the system does not block this action. The resulting side effect is that the parent tactic type will no longer appear on the requestor order form (per the 'no delivery methods shown' rule), but it remains visible and editable in the admin list. No warning is required in this iteration.",
+      "justification": "The story's edge case only covers a tactic type with a single delivery method remaining visible in the admin list when inactivated; there is no stated requirement to block or warn on this admin action, and blocking would add scope not requested",
+      "basis": "administer-tactic-types.analysis.json edge_cases[0] and acceptance_criteria[7] ('Tactic types with no delivery methods are not shown on the front end') define the visible behavior without requiring a blocking rule"
+    },
+    {
+      "question": "Should there be an audit trail for tactic type and delivery method changes?",
+      "answer": "No dedicated audit table in this iteration; sufficient traceability is provided via structured logging (Information level) of every toggle/create with adminUserId and correlationId, following the existing pattern used for admin Entity changes and the Field Authorization Service's audit logging approach.",
+      "justification": "No compliance requirement for a persisted audit trail was stated in the story; existing admin write paths (Entity, OpCo) rely on logs, not a dedicated table, so this stays consistent with current practice",
+      "basis": "Pattern precedent: AdminEntitiesController/UpdateEntityCommandHandler rely on ILogger; ADR 20260127-28 documents logging-based audit trail as sufficient for authorization decisions"
+    },
+    {
+      "question": "How should the system handle deletion requests if deletion is not allowed?",
+      "answer": "No DELETE endpoint is exposed for TacticType or DeliveryMethod at all; the API surface only offers status-toggle via the Save endpoint. The frontend never renders a delete control, only an active/inactive toggle.",
+      "justification": "Prevents the question from arising at the API layer entirely, which is simpler and more secure than accepting a delete request and returning an error",
+      "basis": "administer-tactic-types.analysis.json acceptance_criteria[9] ('cannot be deleted, only marked inactive')"
+    },
+    {
+      "question": "Given two administrators are editing tactic types simultaneously When both attempt to save changes Then the last save wins or conflict is detected",
+      "answer": "Last save wins; no optimistic concurrency (RowVersion/ETag) is introduced in this iteration",
+      "justification": "Matches existing behavior of comparable admin-managed reference entities (Entity, OpCo) which also have no concurrency token; adding one here would be inconsistent scope creep for a low-frequency admin workflow",
+      "basis": "Pattern precedent: UpdateEntityCommandHandler and Entity/OpCo domain models have no concurrency token"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+    "design_reasoning": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "workflow_changes": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "interface_contracts": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "layer_responsibilities": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    },
+    "instrumentation": {
+        "score": 0,
+        "reason": "",
+        "recommendation": ""
+    }
+}

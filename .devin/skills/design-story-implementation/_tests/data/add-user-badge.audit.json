@@ -1,0 +1,104 @@
+{
+  "run_date": "20260721T172400Z",
+  "target_story": "docs/reqs/36 - Add User Badge/display-user-badge.analysis.json",
+  "project_structure": {
+    "root": ".",
+    "description": "Purina Promo Tactic Ordering monorepo with pnpm workspaces. Contains C# .NET backend API (CQRS pattern) and React/TypeScript frontend with shared component library and models.",
+    "tech_stack": {
+      "programming_languages": ["TypeScript", "C#", "Bash"],
+      "frameworks": ["React 18.3.1", "ASP.NET Core", "Vite 5.4.x"],
+      "libraries": ["TailwindCSS", "Lucide icons", "React Router 6.30.2", "Vitest", "Playwright"],
+      "unit_testing_tools": ["Vitest", "Playwright"]
+    },
+    "subprojects": [
+      {
+        "root": "src/ui",
+        "description": "React/TypeScript frontend monorepo for tactic management UI",
+        "tech_stack": {
+          "programming_language": "TypeScript",
+          "frameworks": ["React 18.3.1", "Vite 5.4.x"],
+          "libraries": ["TailwindCSS", "React Router 6.30.2", "shadcn/ui", "Radix UI", "Lucide icons"],
+          "unit_testing_tools": ["Vitest", "Playwright"]
+        }
+      },
+      {
+        "root": "src/api",
+        "description": "C# .NET backend API using CQRS pattern",
+        "tech_stack": {
+          "programming_language": "C#",
+          "frameworks": ["ASP.NET Core"],
+          "libraries": ["MediatR", "Entity Framework Core"],
+          "unit_testing_tools": ["xUnit"]
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "docs/adrs/20251205-15-testid-v2-component-centric.md",
+        "why": "CRITICAL: UserBadge component must follow ADR-15 component-centric v2.0 testId pattern with helper functions in component.testids.ts"
+      },
+      {
+        "path": "docs/adrs/20251125-13-shadcn-radix-for-complex-components.md",
+        "why": "Guidance on component library choices; UserBadge is simple molecule, can use basic React + TailwindCSS"
+      },
+      {
+        "path": "docs/adrs/20260127-29-role-based-e2e-testing-with-storage-states.md",
+        "why": "E2E tests for UserBadge should test different user roles using storage state patterns"
+      }
+    ],
+    "persona": [
+      {
+        "path": "User Personas.md",
+        "why": "Story serves all user personas by displaying their identity and role in the header"
+      }
+    ],
+    "target_architecture": [
+      {
+        "path": "docs/api/ARCHITECTURE.md",
+        "why": "UserBadge integrates with existing authentication/authorization flow that provides user data"
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [
+      {
+        "path": "src/ui/packages/ui/src/components/organisms/TacticStickyHeader/TacticStickyHeader.tsx",
+        "why": "Existing header component on Details/Create pages; UserBadge can extend this or be placed alongside"
+      },
+      {
+        "path": "src/ui/packages/ui/src/components/molecules/StatusBadge/StatusBadge.tsx",
+        "why": "Reference for badge styling and component patterns"
+      },
+      {
+        "path": "src/ui/packages/ui/src/components/atoms/Icons/Icons.tsx",
+        "why": "Icon system for user icon in badge"
+      }
+    ],
+    "services": [
+      {
+        "path": "src/ui/apps/tactic-builder/src/shared/apis/user-api.ts",
+        "why": "Provides getCurrentUser() API call that fetches user data from /user/me endpoint"
+      }
+    ],
+    "models": [
+      {
+        "path": "src/ui/packages/models/src/user.model.ts",
+        "why": "User interface defines userId and roles array that UserBadge will display"
+      }
+    ],
+    "apis": [
+      {
+        "path": "src/ui/apps/tactic-builder/src/shared/hooks/use-user.ts",
+        "why": "useUser() hook provides access to current user data in React components"
+      }
+    ],
+    "tests": [
+      {
+        "path": "src/ui/apps/tactic-builder/e2e/",
+        "why": "E2E tests should verify UserBadge visibility on Search and Details pages with different user roles"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+# ========================================
+# DETERMINISTIC EVALUATIONS (contains/equiv)
+# ========================================
+- vars:
+    request: 
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
+  description: 'Canary Test (Reason)'
+  assert:
+    - type: icontains
+      value: 'Reason'
+    - type: icontains
+      value: 'recommendation'
+    - type: icontains
+      value: 'score'
+
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+- vars:
+    request: 
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
+  description: 'Happy Path'
+  assert:
+    # Core definition
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:allScoresWithinBounds
+      metric: scores
+      weight: 1
+    - type: llm-rubric
+      value: "All Sections have a Reason. Provided reasons align with scoring rubric, based on the story's content."
+      threshold: 0.8
+      metric: reasons
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
+      - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-design/schema/design-grade.schema.json'
