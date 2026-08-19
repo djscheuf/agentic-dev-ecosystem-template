@@ -1,6 +1,7 @@
 ---
 name: tdd-workflow
 description: Complete Test-Driven Development cycle (Think, Red, Green, Refactor) for implementing a feature or fixing a bug. Use as the top-level entry point for TDD work.
+disable-model-invocation: true
 ---
 
 # TDD Workflow (Composite)
