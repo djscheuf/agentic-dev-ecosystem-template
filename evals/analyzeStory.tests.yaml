@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
-description: EDD on Analyze Story Analysis
+description: EDD on Analyze Story Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
