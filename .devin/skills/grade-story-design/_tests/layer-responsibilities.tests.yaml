@@ -1,0 +1,40 @@
+# ========================================
+# INCOMPLETE Layer Responsibilities
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/stripped-down-badge.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "layer_responsibilities"
+      score_floor: 1
+  description: 'Missing Layer Responsibilities'
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: layer-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Layer Responsibilities and Consistency Section's Reason should mention missing layer responsibilities, explicit boundaries between layers, or clear responsibilities for each layer."
+      threshold: 0.7
+      metric: layer-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Layer Responsibilities and Consistency Section's Recommendation should include specifying layer responsibilities explicitly, including ownership, boundaries, and mapping workflow changes to a layer."
+      threshold: 0.7
+      metric: layer-recommendation
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/stripped-down-badge.design.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-design/schema/design-grade.schema.json'

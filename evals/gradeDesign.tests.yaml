@@ -38,6 +38,10 @@ providers:
 # Test cases loaded from external file
 tests: 
   - file://../.devin/skills/grade-story-design/_tests/base.tests.yaml
+  - file://../.devin/skills/grade-story-design/_tests/incomplete-design.tests.yaml
+  - file://../.devin/skills/grade-story-design/_tests/interface-contracts.tests.yaml
+  - file://../.devin/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml
+  - file://../.devin/skills/grade-story-design/_tests/instrumentation-observability.tests.yaml
 
 # Output configuration
 outputPath: results.gradeDesign.html
