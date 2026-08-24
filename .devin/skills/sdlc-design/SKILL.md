@@ -1,3 +1,8 @@
+---
+name: sdlc-design
+description: SDLC Design Workflow. Captures a snapshot of the current repo state, relative to the incoming story analysis, then prepares a design for the story implementation, base on the snapshot and provided analysis. Finally grades the design based on the Design Quality Rubric.
+disable-model-invocation: true
+---
 # SDLC Design Workflow
 
 ## Purpose

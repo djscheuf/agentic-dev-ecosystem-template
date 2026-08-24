@@ -1,5 +1,7 @@
 ---
-description: Complete E2E test debugging workflow (composite orchestrator)
+name: debug-e2e-workflow
+description: Complete E2E test debugging workflow (composite orchestrator). Starts by reviewing the provided test failure evidence, then forms hypotheses, applies fixes, and verifies results for a presumed E2E playwright test suite. 
+disable-model-invocation: true
 ---
 
 # E2E Test Debugging Workflow

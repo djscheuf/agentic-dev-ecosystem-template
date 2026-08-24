@@ -1,3 +1,8 @@
+---
+name: sdlc-plan
+description: SDLC Plan Workflow. Review the provided design and draft an implementation plan, then split it into workstream plans.
+disable-model-invocation: true
+---
 # SDLC Plan Workflow
 
 ## Purpose

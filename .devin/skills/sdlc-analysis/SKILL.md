@@ -1,3 +1,8 @@
+---
+name: sdlc-analysis
+description: SDLC Analysis Workflow. It extracts intent from provided story, analyzes it, and grades the analysis, and potentially repairs the analysis if needed.
+disable-model-invocation: true
+---
 # SDLC Analysis Workflow
 
 ## Purpose

@@ -1,7 +1,8 @@
 ---
-description: Implement some planned functionality, in a test-driven development manner.
+name: sdlc-implement
+description: SDLC Implement Workflow. Review the provided analysis and implementation plan. Then crafts Test cases from the AC and implementation plan, then loops thru all test cases in a TDD cycle.
+disable-model-invocation: true
 ---
-
 # SDLC Implement Workflow
 
 ## Purpose

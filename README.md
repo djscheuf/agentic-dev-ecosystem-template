@@ -17,7 +17,7 @@ This repository serves as a template for establishing effective AI-assisted deve
 
 When joining an existing project, start with documentation:
 
-1. **[Explore Codebase](.devin/workflows/explore-codebase.md)** → Generate living documentation of the existing system
+1. **[Explore Codebase](.devin/skills/explore-codebase/SKILL.md)** → Generate living documentation of the existing system
    - Input: Existing codebase
    - Output: Structured documentation of architecture, patterns, and key components
 
@@ -33,7 +33,7 @@ For new projects, establish standards first:
 
 For implementing user stories with defined personas, user value, and BDD-style acceptance criteria:
 
-1. **[Analyze User Story](.devin/workflows/analyze-user-story.md)** → Deep analysis of requirements
+1. **[Analyze User Story](.devin/skills/analyze-story/SKILL.md)** → Deep analysis of requirements
    - Input: User story (persona + value + BDD acceptance criteria)
    - Output: Analysis document with clarifying questions
    
@@ -41,7 +41,7 @@ For implementing user stories with defined personas, user value, and BDD-style a
    - Input: Responses to analysis questions
    - Output: Confirmed understanding and refined requirements
 
-3. **[Planning](.devin/workflows/planning.md)** → Generate implementation plan
+3. **[Planning](.devin/skills/sdlc-plan/SKILL.md)** → Generate implementation plan
    - Input: Analyzed and clarified user story
    - Output: Step-by-step implementation plan
 
@@ -49,7 +49,7 @@ For implementing user stories with defined personas, user value, and BDD-style a
    - Input: Implementation plan
    - Output: Design-reviewed plan focused on effective solutions rather than problem fixation
 
-5. **[TDD Workflow](.devin/workflows/tdd-workflow.md)** → Iterative test-driven implementation
+5. **[TDD Workflow](.devin/skills/tdd-workflow/SKILL.md)** → Iterative test-driven implementation
    - Input: Implementation plan
    - Process: For each step:
      - Think about what to implement
@@ -64,12 +64,12 @@ For implementing user stories with defined personas, user value, and BDD-style a
 
 For debugging failing E2E tests with a systematic, evidence-based approach:
 
-1. **[Debug E2E Review](.devin/workflows/debug-e2e-review.md)** → Classify failures and gather evidence
+1. **[Debug E2E Review](.devin/skills/debug-e2e-workflow/reference/review.md)** → Classify failures and gather evidence
    - Input: Test failure information (terminal output or test-results folder)
    - Process: For each failing test, classify as setup failure or test execution failure
    - Output: Debugging session document with classified failures and evidence
    
-2. **[Debug E2E Hypothesis](.devin/workflows/debug-e2e-hypothesis.md)** → Form root cause hypotheses
+2. **[Debug E2E Hypothesis](.devin/skills/debug-e2e-workflow/reference/hypothesis.md)** → Form root cause hypotheses
    - Input: Classified failures with evidence
    - Process: 
      - Path A: Setup failures → Infrastructure/environment analysis
@@ -77,7 +77,7 @@ For debugging failing E2E tests with a systematic, evidence-based approach:
      - Prioritize hypotheses (setup failures always first)
    - Output: Prioritized hypothesis list with validation results
 
-3. **[Debug E2E Fix](.devin/workflows/debug-e2e-fix.md)** → Apply TDD-style fixes
+3. **[Debug E2E Fix](.devin/skills/debug-e2e-workflow/reference/fix.md)** → Apply TDD-style fixes
    - Input: Validated hypothesis
    - Process: For each hypothesis (highest priority first):
      - Think: Plan the fix
@@ -128,24 +128,23 @@ I often use manually activated rules for 'Persona's like:
 Workflows provide structured processes for common development tasks:
 
 **Development Workflows:**
-- **[explore-codebase](.devin/workflows/explore-codebase.md)**: Generate documentation for existing projects
-- **[analyze-user-story](.devin/workflows/analyze-user-story.md)**: Deep analysis of user stories
-- **[planning](.devin/workflows/planning.md)**: Generate implementation plans
-- **[tdd-workflow](.devin/workflows/tdd-workflow.md)**: Test-driven development iteration
+- **[explore-codebase](.devin/skills/explore-codebase/SKILL.md)**: Generate documentation for existing projects
+- **[analyze-user-story](.devin/skills/analyze-story/SKILL.md)**: Deep analysis of user stories
+- **[planning](.devin/skills/sdlc-plan/SKILL.md)**: Generate implementation plans
+- **[tdd-workflow](.devin/skills/tdd-workflow/SKILL.md)**: Test-driven development iteration
 
 **E2E Debugging Workflows:**
-- **[debug-e2e-workflow](.devin/workflows/debug-e2e-workflow.md)**: Complete E2E test debugging workflow (composite orchestrator)
-- **[debug-e2e-review](.devin/workflows/debug-e2e-review.md)**: Review test failures and classify failure types
-- **[debug-e2e-hypothesis](.devin/workflows/debug-e2e-hypothesis.md)**: Form and validate root cause hypotheses
-- **[debug-e2e-fix](.devin/workflows/debug-e2e-fix.md)**: Apply TDD-style fixes to validated hypotheses
+- **[debug-e2e-workflow](.devin/skills/debug-e2e-workflow/reference/workflow.md)**: Complete E2E test debugging workflow (composite orchestrator)
+- **[debug-e2e-review](.devin/skills/debug-e2e-workflow/reference/review.md)**: Review test failures and classify failure types
+- **[debug-e2e-hypothesis](.devin/skills/debug-e2e-workflow/reference/hypothesis.md)**: Form and validate root cause hypotheses
+- **[debug-e2e-fix](.devin/skills/debug-e2e-workflow/reference/fix.md)**: Apply TDD-style fixes to validated hypotheses
 
 ### Skills
 
 Skills provide specialized knowledge and capabilities:
 
-**E2E Testing Skills:**
-- **[e2e-logging-and-artifacts](.devin/skills/e2e-logging-and-artifacts/)**: Set up comprehensive logging infrastructure for Playwright E2E tests
-- **[running-e2e-tests](.devin/skills/running-e2e-tests/)**: Execute E2E tests with proper commands and patterns
+**[Promptfoo](.devin/skills/promptfoo/SKILL.md)**: Run Promptfoo tests and generate reports
+**[query-code](.devin/skills/query-code/SKILL.md)**: Query the code for information, leveraged during sdlc-design process.
 
 ### Hooks
 
@@ -166,7 +165,7 @@ The conversation audit hook is particularly valuable for building a feedback loo
 
 This ecosystem builds upon the excellent work of the AI-assisted development community:
 
-### Primary Contributors
+### External Contributors
 
 **[Devlin Liles](https://www.linkedin.com/in/devlinliles/)** and the Improvers community have been instrumental in refining these workflows:
 
@@ -186,17 +185,18 @@ My additions to this ecosystem include:
 - **Coding Standards Capture**: Translating team/personal coding standards into AI-consumable rules
 - **Design Buddy**: Custom persona developed using Active Partner to capture my design approach ([blog post](https://daniel.scheufler.tech/blog/design-buddy-for-better-code/))
 - **Security Buddy**: Example persona demonstrating how to create specialized AI interaction modes
-- **Workflow Adaptations**: Customizing community workflows to match my development style
+- **~~Workflow~~ Skill Adaptations**: Customizing community workflows to match my development style
 - **Conversation Audit Hook**: Expanded on the initial validation checks to create a comprehensive conversation auditing system, allowing for prompt evaluation on past conversations. 
-- **E2E Logging Artifacts Skill**: Created a skill to automatically log E2E test artifacts (screenshots, videos, console and network logs) to a centralized directory for easy access and analysis.
+- ~~**E2E Logging Artifacts Skill**: Created a skill to automatically log E2E test artifacts (screenshots, videos, console and network logs) to a centralized directory for easy access and analysis.~~
 - **E2E Debugging Workflow**: Created a comprehensive workflow for debugging E2E test failures, including infrastructure checks, hypothesis-based application debugging, and re-run verification.
+- **Evaluation Driven Development**: integrated EDD testing into portions of the SDLC related skills.
 
 ## Getting Started
 
 1. **Fork this repository** to create your own development ecosystem
 2. **Review and customize rules** in `.devin/rules/` to match your coding standards
-3. **Explore workflows** in `.devin/workflows/` to understand available processes
-4. **Try a workflow sequence** based on your current project phase (brownfield/greenfield/feature development)
+3. **Explore ~~workflows~~ Skills** in `.devin/skills/` to understand available processes
+4. **Try a skill sequence** based on your current project phase (brownfield/greenfield/feature development)
 
 ## Additional Guides
 

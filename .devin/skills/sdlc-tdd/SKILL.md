@@ -1,5 +1,7 @@
 ---
-description: Single Cycle of TDD (Red-Green Phases)
+name: sdlc-tdd
+description: A Single Cycle of TDD (Red-Green Phases). Reviews the provided implementation plan, and Test case, implements the next test in Red-Green, Commit cycle. 
+disable-model-invocation: false
 ---
 
 # SDLC TDD Sub-Workflow

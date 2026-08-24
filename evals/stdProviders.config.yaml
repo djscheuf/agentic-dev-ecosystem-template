@@ -6,4 +6,4 @@
 - id: 'exec: node ./devin.js'
   label: 'Kimi'
   config:
-    model: 'Kimi-K2.7'
+    model: 'Kimi-K3'
