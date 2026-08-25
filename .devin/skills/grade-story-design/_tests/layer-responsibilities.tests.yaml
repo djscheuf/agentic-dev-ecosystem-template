@@ -20,7 +20,7 @@
       metric: layer-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Layer Responsibilities and Consistency Section's Recommendation should include specifying layer responsibilities explicitly, including ownership, boundaries, and mapping workflow changes to a layer."
+      value: "The Layer Responsibilities and Consistency Section's Recommendation should include specifying layer responsibilities explicitly. This may include ownership, boundaries, or mapping workflow changes to a layer."
       threshold: 0.7
       metric: layer-recommendation
       weight: 1

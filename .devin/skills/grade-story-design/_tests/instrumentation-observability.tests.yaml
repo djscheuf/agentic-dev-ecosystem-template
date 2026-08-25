@@ -20,7 +20,7 @@
       metric: instrumentation-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Instrumentation and Observability Section's Recommendation should include expanding instrumentation to cover major workflow branches, error states, and performance-critical paths with relevant context."
+      value: "The Instrumentation and Observability Section's Recommendation should include expanding instrumentation to cover major workflow branches, error states with relevant context. It may also recommend covering performance-critical paths with performance instrumentation."
       threshold: 0.7
       metric: instrumentation-recommendation
       weight: 1

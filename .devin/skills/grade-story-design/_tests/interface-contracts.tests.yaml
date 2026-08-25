@@ -20,7 +20,7 @@
       metric: interface-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Interface and Contracts Section's Recommendation should include specifying API contracts and component interfaces explicitly, including endpoint definitions, payload shapes, and component props."
+      value: "The Interface and Contracts Section's Recommendation should include specifying interfaces and contracts explicitly. These may include endpoint definitions, payload shapes, and component props."
       threshold: 0.7
       metric: interface-recommendation
       weight: 1

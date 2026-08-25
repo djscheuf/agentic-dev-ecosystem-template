@@ -51,7 +51,7 @@
       metric: workflow-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Workflow Changes Section's Recommendation should include specifying the complete user journey with clear steps,  and/or it should recommend identifying which layer performs each action, and/or documenting data transformations and flow. "
+      value: "The Workflow Changes Section's Recommendation should include specifying the complete user journey with clear steps. It may recommend identifying which layer performs each action, and/or documenting data transformations and flow. "
       threshold: 0.7
       metric: workflow-recommendation
       weight: 1
