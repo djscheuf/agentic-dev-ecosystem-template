@@ -33,5 +33,15 @@
         }
       ]
     }
+  ],
+  "SessionEnd": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 .devin/scripts/audit-logger.py"
+        }
+      ]
+    }
   ]
 }
