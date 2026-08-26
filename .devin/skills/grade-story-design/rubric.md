@@ -21,7 +21,7 @@ Each dimension is scored on a **0-3 scale**:
 | Score | Descriptor | Evidence |
 |-------|-----------|----------|
 | **0** | Lack of architectural justification; Most decisions are ungrounded | No or few reference to ADRs or established patterns; unnecessary abstractions introduced; basis or justification found in opinion or preference |
-| **1** | Most decisions justified but with significant gaps in reasoning; Or design is over-engineered for the task | "For simplicity" without architectural context; decisions related to future-proofing, or performance in excess of requirements |
+| **1** | Most decisions justified but with significant gaps in reasoning; Or design is over-engineered for the task | "For simplicity" without architectural context; "Save Effort" without clear justification; decisions related to future-proofing, or performance in excess of requirements |
 | **2** | Most decisions justified by ADRs or patterns; design is mostly minimal; some intents could be clearer | Decisions reference existing patterns; one or two questionable components |
 | **3** | All decisions grounded in ADRs, target architecture, or established patterns; design is lean; intents clearly differentiated | Every component serves a clear purpose; extension favored over creation; defensive programming explicit |
 
