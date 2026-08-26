@@ -1,0 +1,40 @@
+# ========================================
+# MINIMAL Instrumentation and Observability
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/simple-display.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "instrumentation"
+      score_floor: 1
+  description: 'Minimal Instrumentation and Observability'
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: instrumentation-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Instrumentation and Observability Section's Reason should mention minimal or missing instrumentation, one instrumentation point with limited context, or lack of coverage for error states and performance."
+      threshold: 0.7
+      metric: instrumentation-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Instrumentation and Observability Section's Recommendation should include expanding instrumentation to cover major workflow branches, error states with relevant context. It may also recommend covering performance-critical paths with performance instrumentation."
+      threshold: 0.7
+      metric: instrumentation-recommendation
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/simple-display.design.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-design/schema/design-grade.schema.json'

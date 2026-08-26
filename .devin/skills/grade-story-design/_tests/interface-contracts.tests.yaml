@@ -1,0 +1,40 @@
+# ========================================
+# INCOMPLETE Interface and Contracts
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/truncated-badge.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "interface_contracts"
+      score_floor: 1
+  description: 'Missing Interface and Contracts'
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: interface-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Interface and Contracts Section's Reason should mention missing or incomplete interface and contracts, such as endpoint definitions, payload shapes, or component props."
+      threshold: 0.7
+      metric: interface-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Interface and Contracts Section's Recommendation should include specifying interfaces and contracts explicitly. These may include endpoint definitions, payload shapes, and component props."
+      threshold: 0.7
+      metric: interface-recommendation
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/truncated-badge.design.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-design/schema/design-grade.schema.json'
