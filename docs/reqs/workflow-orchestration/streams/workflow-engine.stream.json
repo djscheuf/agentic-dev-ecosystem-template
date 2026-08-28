@@ -1,0 +1,93 @@
+{
+  "source_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "overall_design": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "related_acceptance_criteria": [
+    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "pending"},
+    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "pending"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "pending"},
+    {"criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)", "status": "pending"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "pending"},
+    {"criterion": "Happy path: all SDLC skill Activities succeed on first attempt with no human escalation needed", "status": "pending"},
+    {"criterion": "Error handling: an Activity fails repeatedly and exhausts its RetryPolicy", "status": "pending"},
+    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "pending"},
+    {"criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded", "status": "pending"},
+    {"criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts", "status": "pending"}
+  ],
+  "related_edge_cases": [
+    {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
+    {"criterion": "Special characters/unicode in the story text", "status": "pending"},
+    {"criterion": "Concurrent workflow executions for the same story", "status": "pending"},
+    {"criterion": "Worker crash mid-Activity and workflow resumption via replay", "status": "pending"},
+    {"criterion": "Cadence service temporarily unavailable", "status": "pending"},
+    {"criterion": "Duplicate/idempotent Activity execution due to retries", "status": "pending"}
+  ],
+  "dependencies": [
+    "docs/reqs/workflow-orchestration/streams/foundations.stream.json",
+    "docs/reqs/workflow-orchestration/streams/infrastructure.stream.json"
+  ],
+  "steps": [
+    {
+      "description": "Author the 4-step Cadence Workflow in Python: extract-story-intent -> analyze-story -> grade-story-analysis -> bounded repair/grade loop (max 3 attempts)",
+      "layer": "external_services",
+      "status": "pending",
+      "depends_on": [],
+      "artifacts": ["src/orchestrator/workflow.py"]
+    },
+    {
+      "description": "Implement deterministic, replay-safe Activity wrappers for the four SDLC skills with repository file I/O and output validation",
+      "layer": "external_services",
+      "status": "pending",
+      "depends_on": ["1"],
+      "artifacts": [
+        "src/orchestrator/activities/extract_story_intent.py",
+        "src/orchestrator/activities/analyze_story.py",
+        "src/orchestrator/activities/grade_story_analysis.py",
+        "src/orchestrator/activities/repair_story_analysis.py"
+      ]
+    },
+    {
+      "description": "Configure and start the Worker polling the task list",
+      "layer": "external_services",
+      "status": "pending",
+      "depends_on": ["2"],
+      "artifacts": ["src/orchestrator/worker.py"]
+    },
+    {
+      "description": "Implement the grade-repair attempt counter (max 3) and human escalation logic",
+      "layer": "external_services",
+      "status": "pending",
+      "depends_on": ["1"],
+      "artifacts": ["src/orchestrator/workflow.py", "src/orchestrator/escalation.py"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+      "vault/decisions/ADR-004-skill-output-contracts.md",
+      "vault/decisions/ADR-006-grader-skill-pattern.md",
+      "vault/decisions/ADR-007-skill-input-independence.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/workflows.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/activities.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/workflows-and-activities.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/control-flow.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/retries-and-error-handling.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/messaging.md",
+      ".devin/skills/cadence-workflow-orchestration/06-debugging/non-deterministic-errors.md",
+      ".devin/skills/cadence-workflow-orchestration/06-debugging/retries.md"
+    ],
+    "code": [
+      ".devin/skills/repair-story-analysis/SKILL.md",
+      ".devin/skills/extract-story-intent/SKILL.md",
+      ".devin/skills/analyze-story/SKILL.md",
+      ".devin/skills/grade-story-analysis/SKILL.md",
+      ".devin/skills/cadence-workflow-orchestration/examples/python/hello_world_workflow.py",
+      ".devin/skills/cadence-workflow-orchestration/examples/python/worker_setup.py"
+    ]
+  }
+}

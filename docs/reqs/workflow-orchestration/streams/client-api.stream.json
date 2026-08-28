@@ -1,0 +1,77 @@
+{
+  "source_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "overall_design": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "related_acceptance_criteria": [
+    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "pending"},
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "pending"},
+    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "pending"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "pending"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "pending"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "pending"},
+    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "pending"}
+  ],
+  "related_edge_cases": [
+    {"criterion": "Empty or null story document input", "status": "pending"},
+    {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
+    {"criterion": "Special characters/unicode in the story text", "status": "pending"},
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "pending"},
+    {"criterion": "Concurrent workflow executions for the same story", "status": "pending"}
+  ],
+  "dependencies": [
+    "docs/reqs/workflow-orchestration/streams/foundations.stream.json",
+    "docs/reqs/workflow-orchestration/streams/infrastructure.stream.json",
+    "docs/reqs/workflow-orchestration/streams/workflow-engine.stream.json"
+  ],
+  "steps": [
+    {
+      "description": "Implement the human_response Signal and get_status Query handlers",
+      "layer": "api",
+      "status": "pending",
+      "depends_on": [],
+      "artifacts": [
+        "src/story_analysis_workflow/signals.py",
+        "src/story_analysis_workflow/queries.py"
+      ]
+    },
+    {
+      "description": "Create the workflow starter/client script to start a run from a story document",
+      "layer": "api",
+      "status": "pending",
+      "depends_on": [],
+      "artifacts": ["src/story_analysis_workflow/starter.py"]
+    },
+    {
+      "description": "Create the cadence CLI helper for domain registration, run inspection, and signal submission",
+      "layer": "api",
+      "status": "pending",
+      "depends_on": ["2"],
+      "artifacts": ["src/story_analysis_workflow/cli.py"]
+    },
+    {
+      "description": "Document the client API (starter, CLI, Signal usage)",
+      "layer": "external_services",
+      "status": "pending",
+      "depends_on": ["1", "2", "3"],
+      "artifacts": ["docs/reqs/workflow-orchestration/streams/client-api-usage.md"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+      ".devin/skills/cadence-workflow-orchestration/05-api-and-cli/cli-reference.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/events-and-queries.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/timers-and-schedules.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/messaging.md"
+    ],
+    "code": [
+      ".devin/skills/cadence-workflow-orchestration/examples/python/worker_setup.py",
+      ".devin/skills/cadence-workflow-orchestration/examples/python/hello_world_workflow.py"
+    ]
+  }
+}
