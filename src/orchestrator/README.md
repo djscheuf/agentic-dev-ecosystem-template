@@ -1,0 +1,81 @@
+# Story Analysis Workflow (Cadence, Python client)
+
+A working example of the SDLC Story Analysis Workflow — `extract-story-intent` ->
+`analyze-story` -> `grade-story-analysis` <-> `repair-story-analysis` (bounded to 3
+attempts) — implemented as a durable Cadence Workflow. See
+`docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json`
+for the full design and `docs/reqs/workflow-orchestration/workflow-engine.test-plan.md`
+for the test plan.
+
+## Layout
+
+| File | Purpose |
+|---|---|
+| `grade_repair.py` | Pure `evaluate_grade_repair()` decision function (proceed/repair/escalate). |
+| `escalation.py` | `EscalationReason` / `HumanDecision` / `HumanResponse` types. |
+| `grade_scoring.py` | Scores an `analysis-grade.json` against the ADR-006 pass threshold. |
+| `skill_activity.py` | Subprocess wrapper around the `devin` CLI shared by the four skill Activities. |
+| `story_analysis_engine.py` | `StoryAnalysisEngine` — all sequencing/decision logic, framework-independent. |
+| `workflow.py` | `StoryAnalysisWorkflow`, the `@registry.workflow()` class wiring the engine to Cadence. |
+| `activities/*.py` | The four `@activity.defn()` Activities. |
+| `worker.py` | Polls the `story-analysis` task list. |
+| `tests/` | Unit tests for everything except the Cadence glue itself (see below). |
+
+## Why the logic is split into a pure engine
+
+`cadence-python-client` 0.3.0 (latest release on PyPI as of this writing) does not
+ship the `cadence.testing.TestWorkflowEnvironment` in-memory test harness yet (it
+exists on the project's `main` branch, unreleased — see
+`vault/services/cadence.md`). To keep this example fully unit tested without
+depending on an unreleased SDK version or a live Cadence server, all of the
+grade-repair-loop and human-escalation sequencing logic lives in
+`StoryAnalysisEngine` (`story_analysis_engine.py`), which takes the four skill
+calls, the human-response waiter, and timeouts as constructor arguments and never
+imports `cadence`. `workflow.py` is a thin adapter that wires this engine to real
+`execute_activity` / `sleep` / `wait_condition` calls.
+
+## Running it against a real Cadence server
+
+1. Bring up the local Cadence stack and register the domain — see
+   `docs/reqs/workflow-orchestration/local-dev-prerequisites.md`.
+2. Install dependencies (from the repo root, inside the Nix dev shell so
+   `LD_LIBRARY_PATH` picks up `libstdc++.so.6` for `grpcio` — see `shell.nix`):
+   ```bash
+   nix-shell --run "python3 -m venv .venv && .venv/bin/pip install -r src/orchestrator/requirements.txt"
+   ```
+3. Start the Worker (from the repo root, with `src` on `PYTHONPATH`):
+   ```bash
+   nix-shell --run "PYTHONPATH=src .venv/bin/python -m orchestrator.worker"
+   ```
+4. In another terminal, start a workflow:
+   ```bash
+   cadence --domain story-analysis workflow start \
+     --et 3600 \
+     --tl story-analysis \
+     --workflow_type StoryAnalysisWorkflow \
+     --input '["docs/reqs/workflow-orchestration/story.md", {"max_attempts": 3}]' \
+     --workflow_id "story-analysis-example"
+   ```
+5. Inspect progress with `cadence workflow describe` / `cadence workflow query
+   --query_type get_status`, and respond to an escalation with:
+   ```bash
+   cadence --domain story-analysis workflow signal \
+     --workflow_id "story-analysis-example" \
+     --signal_name human_response \
+     --input '{"decision":"accept","notes":"Looks good"}'
+   ```
+
+See `docs/reqs/workflow-orchestration/local-dev-prerequisites.md` for the full
+prerequisites, gotchas, and payload-size/idempotency notes.
+
+## Running the unit tests
+
+```bash
+nix-shell --run ".venv/bin/python -m pytest src/orchestrator -v"
+```
+
+All logic except the thin Cadence adapter (`workflow.py`'s `execute_activity`
+calls and the `wait_condition`/`sleep` race) is covered by these tests. The
+adapter itself is exercised manually via the steps above; a smoke test against a
+real Cadence server is intentionally not part of the automated suite since it
+requires the running Docker stack from `docker/docker-compose.yml`.
