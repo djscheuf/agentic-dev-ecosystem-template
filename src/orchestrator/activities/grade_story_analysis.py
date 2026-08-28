@@ -14,6 +14,7 @@ from cadence import activity
 
 from ..grade_scoring import score_analysis_grade
 from ..skill_activity import REPO_ROOT, SkillActivityInput, run_skill
+from .harness_instance import HARNESS
 
 
 @activity.defn(name="grade_story_analysis")
@@ -22,6 +23,7 @@ async def grade_story_analysis(analysis_path: str) -> dict:
         run_skill,
         SkillActivityInput(skill_name="grade-story-analysis", input_paths=[analysis_path]),
         output_path_key="analysis_grade_path",
+        harness=HARNESS,
     )
     grade_document = json.loads((REPO_ROOT / output.output_path).read_text())
     score_pct, passed = score_analysis_grade(grade_document)

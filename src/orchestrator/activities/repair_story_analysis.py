@@ -6,6 +6,7 @@ import dataclasses
 from cadence import activity
 
 from ..skill_activity import SkillActivityInput, run_skill
+from .harness_instance import HARNESS
 
 
 @activity.defn(name="repair_story_analysis")
@@ -18,5 +19,6 @@ async def repair_story_analysis(analysis_path: str, grade_path: str, notes: str 
             context=notes,
         ),
         output_path_key="analysis_path",
+        harness=HARNESS,
     )
     return dataclasses.asdict(output)

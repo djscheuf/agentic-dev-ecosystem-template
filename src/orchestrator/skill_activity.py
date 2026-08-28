@@ -1,27 +1,29 @@
 """Generic Activity-side wrapper for invoking an agentic SDLC skill.
 
-Shells out to the `devin` CLI (same subprocess pattern as `evals/devin.js`) to run
-one of the SDLC skills (extract-story-intent, analyze-story, grade-story-analysis,
-repair-story-analysis), then reads the skill's sentinel file from `.process/` to
-discover the repository-relative path of the artifact it produced (ADR-004).
+Builds the prompt that connects a skill (extract-story-intent, analyze-story,
+grade-story-analysis, repair-story-analysis) and its inputs, sends that prompt
+to a given `Harness` to execute, then reads the skill's sentinel file from
+`.process/` to discover the repository-relative path of the artifact it
+produced (ADR-004).
 
-The `runner` (defaults to `subprocess.run`) and `repo_root` are injectable so this
-module can be unit tested without a real `devin` CLI or repository checkout.
+This module knows nothing about *how* the prompt gets executed -- that is the
+`Harness`'s job (see `harness.py`; `devin_harness.DevinHarness` is the default
+implementation). `repo_root` is also injectable so this module can be unit
+tested without a real repository checkout.
 """
 
 import json
-import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
+
+from .harness import Harness
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL = "SWE-1.6"
 
 
 class SkillActivityError(RuntimeError):
-    """Raised when the skill subprocess fails or produces an invalid sentinel."""
+    """Raised when the harness fails or produces an invalid sentinel."""
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,6 @@ class SkillActivityInput:
     skill_name: str
     input_paths: list[str] = field(default_factory=list)
     context: str = ""
-    model: str = DEFAULT_MODEL
 
 
 @dataclass(frozen=True)
@@ -57,8 +58,8 @@ def run_skill(
     skill_input: SkillActivityInput,
     *,
     output_path_key: str,
+    harness: Harness,
     repo_root: Path = REPO_ROOT,
-    runner: Callable[..., "subprocess.CompletedProcess[str]"] = subprocess.run,
 ) -> SkillActivityOutput:
     sentinel_file = _sentinel_path(repo_root, skill_input.skill_name)
     # Idempotency: discard any stale sentinel from a previous (e.g. crashed)
@@ -67,24 +68,14 @@ def run_skill(
         sentinel_file.unlink()
 
     prompt = _build_prompt(skill_input)
-    command = [
-        "devin",
-        "-p",
-        "--permission-mode",
-        "auto",
-        "--model",
-        skill_input.model,
-        "--",
-        prompt,
-    ]
 
     start = time.monotonic()
-    result = runner(command, cwd=str(repo_root), capture_output=True, text=True)
+    result = harness.run(prompt, cwd=repo_root)
     duration_ms = int((time.monotonic() - start) * 1000)
 
-    if result.returncode != 0:
+    if result.exit_code != 0:
         raise SkillActivityError(
-            f"devin CLI exited {result.returncode} while running skill "
+            f"Harness exited {result.exit_code} while running skill "
             f"'{skill_input.skill_name}': {result.stderr or result.stdout}"
         )
 

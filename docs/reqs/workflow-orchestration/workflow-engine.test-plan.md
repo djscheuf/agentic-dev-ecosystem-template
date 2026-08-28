@@ -14,8 +14,12 @@ a real Cadence server, the orchestration logic is split:
   `cadence`. Fully unit-testable with fakes.
 - **`workflow.py`** — thin `@registry.workflow()` class wiring the engine to real
   `cadence.workflow.execute_activity` / `sleep` / `wait_condition` and the `human_response` signal.
-- **`skill_activity.py`** — subprocess wrapper (`devin` CLI) shared by the four Activities, with the
-  `subprocess.run`-like runner injected for testing.
+- **`skill_activity.py`** — connects a skill + its inputs to a prompt, then sends that prompt to an
+  injected `Harness` (`harness.py`). It knows nothing about *how* the prompt is executed.
+- **`devin_harness.py`** — the default `Harness`: shells out to the `devin` CLI (same subprocess
+  pattern as `evals/devin.js`), configured via `devin_harness.config.json` (model, permission_mode).
+  Swappable for an alternative `Harness` implementation by changing
+  `activities/harness_instance.py`.
 
 ## Test cases
 
@@ -32,13 +36,20 @@ a real Cadence server, the orchestration logic is split:
 - [x] `parse_human_response_WithUnknownDecision_RaisesValueError`
 - [x] `escalation_reason_values_match_instrumentation_contract`
 
-### `skill_activity.py` (subprocess wrapper — AC: repository state changes, idempotency, unicode passthrough)
+### `harness.py` / `devin_harness.py` (pluggable execution backend, extracted from `skill_activity.py`)
+- [x] `devin_harness_config_load_WhenFileMissing_ReturnsDefaults`
+- [x] `devin_harness_config_load_ReadsValuesFromFile`
+- [x] `devin_harness_run_InvokesDevinCliWithConfiguredModelAndPermissionMode`
+- [x] `devin_harness_run_ReturnsHarnessResultWithExitCodeAndOutput`
+
+### `skill_activity.py` (prompt-building wrapper around a given `Harness` — AC: repository state changes, idempotency, unicode passthrough)
 5. [x] `run_skill_OnSuccess_ReturnsOutputPathFromSentinel`
-6. [x] `run_skill_WhenDevinExitsNonZero_RaisesSkillActivityError`
+6. [x] `run_skill_WhenHarnessExitsNonZero_RaisesSkillActivityError`
 7. [x] `run_skill_WhenSentinelMissing_RaisesSkillActivityError`
 8. [x] `run_skill_WhenSentinelTaskMismatched_RaisesSkillActivityError`
 9. [x] `run_skill_WhenRetried_RemovesStaleSentinelFirst` (idempotent retry edge case)
 10. [x] `run_skill_PassesUnicodeStoryTextUnmodifiedInPrompt` (unicode edge case)
+- [x] `run_skill_SendsPromptToTheGivenHarnessRootedAtRepoRoot`
 
 ### `story_analysis_engine.py` (StoryAnalysisEngine — integration of the four steps)
 11. [x] `run_HappyPath_CompletesWithoutEscalation` (AC: happy path)

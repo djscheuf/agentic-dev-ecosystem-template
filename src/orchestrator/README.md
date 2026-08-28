@@ -14,12 +14,25 @@ for the test plan.
 | `grade_repair.py` | Pure `evaluate_grade_repair()` decision function (proceed/repair/escalate). |
 | `escalation.py` | `EscalationReason` / `HumanDecision` / `HumanResponse` types. |
 | `grade_scoring.py` | Scores an `analysis-grade.json` against the ADR-006 pass threshold. |
-| `skill_activity.py` | Subprocess wrapper around the `devin` CLI shared by the four skill Activities. |
+| `harness.py` | `Harness` Protocol + `HarnessResult` — the pluggable backend that executes a skill prompt. |
+| `devin_harness.py` | `DevinHarness`, the default `Harness`: shells out to the `devin` CLI. File-based config via `devin_harness.config.json` (model, permission_mode). |
+| `skill_activity.py` | Connects a skill + inputs to a prompt and sends it to a given `Harness`; reads the sentinel it writes. |
 | `story_analysis_engine.py` | `StoryAnalysisEngine` — all sequencing/decision logic, framework-independent. |
 | `workflow.py` | `StoryAnalysisWorkflow`, the `@registry.workflow()` class wiring the engine to Cadence. |
+| `activities/harness_instance.py` | The single shared `Harness` instance (`DevinHarness()`) the four Activities use — swap it here to use a different harness. |
 | `activities/*.py` | The four `@activity.defn()` Activities. |
 | `worker.py` | Polls the `story-analysis` task list. |
 | `tests/` | Unit tests for everything except the Cadence glue itself (see below). |
+
+## Swapping the Harness
+
+`skill_activity.run_skill()` takes any object implementing the `Harness` Protocol
+(`harness.py`): a `run(prompt: str, *, cwd: Path) -> HarnessResult` method. To use a
+different agent CLI/runtime instead of `devin`, implement that Protocol and point
+`activities/harness_instance.py`'s `HARNESS` at your implementation — no changes
+needed in `skill_activity.py` or any of the four Activities. Tests use a `FakeHarness`
+(see `tests/test_skill_activity.py`) that records the prompt it was sent instead of
+running a real subprocess.
 
 ## Why the logic is split into a pure engine
 
