@@ -362,10 +362,10 @@
       "answers_open_question": "What Signal and Query names/payload shapes should be used for human-in-the-loop escalation ... and for external tooling to introspect current workflow state? (open_questions[0]) \u2014 resolved as Signal \"human_response\"{decision, notes} and Query \"get_status\"{step, attempt_count, escalated, escalation_reason}."
     },
     {
-      "decision": "Run the example against a local embedded-SQLite Cadence server for this story, with domain registration and Worker startup documented as manual local-dev steps (not a shared/persistent cluster).",
-      "justification": "The story's target persona and journey describe a local working example an engineer runs and inspects; a shared cluster adds infrastructure/ops scope (Cassandra/MySQL, multi-node topology) not required to demonstrate the orchestration pattern, and the skill's own quickstart explicitly targets this zero-dependency setup.",
-      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md ('Cadence ships an embedded-SQLite server for zero-dependency local development'); story's affected_components.database listing embedded SQLite as the local-dev store.",
-      "impact": "README/documentation for this story covers `cadence-server start` (or equivalent) with embedded SQLite, domain registration via the `cadence` CLI, and starting the Worker \u2014 not production cluster operations.",
+      "decision": "Run the example against a local Cadence server configured for embedded-SQLite persistence for this story, launched via a custom docker-compose.yml running the `ubercadence/server` image (no Cassandra container, no building the `cadence-server` binary from source), with domain registration and Worker startup documented as manual local-dev steps (not a shared/persistent cluster).",
+      "justification": "The story's target persona and journey describe a local working example an engineer runs and inspects; a shared cluster adds infrastructure/ops scope (Cassandra/MySQL, multi-node topology) not required to demonstrate the orchestration pattern. Running the official server image via Docker keeps the zero-dependency SQLite persistence model while avoiding a from-source build (`git clone` + `make bins`), which is slower and adds a Go toolchain dependency for engineers who just want to run the example.",
+      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md (Option A: embedded SQLite is the zero-dependency path; Option B: docker-compose is documented but defaults to Cassandra) and 04-configuration/local-server-config.md (persistence backend is a config/env concern of the `ubercadence/server` image, independent of whether it's run via binary or Docker); story's affected_components.database listing embedded SQLite as the local-dev store.",
+      "impact": "README/documentation for this story covers `docker compose up` against a custom compose file that runs the `ubercadence/server` image configured for embedded-SQLite persistence (no `CASSANDRA_SEEDS`), domain registration via the `cadence` CLI (or its Docker image), and starting the Worker \u2014 not production cluster operations, and not a from-source build.",
       "answers_open_question": "Should the example workflow run against a local embedded-SQLite Cadence server, or target a shared/persistent Cadence cluster? (open_questions[1])"
     },
     {
@@ -392,9 +392,9 @@
     },
     {
       "question": "Should the example workflow run against a local embedded-SQLite Cadence server, or target a shared/persistent Cadence cluster?",
-      "answer": "Local embedded-SQLite Cadence server, per the cadence-workflow-orchestration skill's local-quickstart; documentation is scoped to local dev, not production cluster operations.",
-      "justification": "Matches the persona's journey (Alex runs and inspects the example locally) and avoids introducing Cassandra/MySQL/multi-node ops scope that the skill explicitly says it does not cover.",
-      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md and its explicit scope statement ('does not cover production cluster operations')."
+      "answer": "Local Cadence server with embedded-SQLite persistence, run via Docker (a custom docker-compose.yml wrapping the `ubercadence/server` image, not the from-source binary build and not the Cassandra-backed docker-compose in the quickstart); documentation is scoped to local dev, not production cluster operations.",
+      "justification": "Matches the persona's journey (Alex runs and inspects the example locally) and avoids introducing Cassandra/MySQL/multi-node ops scope that the skill explicitly says it does not cover. Using Docker instead of a from-source build removes the Go toolchain/build-tooling dependency for engineers reproducing the example, while keeping the zero-dependency SQLite persistence model.",
+      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md (Option A vs. Option B) and its explicit scope statement ('does not cover production cluster operations'); 04-configuration/local-server-config.md documenting persistence backend as an independent config/env concern of the server image."
     },
     {
       "question": "What RetryPolicy (initial interval, backoff coefficient, max attempts) should apply to each SDLC skill Activity, independent of the outer 3-attempt grade/repair loop?",

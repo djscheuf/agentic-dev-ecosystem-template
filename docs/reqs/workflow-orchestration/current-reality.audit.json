@@ -1,0 +1,186 @@
+{
+  "run_date": "20260826T000000Z",
+  "target_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "project_structure": {
+    "root": ".",
+    "description": "An agentic \"software factory\" template repository (ADR-002). It is not an application codebase with a src/ tree; instead it is primarily composed of AI-agent Skills (.devin/skills/), Rules, Hooks, a vault/ knowledge base, and a promptfoo-based eval harness (evals/) that grades skill outputs. There is currently no implementation code for the Cadence Story Analysis Workflow itself (no workflow/, worker/, or activity source files exist anywhere in the repo) \u2014 only reference documentation and example snippets provided by the `cadence-workflow-orchestration` skill. The story under analysis asks for that Cadence implementation to be built for the first time.",
+    "tech_stack": {
+      "programming_languages": ["JavaScript/Node.js", "Bash", "Python"],
+      "frameworks": ["promptfoo (LLM eval framework)"],
+      "libraries": ["ajv (JSON Schema validation)"],
+      "unit_testing_tools": ["promptfoo eval (YAML-driven skill/prompt evals in evals/)", "bash + jq assertions in each skill's verify.sh"]
+    },
+    "subprojects": [
+      {
+        "root": ".devin/skills",
+        "description": "SDLC skill library. Each skill is a self-contained folder with a SKILL.md (instructions), schema/ (JSON Schemas + examples for its output), and a verify.sh (bash+jq quantitative verification script) per ADR-003/ADR-004. Skills relevant to this story: extract-story-intent, analyze-story, grade-story-analysis, repair-story-analysis (all already implemented), plus the new reference skill cadence-workflow-orchestration which documents how to build Cadence workflows/activities/workers in Go and Python but contains no runnable project code beyond isolated examples/ snippets (hello_world_workflow.py, worker_setup.py).",
+        "tech_stack": {
+          "programming_language": "Markdown + Bash",
+          "frameworks": [],
+          "libraries": ["jq"],
+          "unit_testing_tools": ["verify.sh scripts (bash + jq)"]
+        }
+      },
+      {
+        "root": ".devin/skills/cadence-workflow-orchestration",
+        "description": "Reference-only documentation skill for Cadence (workflows, activities, workers, task lists, Go and Python client SDKs, CLI/HTTP API, debugging playbooks) plus minimal illustrative examples/go and examples/python snippets (hello-world workflow + worker setup). No actual Story Analysis Workflow, Activities, or Worker exist here or anywhere else in the repo \u2014 this is the knowledge source the new implementation must be built from, not existing implementation to reuse directly.",
+        "tech_stack": {
+          "programming_language": "Python / Go (examples only, not wired into any app)",
+          "frameworks": ["Cadence Python client SDK (community)", "Cadence Go client SDK (reference only)"],
+          "libraries": [],
+          "unit_testing_tools": ["pytest-style example in examples/python/test_hello_world_workflow.py (illustrative only)"]
+        }
+      },
+      {
+        "root": ".devin/scripts",
+        "description": "Hook scripts invoked by .devin/hooks.json (PreToolUse/PostToolUse/SessionEnd) that verify secrets, run skill verify.sh on sentinel-file completion (ADR-004), and log conversation/audit data. lib/common.sh provides shared bash helpers (stdin JSON parsing, changed-file detection, logging).",
+        "tech_stack": {
+          "programming_language": "Bash / Python",
+          "frameworks": [],
+          "libraries": ["jq"],
+          "unit_testing_tools": []
+        }
+      },
+      {
+        "root": "evals",
+        "description": "promptfoo-based eval suites (YAML) that grade each skill's LLM output (extractStoryIntent, gradeAnalysis, gradeDesign, designImplementation) against expected structure/quality; run via `npm test` (promptfoo eval).",
+        "tech_stack": {
+          "programming_language": "YAML / JavaScript",
+          "frameworks": ["promptfoo"],
+          "libraries": [],
+          "unit_testing_tools": ["promptfoo eval"]
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "vault/decisions/ADR-003-skills-based-architecture.md",
+        "why": "Establishes that this repo is skills-based and that Workflows coordinate skill invocation \u2014 directly informs how the Cadence Workflow should sequence extract-story-intent -> analyze-story -> grade-story-analysis -> repair-story-analysis as Activities wrapping existing skills."
+      },
+      {
+        "path": "vault/decisions/ADR-004-skill-output-contracts.md",
+        "why": "Defines the sentinel-file (.process/{skill}.done.json) and verify.sh contract each skill Activity must still honor when invoked from inside a Cadence Activity, and how a verification hook currently detects skill completion outside of any workflow engine."
+      },
+      {
+        "path": "vault/decisions/ADR-005-analysis-separation.md",
+        "why": "Describes the quantitative (verify.sh) vs. qualitative (grader skill) split used by grade-story-analysis, which the Workflow's grade/repair loop must preserve when invoking that Activity."
+      },
+      {
+        "path": "vault/decisions/ADR-006-grader-skill-pattern.md",
+        "why": "Defines the grade-story-analysis rubric/pass-threshold pattern (fixed floor, e.g. 80%) that the Workflow's bounded 3-attempt grade-repair loop must check against to decide whether to invoke repair-story-analysis again or escalate."
+      },
+      {
+        "path": "vault/decisions/ADR-007-skill-input-independence.md",
+        "why": "Skills read their input documents directly rather than relying on a fixed upstream schema; the Cadence Activities wrapping each skill should pass file paths/content rather than tightly-coupled in-memory objects, preserving this loose coupling across Activity boundaries."
+      },
+      {
+        "path": "vault/decisions/ADR-002-software-factory-dual-audience.md",
+        "why": "Confirms this repo's documentation must remain usable by both humans and agents \u2014 relevant to the story's acceptance criterion that the new Workflow/Activity/Worker code be documented well enough for another engineer to run it unaided."
+      }
+    ],
+    "persona": [],
+    "target_architecture": [
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/SKILL.md",
+        "why": "Index/reference architecture for how Workflows, Activities, Workers, Task Lists, and the Cadence service fit together; the story's target architecture (Python client SDK, local embedded-SQLite server, Worker polling a Task List, Signal-based human escalation) is defined here, not yet implemented as project code."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/03-python-client/workflows-and-activities.md",
+        "why": "Documents the Python client SDK patterns (workflow/activity decorators, invoking activities from a workflow) that the new Story Analysis Workflow implementation must follow."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/03-python-client/retries-and-error-handling.md",
+        "why": "Documents RetryPolicy configuration and ActivityFailure handling needed to satisfy the story's retry and error-handling acceptance criteria."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/03-python-client/messaging.md",
+        "why": "Documents Signal/Query handling needed for the human-escalation acceptance criteria (ambiguous step, exhausted grade-repair loop, escalation timeout)."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/00-get-started/local-quickstart.md",
+        "why": "Documents running a local Cadence server (embedded SQLite) and first workflow, which the story's infrastructure dependencies (local domain registration, task list) rely on."
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [],
+    "services": [
+      {
+        "path": ".devin/skills/extract-story-intent",
+        "why": "Existing SDLC skill (SKILL.md + schema/story-intent.schema.json + verify.sh) to be wrapped as the Workflow's first Cadence Activity; already writes a sentinel file per ADR-004 that the Activity wrapper can reuse or emulate."
+      },
+      {
+        "path": ".devin/skills/analyze-story",
+        "why": "Existing SDLC skill to be wrapped as the Workflow's second Cadence Activity (analyze-story), producing the analysis.json consumed by grade-story-analysis."
+      },
+      {
+        "path": ".devin/skills/grade-story-analysis",
+        "why": "Existing grader skill (ADR-006 pattern: rubric.md, fixed pass-threshold, analysis-grade.schema.json) to be wrapped as the Cadence Activity that decides whether the grade-repair loop continues or the Workflow proceeds/escalates."
+      },
+      {
+        "path": ".devin/skills/repair-story-analysis",
+        "why": "Already-implemented skill (SKILL.md, schema/analysis.schema.json, verify.sh) that repairs an analysis using grader feedback; to be wrapped as the Cadence Activity invoked on each repair attempt, bounded to 3 attempts by the Workflow."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/examples/python/hello_world_workflow.py",
+        "why": "Only existing runnable Cadence Python example in the repo; a minimal single-activity workflow that is the closest existing pattern to model the new multi-Activity, looping Story Analysis Workflow on."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/examples/python/worker_setup.py",
+        "why": "Only existing example of registering a Worker against a domain/task list with the Python client; pattern to reuse for the new Worker process that will host the Story Analysis Workflow and its four Activities."
+      },
+      {
+        "path": ".devin/scripts/lib/common.sh",
+        "why": "Shared bash helpers used by hooks/skills for sentinel/log handling; relevant if the new repository-state-affecting Activities need to follow the same logging/sentinel conventions as existing skills."
+      }
+    ],
+    "models": [
+      {
+        "path": ".devin/skills/extract-story-intent/schema/story-intent.schema.json",
+        "why": "Defines the shape of the intent JSON the extract-story-intent Activity produces and that analyze-story consumes as input."
+      },
+      {
+        "path": ".devin/skills/analyze-story/schema/analysis.schema.json",
+        "why": "Defines the shape of the analysis JSON produced by analyze-story and re-produced by repair-story-analysis; consumed by grade-story-analysis."
+      },
+      {
+        "path": ".devin/skills/grade-story-analysis/schema/analysis-grade.schema.json",
+        "why": "Defines the shape of the grade JSON (score, pass/fail, feedback) the Workflow inspects to decide whether to loop into repair-story-analysis or proceed/escalate."
+      },
+      {
+        "path": ".devin/skills/repair-story-analysis/schema/analysis.schema.json",
+        "why": "Defines the shape of the repaired analysis JSON produced by repair-story-analysis, re-fed into grade-story-analysis on each loop iteration."
+      },
+      {
+        "path": ".devin/skills/*/schema/sentinel.schema.json and verify-params.schema.json",
+        "why": "Common sentinel-file and verify-params contract (ADR-004) each skill Activity currently follows; the Workflow/Activities must decide whether to keep relying on these file-based sentinels or replace them with native Cadence Activity return values while still satisfying the 'auditable via repository state' acceptance criterion."
+      }
+    ],
+    "apis": [
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/05-api-and-cli/cli-reference.md",
+        "why": "Documents the `cadence` CLI commands (start, signal, describe, domain register) the story's acceptance criteria require for starting/inspecting/signaling the new Workflow."
+      },
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/05-api-and-cli/http-api.md",
+        "why": "Documents the Cadence frontend gRPC/HTTP API (StartWorkflowExecution, SignalWorkflowExecution, QueryWorkflowExecution, DescribeWorkflowExecution) referenced in the story's affected_components.api."
+      }
+    ],
+    "tests": [
+      {
+        "path": ".devin/skills/cadence-workflow-orchestration/examples/python/test_hello_world_workflow.py",
+        "why": "Only existing Cadence Python test example in the repo; pattern to follow (per 03-python-client/testing.md) for testing the new Story Analysis Workflow and its Activities, including replay/determinism concerns."
+      },
+      {
+        "path": ".devin/skills/extract-story-intent/verify.sh",
+        "why": "Existing quantitative verification pattern (bash+jq schema/consistency checks) that the wrapped Activity's output should continue to satisfy so downstream skills and hooks keep working unchanged."
+      },
+      {
+        "path": ".devin/skills/extract-story-intent/_tests",
+        "why": "Existing test fixtures directory for a skill's verify.sh; indicates the repo convention of skill-local test fixtures that a new repair-story-analysis or Activity-wrapper test suite could follow."
+      }
+    ]
+  }
+}
