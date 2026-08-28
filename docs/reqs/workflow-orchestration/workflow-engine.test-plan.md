@@ -20,29 +20,40 @@ a real Cadence server, the orchestration logic is split:
 ## Test cases
 
 ### `grade_repair.py` (pure decision function)
-1. `evaluate_grade_repair_WhenPassed_ReturnsProceed`
-2. `evaluate_grade_repair_WhenFailedBelowMaxAttempts_ReturnsRepair`
-3. `evaluate_grade_repair_WhenFailedAtMaxAttempts_ReturnsEscalate`
-4. `evaluate_grade_repair_WhenFailedAboveMaxAttempts_ReturnsEscalate` (defensive)
+1. [x] `evaluate_grade_repair_WhenPassed_ReturnsProceed`
+2. [x] `evaluate_grade_repair_WhenFailedBelowMaxAttempts_ReturnsRepair`
+3. [x] `evaluate_grade_repair_WhenFailedAtMaxAttempts_ReturnsEscalate`
+4. [x] `evaluate_grade_repair_WhenFailedAboveMaxAttempts_ReturnsEscalate` (defensive)
+
+### `escalation.py` (human decision/reason types)
+- [x] `parse_human_response_WithRetryDecision_ReturnsRetry`
+- [x] `parse_human_response_WithAcceptDecision_ReturnsAccept`
+- [x] `parse_human_response_WithAbortDecision_ReturnsAbort`
+- [x] `parse_human_response_WithUnknownDecision_RaisesValueError`
+- [x] `escalation_reason_values_match_instrumentation_contract`
 
 ### `skill_activity.py` (subprocess wrapper — AC: repository state changes, idempotency, unicode passthrough)
-5. `run_skill_OnSuccess_ReturnsOutputPathFromSentinel`
-6. `run_skill_WhenDevinExitsNonZero_RaisesSkillActivityError`
-7. `run_skill_WhenSentinelMissing_RaisesSkillActivityError`
-8. `run_skill_WhenSentinelTaskMismatched_RaisesSkillActivityError`
-9. `run_skill_WhenRetried_RemovesStaleSentinelFirst` (idempotent retry edge case)
-10. `run_skill_PassesUnicodeStoryTextUnmodifiedInPrompt` (unicode edge case)
+5. [x] `run_skill_OnSuccess_ReturnsOutputPathFromSentinel`
+6. [x] `run_skill_WhenDevinExitsNonZero_RaisesSkillActivityError`
+7. [x] `run_skill_WhenSentinelMissing_RaisesSkillActivityError`
+8. [x] `run_skill_WhenSentinelTaskMismatched_RaisesSkillActivityError`
+9. [x] `run_skill_WhenRetried_RemovesStaleSentinelFirst` (idempotent retry edge case)
+10. [x] `run_skill_PassesUnicodeStoryTextUnmodifiedInPrompt` (unicode edge case)
 
 ### `story_analysis_engine.py` (StoryAnalysisEngine — integration of the four steps)
-11. `run_HappyPath_CompletesWithoutEscalation` (AC: happy path)
-12. `run_WhenGradeFailsOnceThenPasses_RepairsOnceAndProceeds` (AC: repair/re-grade cycle)
-13. `run_WhenGradeRepairLoopExhausted_EscalatesWithGradeRepairExhaustedReason` (AC: bounded to 3 attempts)
-14. `run_WhenActivityFails_EscalatesWithActivityFailureReason` (AC: retries exhausted -> escalate, not silent completion)
-15. `run_WhenHumanAccepts_ReturnsHumanResolvedResult`
-16. `run_WhenHumanAborts_ReturnsFailedResult`
-17. `run_WhenHumanRetries_ResetsAttemptCountAndRepairsWithNotes`
-18. `run_WhenEscalationTimesOutOnce_ReEscalatesThenSucceedsOnSecondResponse` (AC/edge: bounded human wait, re-notify)
-19. `run_WhenEscalationTimesOutTwice_FailsGracefully` (AC/edge: bounded wait, no signal -> fail gracefully)
+11. [x] `run_HappyPath_CompletesWithoutEscalation` (AC: happy path)
+12. [x] `run_WhenGradeFailsOnceThenPasses_RepairsOnceAndProceeds` (AC: repair/re-grade cycle)
+13. [x] `run_WhenGradeRepairLoopExhausted_EscalatesWithGradeRepairExhaustedReason` (AC: bounded to 3 attempts)
+14. [x] `run_WhenActivityFails_EscalatesWithActivityFailureReason` (AC: retries exhausted -> escalate, not silent completion)
+15. [x] `run_WhenHumanAccepts_ReturnsHumanResolvedResult`
+16. [x] `run_WhenHumanAborts_ReturnsFailedResult`
+17. [x] `run_WhenHumanRetries_ResetsAttemptCountAndRepairsWithNotes`
+18. [x] `run_WhenEscalationTimesOutOnce_ReEscalatesThenSucceedsOnSecondResponse` (AC/edge: bounded human wait, re-notify)
+19. [x] `run_WhenEscalationTimesOutTwice_FailsGracefully` (AC/edge: bounded wait, no signal -> fail gracefully)
+
+All 24 tests above are implemented and green (`pytest src/orchestrator -q`). Remaining work for this
+stream is the thin Cadence glue (`workflow.py`, `activities/*.py`, `worker.py`) that wires this
+already-tested engine to a real Cadence server — see "Out of scope" below.
 
 ## Out of scope for automated tests (documented manually in the runbook instead)
 
