@@ -48,8 +48,31 @@ shipped in a release newer than 0.3.0 by the time you read this.
 - `localhost:7833` — gRPC frontend (used by workers and clients)
 - `localhost:8088` — Cadence Web UI
 
+## Client API (2026-08-29)
+
+`src/story_analysis_workflow/` is the client-side counterpart to `src/orchestrator/`: starts runs,
+sends `human_response`, queries `get_status`, and registers the domain, without needing the
+`cadence` CLI binary installed. See `docs/reqs/workflow-orchestration/streams/client-api-usage.md`.
+
+- `config.py` — `CadenceConfig`/`load_config()` centralize domain/task-list/target/timeout config.
+  Precedence: explicit function argument > `domain-task-list-retry-config.json` > env var
+  (`CADENCE_DOMAIN`/`CADENCE_TASK_LIST`/`CADENCE_TARGET`) > hardcoded default. Both `cli.py` and
+  `starter.py` depend on this for consistency.
+- `starter.py` — derives a deterministic `WorkflowID` (slug + content hash) from the story
+  document when none is given, so re-running the same input is rejected as a duplicate
+  (`RejectDuplicate`) rather than silently starting a concurrent run — this is how the "Concurrent
+  workflow executions for the same story" edge case is closed for this stream.
+- `cli.py` — `story-analysis-cli` (argparse-based) is a from-scratch alternative to the `cadence`
+  CLI binary; it takes an injectable `client_factory`/`config` for unit testing entirely against
+  `tests/fake_client.FakeClient`, no live server needed. `register-domain` calls
+  `client.domain_stub.RegisterDomain` directly rather than shelling out.
+- Same `cadence.testing.TestWorkflowEnvironment` gap noted above applies: none of this client code
+  needs it (it only talks to `Client`'s async methods, all faked in tests).
+
 ## See also
 
 - [Workflow Engine implementation](../../src/orchestrator/README.md) — the Story
   Analysis Workflow example (`StoryAnalysisWorkflow`, its four skill Activities, and
   the pure `StoryAnalysisEngine` decision logic).
+- [Client API usage](../../docs/reqs/workflow-orchestration/streams/client-api-usage.md) — starter/
+  CLI/Signal/Query usage for `src/story_analysis_workflow/`.
