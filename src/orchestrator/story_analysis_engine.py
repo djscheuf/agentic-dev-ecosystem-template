@@ -66,6 +66,7 @@ class StoryAnalysisEngine:
         self.escalation_reason: Optional[EscalationReason] = None
 
     def _terminal(self, analysis_path: Optional[str], final_status: str) -> WorkflowResult:
+        self.status = final_status
         return WorkflowResult(
             final_analysis_path=analysis_path,
             passed=final_status == "passed",
