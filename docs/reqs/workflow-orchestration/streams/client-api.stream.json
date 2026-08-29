@@ -7,20 +7,20 @@
     "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
   },
   "related_acceptance_criteria": [
-    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "pending"},
-    {"criterion": "The implemented workflow is documented and can be used by others", "status": "pending"},
-    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "pending"},
-    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "pending"},
-    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "pending"},
-    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "pending"},
-    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "pending"}
+    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "completed"},
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "completed"},
+    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "completed"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "completed"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "completed"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "completed"},
+    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "completed"}
   ],
   "related_edge_cases": [
     {"criterion": "Empty or null story document input", "status": "pending"},
     {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
     {"criterion": "Special characters/unicode in the story text", "status": "pending"},
-    {"criterion": "First-time use: no Cadence domain registered yet", "status": "pending"},
-    {"criterion": "Concurrent workflow executions for the same story", "status": "pending"}
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "completed"},
+    {"criterion": "Concurrent workflow executions for the same story", "status": "completed"}
   ],
   "dependencies": [
     "docs/reqs/workflow-orchestration/streams/foundations.stream.json",
@@ -31,7 +31,7 @@
     {
       "description": "Implement the human_response Signal and get_status Query handlers",
       "layer": "api",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [],
       "artifacts": [
         "src/story_analysis_workflow/signals.py",
@@ -41,21 +41,21 @@
     {
       "description": "Create the workflow starter/client script to start a run from a story document",
       "layer": "api",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [],
       "artifacts": ["src/story_analysis_workflow/starter.py"]
     },
     {
       "description": "Create the cadence CLI helper for domain registration, run inspection, and signal submission",
       "layer": "api",
-      "status": "pending",
+      "status": "completed",
       "depends_on": ["2"],
       "artifacts": ["src/story_analysis_workflow/cli.py"]
     },
     {
       "description": "Document the client API (starter, CLI, Signal usage)",
       "layer": "external_services",
-      "status": "pending",
+      "status": "completed",
       "depends_on": ["1", "2", "3"],
       "artifacts": ["docs/reqs/workflow-orchestration/streams/client-api-usage.md"]
     }
