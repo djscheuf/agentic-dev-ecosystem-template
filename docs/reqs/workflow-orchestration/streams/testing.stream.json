@@ -7,28 +7,28 @@
     "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
   },
   "related_acceptance_criteria": [
-    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "pending"},
-    {"criterion": "The implemented workflow is documented and can be used by others", "status": "pending"},
-    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "pending"},
-    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "pending"},
-    {"criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)", "status": "pending"},
-    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "pending"},
-    {"criterion": "Happy path: all SDLC skill Activities succeed on first attempt with no human escalation needed", "status": "pending"},
-    {"criterion": "Error handling: an Activity fails repeatedly and exhausts its RetryPolicy", "status": "pending"},
-    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "pending"},
-    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "pending"},
-    {"criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded", "status": "pending"},
-    {"criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts", "status": "pending"}
+    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "completed"},
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "completed"},
+    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "completed"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "completed"},
+    {"criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)", "status": "completed"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "completed"},
+    {"criterion": "Happy path: all SDLC skill Activities succeed on first attempt with no human escalation needed", "status": "completed"},
+    {"criterion": "Error handling: an Activity fails repeatedly and exhausts its RetryPolicy", "status": "completed"},
+    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "completed"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "completed"},
+    {"criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded", "status": "completed"},
+    {"criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts", "status": "completed"}
   ],
   "related_edge_cases": [
     {"criterion": "Empty or null story document input", "status": "pending"},
     {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
-    {"criterion": "Special characters/unicode in the story text", "status": "pending"},
-    {"criterion": "First-time use: no Cadence domain registered yet", "status": "pending"},
+    {"criterion": "Special characters/unicode in the story text", "status": "completed"},
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "completed"},
     {"criterion": "Concurrent workflow executions for the same story", "status": "pending"},
     {"criterion": "Worker crash mid-Activity and workflow resumption via replay", "status": "pending"},
     {"criterion": "Cadence service temporarily unavailable", "status": "pending"},
-    {"criterion": "Duplicate/idempotent Activity execution due to retries", "status": "pending"}
+    {"criterion": "Duplicate/idempotent Activity execution due to retries", "status": "completed"}
   ],
   "dependencies": [
     "docs/reqs/workflow-orchestration/streams/foundations.stream.json",
@@ -40,7 +40,7 @@
     {
       "description": "Write unit tests for the repair skill, Workflow state, and Signal/Query logic",
       "layer": "external_services",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [],
       "artifacts": [
         "tests/unit/test_repair_story_analysis.py",
@@ -51,7 +51,7 @@
     {
       "description": "Write integration tests for the happy path and grade-repair loop against the local server",
       "layer": "external_services",
-      "status": "pending",
+      "status": "completed",
       "depends_on": ["1"],
       "artifacts": [
         "tests/integration/test_happy_path.py",
@@ -61,14 +61,14 @@
     {
       "description": "Write E2E tests that trigger a run and inspect cadence workflow describe and the Cadence Web UI",
       "layer": "ui",
-      "status": "pending",
+      "status": "completed",
       "depends_on": ["2"],
       "artifacts": ["tests/e2e/test_audit_trail.py"]
     },
     {
       "description": "Run the full test suite and fix failures",
       "layer": "external_services",
-      "status": "pending",
+      "status": "completed",
       "depends_on": ["2", "3"],
       "artifacts": ["tests/CI results / local test run output"]
     }
