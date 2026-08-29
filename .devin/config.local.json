@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(find)",
+      "Exec(cat)",
+      "Exec(git status)",
+      "Exec(grep)",
+      "Exec(git log)",
+      "Exec(nix-shell)",
+      "Exec(nix-shell)"
+    ]
+  }
+}
