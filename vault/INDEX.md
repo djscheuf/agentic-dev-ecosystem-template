@@ -15,3 +15,4 @@ This vault captures architectural decisions, patterns, and operational knowledge
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)
+- [NixOS development environment](services/nixos.md)
