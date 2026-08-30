@@ -27,8 +27,10 @@ class FakeClient:
         self,
         query_result: Optional[Any] = None,
         start_result: Optional[ExecutionResult] = None,
+        query_error: Optional[Exception] = None,
     ) -> None:
         self.query_result = query_result
+        self.query_error = query_error
         self.start_result = start_result or ExecutionResult(workflow_id="test-wf")
         self.start_calls: list = []
         self.signal_calls: list = []
@@ -65,4 +67,6 @@ class FakeClient:
                 "result_type": result_type,
             }
         )
+        if self.query_error:
+            raise self.query_error
         return self.query_result

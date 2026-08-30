@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Callable, Optional, Sequence
 
 from cadence.client import Client
+from cadence.error import EntityNotExistsError
 from cadence.api.v1 import service_domain_pb2
 
 from .config import CadenceConfig, load_config
@@ -80,7 +81,20 @@ async def _run_signal(client, args: argparse.Namespace, config: CadenceConfig) -
 
 
 async def _run_query(client, args: argparse.Namespace, config: CadenceConfig) -> int:
-    status = await get_status(client, args.workflow_id, run_id=args.run_id)
+    try:
+        status = await get_status(client, args.workflow_id, run_id=args.run_id)
+    except EntityNotExistsError as exc:
+        print(
+            f"Error: workflow not found: {args.workflow_id!r}",
+            file=sys.stderr,
+        )
+        if args.run_id:
+            print(f"       run_id: {args.run_id!r}", file=sys.stderr)
+        print(
+            "       Verify you are using the workflow_id returned by the start command.",
+            file=sys.stderr,
+        )
+        return 1
     print(json.dumps(status))
     return 0
 

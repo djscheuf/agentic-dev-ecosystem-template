@@ -24,6 +24,7 @@ docker compose exec cadence \
 - `cadence-sql-tool` in the `ubercadence/server` image does not include the SQLite driver (`unknown driver "sqlite3"` error). Use `cadence-server --root /etc/cadence --env docker update-schema` instead; it applies the SQLite schema from the config file.
 - `start-cadence.sh` copies `CADENCE_CONFIG_FILE` to `/etc/cadence/config/docker.yaml` and then runs the configured services. Run the `update-schema` command first, then exec `start-cadence.sh`.
 - The Python client `cadence-python-client` on Nix/Linux may need `LD_LIBRARY_PATH` pointed at a `libstdc++.so.6` location because the `grpcio` wheel links it. Fixed in `shell.nix` (2026-08-28): add `stdenv.cc.cc.lib` to `buildInputs` and `export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"` in `shellHook`.
+- Querying a non-existent `WorkflowID` raises `cadence.error.EntityNotExistsError` with a `StatusCode.NOT_FOUND` gRPC error and the message `GetCurrentExecution failed. Error: sql: no rows in result set`. This is a normal "not found" path, not a database connectivity issue. Client CLIs should catch `EntityNotExistsError` and print a workflow-id-focused message rather than dumping the gRPC traceback.
 
 ## Python client SDK gap: no `TestWorkflowEnvironment` on PyPI yet (2026-08-28)
 

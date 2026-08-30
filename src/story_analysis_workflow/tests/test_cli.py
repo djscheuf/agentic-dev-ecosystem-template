@@ -1,7 +1,9 @@
 import json
 from datetime import timedelta
 
+import grpc
 import pytest
+from cadence.error import EntityNotExistsError
 
 from story_analysis_workflow import cli
 from story_analysis_workflow.config import CadenceConfig
@@ -94,6 +96,30 @@ async def test_cli_query_subcommand_invokes_get_status_and_prints_json(monkeypat
     assert exit_code == 0
     captured = capsys.readouterr()
     assert json.loads(captured.out) == status
+
+
+@pytest.mark.asyncio
+async def test_cli_query_prints_error_when_workflow_not_found(capsys):
+    client = FakeClient(
+        query_error=EntityNotExistsError(
+            "GetCurrentExecution failed.  Error: sql: no rows in result set",
+            grpc.StatusCode.NOT_FOUND,
+            "",
+            "",
+            [],
+        )
+    )
+
+    exit_code = await cli.cli_main_async(
+        ["query", "missing-workflow"],
+        client_factory=make_client_factory(client),
+        config=make_config(),
+    )
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "missing-workflow" in captured.err
+    assert "not found" in captured.err.lower()
 
 
 @pytest.mark.asyncio
