@@ -12,6 +12,7 @@ description: Create conventional commits in this repository based on observed ma
 - Imperative, present-tense subject.
 - Optional body and footer separated by blank lines.
 - ALWAYS keep commit messages about the changes, not the tooling.
+- NEVER sign commits with AI/tooling attribution such as "Generated with Devin", "Co-Authored-By: Devin ...", "Signed-off-by: Devin ...", or similar. These are not part of the repository's commit convention and will be rejected by the project.
 
 ## Message format
 
@@ -147,6 +148,7 @@ tweak(extract skill): limit what is in initial story schema, depend on shell onl
 - Exceeding 72 characters on the first line.
 - Forgetting a blank line between subject and body.
 - Using PR merge style (`Type/scope description (#N)`) for normal commits.
+- Including AI/tooling attribution ("Generated with Devin", "Co-Authored-By: Devin ...", etc.) in the body or footer. Commit messages describe the change, not who or what wrote it.
 
 ## Notes
 
