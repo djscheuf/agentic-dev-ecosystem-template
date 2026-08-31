@@ -1,31 +1,58 @@
 """Client-side starter for the Story Analysis Cadence Workflow.
 
 Starts a `StoryAnalysisWorkflow` execution from a story document path (or
-verbatim text), deriving a deterministic `WorkflowID` when one isn't given so
-re-running with the same input is rejected as a duplicate (per
-`domain-task-list-retry-config.json`'s `workflow_id_reuse_policy`).
+verbatim text), deriving a `WorkflowID` when one isn't given from the input's
+name plus a "zettel id" -- a `YYYYMMDDHHmm` timestamp (24-hour, local to the
+caller) taken at kickoff time. E.g. `example_story.md` started at 14:30 on
+2026-08-31 becomes `story-analysis-example_story_202608311430`. Unlike the
+previous content-hash-based id, two kickoffs of the exact same story now get
+distinct WorkflowIDs (down to the minute) instead of being deduplicated; see
+`vault/decisions/` for the rationale.
 """
 
-import hashlib
 import re
+from datetime import datetime
 from typing import Optional
 
 from .config import CadenceConfig, load_config
 
 WORKFLOW_TYPE = "StoryAnalysisWorkflow"
 
+_PATH_LIKE_RE = re.compile(r"[\\/]|\.[A-Za-z0-9]{1,8}$")
+_EXTENSION_RE = re.compile(r"\.[A-Za-z0-9]{1,8}$")
+_UNSAFE_CHARS_RE = re.compile(r"[^a-zA-Z0-9_-]+")
 
-def _default_workflow_id(story_document: str) -> str:
-    """Derive a stable WorkflowID from the story document path/text.
 
-    Combines a short, readable slug of the input with a hash of the full
-    value so distinct story documents that happen to share a slug still get
-    distinct IDs.
+def _slugify(text: str, max_len: int = 40) -> str:
+    slug = _UNSAFE_CHARS_RE.sub("_", text).strip("_").lower()
+    return slug[-max_len:] or "story"
+
+
+def _name_component(story_document: str) -> str:
+    """Derive the readable "name" portion of the WorkflowID.
+
+    File-path-looking inputs (containing a path separator, or ending in a
+    short file extension like `.md`) use their basename with the extension
+    stripped, e.g. `docs/example_story.md` -> `example_story`. Verbatim story
+    text falls back to a slug of the whole string, as before.
     """
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", story_document).strip("-").lower()
-    slug = slug[-40:] or "story"
-    digest = hashlib.sha256(story_document.encode("utf-8")).hexdigest()[:8]
-    return f"story-analysis-{slug}-{digest}"
+    stripped = story_document.strip()
+    if _PATH_LIKE_RE.search(stripped):
+        base = re.split(r"[\\/]", stripped)[-1]
+        base = _EXTENSION_RE.sub("", base)
+    else:
+        base = stripped
+    return _slugify(base)
+
+
+def _zettel_id(when: Optional[datetime] = None) -> str:
+    """24-hour, local-time `YYYYMMDDHHmm` timestamp for the kickoff moment."""
+    return (when or datetime.now()).strftime("%Y%m%d%H%M")
+
+
+def _default_workflow_id(story_document: str, *, when: Optional[datetime] = None) -> str:
+    """Derive a `WorkflowID` from the story document's name and kickoff time."""
+    return f"story-analysis-{_name_component(story_document)}_{_zettel_id(when)}"
 
 
 async def start_story_analysis_workflow(

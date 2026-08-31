@@ -1,10 +1,10 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from cadence.api.v1 import workflow_pb2
 
 from story_analysis_workflow.config import CadenceConfig
-from story_analysis_workflow.starter import WORKFLOW_TYPE, start_story_analysis_workflow
+from story_analysis_workflow.starter import WORKFLOW_TYPE, _default_workflow_id, start_story_analysis_workflow
 
 from .fake_client import ExecutionResult, FakeClient
 
@@ -40,20 +40,34 @@ async def test_starter_starts_story_analysis_workflow_with_defaults():
 
 
 @pytest.mark.asyncio
-async def test_starter_generates_deterministic_workflow_id_from_story_path():
+async def test_starter_generates_workflow_id_from_story_name_and_kickoff_time():
     client = FakeClient()
     config = make_config()
 
-    await start_story_analysis_workflow(client, "docs/reqs/workflow-orchestration/story.md", config=config)
-    first_workflow_id = client.start_calls[0]["options"]["workflow_id"]
+    await start_story_analysis_workflow(client, "docs/reqs/workflow-orchestration/example_story.md", config=config)
+    workflow_id = client.start_calls[0]["options"]["workflow_id"]
 
-    client2 = FakeClient()
-    await start_story_analysis_workflow(client2, "docs/reqs/workflow-orchestration/story.md", config=config)
-    second_workflow_id = client2.start_calls[0]["options"]["workflow_id"]
+    assert workflow_id.startswith("story-analysis-example_story_")
+    # Zettel id is a 12-digit YYYYMMDDHHmm timestamp, no file extension leaks through.
+    timestamp = workflow_id.rsplit("_", 1)[-1]
+    assert timestamp.isdigit()
+    assert len(timestamp) == 12
 
-    assert first_workflow_id == second_workflow_id
-    assert first_workflow_id.startswith("story-analysis-")
-    assert "story" in first_workflow_id
+
+def test_default_workflow_id_is_deterministic_for_a_given_kickoff_time():
+    when = datetime(2026, 8, 31, 14, 30)
+
+    first = _default_workflow_id("docs/reqs/workflow-orchestration/example_story.md", when=when)
+    second = _default_workflow_id("docs/reqs/workflow-orchestration/example_story.md", when=when)
+
+    assert first == second == "story-analysis-example_story_202608311430"
+
+
+def test_default_workflow_id_differs_across_kickoff_times():
+    first = _default_workflow_id("example_story.md", when=datetime(2026, 8, 31, 14, 30))
+    second = _default_workflow_id("example_story.md", when=datetime(2026, 8, 31, 14, 31))
+
+    assert first != second
 
 
 @pytest.mark.asyncio

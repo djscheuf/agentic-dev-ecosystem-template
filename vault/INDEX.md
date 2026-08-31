@@ -11,7 +11,10 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](decisions/ADR-005-analysis-separation.md)
 - [ADR-006: Grader Skill Pattern](decisions/ADR-006-grader-skill-pattern.md)
 - [ADR-007: Skill Input Independence](decisions/ADR-007-skill-input-independence.md)
+- [ADR-009: Colocate `story_analysis_workflow` config with its module](decisions/ADR-009-colocate-workflow-config.md)
+- [ADR-010: Story Analysis WorkflowID Uses a Kickoff-Time Zettel ID, Not a Content Hash](decisions/ADR-010-workflow-id-zettel-timestamp.md)
 
+ 
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)

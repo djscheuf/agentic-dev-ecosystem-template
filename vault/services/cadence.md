@@ -59,10 +59,16 @@ sends `human_response`, queries `get_status`, and registers the domain, without 
   Precedence: explicit function argument > `domain-task-list-retry-config.json` > env var
   (`CADENCE_DOMAIN`/`CADENCE_TASK_LIST`/`CADENCE_TARGET`) > hardcoded default. Both `cli.py` and
   `starter.py` depend on this for consistency.
-- `starter.py` — derives a deterministic `WorkflowID` (slug + content hash) from the story
-  document when none is given, so re-running the same input is rejected as a duplicate
-  (`RejectDuplicate`) rather than silently starting a concurrent run — this is how the "Concurrent
-  workflow executions for the same story" edge case is closed for this stream.
+  `domain-task-list-retry-config.json` is colocated in `src/story_analysis_workflow/` (moved there
+  2026-08-31; `DEFAULT_CONFIG_PATH` used to point at a `docs/reqs/.../streams/` path that never
+  actually existed, so `load_config()` silently always fell back to hardcoded/env defaults — see
+  `decisions/ADR-009-colocate-workflow-config.md`).
+- `starter.py` — derives a `WorkflowID` from the story document's name plus a "zettel id"
+  (`YYYYMMDDHHmm`, 24-hour local time at kickoff) when none is given, e.g. `example_story.md` ->
+  `story-analysis-example_story_202608311430` (2026-08-31, changed from an earlier slug +
+  content-hash scheme — see `decisions/ADR-010-workflow-id-zettel-timestamp.md`). `RejectDuplicate`
+  reuse policy now only guards same-story starts within the same minute; it no longer deduplicates
+  re-runs of identical story content across kickoffs (accepted tradeoff, not a regression).
 - `cli.py` — `story-analysis-cli` (argparse-based) is a from-scratch alternative to the `cadence`
   CLI binary; it takes an injectable `client_factory`/`config` for unit testing entirely against
   `tests/fake_client.FakeClient`, no live server needed. `register-domain` calls
