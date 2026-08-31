@@ -44,6 +44,29 @@ test coverage of its own (manual verification against a real server instead).
 Re-check this gap before assuming `TestWorkflowEnvironment` is usable — it may have
 shipped in a release newer than 0.3.0 by the time you read this.
 
+## Gotcha: bare `@workflow.query` / `@workflow.signal` silently don't register (2026-08-31)
+
+`cadence.workflow.query()` and `cadence.workflow.signal()` are decorator
+*factories* (`def query(name: str | None = None) -> Callable[[T], T]`), not
+decorators themselves. Used bare -- `@workflow.query` / `@workflow.signal`
+with no parens -- Python calls `query(fn)`, which binds `fn` itself to the
+`name` parameter and returns the inner `decorator` closure *unapplied*. The
+class ends up with that closure as the attribute instead of the original
+method, and `_workflow_query`/`_workflow_signal` metadata is never set --
+**no error at class-definition time**, but the method is simply never
+registered. Cadence then rejects the Signal/Query at runtime with e.g.
+`Unknown query type 'get_status'. Known types: ['__query_types']`.
+
+This was live in `src/orchestrator/workflow.py`'s `human_response` Signal and
+`get_status` Query (`StoryAnalysisWorkflow`) for some time, uncaught because
+neither is exercised against a real Cadence server in the automated test
+suite (`FakeClient`-based unit tests just record the call and never invoke
+the actual workflow's handler). Found while adding `get_result` to the new
+`SingleActivityWorkflow` probe workflow and testing it against a live
+server -- see `Testing a single Activity in isolation` below. Fixed by
+calling with parens and an explicit name, e.g. `@workflow.query(name="get_status")`.
+**Always use the parenthesized form**, even when relying on the default name.
+
 ## Ports
 
 - `localhost:7833` — gRPC frontend (used by workers and clients)
@@ -73,6 +96,13 @@ sends `human_response`, queries `get_status`, and registers the domain, without 
   CLI binary; it takes an injectable `client_factory`/`config` for unit testing entirely against
   `tests/fake_client.FakeClient`, no live server needed. `register-domain` calls
   `client.domain_stub.RegisterDomain` directly rather than shelling out.
+- `run_single_activity.py` (2026-08-31) — backs `scripts/run-single-activity`. A Cadence *client*
+  (not a direct/in-process call): starts `orchestrator.single_activity_workflow.SingleActivityWorkflow`,
+  a minimal probe workflow that schedules exactly one Activity, then polls its `get_result` Query
+  until it finishes. Requires `scripts/start-workflow-engine.sh` already running. Chosen over an
+  in-process direct call specifically so retries/timeouts/task-routing match a normal
+  `StoryAnalysisWorkflow` run, and so `scripts/.run/worker.log` / the Cadence Web UI actually show
+  the activity task on failure. `repair_story_analysis` isn't supported (needs two input files).
 - Same `cadence.testing.TestWorkflowEnvironment` gap noted above applies: none of this client code
   needs it (it only talks to `Client`'s async methods, all faked in tests).
 

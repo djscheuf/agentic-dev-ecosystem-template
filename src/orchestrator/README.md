@@ -19,9 +19,10 @@ for the test plan.
 | `skill_activity.py` | Connects a skill + inputs to a prompt and sends it to a given `Harness`; reads the sentinel it writes. |
 | `story_analysis_engine.py` | `StoryAnalysisEngine` — all sequencing/decision logic, framework-independent. |
 | `workflow.py` | `StoryAnalysisWorkflow`, the `@registry.workflow()` class wiring the engine to Cadence. |
+| `single_activity_workflow.py` | `SingleActivityWorkflow`, a minimal probe workflow that schedules exactly one Activity — backs `scripts/run-single-activity` for manual activity-by-activity testing against a real Cadence server. |
 | `activities/harness_instance.py` | The single shared `Harness` instance (`DevinHarness()`) the four Activities use — swap it here to use a different harness. |
 | `activities/*.py` | The four `@activity.defn()` Activities. |
-| `worker.py` | Polls the `story-analysis` task list. |
+| `worker.py` | Registers `StoryAnalysisWorkflow`, `SingleActivityWorkflow`, and the four Activities; polls the `story-analysis` task list. |
 | `tests/` | Unit tests for everything except the Cadence glue itself (see below). |
 
 ## Swapping the Harness
@@ -80,6 +81,27 @@ imports `cadence`. `workflow.py` is a thin adapter that wires this engine to rea
 
 See `docs/reqs/workflow-orchestration/local-dev-prerequisites.md` for the full
 prerequisites, gotchas, and payload-size/idempotency notes.
+
+## Testing a single Activity in isolation
+
+To exercise one Activity at a time against a real Cadence server (real retries,
+timeouts, and task-list routing -- not an in-process/mocked call), bring the
+engine up with `scripts/start-workflow-engine.sh`, then:
+
+```bash
+scripts/run-single-activity extract_story_intent docs/reqs/workflow-orchestration/story.md
+scripts/run-single-activity analyze_story docs/reqs/workflow-orchestration/story.intent.json
+scripts/run-single-activity grade_story_analysis docs/reqs/workflow-orchestration/story.analysis.json
+scripts/run-single-activity --help
+```
+
+This starts a `SingleActivityWorkflow` (`single_activity_workflow.py`) that
+schedules exactly the named Activity on the already-running
+`orchestrator.worker`, then polls until it finishes and prints the result.
+`repair_story_analysis` isn't supported (it needs two input files: the
+analysis and its grade). On failure it points you at the Cadence Web UI
+(`http://localhost:8088`) and `scripts/.run/worker.log` for the activity
+task's history and the worker's own error output.
 
 ## Running the unit tests
 

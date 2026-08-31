@@ -28,9 +28,16 @@ class FakeClient:
         query_result: Optional[Any] = None,
         start_result: Optional[ExecutionResult] = None,
         query_error: Optional[Exception] = None,
+        query_results: Optional[list] = None,
     ) -> None:
         self.query_result = query_result
         self.query_error = query_error
+        # When set, consumed in order across successive query_workflow calls
+        # (the last value repeats), e.g. to simulate a workflow that's still
+        # `running` for a few polls before it finishes. Falls back to the
+        # single `query_result` when not given.
+        self.query_results = query_results
+        self._query_call_count = 0
         self.start_result = start_result or ExecutionResult(workflow_id="test-wf")
         self.start_calls: list = []
         self.signal_calls: list = []
@@ -69,4 +76,8 @@ class FakeClient:
         )
         if self.query_error:
             raise self.query_error
+        if self.query_results is not None:
+            index = min(self._query_call_count, len(self.query_results) - 1)
+            self._query_call_count += 1
+            return self.query_results[index]
         return self.query_result

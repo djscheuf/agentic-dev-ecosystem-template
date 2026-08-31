@@ -1,8 +1,10 @@
 """Cadence Worker for the Story Analysis Workflow.
 
-Registers `StoryAnalysisWorkflow` and its four skill Activities, then polls the
-`story-analysis` task list. Requires a running Cadence server with the
-`story-analysis` domain registered -- see
+Registers `StoryAnalysisWorkflow`, the probe `SingleActivityWorkflow` (used
+for manual activity-by-activity testing -- see
+`orchestrator.single_activity_workflow`), and the four skill Activities,
+then polls the `story-analysis` task list. Requires a running Cadence server
+with the `story-analysis` domain registered -- see
 `docs/reqs/workflow-orchestration/local-dev-prerequisites.md`.
 
 Run with: python -m orchestrator.worker
@@ -14,6 +16,7 @@ import os
 from cadence.client import Client
 from cadence.worker import Worker
 
+from . import single_activity_workflow  # noqa: F401  (registers SingleActivityWorkflow)
 from .workflow import registry
 
 CADENCE_TARGET = os.environ.get("CADENCE_TARGET", "localhost:7833")

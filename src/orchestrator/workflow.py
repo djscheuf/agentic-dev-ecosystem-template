@@ -112,11 +112,11 @@ class StoryAnalysisWorkflow:
         result = await engine.run(story_document)
         return dataclasses.asdict(result)
 
-    @workflow.signal
+    @workflow.signal(name="human_response")
     def human_response(self, decision: str, notes: str = "") -> None:
         self._pending_human_response = parse_human_response(decision, notes)
 
-    @workflow.query
+    @workflow.query(name="get_status")
     def get_status(self) -> dict:
         engine = self._engine
         if engine is None:
