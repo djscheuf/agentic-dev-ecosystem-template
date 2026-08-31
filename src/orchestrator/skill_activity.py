@@ -49,6 +49,11 @@ def _build_prompt(skill_input: SkillActivityInput) -> str:
     lines = [f"Invoke the '{skill_input.skill_name}' skill."]
     if skill_input.input_paths:
         lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
+        lines.append(
+            f"Write the skill's output file in the same directory as the first "
+            f"input path ({skill_input.input_paths[0]}), following the skill's "
+            f"naming convention."
+        )
     if skill_input.context:
         lines.append(skill_input.context)
     return "\n".join(lines)
