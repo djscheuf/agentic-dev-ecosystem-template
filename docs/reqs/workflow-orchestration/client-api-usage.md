@@ -13,8 +13,8 @@ Signal/Query/Activity contracts.
 
 | File | Purpose |
 |---|---|
-| `config.py` | `CadenceConfig` / `load_config()` — domain, task list, target, timeouts, loaded from `domain-task-list-retry-config.json` with env var and explicit-override fallbacks. |
-| `starter.py` | `start_story_analysis_workflow()` — starts a `StoryAnalysisWorkflow` execution with a deterministic `WorkflowID`. |
+| `config.py` | `CadenceConfig` / `load_config()` — domain, task list, target, timeouts, loaded from `domain-task-list-retry-config.json` (colocated in this module) with env var and explicit-override fallbacks. |
+| `starter.py` | `start_story_analysis_workflow()` — starts a `StoryAnalysisWorkflow` execution with a `WorkflowID` derived from the story document's name plus a kickoff-time zettel id. |
 | `signals.py` | `send_human_response()` — sends the `human_response` Signal. |
 | `queries.py` | `get_status()` — queries the `get_status` Query. |
 | `cli.py` | `story-analysis-cli` — `start` / `signal` / `query` / `register-domain` subcommands wrapping the above. |
@@ -46,8 +46,12 @@ nix-shell --run "PYTHONPATH=src .venv/bin/python -m story_analysis_workflow.cli 
 ```
 
 Prints the resolved `workflow_id` and `run_id`. Pass `--workflow-id` to control it explicitly;
-otherwise it's derived deterministically from the story document path, so re-running with the same
-input against the same domain is rejected as a duplicate (`RejectDuplicate` reuse policy).
+otherwise it's derived from the story document's name plus a "zettel id" -- a `YYYYMMDDHHmm`
+timestamp (24-hour, local time) taken at kickoff -- e.g. `example_story.md` started at 14:30 on
+2026-08-31 becomes `story-analysis-example_story_202608311430`. Each kickoff therefore gets its own
+`WorkflowID` (the `RejectDuplicate` reuse policy only guards against two starts for the same story
+in the same minute, rather than deduplicating re-runs of the same story like the previous
+content-hash id did).
 
 Override the grade-repair loop's bounds with `--max-attempts` / `--escalation-timeout-seconds`.
 

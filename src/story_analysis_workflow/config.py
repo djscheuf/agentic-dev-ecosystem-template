@@ -9,10 +9,7 @@ from typing import Optional
 
 from cadence.api.v1 import workflow_pb2
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG_PATH = (
-    REPO_ROOT / "docs" / "reqs" / "workflow-orchestration" / "streams" / "domain-task-list-retry-config.json"
-)
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "domain-task-list-retry-config.json"
 
 DEFAULT_DOMAIN = "story-analysis"
 DEFAULT_TASK_LIST = "story-analysis"
