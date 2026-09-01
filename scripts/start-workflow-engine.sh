@@ -67,6 +67,19 @@ command -v nix-shell >/dev/null 2>&1 || die "nix-shell is not on PATH"
 [[ -x "$REPO_ROOT/.venv/bin/python" ]] || die \
   ".venv not found -- run: nix-shell --run \"python3 -m venv .venv && .venv/bin/pip install -r src/orchestrator/requirements.txt\""
 
+# The worker shells out to `devin` for every skill Activity (see
+# `src/orchestrator/devin_harness.py`). Fail fast here instead of letting it
+# surface later as a buried SkillActivityError in the worker log -- see
+# `vault/services/orchestrator-harness.md` for why plain `devin auth login`
+# can be insufficient (browser/Windsurf-session-bridged tokens can be flaky).
+#
+# NOTE: `devin auth status` always exits 0, even when logged out -- it must
+# be checked by matching its output text, not its exit code.
+command -v devin >/dev/null 2>&1 || die "devin CLI is not on PATH"
+if devin auth status 2>&1 | grep -qi "not logged in"; then
+  die "devin CLI is not authenticated. Run: devin auth login --force-manual-token-flow (see vault/services/orchestrator-harness.md)"
+fi
+
 # --- 1. Start the docker network (Cadence server + Web UI) -----------------
 log "Starting Cadence docker network..."
 docker compose -f "$COMPOSE_FILE" up -d || die "docker compose up failed"

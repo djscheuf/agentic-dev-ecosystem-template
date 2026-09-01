@@ -50,6 +50,13 @@ imports `cadence`. `workflow.py` is a thin adapter that wires this engine to rea
 
 ## Running it against a real Cadence server
 
+0. Make sure the `devin` CLI is authenticated (`devin auth status`) — every
+   skill Activity shells out to it via `DevinHarness`. If you get stuck with
+   "already logged in" vs "not logged in" flapping, use
+   `devin auth logout && devin auth login --force-manual-token-flow`
+   (real, independently-issued token) instead of the plain browser flow —
+   see `vault/services/orchestrator-harness.md`. `scripts/start-workflow-engine.sh`
+   preflights this and fails fast with the same pointer if it's not authenticated.
 1. Bring up the local Cadence stack and register the domain — see
    `docs/reqs/workflow-orchestration/local-dev-prerequisites.md`.
 2. Install dependencies (from the repo root, inside the Nix dev shell so
