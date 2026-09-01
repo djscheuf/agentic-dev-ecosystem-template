@@ -12,7 +12,7 @@ This document covers the zero-dependency local setup used to run the Story Analy
 | `jq` | any | The skill `verify.sh` scripts use `jq` for JSON validation. |
 | Python | 3.10+ | Run the Cadence Python client and the workflow Worker. |
 | `pip` | any | Install `cadence-python-client`. |
-| `devin` CLI | installed and on `PATH` | The Activity wrapper shells out to `devin` to run the agentic SDLC skills. |
+| `devin` CLI | installed, on `PATH`, and authenticated (`devin auth status`) | The Activity wrapper shells out to `devin` to run the agentic SDLC skills. |
 | `cadence` CLI | built from the Cadence repo, or use the `ubercadence/cli` Docker image | Register the domain, start/signal/query workflows for inspection. |
 
 ## Cadence server (embedded SQLite)
@@ -96,6 +96,29 @@ cadence --domain story-analysis workflow signal \
   --signal_name human_response \
   --input '{"decision":"accept","notes":"Looks good"}'
 ```
+
+## `devin` CLI authentication
+
+Every skill Activity shells out to `devin` (`src/orchestrator/devin_harness.py`), so
+the Worker's host user must be authenticated *before* starting the engine:
+
+```bash
+devin auth status
+```
+
+If a browser-based `devin auth login` leaves you flapping between "already logged
+in" and "not logged in" (common with session-bridged enterprise/Windsurf tokens —
+see `vault/services/orchestrator-harness.md`), use a real, independently-issued
+token instead:
+
+```bash
+devin auth logout
+devin auth login --force-manual-token-flow
+```
+
+`scripts/start-workflow-engine.sh` preflights this and fails fast with a pointer
+to this fix rather than letting it surface later as a buried `SkillActivityError`
+in `scripts/.run/worker.log`.
 
 ## Constraints and gotchas
 
