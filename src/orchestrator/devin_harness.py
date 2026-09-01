@@ -15,7 +15,7 @@ from typing import Callable
 from .harness import HarnessResult
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.json"
-DEFAULT_MODEL = "SWE-1.6"
+DEFAULT_MODEL = "SWE-1.7"
 DEFAULT_PERMISSION_MODE = "auto"
 
 
