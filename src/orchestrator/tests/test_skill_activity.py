@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -336,7 +337,7 @@ def test_run_skill_with_auto_and_missing_sentinel_fails_without_escalation(tmp_p
 
     def runner(command, **kwargs):
         commands.append(command)
-        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     harness = DevinHarness(config=DevinHarnessConfig(), runner=runner)
 
@@ -350,3 +351,46 @@ def test_run_skill_with_auto_and_missing_sentinel_fails_without_escalation(tmp_p
 
     assert len(commands) == 1
     assert commands[0][commands[0].index("--permission-mode") + 1] == "auto"
+
+
+def test_run_skill_for_each_story_analysis_skill_uses_configured_profile_and_artifact_contract(
+    tmp_path,
+):
+    output_keys = {
+        "extract-story-intent": "extracted_intent_path",
+        "analyze-story": "analysis_path",
+        "grade-story-analysis": "analysis_grade_path",
+        "repair-story-analysis": "analysis_path",
+    }
+    commands = []
+
+    def runner(command, **kwargs):
+        skill_name = get_current_skill_name()
+        output_path = f"docs/{skill_name}.json"
+        _write_sentinel(
+            tmp_path,
+            skill_name,
+            verify_params={output_keys[skill_name]: output_path},
+        )
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    harness = DevinHarness(runner=runner)
+
+    outputs = {
+        skill_name: run_skill(
+            SkillActivityInput(skill_name=skill_name),
+            output_path_key=output_key,
+            repo_root=tmp_path,
+            harness=harness,
+        )
+        for skill_name, output_key in output_keys.items()
+    }
+
+    assert [output.output_path for output in outputs.values()] == [
+        f"docs/{skill_name}.json" for skill_name in output_keys
+    ]
+    assert len(commands) == 4
+    for command in commands:
+        assert command[command.index("--model") + 1] == "SWE-1.7"
+        assert command[command.index("--permission-mode") + 1] == "accept-edits"

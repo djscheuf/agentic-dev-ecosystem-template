@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "RunSkill_ForEachStoryAnalysisSkill_UsesConfiguredProfileAndArtifactContract",
-          "status": "pending",
+          "status": "passing",
           "description": "All four Story Analysis skills use their canonical configured profile while preserving existing sentinel output lookup.",
           "arrange": "The repository configuration, a captured Devin runner, and valid sentinels for each canonical Story Analysis skill.",
           "act": "Run each representative Skill Activity through DevinHarness.",
