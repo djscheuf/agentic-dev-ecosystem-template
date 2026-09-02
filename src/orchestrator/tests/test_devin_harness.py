@@ -344,3 +344,36 @@ def test_devin_harness_logs_stdout_and_stderr_to_separate_devin_log(tmp_path):
     assert "devin stdout line" in content
     assert "devin stderr line" in content
     assert "Devin output log" in (tmp_path / activity_log_path).read_text()
+
+
+def test_devin_harness_run_emits_start_devin_invocation_event(tmp_path):
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    activity_info = SimpleNamespace(
+        workflow_id="wf-start",
+        workflow_run_id="run-start",
+        activity_type="analyze_story",
+        activity_id="act-start",
+        attempt=1,
+    )
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    harness = DevinHarness(
+        config=DevinHarnessConfig(model="SWE-2.0", permission_mode="accept-edits"),
+        runner=runner,
+    )
+
+    with activity_log_context(activity_info=activity_info, config=config):
+        with skill_invocation_context("analyze-story"):
+            harness.run("sensitive-prompt-text", cwd=tmp_path)
+        activity_log_path = get_activity_log_path()
+
+    content = (tmp_path / activity_log_path).read_text()
+    assert "StartDevinInvocation" in content
+    assert "skill_name=analyze-story" in content
+    assert "model=SWE-2.0" in content
+    assert "permission_mode=accept-edits" in content
+    assert "sensitive-prompt-text" not in content

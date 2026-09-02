@@ -130,8 +130,14 @@ class DevinHarness:
         ]
         activity_logger = get_activity_logger()
         devin_logger = get_devin_logger()
-        activity_logger.debug(
-            "Resolved Devin profile: skill_name=%s model=%s permission_mode=%s",
+        activity_logger.info(
+            "ResolveInvocationProfile: skill_name=%s model=%s permission_mode=%s",
+            skill_name,
+            profile.model,
+            profile.permission_mode,
+        )
+        activity_logger.info(
+            "StartDevinInvocation: skill_name=%s model=%s permission_mode=%s",
             skill_name,
             profile.model,
             profile.permission_mode,
