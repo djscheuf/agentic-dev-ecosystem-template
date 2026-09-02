@@ -1,4 +1,20 @@
 {
-  "model": "SWE-1.7",
-  "permission_mode": "auto"
+  "defaults": {
+    "model": "SWE-1.7",
+    "permission_mode": "auto"
+  },
+  "skills": {
+    "extract-story-intent": {
+      "permission_mode": "accept-edits"
+    },
+    "analyze-story": {
+      "permission_mode": "accept-edits"
+    },
+    "grade-story-analysis": {
+      "permission_mode": "accept-edits"
+    },
+    "repair-story-analysis": {
+      "permission_mode": "accept-edits"
+    }
+  }
 }

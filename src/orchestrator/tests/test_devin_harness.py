@@ -14,6 +14,19 @@ from orchestrator.workflow_logger import (
 )
 
 
+def test_repository_config_grants_story_analysis_writers_explicit_edits():
+    config = DevinHarnessConfig.load()
+
+    assert config.resolve("unconfigured-skill").permission_mode == "auto"
+    for skill_name in (
+        "extract-story-intent",
+        "analyze-story",
+        "grade-story-analysis",
+        "repair-story-analysis",
+    ):
+        assert config.resolve(skill_name).permission_mode == "accept-edits"
+
+
 def test_devin_harness_config_load_when_file_missing_returns_defaults(tmp_path):
     config = DevinHarnessConfig.load(tmp_path / "missing.config.json")
 
@@ -245,7 +258,7 @@ def test_harness_run_does_not_escalate_or_retry_restricted_failure(tmp_path):
         commands.append(command)
         return SimpleNamespace(returncode=1, stdout="", stderr="write denied")
 
-    harness = DevinHarness(runner=runner)
+    harness = DevinHarness(config=DevinHarnessConfig(), runner=runner)
 
     with skill_invocation_context("analyze-story"):
         result = harness.run("write artifacts", cwd=tmp_path)

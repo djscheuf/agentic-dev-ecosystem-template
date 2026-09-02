@@ -90,7 +90,7 @@
         {
           "id": 9,
           "name": "RepositoryConfig_ForStoryAnalysisWriters_UsesExplicitAcceptEdits",
-          "status": "pending",
+          "status": "passing",
           "description": "The colocated example config opts artifact-producing Story Analysis skills into workspace edits.",
           "arrange": "The repository devin_harness.config.json.",
           "act": "Load and resolve representative Story Analysis writer and read-only skills.",
