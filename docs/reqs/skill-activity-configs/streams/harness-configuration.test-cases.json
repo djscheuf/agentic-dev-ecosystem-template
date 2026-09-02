@@ -35,7 +35,7 @@
         {
           "id": 4,
           "name": "Load_WithInvalidKnownProfileValue_RejectsBeforeRun",
-          "status": "pending",
+          "status": "passing",
           "description": "Explicit null, empty, wrong-typed, and unsupported known values are invalid.",
           "arrange": "Default, legacy, and skill fields containing invalid model or permission_mode values.",
           "act": "Construct DevinHarness from the configuration and attempt invocation.",

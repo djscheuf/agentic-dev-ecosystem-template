@@ -21,6 +21,16 @@ from .workflow_logger import get_activity_logger, get_devin_log_path, get_devin_
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.json"
 DEFAULT_MODEL = "SWE-1.7"
 DEFAULT_PERMISSION_MODE = "auto"
+SUPPORTED_PERMISSION_MODES = frozenset({"auto", "accept-edits", "dangerous", "bypass"})
+
+
+def _validate_profile(data: dict, scope: str) -> None:
+    if "model" in data and (
+        not isinstance(data["model"], str) or not data["model"].strip()
+    ):
+        raise ValueError(f"invalid_value: {scope}.model")
+    if "permission_mode" in data and data["permission_mode"] not in SUPPORTED_PERMISSION_MODES:
+        raise ValueError(f"invalid_value: {scope}.permission_mode")
 
 
 @dataclass(frozen=True)
@@ -69,6 +79,9 @@ class DevinHarnessConfig:
         defaults = data.get("defaults", {})
         if not isinstance(defaults, dict):
             raise ValueError("invalid_type: defaults")
+        _validate_profile(defaults, "defaults")
+        legacy = {key: data[key] for key in ("model", "permission_mode") if key in data}
+        _validate_profile(legacy, "legacy")
         skill_data = data.get("skills", {})
         if not isinstance(skill_data, dict):
             raise ValueError("invalid_type: skills")
@@ -76,6 +89,7 @@ class DevinHarnessConfig:
         for name, profile in skill_data.items():
             if not isinstance(profile, dict):
                 raise ValueError(f"invalid_type: skills.{name}")
+            _validate_profile(profile, f"skills.{name}")
             skills[name] = PartialDevinProfile(
                 model=profile.get("model"),
                 permission_mode=profile.get("permission_mode"),

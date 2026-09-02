@@ -64,6 +64,26 @@ def test_config_load_with_wrong_typed_known_container_rejects_container(
         DevinHarnessConfig.load(config_path)
 
 
+@pytest.mark.parametrize(
+    ("data", "setting"),
+    [
+        ({"defaults": {"model": None}}, "defaults.model"),
+        ({"defaults": {"model": ""}}, "defaults.model"),
+        ({"defaults": {"model": 7}}, "defaults.model"),
+        ({"permission_mode": "unsupported-mode"}, "legacy.permission_mode"),
+        ({"skills": {"analyze-story": {"permission_mode": None}}}, "skills.analyze-story.permission_mode"),
+    ],
+)
+def test_config_load_with_invalid_known_profile_value_rejects_field(
+    tmp_path, data, setting
+):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(json.dumps(data))
+
+    with pytest.raises(ValueError, match=rf"invalid_value.*{setting}"):
+        DevinHarnessConfig.load(config_path)
+
+
 def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
     config_path.write_text(
@@ -99,12 +119,12 @@ def test_config_partial_override_inherits_each_unspecified_default_field(tmp_pat
 
 def test_config_mixed_format_uses_field_level_precedence(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
-    config_path.write_text(json.dumps({"model": "legacy-model", "permission_mode": "manual", "defaults": {"model": "structured-model"}, "skills": {"analyze-story": {"permission_mode": "accept-edits"}}}))
+    config_path.write_text(json.dumps({"model": "legacy-model", "permission_mode": "dangerous", "defaults": {"model": "structured-model"}, "skills": {"analyze-story": {"permission_mode": "accept-edits"}}}))
 
     config = DevinHarnessConfig.load(config_path)
 
     assert config.resolve("unseen").model == "structured-model"
-    assert config.resolve("unseen").permission_mode == "manual"
+    assert config.resolve("unseen").permission_mode == "dangerous"
     assert config.resolve("analyze-story").permission_mode == "accept-edits"
 
 
@@ -122,12 +142,12 @@ def test_config_resolution_returns_fresh_frozen_profiles(tmp_path):
 
 def test_devin_harness_config_load_reads_values_from_file(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
-    config_path.write_text(json.dumps({"model": "SWE-2.0", "permission_mode": "manual"}))
+    config_path.write_text(json.dumps({"model": "SWE-2.0", "permission_mode": "bypass"}))
 
     config = DevinHarnessConfig.load(config_path)
 
     assert config.model == "SWE-2.0"
-    assert config.permission_mode == "manual"
+    assert config.permission_mode == "bypass"
 
 
 def test_devin_harness_run_invokes_devin_cli_with_configured_model_and_permission_mode(tmp_path):
