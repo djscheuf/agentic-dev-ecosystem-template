@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from orchestrator.devin_harness import DevinHarness, DevinHarnessConfig
+from orchestrator.invocation_context import skill_invocation_context
 from orchestrator.workflow_logger import (
     WorkflowLoggerConfig,
     activity_log_context,
@@ -105,6 +106,36 @@ def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
     assert config.resolve("analyze-story").model == "SWE-2.0"
     assert config.resolve("analyze-story").permission_mode == "accept-edits"
     assert config.resolve("unseen-skill").model == "SWE-2.0"
+
+
+def test_config_unknown_keys_do_not_change_resolution_or_command(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "future_top_level": "top-secret-marker",
+                "defaults": {"model": "SWE-2.0", "future_default": "ignored"},
+                "skills": {
+                    "analyze-story": {
+                        "permission_mode": "accept-edits",
+                        "future_override": "skill-secret-marker",
+                    }
+                },
+            }
+        )
+    )
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    harness = DevinHarness(config=DevinHarnessConfig.load(config_path), runner=runner)
+
+    with skill_invocation_context("analyze-story"):
+        harness.run("prompt", cwd=tmp_path)
+
+    assert commands == [["devin", "-p", "--permission-mode", "accept-edits", "--model", "SWE-2.0", "--", "prompt"]]
 
 
 def test_config_partial_override_inherits_each_unspecified_default_field(tmp_path):

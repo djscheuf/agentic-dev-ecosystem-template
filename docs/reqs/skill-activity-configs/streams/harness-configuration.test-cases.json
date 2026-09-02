@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "Resolve_WithUnknownKeys_IgnoresThemAndPreservesKnownFields",
-          "status": "pending",
+          "status": "passing",
           "description": "Unknown top-level and profile keys remain forward compatible.",
           "arrange": "Structured defaults and a skill override containing unknown keys.",
           "act": "Resolve the skill and run the harness.",
