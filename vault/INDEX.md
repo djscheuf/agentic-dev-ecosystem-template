@@ -14,6 +14,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-009: Colocate `story_analysis_workflow` config with its module](decisions/ADR-009-colocate-workflow-config.md)
 - [ADR-010: Story Analysis WorkflowID Uses a Kickoff-Time Zettel ID, Not a Content Hash](decisions/ADR-010-workflow-id-zettel-timestamp.md)
 - [ADR-011: Workflow-aware file logging for the Story Analysis Orchestrator](decisions/ADR-011-workflow-logging.md)
+- [ADR-012: Skill Activity Invocation Configuration](decisions/ADR-012-skill-activity-invocation-configuration.md)
 
  
 ## Services

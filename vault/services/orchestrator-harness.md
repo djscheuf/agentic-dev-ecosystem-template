@@ -97,6 +97,22 @@ starting the worker and fails fast with this exact remedy if it's not
 authenticated, rather than surfacing as a buried `SkillActivityError` deep
 in a Cadence Activity traceback.
 
+## Gotcha: non-interactive `auto` mode can exit 0 without producing artifacts (2026-09-02)
+
+`devin -p --permission-mode auto` runs in non-interactive Normal mode. Read-only
+tools run automatically, but workspace `write`/`edit` calls require confirmation;
+because `-p` cannot present that confirmation, Devin rejects the tool call, prints
+`warning: rejected a tool call that requires confirmation`, and can still exit 0.
+The Activity then fails later because its required `.process/<skill>.done.json`
+sentinel is absent.
+
+For unattended skills that only need to create or edit workspace files, configure
+`src/orchestrator/devin_harness.config.json` with `"permission_mode":
+"accept-edits"`. This auto-approves workspace file writes while continuing to
+prompt (and therefore reject in `-p` mode) shell commands and out-of-workspace
+writes. Use `dangerous`/`bypass` only when unrestricted tool execution is an
+explicit requirement.
+
 ## See also
 
 - [Cadence local stack](cadence.md) — what actually runs in Docker.
