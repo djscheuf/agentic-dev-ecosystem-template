@@ -56,7 +56,10 @@ class DevinHarnessConfig:
         missing file or missing/unrecognized keys."""
         if not config_path.exists():
             return cls()
-        data = json.loads(config_path.read_text())
+        try:
+            data = json.loads(config_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"malformed_json: {config_path}") from exc
         defaults = data.get("defaults", {})
         skills = {
             name: PartialDevinProfile(

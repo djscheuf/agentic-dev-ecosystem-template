@@ -22,6 +22,14 @@ def test_devin_harness_config_load_when_file_missing_returns_defaults(tmp_path):
     assert profile.permission_mode == "auto"
 
 
+def test_config_load_with_malformed_json_reports_configuration_path(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text("{")
+
+    with pytest.raises(ValueError, match=rf"malformed_json.*{config_path}"):
+        DevinHarnessConfig.load(config_path)
+
+
 def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
     config_path.write_text(
