@@ -85,8 +85,7 @@ def run_skill(
 
     with activity_log_context():
         logger = get_activity_logger()
-        logger.debug("Running skill '%s' with inputs %s", skill_input.skill_name, skill_input.input_paths)
-        logger.debug("Prompt:\n%s", prompt)
+        logger.info("RunSkill: skill_name=%s", skill_input.skill_name)
 
         start = time.monotonic()
         with skill_invocation_context(skill_input.skill_name):

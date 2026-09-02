@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -218,3 +219,44 @@ def test_run_skill_sends_prompt_to_the_given_harness_rooted_at_repo_root(tmp_pat
     assert harness.calls[0]["cwd"] == tmp_path
     assert "extract-story-intent" in harness.calls[0]["prompt"]
     assert "docs/foo.md" in harness.calls[0]["prompt"]
+
+
+def test_run_skill_does_not_log_prompt_or_input_paths(tmp_path):
+    class ListLogger:
+        def __init__(self):
+            self.records = []
+
+        def debug(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def info(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def error(self, msg, *args):
+            self.records.append("ERROR: " + (msg % args if args else msg))
+
+    logger = ListLogger()
+
+    def on_run(prompt, cwd):
+        _write_sentinel(
+            tmp_path, "extract-story-intent", verify_params={"extracted_intent_path": "docs/foo.intent.json"}
+        )
+
+    skill_input = SkillActivityInput(
+        skill_name="extract-story-intent",
+        input_paths=["docs/story.md"],
+        context="sensitive prompt content",
+    )
+
+    with patch("orchestrator.skill_activity.get_activity_logger", new=lambda: logger):
+        run_skill(
+            skill_input,
+            output_path_key="extracted_intent_path",
+            repo_root=tmp_path,
+            harness=FakeHarness(on_run=on_run),
+        )
+
+    full_log = "\n".join(logger.records)
+    assert "sensitive prompt content" not in full_log
+    assert "docs/story.md" not in full_log
+    assert "extract-story-intent" in full_log
