@@ -377,3 +377,36 @@ def test_devin_harness_run_emits_start_devin_invocation_event(tmp_path):
     assert "model=SWE-2.0" in content
     assert "permission_mode=accept-edits" in content
     assert "sensitive-prompt-text" not in content
+
+
+def test_devin_harness_run_emits_complete_devin_invocation_event(tmp_path):
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    activity_info = SimpleNamespace(
+        workflow_id="wf-complete",
+        workflow_run_id="run-complete",
+        activity_type="analyze_story",
+        activity_id="act-complete",
+        attempt=1,
+    )
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="out", stderr="err")
+
+    harness = DevinHarness(
+        config=DevinHarnessConfig(model="SWE-2.0", permission_mode="accept-edits"),
+        runner=runner,
+    )
+
+    with activity_log_context(activity_info=activity_info, config=config):
+        with skill_invocation_context("analyze-story"):
+            harness.run("prompt-text", cwd=tmp_path)
+        activity_log_path = get_activity_log_path()
+
+    content = (tmp_path / activity_log_path).read_text()
+    assert "CompleteDevinInvocation" in content
+    assert "skill_name=analyze-story" in content
+    assert "exit_code=0" in content
+    assert "duration_ms=" in content
+    assert "devin_log_path=" in content

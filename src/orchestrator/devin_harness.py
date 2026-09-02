@@ -147,8 +147,12 @@ class DevinHarness:
         result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
         duration_ms = int((time.monotonic() - start) * 1000)
 
-        activity_logger.debug(
-            "devin exited with code %s in %s ms", result.returncode, duration_ms
+        activity_logger.info(
+            "CompleteDevinInvocation: skill_name=%s exit_code=%s duration_ms=%s devin_log_path=%s",
+            skill_name,
+            result.returncode,
+            duration_ms,
+            get_devin_log_path() or "unknown",
         )
         if result.stdout:
             devin_logger.debug("--- stdout ---")
