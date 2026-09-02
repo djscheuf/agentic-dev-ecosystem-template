@@ -53,3 +53,10 @@ The current `DevinHarness` applies one flat model and permission mode to every S
 - **Reject legacy flat configuration** — rejected in favor of backward-compatible mapping.
 - **Reject all unknown keys** — rejected in favor of forward-compatible parsing.
 - **Use `accept-edits` as the global default** — rejected to preserve least privilege; write-capable skills opt in explicitly.
+
+## Design refinement (2026-09-02)
+
+- `run_skill` exposes canonical `SkillActivityInput.skill_name` through invocation-scoped context while keeping `Harness.run(prompt, cwd)` unchanged; `DevinHarness` consumes the context and alternate Harness implementations may ignore it.
+- Resolve each invocation to a fresh immutable effective profile from an immutable worker-loaded configuration. Per-field precedence is skill override, structured default, legacy flat default, then secure hardcoded default.
+- Do not use prompt parsing or process-global mutable current-skill state.
+- Configuration remains worker-loaded for this slice. Persisting an Activity-start snapshot in Cadence history remains deferred.
