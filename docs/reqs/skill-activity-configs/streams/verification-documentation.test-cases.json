@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "Run_WithUnstartableDevinProcess_ReportsSanitizedLaunchFailure",
-          "status": "pending",
+          "status": "passing",
           "description": "An executable startup failure is reported without leaking operating-system details or claiming completion.",
           "arrange": "A DevinHarness runner raises OSError containing a sensitive filesystem marker.",
           "act": "Run the Harness inside an Activity log context.",

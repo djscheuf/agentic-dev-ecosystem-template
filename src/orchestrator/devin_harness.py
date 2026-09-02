@@ -154,7 +154,14 @@ class DevinHarness:
         )
 
         start = time.monotonic()
-        result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
+        try:
+            result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
+        except OSError as exc:
+            activity_logger.error(
+                "FailDevinInvocationLaunch: skill_name=%s error_category=devin_launch_failed",
+                skill_name,
+            )
+            raise RuntimeError("devin_launch_failed") from exc
         duration_ms = int((time.monotonic() - start) * 1000)
 
         activity_logger.info(

@@ -436,3 +436,31 @@ def test_devin_harness_run_emits_complete_devin_invocation_event(tmp_path):
     assert "exit_code=0" in content
     assert "duration_ms=" in content
     assert "devin_log_path=" in content
+
+
+def test_run_with_unstartable_devin_process_reports_sanitized_launch_failure(tmp_path):
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    activity_info = SimpleNamespace(
+        workflow_id="wf-launch-failure",
+        workflow_run_id="run-launch-failure",
+        activity_type="analyze_story",
+        activity_id="act-launch-failure",
+        attempt=1,
+    )
+
+    def runner(command, **kwargs):
+        raise OSError("sensitive-filesystem-marker")
+
+    harness = DevinHarness(runner=runner)
+
+    with activity_log_context(activity_info=activity_info, config=config):
+        with skill_invocation_context("analyze-story"):
+            with pytest.raises(RuntimeError, match="devin_launch_failed"):
+                harness.run("prompt-text", cwd=tmp_path)
+        activity_log_path = get_activity_log_path()
+
+    content = (tmp_path / activity_log_path).read_text()
+    assert "FailDevinInvocationLaunch" in content
+    assert "skill_name=analyze-story" in content
+    assert "sensitive-filesystem-marker" not in content
+    assert "CompleteDevinInvocation" not in content
