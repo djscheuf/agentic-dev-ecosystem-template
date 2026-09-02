@@ -67,7 +67,7 @@
         {
           "id": 7,
           "name": "Run_WithRestrictedProfileFailure_DoesNotEscalateOrRetry",
-          "status": "pending",
+          "status": "passing",
           "description": "Failure under auto remains under auto without broader permission retry.",
           "arrange": "An auto profile and a runner returning a denied-write/nonzero result.",
           "act": "Run the harness.",

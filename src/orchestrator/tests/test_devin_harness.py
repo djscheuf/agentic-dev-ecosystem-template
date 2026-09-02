@@ -238,6 +238,23 @@ def test_harness_run_uses_fresh_profile_command_for_each_invocation(tmp_path):
     assert commands[1][2:7] == ["--permission-mode", "auto", "--model", "SWE-2.1", "--"]
 
 
+def test_harness_run_does_not_escalate_or_retry_restricted_failure(tmp_path):
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=1, stdout="", stderr="write denied")
+
+    harness = DevinHarness(runner=runner)
+
+    with skill_invocation_context("analyze-story"):
+        result = harness.run("write artifacts", cwd=tmp_path)
+
+    assert result.exit_code == 1
+    assert len(commands) == 1
+    assert commands[0][commands[0].index("--permission-mode") + 1] == "auto"
+
+
 def test_devin_harness_run_returns_harness_result_with_exit_code_and_output(tmp_path):
     def runner(command, **kwargs):
         return SimpleNamespace(returncode=1, stdout="out", stderr="err")
