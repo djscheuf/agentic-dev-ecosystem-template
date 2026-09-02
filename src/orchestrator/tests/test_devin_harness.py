@@ -45,6 +45,25 @@ def test_config_load_with_unreadable_file_reports_sanitized_error(tmp_path, monk
     assert "sensitive operating-system detail" not in str(error.value)
 
 
+@pytest.mark.parametrize(
+    ("data", "setting"),
+    [
+        ([], "root"),
+        ({"defaults": []}, "defaults"),
+        ({"skills": []}, "skills"),
+        ({"skills": {"analyze-story": []}}, "skills.analyze-story"),
+    ],
+)
+def test_config_load_with_wrong_typed_known_container_rejects_container(
+    tmp_path, data, setting
+):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(json.dumps(data))
+
+    with pytest.raises(ValueError, match=rf"invalid_type.*{setting}"):
+        DevinHarnessConfig.load(config_path)
+
+
 def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
     config_path.write_text(

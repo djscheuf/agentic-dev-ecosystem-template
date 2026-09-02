@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "Load_WithWrongTypedKnownContainer_RejectsContainer",
-          "status": "pending",
+          "status": "passing",
           "description": "Known defaults and skills containers must be JSON objects.",
           "arrange": "Configurations with a non-object root, defaults, skills, skill name, or skill profile.",
           "act": "Load each configuration.",

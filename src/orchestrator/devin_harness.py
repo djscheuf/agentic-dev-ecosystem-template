@@ -64,14 +64,22 @@ class DevinHarnessConfig:
             data = json.loads(content)
         except json.JSONDecodeError as exc:
             raise ValueError(f"malformed_json: {config_path}") from exc
+        if not isinstance(data, dict):
+            raise ValueError("invalid_type: root")
         defaults = data.get("defaults", {})
-        skills = {
-            name: PartialDevinProfile(
+        if not isinstance(defaults, dict):
+            raise ValueError("invalid_type: defaults")
+        skill_data = data.get("skills", {})
+        if not isinstance(skill_data, dict):
+            raise ValueError("invalid_type: skills")
+        skills = {}
+        for name, profile in skill_data.items():
+            if not isinstance(profile, dict):
+                raise ValueError(f"invalid_type: skills.{name}")
+            skills[name] = PartialDevinProfile(
                 model=profile.get("model"),
                 permission_mode=profile.get("permission_mode"),
             )
-            for name, profile in data.get("skills", {}).items()
-        }
         return cls(
             model=defaults.get("model", data.get("model", DEFAULT_MODEL)),
             permission_mode=defaults.get(
