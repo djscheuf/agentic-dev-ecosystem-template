@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from orchestrator.devin_harness import DevinHarness, DevinHarnessConfig
 from orchestrator.harness import HarnessResult
 from orchestrator.invocation_context import get_current_skill_name
 from orchestrator.skill_activity import (
@@ -328,3 +329,24 @@ def test_run_skill_with_authentication_failure_logs_sanitized_failure(tmp_path):
     assert "skill_name=analyze-story" in full_log
     assert "exit_code=1" in full_log
     assert "credential-marker" not in full_log
+
+
+def test_run_skill_with_auto_and_missing_sentinel_fails_without_escalation(tmp_path):
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    harness = DevinHarness(config=DevinHarnessConfig(), runner=runner)
+
+    with pytest.raises(SkillActivityError, match="completed without writing sentinel"):
+        run_skill(
+            SkillActivityInput(skill_name="unconfigured-writer"),
+            output_path_key="artifact_path",
+            repo_root=tmp_path,
+            harness=harness,
+        )
+
+    assert len(commands) == 1
+    assert commands[0][commands[0].index("--permission-mode") + 1] == "auto"

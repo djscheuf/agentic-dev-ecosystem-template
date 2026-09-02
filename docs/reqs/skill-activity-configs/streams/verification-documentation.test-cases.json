@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "RunSkill_WithAutoAndMissingSentinel_FailsWithoutEscalation",
-          "status": "pending",
+          "status": "passing",
           "description": "A zero-exit auto invocation that cannot write its artifact remains a failure and is never retried with broader permissions.",
           "arrange": "An unconfigured skill resolves to auto and its captured runner exits zero without creating a sentinel.",
           "act": "Run the Skill Activity through DevinHarness.",
