@@ -1,0 +1,50 @@
+{
+  "source_story": "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.analysis.json",
+  "overall_design": "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.design.json",
+  "story": {
+    "so_that": "I can run agentic workflow Activities with the capabilities and safeguards appropriate to each task, with 100% of automated resolution cases and representative configured Story Analysis invocations using the expected settings without permission-related artifact failures",
+    "as_a": "Software Engineer and AI Process Designer",
+    "i_want": "to configure default and per-skill Devin models and tool permissions for each Skill Activity invocation"
+  },
+  "related_acceptance_criteria": [
+    {"criterion": "Overrides are keyed by canonical skill name, including extract-story-intent, analyze-story, grade-story-analysis, and repair-story-analysis.", "gherkin": "Given each listed canonical skill has a distinct override When each profile is resolved from SkillActivityInput.skill_name Then each skill receives only its matching override", "status": "completed"},
+    {"criterion": "Configuration selection uses SkillActivityInput.skill_name and never natural-language prompt parsing.", "gherkin": "Given SkillActivityInput.skill_name is analyze-story and its prompt mentions repair-story-analysis When configuration is resolved Then the analyze-story profile is selected", "status": "completed"},
+    {"criterion": "The generic Harness contract and existing skill output and sentinel contracts remain unchanged.", "gherkin": "Given a fake alternate Harness implements run(prompt, cwd) and an existing skill writes its current sentinel When run_skill executes Then the alternate Harness requires no Devin fields and the sentinel is read through its existing verify_params key", "status": "completed"},
+    {"criterion": "Activity logs record the canonical skill name, effective model, and effective permission mode without credentials, prompt contents, or configuration-file contents.", "gherkin": "Given analyze-story resolves to model SWE-1.7 and permission mode accept-edits When the Activity logs its invocation Then those three identifiers are present and credential values, prompt text, and configuration contents are absent", "status": "completed"}
+  ],
+  "related_edge_cases": [
+    {"criterion": "Concurrent invocations use immutable effective profiles", "gherkin": "Given two skills resolve different overrides concurrently When commands are constructed Then each command contains only its own effective model and permission mode", "status": "completed"},
+    {"criterion": "Interrupted invocation leaves a stale sentinel", "gherkin": "Given a previous attempt left a sentinel When run_skill begins a new invocation Then it removes the stale sentinel and accepts only a sentinel created by the current invocation", "status": "completed"},
+    {"criterion": "Devin CLI authentication is invalid", "gherkin": "Given the host Devin CLI is unauthenticated When an Activity invokes it Then the harness reports the authentication failure without logging credentials", "status": "pending"},
+    {"criterion": "Repository write fails despite accept-edits", "gherkin": "Given a skill resolves to accept-edits but the repository filesystem rejects a write When the skill runs Then the Activity fails through the harness or missing-sentinel path without reporting success", "status": "pending"}
+  ],
+  "dependencies": [
+    "docs/reqs/skill-activity-configs/streams/foundations.stream.json: invocation context contract and unchanged Harness boundary",
+    "docs/reqs/skill-activity-configs/streams/harness-configuration.stream.json: effective profile resolver consumed by DevinHarness"
+  ],
+  "steps": [
+    {"description": "Wrap run_skill's unchanged harness invocation in canonical skill context and guarantee context reset after success or failure.", "layer": "activity_integration", "status": "completed", "depends_on": ["foundations:2"], "artifacts": ["src/orchestrator/skill_activity.py", "src/orchestrator/invocation_context.py"]},
+    {"description": "Ensure invocation context propagates through the worker's Activity execution path and remains isolated for concurrent calls to the shared DevinHarness.", "layer": "activity_integration", "status": "completed", "depends_on": ["1", "harness-configuration:2"], "artifacts": ["src/orchestrator/activities/harness_instance.py", "src/orchestrator/skill_activity.py"]},
+    {"description": "Add sanitized activity-log events for selected skill, effective model, effective permission mode, configuration rejection, launch, completion, and artifact verification failure without logging prompt or raw configuration.", "layer": "observability", "status": "completed", "depends_on": ["2"], "artifacts": ["src/orchestrator/devin_harness.py", "src/orchestrator/workflow_logger.py"]},
+    {"description": "Regression-test misleading prompt text, concurrent context isolation and cleanup, alternate Harness compatibility, stale sentinels, existing verify_params lookup, and safe logs.", "layer": "tests", "status": "completed", "depends_on": ["1", "2", "3"], "artifacts": ["src/orchestrator/tests/test_skill_activity.py", "src/orchestrator/tests/test_workflow_logger.py", "src/orchestrator/tests/test_devin_harness.py"]}
+  ],
+  "relevant_context": {
+    "documentation": [
+      "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.analysis.json",
+      "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.design.json",
+      "vault/decisions/ADR-004-skill-output-contracts.md",
+      "vault/decisions/ADR-011-workflow-logging.md",
+      "vault/decisions/ADR-012-skill-activity-invocation-configuration.md"
+    ],
+    "code": [
+      "src/orchestrator/skill_activity.py",
+      "src/orchestrator/harness.py",
+      "src/orchestrator/devin_harness.py",
+      "src/orchestrator/workflow_logger.py",
+      "src/orchestrator/activities/harness_instance.py",
+      "src/orchestrator/tests/test_skill_activity.py",
+      "src/orchestrator/tests/test_workflow_logger.py",
+      "src/orchestrator/tests/test_devin_harness.py"
+    ]
+  }
+}
