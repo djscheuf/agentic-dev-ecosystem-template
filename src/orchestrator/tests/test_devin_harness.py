@@ -379,6 +379,32 @@ def test_devin_harness_run_emits_start_devin_invocation_event(tmp_path):
     assert "sensitive-prompt-text" not in content
 
 
+def test_config_rejection_logs_sanitized_event_and_hides_raw_value(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(
+        json.dumps({"skills": {"analyze-story": {"permission_mode": "unsupported-secret"}}})
+    )
+    logger_config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    activity_info = SimpleNamespace(
+        workflow_id="wf-reject",
+        workflow_run_id="run-reject",
+        activity_type="analyze_story",
+        activity_id="act-reject",
+        attempt=1,
+    )
+
+    with activity_log_context(activity_info=activity_info, config=logger_config):
+        with pytest.raises(ValueError, match="invalid_value"):
+            DevinHarnessConfig.load(config_path)
+        activity_log_path = get_activity_log_path()
+
+    content = (tmp_path / activity_log_path).read_text()
+    assert "RejectInvocationConfiguration" in content
+    assert "invalid_value" in content
+    assert "skills.analyze-story.permission_mode" in content
+    assert "unsupported-secret" not in content
+
+
 def test_devin_harness_run_emits_complete_devin_invocation_event(tmp_path):
     config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
     activity_info = SimpleNamespace(

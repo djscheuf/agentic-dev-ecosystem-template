@@ -62,6 +62,16 @@ class DevinHarnessConfig:
 
     @classmethod
     def load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "DevinHarnessConfig":
+        try:
+            return cls._do_load(config_path)
+        except ValueError as exc:
+            get_activity_logger().error(
+                "RejectInvocationConfiguration: error_category=%s", exc
+            )
+            raise
+
+    @classmethod
+    def _do_load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "DevinHarnessConfig":
         """Load config from `config_path`, falling back to defaults for any
         missing file or missing/unrecognized keys."""
         if not config_path.exists():
