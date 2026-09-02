@@ -113,6 +113,15 @@ prompt (and therefore reject in `-p` mode) shell commands and out-of-workspace
 writes. Use `dangerous`/`bypass` only when unrestricted tool execution is an
 explicit requirement.
 
+## Skill profile configuration implementation (2026-09-02)
+
+- `DevinHarnessConfig.load()` distinguishes missing files, unreadable files, and malformed JSON.
+- Known containers and profile values are validated before subprocess launch; unknown keys are ignored.
+- Supported permission modes are `auto`, `accept-edits`, `dangerous`, and `bypass`.
+- Resolution precedence is skill override, structured default, legacy flat default, then `SWE-1.7`/`auto`.
+- The four Story Analysis artifact writers explicitly use `accept-edits` in the colocated repository configuration.
+- Profile-selection logging includes canonical skill, model, and permission mode, but excludes the prompt and raw configuration.
+
 ## See also
 
 - [Cadence local stack](cadence.md) — what actually runs in Docker.
