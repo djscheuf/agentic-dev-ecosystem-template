@@ -57,7 +57,11 @@ class DevinHarnessConfig:
         if not config_path.exists():
             return cls()
         try:
-            data = json.loads(config_path.read_text())
+            content = config_path.read_text()
+        except OSError as exc:
+            raise ValueError(f"unreadable_file: {config_path}") from exc
+        try:
+            data = json.loads(content)
         except json.JSONDecodeError as exc:
             raise ValueError(f"malformed_json: {config_path}") from exc
         defaults = data.get("defaults", {})

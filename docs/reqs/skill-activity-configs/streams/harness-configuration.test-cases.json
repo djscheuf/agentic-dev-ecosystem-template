@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "Load_WithUnreadableFile_ReportsSanitizedReadError",
-          "status": "pending",
+          "status": "passing",
           "description": "Configuration read failures are distinct from missing-file defaults.",
           "arrange": "An existing configuration path whose read operation raises OSError.",
           "act": "Load DevinHarnessConfig.",

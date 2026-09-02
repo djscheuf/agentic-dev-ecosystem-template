@@ -30,6 +30,21 @@ def test_config_load_with_malformed_json_reports_configuration_path(tmp_path):
         DevinHarnessConfig.load(config_path)
 
 
+def test_config_load_with_unreadable_file_reports_sanitized_error(tmp_path, monkeypatch):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text("{}")
+
+    def deny_read(path):
+        raise PermissionError("sensitive operating-system detail")
+
+    monkeypatch.setattr(type(config_path), "read_text", deny_read)
+
+    with pytest.raises(ValueError, match=rf"unreadable_file.*{config_path}") as error:
+        DevinHarnessConfig.load(config_path)
+
+    assert "sensitive operating-system detail" not in str(error.value)
+
+
 def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
     config_path = tmp_path / "devin_harness.config.json"
     config_path.write_text(
