@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "config_resolves_structured_defaults_and_exact_skill_override",
-          "status": "pending",
+          "status": "passing",
           "description": "Structured defaults apply generally and only the exact canonical skill override is selected",
           "arrange": "Configure defaults and distinct extract-story-intent and analyze-story overrides",
           "act": "Resolve both configured skills and an unseen skill",
@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "config_partial_override_inherits_each_unspecified_default_field",
-          "status": "pending",
+          "status": "passing",
           "description": "Profile precedence is evaluated independently for model and permission mode",
           "arrange": "Configure both defaults and an analyze-story override containing only permission_mode",
           "act": "Resolve analyze-story",
@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "config_maps_legacy_flat_fields_into_defaults",
-          "status": "pending",
+          "status": "passing",
           "description": "Legacy flat configuration keeps its previous effective behavior",
           "arrange": "Write a legacy file with flat model and permission_mode values",
           "act": "Load it and resolve a canonical skill",
@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "config_mixed_format_uses_field_level_precedence",
-          "status": "pending",
+          "status": "passing",
           "description": "Structured values override legacy values per field while omitted fields retain legacy fallback",
           "arrange": "Write mixed structured and legacy defaults plus a partial skill override",
           "act": "Resolve the overridden and unconfigured skills",
@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "run_skill_exposes_canonical_skill_in_invocation_context_without_changing_harness_contract",
-          "status": "pending",
+          "status": "passing",
           "description": "An alternate Harness keeps run(prompt, cwd) while invocation code can read the canonical skill",
           "arrange": "Use a fake alternate Harness that reads invocation context and writes the existing sentinel shape",
           "act": "Run a skill through run_skill",
@@ -72,7 +72,7 @@
         {
           "id": 7,
           "name": "invocation_context_resets_after_success_and_failure",
-          "status": "pending",
+          "status": "passing",
           "description": "Invocation metadata cannot leak into later Activity calls",
           "arrange": "Run successful and failing harness invocations under different canonical skills",
           "act": "Inspect context during and after each call",
@@ -81,7 +81,7 @@
         {
           "id": 8,
           "name": "config_resolution_returns_fresh_frozen_profiles",
-          "status": "pending",
+          "status": "passing",
           "description": "Resolved profiles are immutable values and are not shared mutable invocation state",
           "arrange": "Load one structured configuration",
           "act": "Resolve the same skill twice and attempt to mutate a result",

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from orchestrator.harness import HarnessResult
+from orchestrator.invocation_context import get_current_skill_name
 from orchestrator.skill_activity import (
     SkillActivityError,
     SkillActivityInput,
@@ -39,6 +40,45 @@ class FakeHarness:
         if self._on_run is not None:
             self._on_run(prompt, cwd)
         return HarnessResult(exit_code=self.exit_code, stdout=self.stdout, stderr=self.stderr)
+
+
+def test_run_skill_exposes_canonical_skill_without_changing_harness_contract(tmp_path):
+    observed = []
+
+    def on_run(prompt, cwd):
+        observed.append(get_current_skill_name())
+        _write_sentinel(tmp_path, "analyze-story", verify_params={"analysis_path": "docs/foo.analysis.json"})
+
+    output = run_skill(
+        SkillActivityInput(skill_name="analyze-story"),
+        output_path_key="analysis_path",
+        harness=FakeHarness(on_run=on_run),
+        repo_root=tmp_path,
+    )
+
+    assert observed == ["analyze-story"]
+    assert output.output_path == "docs/foo.analysis.json"
+    assert get_current_skill_name() is None
+
+
+def test_run_skill_resets_invocation_context_after_harness_failure(tmp_path):
+    observed = []
+
+    class FailingHarness:
+        def run(self, prompt, *, cwd):
+            observed.append(get_current_skill_name())
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        run_skill(
+            SkillActivityInput(skill_name="repair-story-analysis"),
+            output_path_key="analysis_path",
+            harness=FailingHarness(),
+            repo_root=tmp_path,
+        )
+
+    assert observed == ["repair-story-analysis"]
+    assert get_current_skill_name() is None
 
 
 def test_run_skill_on_success_returns_output_path_from_sentinel(tmp_path):

@@ -1,5 +1,8 @@
 import json
+from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
+
+import pytest
 
 from orchestrator.devin_harness import DevinHarness, DevinHarnessConfig
 from orchestrator.workflow_logger import (
@@ -17,6 +20,62 @@ def test_devin_harness_config_load_when_file_missing_returns_defaults(tmp_path):
 
     assert profile.model == "SWE-1.7"
     assert profile.permission_mode == "auto"
+
+
+def test_config_resolves_structured_defaults_and_exact_skill_override(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "defaults": {"model": "SWE-2.0", "permission_mode": "auto"},
+                "skills": {
+                    "extract-story-intent": {"model": "SWE-2.1"},
+                    "analyze-story": {"permission_mode": "accept-edits"},
+                },
+            }
+        )
+    )
+
+    config = DevinHarnessConfig.load(config_path)
+
+    assert config.resolve("extract-story-intent").model == "SWE-2.1"
+    assert config.resolve("extract-story-intent").permission_mode == "auto"
+    assert config.resolve("analyze-story").model == "SWE-2.0"
+    assert config.resolve("analyze-story").permission_mode == "accept-edits"
+    assert config.resolve("unseen-skill").model == "SWE-2.0"
+
+
+def test_config_partial_override_inherits_each_unspecified_default_field(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(json.dumps({"defaults": {"model": "SWE-2.0", "permission_mode": "auto"}, "skills": {"analyze-story": {"permission_mode": "accept-edits"}}}))
+
+    profile = DevinHarnessConfig.load(config_path).resolve("analyze-story")
+
+    assert profile.model == "SWE-2.0"
+    assert profile.permission_mode == "accept-edits"
+
+
+def test_config_mixed_format_uses_field_level_precedence(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(json.dumps({"model": "legacy-model", "permission_mode": "manual", "defaults": {"model": "structured-model"}, "skills": {"analyze-story": {"permission_mode": "accept-edits"}}}))
+
+    config = DevinHarnessConfig.load(config_path)
+
+    assert config.resolve("unseen").model == "structured-model"
+    assert config.resolve("unseen").permission_mode == "manual"
+    assert config.resolve("analyze-story").permission_mode == "accept-edits"
+
+
+def test_config_resolution_returns_fresh_frozen_profiles(tmp_path):
+    config = DevinHarnessConfig.load(tmp_path / "missing.json")
+
+    first = config.resolve("analyze-story")
+    second = config.resolve("analyze-story")
+
+    assert first == second
+    assert first is not second
+    with pytest.raises(FrozenInstanceError):
+        first.model = "changed"
 
 
 def test_devin_harness_config_load_reads_values_from_file(tmp_path):

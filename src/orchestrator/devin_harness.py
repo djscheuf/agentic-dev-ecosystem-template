@@ -9,16 +9,24 @@ can be changed per-environment without editing code.
 import json
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
+from types import MappingProxyType
+from typing import Callable, Mapping
 
 from .harness import HarnessResult
+from .invocation_context import get_current_skill_name
 from .workflow_logger import get_activity_logger, get_devin_log_path, get_devin_logger
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.json"
 DEFAULT_MODEL = "SWE-1.7"
 DEFAULT_PERMISSION_MODE = "auto"
+
+
+@dataclass(frozen=True)
+class PartialDevinProfile:
+    model: str | None = None
+    permission_mode: str | None = None
 
 
 @dataclass(frozen=True)
@@ -31,11 +39,15 @@ class EffectiveDevinProfile:
 class DevinHarnessConfig:
     model: str = DEFAULT_MODEL
     permission_mode: str = DEFAULT_PERMISSION_MODE
+    skills: Mapping[str, PartialDevinProfile] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
     def resolve(self, skill_name: str) -> EffectiveDevinProfile:
+        override = self.skills.get(skill_name, PartialDevinProfile())
         return EffectiveDevinProfile(
-            model=self.model,
-            permission_mode=self.permission_mode,
+            model=override.model or self.model,
+            permission_mode=override.permission_mode or self.permission_mode,
         )
 
     @classmethod
@@ -45,9 +57,20 @@ class DevinHarnessConfig:
         if not config_path.exists():
             return cls()
         data = json.loads(config_path.read_text())
+        defaults = data.get("defaults", {})
+        skills = {
+            name: PartialDevinProfile(
+                model=profile.get("model"),
+                permission_mode=profile.get("permission_mode"),
+            )
+            for name, profile in data.get("skills", {}).items()
+        }
         return cls(
-            model=data.get("model", DEFAULT_MODEL),
-            permission_mode=data.get("permission_mode", DEFAULT_PERMISSION_MODE),
+            model=defaults.get("model", data.get("model", DEFAULT_MODEL)),
+            permission_mode=defaults.get(
+                "permission_mode", data.get("permission_mode", DEFAULT_PERMISSION_MODE)
+            ),
+            skills=MappingProxyType(skills),
         )
 
 
@@ -64,13 +87,14 @@ class DevinHarness:
         self._runner = runner
 
     def run(self, prompt: str, *, cwd: Path) -> HarnessResult:
+        profile = self.config.resolve(get_current_skill_name() or "")
         command = [
             "devin",
             "-p",
             "--permission-mode",
-            self.config.permission_mode,
+            profile.permission_mode,
             "--model",
-            self.config.model,
+            profile.model,
             "--",
             prompt,
         ]

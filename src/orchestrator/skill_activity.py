@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .harness import Harness
+from .invocation_context import skill_invocation_context
 from .workflow_logger import (
     activity_log_context,
     get_activity_log_path,
@@ -88,7 +89,8 @@ def run_skill(
         logger.debug("Prompt:\n%s", prompt)
 
         start = time.monotonic()
-        result = harness.run(prompt, cwd=repo_root)
+        with skill_invocation_context(skill_input.skill_name):
+            result = harness.run(prompt, cwd=repo_root)
         duration_ms = int((time.monotonic() - start) * 1000)
 
         logger.debug(
