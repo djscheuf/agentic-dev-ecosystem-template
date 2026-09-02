@@ -292,3 +292,39 @@ def test_run_skill_logs_artifact_verification_failure(tmp_path):
     assert "FailSkillArtifactVerification" in full_log
     assert "extract-story-intent" in full_log
     assert "missing_sentinel" in full_log
+
+
+def test_run_skill_with_authentication_failure_logs_sanitized_failure(tmp_path):
+    class ListLogger:
+        def __init__(self):
+            self.records = []
+
+        def debug(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def info(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def error(self, msg, *args):
+            self.records.append("ERROR: " + (msg % args if args else msg))
+
+    logger = ListLogger()
+    harness = FakeHarness(
+        exit_code=1,
+        stderr="Not logged in: credential-marker",
+    )
+
+    with patch("orchestrator.skill_activity.get_activity_logger", new=lambda: logger):
+        with pytest.raises(SkillActivityError):
+            run_skill(
+                SkillActivityInput(skill_name="analyze-story"),
+                output_path_key="analysis_path",
+                repo_root=tmp_path,
+                harness=harness,
+            )
+
+    full_log = "\n".join(logger.records)
+    assert "FailSkillHarnessInvocation" in full_log
+    assert "skill_name=analyze-story" in full_log
+    assert "exit_code=1" in full_log
+    assert "credential-marker" not in full_log

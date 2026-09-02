@@ -100,9 +100,9 @@ def run_skill(
 
         if result.exit_code != 0:
             logger.error(
-                "Harness failed for skill '%s': %s",
+                "FailSkillHarnessInvocation: skill_name=%s exit_code=%s",
                 skill_input.skill_name,
-                result.stderr or result.stdout,
+                result.exit_code,
             )
             raise SkillActivityError(
                 f"Harness exited {result.exit_code} while running skill "

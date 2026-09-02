@@ -1,0 +1,75 @@
+{
+  "target_story": "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.analysis.json",
+  "source_workstream": "docs/reqs/skill-activity-configs/streams/verification-documentation.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Failure safety and unattended permissions",
+      "tests": [
+        {
+          "id": 1,
+          "name": "RunSkill_WithAuthenticationFailure_LogsSanitizedFailure",
+          "status": "passing",
+          "description": "Authentication and other subprocess failures fail the Activity without copying potentially sensitive subprocess output into activity.log.",
+          "arrange": "A Harness returns a nonzero authentication failure containing a credential marker.",
+          "act": "Run the configured Skill Activity.",
+          "assert": "SkillActivityError is raised, a stable harness-failure event identifies the skill and exit code, and credential-bearing stdout or stderr is absent from the Activity log."
+        },
+        {
+          "id": 2,
+          "name": "Run_WithUnstartableDevinProcess_ReportsSanitizedLaunchFailure",
+          "status": "pending",
+          "description": "An executable startup failure is reported without leaking operating-system details or claiming completion.",
+          "arrange": "A DevinHarness runner raises OSError containing a sensitive filesystem marker.",
+          "act": "Run the Harness inside an Activity log context.",
+          "assert": "A sanitized launch error is raised and logged with canonical skill and stable category, while no completion event, artifact success, or sensitive marker is recorded."
+        },
+        {
+          "id": 3,
+          "name": "RunSkill_WithAutoAndMissingSentinel_FailsWithoutEscalation",
+          "status": "pending",
+          "description": "A zero-exit auto invocation that cannot write its artifact remains a failure and is never retried with broader permissions.",
+          "arrange": "An unconfigured skill resolves to auto and its captured runner exits zero without creating a sentinel.",
+          "act": "Run the Skill Activity through DevinHarness.",
+          "assert": "The Activity raises missing-sentinel SkillActivityError and exactly one command ran with auto and no broader mode."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Representative configured invocations",
+      "tests": [
+        {
+          "id": 4,
+          "name": "RunSkill_ForEachStoryAnalysisSkill_UsesConfiguredProfileAndArtifactContract",
+          "status": "pending",
+          "description": "All four Story Analysis skills use their canonical configured profile while preserving existing sentinel output lookup.",
+          "arrange": "The repository configuration, a captured Devin runner, and valid sentinels for each canonical Story Analysis skill.",
+          "act": "Run each representative Skill Activity through DevinHarness.",
+          "assert": "Each command uses the expected model and accept-edits mode, and each Activity returns the output path from its existing verify_params key."
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Documentation and regression verification",
+      "tests": [
+        {
+          "id": 5,
+          "name": "Documentation_ForHarnessProfiles_ExplainsFirstSliceContract",
+          "status": "pending",
+          "description": "Operator documentation is sufficient to configure a least-privilege default and writer override.",
+          "arrange": "The first-slice orchestrator documentation and repository example configuration.",
+          "act": "Review the documented shape, precedence, modes, compatibility, unknown-key behavior, safe logging, local examples, and deferred retry snapshot.",
+          "assert": "Every required topic is documented and the accept-edits example resolves to the expected effective profile."
+        },
+        {
+          "id": 6,
+          "name": "OrchestratorSuite_WithProfileConfiguration_PassesWithoutRegression",
+          "status": "pending",
+          "description": "The completed first slice preserves all orchestrator behavior outside deferred Cadence retry snapshots.",
+          "arrange": "All focused verification tests and the full orchestrator test suite.",
+          "act": "Run both suites in the repository Nix environment.",
+          "assert": "All tests pass with no changes to Cadence retry-snapshot transport."
+        }
+      ]
+    }
+  ]
+}
