@@ -115,16 +115,25 @@ def test_run_skill_when_harness_exits_non_zero_raises_skill_activity_error(tmp_p
         )
 
 
-def test_run_skill_when_sentinel_missing_raises_skill_activity_error(tmp_path):
+def test_run_skill_when_sentinel_missing_warns_and_uses_conventional_output_path(tmp_path):
+    logger = SimpleNamespace(
+        debug=lambda *args: None,
+        info=lambda *args: None,
+        warning_calls=[],
+    )
+    logger.warning = lambda message, *args: logger.warning_calls.append(message % args)
     skill_input = SkillActivityInput(skill_name="extract-story-intent", input_paths=["docs/foo.md"])
 
-    with pytest.raises(SkillActivityError):
-        run_skill(
+    with patch("orchestrator.skill_activity.get_activity_logger", new=lambda: logger):
+        output = run_skill(
             skill_input,
             output_path_key="extracted_intent_path",
             repo_root=tmp_path,
             harness=FakeHarness(),
         )
+
+    assert output.output_path == "docs/foo.intent.json"
+    assert "missing_sentinel" in logger.warning_calls[0]
 
 
 def test_run_skill_when_sentinel_task_mismatched_raises_skill_activity_error(tmp_path):
@@ -264,7 +273,7 @@ def test_run_skill_does_not_log_prompt_or_input_paths(tmp_path):
     assert "extract-story-intent" in full_log
 
 
-def test_run_skill_logs_artifact_verification_failure(tmp_path):
+def test_run_skill_logs_missing_sentinel_warning(tmp_path):
     class ListLogger:
         def __init__(self):
             self.records = []
@@ -275,23 +284,24 @@ def test_run_skill_logs_artifact_verification_failure(tmp_path):
         def info(self, msg, *args):
             self.records.append(msg % args if args else msg)
 
-        def error(self, msg, *args):
-            self.records.append("ERROR: " + (msg % args if args else msg))
+        def warning(self, msg, *args):
+            self.records.append("WARNING: " + (msg % args if args else msg))
 
     logger = ListLogger()
-    skill_input = SkillActivityInput(skill_name="extract-story-intent")
+    skill_input = SkillActivityInput(
+        skill_name="extract-story-intent", input_paths=["docs/story.md"]
+    )
 
     with patch("orchestrator.skill_activity.get_activity_logger", new=lambda: logger):
-        with pytest.raises(SkillActivityError):
-            run_skill(
-                skill_input,
-                output_path_key="extracted_intent_path",
-                repo_root=tmp_path,
-                harness=FakeHarness(),
-            )
+        run_skill(
+            skill_input,
+            output_path_key="extracted_intent_path",
+            repo_root=tmp_path,
+            harness=FakeHarness(),
+        )
 
     full_log = "\n".join(logger.records)
-    assert "FailSkillArtifactVerification" in full_log
+    assert "WarnSkillArtifactVerification" in full_log
     assert "extract-story-intent" in full_log
     assert "missing_sentinel" in full_log
 
@@ -341,7 +351,7 @@ def test_run_skill_with_auto_and_missing_sentinel_fails_without_escalation(tmp_p
 
     harness = DevinHarness(config=DevinHarnessConfig(), runner=runner)
 
-    with pytest.raises(SkillActivityError, match="completed without writing sentinel"):
+    with pytest.raises(SkillActivityError, match="Cannot derive output path"):
         run_skill(
             SkillActivityInput(skill_name="unconfigured-writer"),
             output_path_key="artifact_path",

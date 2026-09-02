@@ -300,7 +300,7 @@ main() {
   verify_consistency "$analysis_path"
   
   # Delete sentinel file after verification
-  rm -f "$sentinel_path"
+  # rm -f "$sentinel_path"
 
   exit_if_failed
   

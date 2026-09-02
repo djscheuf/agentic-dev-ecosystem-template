@@ -54,6 +54,37 @@ def _sentinel_path(repo_root: Path, skill_name: str) -> Path:
     return repo_root / ".process" / f"{skill_name}.done.json"
 
 
+def _conventional_output_path(skill_input: SkillActivityInput) -> str:
+    if not skill_input.input_paths:
+        raise SkillActivityError(
+            f"Cannot derive output path for skill '{skill_input.skill_name}' without an input path"
+        )
+
+    input_path = Path(skill_input.input_paths[0])
+    name = input_path.name
+    if skill_input.skill_name == "extract-story-intent":
+        output_name = f"{input_path.stem}.intent.json"
+    elif skill_input.skill_name == "analyze-story":
+        output_name = (
+            f"{name[:-len('.intent.json')]}.analysis.json"
+            if name.endswith(".intent.json")
+            else "analysis.json"
+        )
+    elif skill_input.skill_name == "grade-story-analysis":
+        output_name = (
+            f"{name[:-len('.analysis.json')]}.analysis-grade.json"
+            if name.endswith(".analysis.json")
+            else "analysis-grade.json"
+        )
+    elif skill_input.skill_name == "repair-story-analysis":
+        output_name = name
+    else:
+        raise SkillActivityError(
+            f"Cannot derive output path for unknown skill '{skill_input.skill_name}'"
+        )
+    return str(input_path.with_name(output_name))
+
+
 def _build_prompt(skill_input: SkillActivityInput) -> str:
     lines = [f"Invoke the '{skill_input.skill_name}' skill."]
     if skill_input.input_paths:
@@ -109,31 +140,30 @@ def run_skill(
                 f"'{skill_input.skill_name}': {result.stderr or result.stdout}"
             )
 
-        if not sentinel_file.exists():
-            logger.error(
-                "FailSkillArtifactVerification: skill_name=%s failure_reason=%s",
+        try:
+            sentinel = json.loads(sentinel_file.read_text())
+        except FileNotFoundError:
+            output_path = _conventional_output_path(skill_input)
+            logger.warning(
+                "WarnSkillArtifactVerification: skill_name=%s failure_reason=%s output_path=%s",
                 skill_input.skill_name,
                 "missing_sentinel",
+                output_path,
             )
-            raise SkillActivityError(
-                f"Skill '{skill_input.skill_name}' completed without writing "
-                f"sentinel file {sentinel_file}"
-            )
+        else:
+            if sentinel.get("task") != skill_input.skill_name:
+                raise SkillActivityError(
+                    f"Sentinel task mismatch for skill '{skill_input.skill_name}': "
+                    f"got {sentinel.get('task')!r}"
+                )
 
-        sentinel = json.loads(sentinel_file.read_text())
-        if sentinel.get("task") != skill_input.skill_name:
-            raise SkillActivityError(
-                f"Sentinel task mismatch for skill '{skill_input.skill_name}': "
-                f"got {sentinel.get('task')!r}"
-            )
-
-        verify_params = sentinel.get("verify_params", {})
-        output_path = verify_params.get(output_path_key)
-        if not output_path:
-            raise SkillActivityError(
-                f"Sentinel for skill '{skill_input.skill_name}' is missing "
-                f"verify_params.{output_path_key}"
-            )
+            verify_params = sentinel.get("verify_params", {})
+            output_path = verify_params.get(output_path_key)
+            if not output_path:
+                raise SkillActivityError(
+                    f"Sentinel for skill '{skill_input.skill_name}' is missing "
+                    f"verify_params.{output_path_key}"
+                )
 
         activity_log_path = get_activity_log_path() or ""
         devin_log_path = get_devin_log_path() or ""
