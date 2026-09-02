@@ -122,6 +122,11 @@ explicit requirement.
 - The four Story Analysis artifact writers explicitly use `accept-edits` in the colocated repository configuration.
 - Profile-selection logging includes canonical skill, model, and permission mode, but excludes the prompt and raw configuration.
 
+## Sanitized invocation failures (2026-09-02)
+
+- Nonzero Harness results emit `FailSkillHarnessInvocation` with only canonical skill and exit code; subprocess output remains out of `activity.log`.
+- Devin process startup `OSError` failures emit `FailDevinInvocationLaunch` and raise `RuntimeError("devin_launch_failed")` without logging operating-system details or a completion event.
+
 ## See also
 
 - [Cadence local stack](cadence.md) — what actually runs in Docker.
