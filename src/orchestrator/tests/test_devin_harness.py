@@ -1,5 +1,6 @@
 import json
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -464,3 +465,21 @@ def test_run_with_unstartable_devin_process_reports_sanitized_launch_failure(tmp
     assert "skill_name=analyze-story" in content
     assert "sensitive-filesystem-marker" not in content
     assert "CompleteDevinInvocation" not in content
+
+
+def test_documentation_for_harness_profiles_explains_first_slice_contract():
+    documentation = (Path(__file__).parents[1] / "README.md").read_text()
+
+    for required_text in (
+        '"defaults"',
+        '"skills"',
+        "skill override → structured default → legacy flat default",
+        "accept-edits",
+        "dangerous",
+        "bypass",
+        "Unknown keys",
+        "legacy",
+        "activity.log",
+        "Activity-start retry snapshot",
+    ):
+        assert required_text in documentation

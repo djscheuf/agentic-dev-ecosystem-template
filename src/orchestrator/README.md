@@ -35,6 +35,38 @@ needed in `skill_activity.py` or any of the four Activities. Tests use a `FakeHa
 (see `tests/test_skill_activity.py`) that records the prompt it was sent instead of
 running a real subprocess.
 
+## Configuring Devin Skill Activity profiles
+
+`devin_harness.config.json` supports conservative defaults and canonical skill-name
+partial overrides:
+
+```json
+{
+  "defaults": {"model": "SWE-1.7", "permission_mode": "auto"},
+  "skills": {
+    "analyze-story": {"permission_mode": "accept-edits"}
+  }
+}
+```
+
+Each field resolves independently using: skill override → structured default → legacy flat default
+→ built-in `SWE-1.7`/`auto`. Supported permission modes are
+`auto`, `accept-edits`, `dangerous`, and `bypass`. Keep `auto` as the default and
+explicitly grant `accept-edits` to unattended artifact-producing skills;
+`dangerous` and `bypass` permit broader execution and should be explicit.
+
+Legacy top-level `model` and `permission_mode` fields remain supported. Unknown keys
+are ignored for forward compatibility, while invalid known values fail before Devin
+starts. `activity.log` records canonical skill, effective model, permission mode,
+and sanitized outcomes; prompts, credentials, raw configuration, and subprocess
+output are excluded.
+
+Configuration is loaded for the worker lifetime. Activity-start retry snapshot
+transport is deferred, so restart the worker after changing configuration. For local
+verification, authenticate the host CLI, start the engine, and use the commands in
+[Testing a single Activity in isolation](#testing-a-single-activity-in-isolation).
+The repository example grants `accept-edits` to all four Story Analysis writers.
+
 ## Why the logic is split into a pure engine
 
 `cadence-python-client` 0.3.0 (latest release on PyPI as of this writing) does not

@@ -54,7 +54,7 @@
         {
           "id": 5,
           "name": "Documentation_ForHarnessProfiles_ExplainsFirstSliceContract",
-          "status": "pending",
+          "status": "passing",
           "description": "Operator documentation is sufficient to configure a least-privilege default and writer override.",
           "arrange": "The first-slice orchestrator documentation and repository example configuration.",
           "act": "Review the documented shape, precedence, modes, compatibility, unknown-key behavior, safe logging, local examples, and deferred retry snapshot.",
