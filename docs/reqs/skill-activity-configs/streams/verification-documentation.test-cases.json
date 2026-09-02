@@ -63,7 +63,7 @@
         {
           "id": 6,
           "name": "OrchestratorSuite_WithProfileConfiguration_PassesWithoutRegression",
-          "status": "pending",
+          "status": "passing",
           "description": "The completed first slice preserves all orchestrator behavior outside deferred Cadence retry snapshots.",
           "arrange": "All focused verification tests and the full orchestrator test suite.",
           "act": "Run both suites in the repository Nix environment.",
