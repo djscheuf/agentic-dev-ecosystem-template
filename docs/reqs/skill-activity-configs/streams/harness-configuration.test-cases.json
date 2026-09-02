@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "Run_WithInvocationSkill_UsesFreshEffectiveProfileCommand",
-          "status": "pending",
+          "status": "passing",
           "description": "Each invocation uses canonical skill context and a fresh effective profile.",
           "arrange": "Defaults plus two partial skill overrides and invocation contexts for each skill.",
           "act": "Run the shared harness for both skills.",

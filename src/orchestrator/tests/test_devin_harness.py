@@ -207,6 +207,37 @@ def test_devin_harness_run_invokes_devin_cli_with_configured_model_and_permissio
     assert captured["kwargs"]["cwd"] == str(tmp_path)
 
 
+def test_harness_run_uses_fresh_profile_command_for_each_invocation(tmp_path):
+    config_path = tmp_path / "devin_harness.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "defaults": {"model": "SWE-2.0", "permission_mode": "auto"},
+                "skills": {
+                    "analyze-story": {"permission_mode": "accept-edits"},
+                    "grade-story-analysis": {"model": "SWE-2.1"},
+                },
+            }
+        )
+    )
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    harness = DevinHarness(config=DevinHarnessConfig.load(config_path), runner=runner)
+
+    with skill_invocation_context("analyze-story"):
+        harness.run("analyze", cwd=tmp_path)
+    with skill_invocation_context("grade-story-analysis"):
+        harness.run("grade", cwd=tmp_path)
+
+    assert commands[0] is not commands[1]
+    assert commands[0][2:7] == ["--permission-mode", "accept-edits", "--model", "SWE-2.0", "--"]
+    assert commands[1][2:7] == ["--permission-mode", "auto", "--model", "SWE-2.1", "--"]
+
+
 def test_devin_harness_run_returns_harness_result_with_exit_code_and_output(tmp_path):
     def runner(command, **kwargs):
         return SimpleNamespace(returncode=1, stdout="out", stderr="err")
