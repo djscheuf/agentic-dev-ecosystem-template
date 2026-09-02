@@ -110,6 +110,11 @@ def run_skill(
             )
 
         if not sentinel_file.exists():
+            logger.error(
+                "FailSkillArtifactVerification: skill_name=%s failure_reason=%s",
+                skill_input.skill_name,
+                "missing_sentinel",
+            )
             raise SkillActivityError(
                 f"Skill '{skill_input.skill_name}' completed without writing "
                 f"sentinel file {sentinel_file}"

@@ -260,3 +260,35 @@ def test_run_skill_does_not_log_prompt_or_input_paths(tmp_path):
     assert "sensitive prompt content" not in full_log
     assert "docs/story.md" not in full_log
     assert "extract-story-intent" in full_log
+
+
+def test_run_skill_logs_artifact_verification_failure(tmp_path):
+    class ListLogger:
+        def __init__(self):
+            self.records = []
+
+        def debug(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def info(self, msg, *args):
+            self.records.append(msg % args if args else msg)
+
+        def error(self, msg, *args):
+            self.records.append("ERROR: " + (msg % args if args else msg))
+
+    logger = ListLogger()
+    skill_input = SkillActivityInput(skill_name="extract-story-intent")
+
+    with patch("orchestrator.skill_activity.get_activity_logger", new=lambda: logger):
+        with pytest.raises(SkillActivityError):
+            run_skill(
+                skill_input,
+                output_path_key="extracted_intent_path",
+                repo_root=tmp_path,
+                harness=FakeHarness(),
+            )
+
+    full_log = "\n".join(logger.records)
+    assert "FailSkillArtifactVerification" in full_log
+    assert "extract-story-intent" in full_log
+    assert "missing_sentinel" in full_log
