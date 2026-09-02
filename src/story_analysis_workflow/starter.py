@@ -14,6 +14,8 @@ import re
 from datetime import datetime
 from typing import Optional
 
+from orchestrator.workflow_logger import client_log_context, get_client_logger
+
 from .config import CadenceConfig, load_config
 
 WORKFLOW_TYPE = "StoryAnalysisWorkflow"
@@ -71,9 +73,18 @@ async def start_story_analysis_workflow(
     config = config or load_config()
     resolved_workflow_id = workflow_id or _default_workflow_id(story_document)
 
-    return await client.start_workflow(
+    execution = await client.start_workflow(
         WORKFLOW_TYPE,
         story_document,
         engine_config,
         **config.to_start_workflow_kwargs(resolved_workflow_id),
     )
+    with client_log_context(execution.workflow_id, execution.run_id):
+        logger = get_client_logger()
+        logger.info(
+            "Started StoryAnalysisWorkflow workflow_id=%s run_id=%s story=%s",
+            execution.workflow_id,
+            execution.run_id,
+            story_document,
+        )
+    return execution

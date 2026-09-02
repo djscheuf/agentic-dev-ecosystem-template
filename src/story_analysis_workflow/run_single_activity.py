@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
 from cadence.client import Client
+from orchestrator.workflow_logger import client_log_context, get_client_logger
 
 from orchestrator.single_activity_workflow import (
     KNOWN_ACTIVITY_NAMES,
@@ -187,25 +188,34 @@ async def run_single_activity_main(
         )
         print(f"Started workflow_id={execution.workflow_id!r} run_id={execution.run_id!r}. Waiting for result...")
 
-        status = await _poll_for_result(
-            client,
-            execution.workflow_id,
-            execution.run_id,
-            poll_interval_seconds=poll_interval_seconds,
-            wait_timeout_seconds=wait_timeout_seconds,
-        )
+        with client_log_context(execution.workflow_id, execution.run_id):
+            logger = get_client_logger()
+            logger.info(
+                "Started SingleActivityWorkflow for activity=%s input=%s",
+                activity_name,
+                relative_input,
+            )
+            status = await _poll_for_result(
+                client,
+                execution.workflow_id,
+                execution.run_id,
+                poll_interval_seconds=poll_interval_seconds,
+                wait_timeout_seconds=wait_timeout_seconds,
+            )
 
-    if status.get("status") == "succeeded":
-        print(f"\nActivity '{activity_name}' succeeded:")
-        print(json.dumps(status["result"], indent=2))
-        return 0
+            if status.get("status") == "succeeded":
+                logger.info("Activity succeeded: %s", status)
+                print(f"\nActivity '{activity_name}' succeeded:")
+                print(json.dumps(status["result"], indent=2))
+                return 0
 
-    print(
-        f"\nActivity '{activity_name}' {status.get('status', 'failed')}: {status.get('error')}",
-        file=sys.stderr,
-    )
-    print(f"\n{_failure_hint()}", file=sys.stderr)
-    return 1
+            logger.error("Activity failed: %s", status)
+            print(
+                f"\nActivity '{activity_name}' {status.get('status', 'failed')}: {status.get('error')}",
+                file=sys.stderr,
+            )
+            print(f"\n{_failure_hint()}", file=sys.stderr)
+            return 1
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:

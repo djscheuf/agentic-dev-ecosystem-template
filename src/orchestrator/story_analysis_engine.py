@@ -14,12 +14,17 @@ async fakes (see `tests/test_story_analysis_engine.py`) -- as of
 `execute_activity` / `sleep` / `wait_condition` primitives.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Awaitable, Callable, Optional
 
 from .escalation import EscalationReason, HumanDecision, HumanResponse
 from .grade_repair import DEFAULT_MAX_ATTEMPTS, GradeRepairDecision, GradeRepairState, evaluate_grade_repair
+
+_module_logger = logging.getLogger(__name__)
+if not _module_logger.handlers:
+    _module_logger.addHandler(logging.NullHandler())
 
 DEFAULT_ESCALATION_TIMEOUT = timedelta(hours=4)
 
@@ -51,6 +56,7 @@ class StoryAnalysisEngine:
         await_human_response: AwaitHumanResponse,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         escalation_timeout: timedelta = DEFAULT_ESCALATION_TIMEOUT,
+        logger: Optional[logging.Logger] = None,
     ) -> None:
         self._execute_extract_story_intent = execute_extract_story_intent
         self._execute_analyze_story = execute_analyze_story
@@ -59,6 +65,7 @@ class StoryAnalysisEngine:
         self._await_human_response = await_human_response
         self.max_attempts = max_attempts
         self.escalation_timeout = escalation_timeout
+        self._logger = logger or _module_logger
 
         self.status = "running"
         self.attempt_count = 0
@@ -67,6 +74,13 @@ class StoryAnalysisEngine:
 
     def _terminal(self, analysis_path: Optional[str], final_status: str) -> WorkflowResult:
         self.status = final_status
+        self._logger.info(
+            "Workflow terminal status=%s analysis_path=%s attempt_count=%s escalated=%s",
+            final_status,
+            analysis_path,
+            self.attempt_count,
+            self.escalated,
+        )
         return WorkflowResult(
             final_analysis_path=analysis_path,
             passed=final_status == "passed",
@@ -85,13 +99,20 @@ class StoryAnalysisEngine:
         self.escalated = True
         self.escalation_reason = reason
         self.status = "awaiting_signal"
+        self._logger.info("Escalating: reason=%s", reason.value)
 
         response = await self._await_human_response(self.escalation_timeout)
         if response is not None:
+            self._logger.info("Received human response: decision=%s", response.decision.value)
             return response
 
         # Timed out once: re-escalate (re-notify) and wait again.
+        self._logger.warning("Escalation timed out; re-escalating once")
         response = await self._await_human_response(self.escalation_timeout)
+        if response is not None:
+            self._logger.info("Received human response on retry: decision=%s", response.decision.value)
+        else:
+            self._logger.warning("Second escalation timed out")
         return response
 
     async def _run_activity_with_escalation(
@@ -103,10 +124,15 @@ class StoryAnalysisEngine:
         if the failure could not be resolved (human aborted/accepted or the
         escalation itself timed out) and the workflow must stop.
         """
+        activity_name = getattr(fn, "__name__", repr(fn))
+        self._logger.info("Executing activity: %s", activity_name)
         while True:
             try:
-                return await fn(*args), None
-            except ActivityFailure:
+                result = await fn(*args)
+                self._logger.info("Activity succeeded: %s", activity_name)
+                return result, None
+            except ActivityFailure as exc:
+                self._logger.warning("Activity failed: %s error=%s", activity_name, exc)
                 response = await self._escalate(EscalationReason.ACTIVITY_FAILURE_EXHAUSTED_RETRIES)
                 if response is None or response.decision != HumanDecision.RETRY:
                     is_abort = response is None or response.decision == HumanDecision.ABORT
@@ -115,6 +141,8 @@ class StoryAnalysisEngine:
                 # decision == RETRY: loop and retry the same activity call.
 
     async def run(self, story_document: str) -> WorkflowResult:
+        self._logger.info("Starting story analysis for %s", story_document)
+
         intent, failure_result = await self._run_activity_with_escalation(
             self._execute_extract_story_intent, story_document
         )
@@ -140,12 +168,20 @@ class StoryAnalysisEngine:
             decision = evaluate_grade_repair(
                 grade["passed"], GradeRepairState(self.attempt_count, self.max_attempts)
             )
+            self._logger.info(
+                "Grade decision=%s passed=%s attempt_count=%s/%s",
+                decision.value,
+                grade["passed"],
+                self.attempt_count,
+                self.max_attempts,
+            )
 
             if decision == GradeRepairDecision.PROCEED:
                 return self._terminal(analysis_path, "passed")
 
             if decision == GradeRepairDecision.REPAIR:
                 self.attempt_count += 1
+                self._logger.info("Repairing analysis (attempt %s)", self.attempt_count)
                 repaired, failure_result = await self._run_activity_with_escalation(
                     self._execute_repair_story_analysis, analysis_path, grade["output_path"], notes
                 )
@@ -167,6 +203,7 @@ class StoryAnalysisEngine:
 
             # RETRY: immediately repair using the human's guidance, then give
             # the loop a fresh attempt budget for the re-graded result.
+            self._logger.info("Human requested retry with notes: %s", response.notes)
             repaired, failure_result = await self._run_activity_with_escalation(
                 self._execute_repair_story_analysis, analysis_path, grade["output_path"], response.notes
             )

@@ -18,6 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .harness import Harness
+from .workflow_logger import (
+    activity_log_context,
+    get_activity_log_path,
+    get_activity_logger,
+    get_devin_log_path,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -39,6 +45,8 @@ class SkillActivityOutput:
     output_path: str
     sentinel_path: str
     duration_ms: int
+    activity_log_path: str = ""
+    devin_log_path: str = ""
 
 
 def _sentinel_path(repo_root: Path, skill_name: str) -> Path:
@@ -74,40 +82,63 @@ def run_skill(
 
     prompt = _build_prompt(skill_input)
 
-    start = time.monotonic()
-    result = harness.run(prompt, cwd=repo_root)
-    duration_ms = int((time.monotonic() - start) * 1000)
+    with activity_log_context():
+        logger = get_activity_logger()
+        logger.debug("Running skill '%s' with inputs %s", skill_input.skill_name, skill_input.input_paths)
+        logger.debug("Prompt:\n%s", prompt)
 
-    if result.exit_code != 0:
-        raise SkillActivityError(
-            f"Harness exited {result.exit_code} while running skill "
-            f"'{skill_input.skill_name}': {result.stderr or result.stdout}"
+        start = time.monotonic()
+        result = harness.run(prompt, cwd=repo_root)
+        duration_ms = int((time.monotonic() - start) * 1000)
+
+        logger.debug(
+            "Harness finished in %s ms with exit_code=%s",
+            duration_ms,
+            result.exit_code,
         )
 
-    if not sentinel_file.exists():
-        raise SkillActivityError(
-            f"Skill '{skill_input.skill_name}' completed without writing "
-            f"sentinel file {sentinel_file}"
-        )
+        if result.exit_code != 0:
+            logger.error(
+                "Harness failed for skill '%s': %s",
+                skill_input.skill_name,
+                result.stderr or result.stdout,
+            )
+            raise SkillActivityError(
+                f"Harness exited {result.exit_code} while running skill "
+                f"'{skill_input.skill_name}': {result.stderr or result.stdout}"
+            )
 
-    sentinel = json.loads(sentinel_file.read_text())
-    if sentinel.get("task") != skill_input.skill_name:
-        raise SkillActivityError(
-            f"Sentinel task mismatch for skill '{skill_input.skill_name}': "
-            f"got {sentinel.get('task')!r}"
-        )
+        if not sentinel_file.exists():
+            raise SkillActivityError(
+                f"Skill '{skill_input.skill_name}' completed without writing "
+                f"sentinel file {sentinel_file}"
+            )
 
-    verify_params = sentinel.get("verify_params", {})
-    output_path = verify_params.get(output_path_key)
-    if not output_path:
-        raise SkillActivityError(
-            f"Sentinel for skill '{skill_input.skill_name}' is missing "
-            f"verify_params.{output_path_key}"
-        )
+        sentinel = json.loads(sentinel_file.read_text())
+        if sentinel.get("task") != skill_input.skill_name:
+            raise SkillActivityError(
+                f"Sentinel task mismatch for skill '{skill_input.skill_name}': "
+                f"got {sentinel.get('task')!r}"
+            )
+
+        verify_params = sentinel.get("verify_params", {})
+        output_path = verify_params.get(output_path_key)
+        if not output_path:
+            raise SkillActivityError(
+                f"Sentinel for skill '{skill_input.skill_name}' is missing "
+                f"verify_params.{output_path_key}"
+            )
+
+        activity_log_path = get_activity_log_path() or ""
+        devin_log_path = get_devin_log_path() or ""
+        logger.debug("Activity log: %s", activity_log_path)
+        logger.debug("Devin log: %s", devin_log_path)
 
     return SkillActivityOutput(
         status="success",
         output_path=output_path,
         sentinel_path=str(sentinel_file.relative_to(repo_root)),
         duration_ms=duration_ms,
+        activity_log_path=activity_log_path,
+        devin_log_path=devin_log_path,
     )

@@ -14,6 +14,7 @@ from typing import Callable, Optional, Sequence
 from cadence.client import Client
 from cadence.error import EntityNotExistsError
 from cadence.api.v1 import service_domain_pb2
+from orchestrator.workflow_logger import client_log_context, get_client_logger
 
 from .config import CadenceConfig, load_config
 from .queries import get_status
@@ -75,27 +76,45 @@ async def _run_start(client, args: argparse.Namespace, config: CadenceConfig) ->
 
 
 async def _run_signal(client, args: argparse.Namespace, config: CadenceConfig) -> int:
-    await send_human_response(client, args.workflow_id, args.decision, args.notes, run_id=args.run_id)
+    with client_log_context(args.workflow_id, args.run_id):
+        logger = get_client_logger()
+        logger.info(
+            "Sending human_response decision=%s to workflow_id=%s run_id=%s",
+            args.decision,
+            args.workflow_id,
+            args.run_id or "<current>",
+        )
+        await send_human_response(client, args.workflow_id, args.decision, args.notes, run_id=args.run_id)
+        logger.info("Sent human_response successfully")
     print(f"Sent human_response decision={args.decision!r} to workflow_id={args.workflow_id!r}")
     return 0
 
 
 async def _run_query(client, args: argparse.Namespace, config: CadenceConfig) -> int:
-    try:
-        status = await get_status(client, args.workflow_id, run_id=args.run_id)
-    except EntityNotExistsError as exc:
-        print(
-            f"Error: workflow not found: {args.workflow_id!r}",
-            file=sys.stderr,
+    with client_log_context(args.workflow_id, args.run_id):
+        logger = get_client_logger()
+        logger.info(
+            "Querying status for workflow_id=%s run_id=%s",
+            args.workflow_id,
+            args.run_id or "<current>",
         )
-        if args.run_id:
-            print(f"       run_id: {args.run_id!r}", file=sys.stderr)
-        print(
-            "       Verify you are using the workflow_id returned by the start command.",
-            file=sys.stderr,
-        )
-        return 1
-    print(json.dumps(status))
+        try:
+            status = await get_status(client, args.workflow_id, run_id=args.run_id)
+        except EntityNotExistsError as exc:
+            logger.error("Workflow not found: %s", args.workflow_id)
+            print(
+                f"Error: workflow not found: {args.workflow_id!r}",
+                file=sys.stderr,
+            )
+            if args.run_id:
+                print(f"       run_id: {args.run_id!r}", file=sys.stderr)
+            print(
+                "       Verify you are using the workflow_id returned by the start command.",
+                file=sys.stderr,
+            )
+            return 1
+        logger.info("Status: %s", status)
+        print(json.dumps(status))
     return 0
 
 

@@ -28,6 +28,7 @@ from .activities.repair_story_analysis import repair_story_analysis
 from .escalation import HumanResponse, parse_human_response
 from .grade_repair import DEFAULT_MAX_ATTEMPTS
 from .story_analysis_engine import ActivityFailure, DEFAULT_ESCALATION_TIMEOUT, StoryAnalysisEngine
+from .workflow_logger import get_workflow_log_path, get_workflow_logger, workflow_log_context
 
 registry = Registry()
 registry.register_activity(extract_story_intent)
@@ -97,20 +98,27 @@ class StoryAnalysisWorkflow:
     @workflow.run
     async def run(self, story_document: str, config: Optional[dict] = None) -> dict:
         config = config or {}
-        engine = StoryAnalysisEngine(
-            execute_extract_story_intent=self._extract_story_intent,
-            execute_analyze_story=self._analyze_story,
-            execute_grade_story_analysis=self._grade_story_analysis,
-            execute_repair_story_analysis=self._repair_story_analysis,
-            await_human_response=self._await_human_response,
-            max_attempts=config.get("max_attempts", DEFAULT_MAX_ATTEMPTS),
-            escalation_timeout=timedelta(seconds=config["escalation_timeout_seconds"])
-            if "escalation_timeout_seconds" in config
-            else DEFAULT_ESCALATION_TIMEOUT,
-        )
-        self._engine = engine
-        result = await engine.run(story_document)
-        return dataclasses.asdict(result)
+        with workflow_log_context():
+            workflow_logger = get_workflow_logger()
+            workflow_logger.info("Starting StoryAnalysisWorkflow for %s", story_document)
+            engine = StoryAnalysisEngine(
+                execute_extract_story_intent=self._extract_story_intent,
+                execute_analyze_story=self._analyze_story,
+                execute_grade_story_analysis=self._grade_story_analysis,
+                execute_repair_story_analysis=self._repair_story_analysis,
+                await_human_response=self._await_human_response,
+                max_attempts=config.get("max_attempts", DEFAULT_MAX_ATTEMPTS),
+                escalation_timeout=timedelta(seconds=config["escalation_timeout_seconds"])
+                if "escalation_timeout_seconds" in config
+                else DEFAULT_ESCALATION_TIMEOUT,
+                logger=workflow_logger,
+            )
+            self._engine = engine
+            result = await engine.run(story_document)
+            workflow_logger.info(
+                "StoryAnalysisWorkflow completed with status=%s", result.final_status
+            )
+            return dataclasses.asdict(result)
 
     @workflow.signal(name="human_response")
     def human_response(self, decision: str, notes: str = "") -> None:
@@ -120,10 +128,15 @@ class StoryAnalysisWorkflow:
     def get_status(self) -> dict:
         engine = self._engine
         if engine is None:
-            return {"status": "running", "attempt_count": 0, "escalated": False, "escalation_reason": None}
-        return {
-            "status": engine.status,
-            "attempt_count": engine.attempt_count,
-            "escalated": engine.escalated,
-            "escalation_reason": engine.escalation_reason.value if engine.escalation_reason else None,
-        }
+            result = {"status": "running", "attempt_count": 0, "escalated": False, "escalation_reason": None}
+        else:
+            result = {
+                "status": engine.status,
+                "attempt_count": engine.attempt_count,
+                "escalated": engine.escalated,
+                "escalation_reason": engine.escalation_reason.value if engine.escalation_reason else None,
+            }
+        workflow_log_path = get_workflow_log_path()
+        if workflow_log_path:
+            result["workflow_log_path"] = workflow_log_path
+        return result

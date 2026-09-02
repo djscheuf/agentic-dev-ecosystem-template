@@ -8,11 +8,13 @@ can be changed per-environment without editing code.
 
 import json
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 from .harness import HarnessResult
+from .workflow_logger import get_activity_logger, get_devin_log_path, get_devin_logger
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.json"
 DEFAULT_MODEL = "SWE-1.7"
@@ -60,5 +62,27 @@ class DevinHarness:
             "--",
             prompt,
         ]
+        activity_logger = get_activity_logger()
+        devin_logger = get_devin_logger()
+        activity_logger.debug("Running devin command: %s", command)
+
+        start = time.monotonic()
         result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
-        return HarnessResult(exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
+        duration_ms = int((time.monotonic() - start) * 1000)
+
+        activity_logger.debug(
+            "devin exited with code %s in %s ms", result.returncode, duration_ms
+        )
+        if result.stdout:
+            devin_logger.debug("--- stdout ---")
+            for line in result.stdout.splitlines():
+                devin_logger.debug("%s", line)
+        if result.stderr:
+            devin_logger.debug("--- stderr ---")
+            for line in result.stderr.splitlines():
+                devin_logger.debug("%s", line)
+        activity_logger.debug("Devin output log: %s", get_devin_log_path() or "unknown")
+
+        return HarnessResult(
+            exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr
+        )
