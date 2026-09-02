@@ -1,0 +1,93 @@
+{
+  "target_story": "docs/reqs/skill-activity-configs/configure-skill-activity-invocations.analysis.json",
+  "source_workstream": "docs/reqs/skill-activity-configs/streams/foundations.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Secure defaults and structured resolution",
+      "tests": [
+        {
+          "id": 1,
+          "name": "config_loads_missing_file_with_secure_defaults",
+          "status": "passing",
+          "description": "A missing configuration resolves every skill to the secure hardcoded defaults",
+          "arrange": "Use a path that does not exist",
+          "act": "Load the configuration and resolve an unseen canonical skill",
+          "assert": "The immutable effective profile uses model SWE-1.7 and permission mode auto"
+        },
+        {
+          "id": 2,
+          "name": "config_resolves_structured_defaults_and_exact_skill_override",
+          "status": "pending",
+          "description": "Structured defaults apply generally and only the exact canonical skill override is selected",
+          "arrange": "Configure defaults and distinct extract-story-intent and analyze-story overrides",
+          "act": "Resolve both configured skills and an unseen skill",
+          "assert": "Each configured skill receives only its exact override and the unseen skill receives defaults"
+        },
+        {
+          "id": 3,
+          "name": "config_partial_override_inherits_each_unspecified_default_field",
+          "status": "pending",
+          "description": "Profile precedence is evaluated independently for model and permission mode",
+          "arrange": "Configure both defaults and an analyze-story override containing only permission_mode",
+          "act": "Resolve analyze-story",
+          "assert": "The effective profile inherits the default model and uses the overridden permission mode"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Compatibility and stable contracts",
+      "tests": [
+        {
+          "id": 4,
+          "name": "config_maps_legacy_flat_fields_into_defaults",
+          "status": "pending",
+          "description": "Legacy flat configuration keeps its previous effective behavior",
+          "arrange": "Write a legacy file with flat model and permission_mode values",
+          "act": "Load it and resolve a canonical skill",
+          "assert": "The effective profile contains both legacy values"
+        },
+        {
+          "id": 5,
+          "name": "config_mixed_format_uses_field_level_precedence",
+          "status": "pending",
+          "description": "Structured values override legacy values per field while omitted fields retain legacy fallback",
+          "arrange": "Write mixed structured and legacy defaults plus a partial skill override",
+          "act": "Resolve the overridden and unconfigured skills",
+          "assert": "Each field follows skill override, structured default, legacy default, then hardcoded default precedence"
+        },
+        {
+          "id": 6,
+          "name": "run_skill_exposes_canonical_skill_in_invocation_context_without_changing_harness_contract",
+          "status": "pending",
+          "description": "An alternate Harness keeps run(prompt, cwd) while invocation code can read the canonical skill",
+          "arrange": "Use a fake alternate Harness that reads invocation context and writes the existing sentinel shape",
+          "act": "Run a skill through run_skill",
+          "assert": "The Harness observes the input skill name, receives only prompt and cwd, and output is read from verify_params"
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Isolation and immutability",
+      "tests": [
+        {
+          "id": 7,
+          "name": "invocation_context_resets_after_success_and_failure",
+          "status": "pending",
+          "description": "Invocation metadata cannot leak into later Activity calls",
+          "arrange": "Run successful and failing harness invocations under different canonical skills",
+          "act": "Inspect context during and after each call",
+          "assert": "Each call sees only its own skill and context returns to no skill afterward"
+        },
+        {
+          "id": 8,
+          "name": "config_resolution_returns_fresh_frozen_profiles",
+          "status": "pending",
+          "description": "Resolved profiles are immutable values and are not shared mutable invocation state",
+          "arrange": "Load one structured configuration",
+          "act": "Resolve the same skill twice and attempt to mutate a result",
+          "assert": "Equal fresh frozen profiles are returned and mutation raises FrozenInstanceError"
+        }
+      ]
+    }
+  ]
+}

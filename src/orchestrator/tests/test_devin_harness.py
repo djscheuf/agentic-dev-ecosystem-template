@@ -13,8 +13,10 @@ from orchestrator.workflow_logger import (
 def test_devin_harness_config_load_when_file_missing_returns_defaults(tmp_path):
     config = DevinHarnessConfig.load(tmp_path / "missing.config.json")
 
-    assert config.model == "SWE-1.7"
-    assert config.permission_mode == "auto"
+    profile = config.resolve("previously-unseen-skill")
+
+    assert profile.model == "SWE-1.7"
+    assert profile.permission_mode == "auto"
 
 
 def test_devin_harness_config_load_reads_values_from_file(tmp_path):

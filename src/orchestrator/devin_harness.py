@@ -22,9 +22,21 @@ DEFAULT_PERMISSION_MODE = "auto"
 
 
 @dataclass(frozen=True)
+class EffectiveDevinProfile:
+    model: str
+    permission_mode: str
+
+
+@dataclass(frozen=True)
 class DevinHarnessConfig:
     model: str = DEFAULT_MODEL
     permission_mode: str = DEFAULT_PERMISSION_MODE
+
+    def resolve(self, skill_name: str) -> EffectiveDevinProfile:
+        return EffectiveDevinProfile(
+            model=self.model,
+            permission_mode=self.permission_mode,
+        )
 
     @classmethod
     def load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "DevinHarnessConfig":
