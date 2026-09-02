@@ -116,7 +116,8 @@ class DevinHarness:
         self._runner = runner
 
     def run(self, prompt: str, *, cwd: Path) -> HarnessResult:
-        profile = self.config.resolve(get_current_skill_name() or "")
+        skill_name = get_current_skill_name() or ""
+        profile = self.config.resolve(skill_name)
         command = [
             "devin",
             "-p",
@@ -129,7 +130,12 @@ class DevinHarness:
         ]
         activity_logger = get_activity_logger()
         devin_logger = get_devin_logger()
-        activity_logger.debug("Running devin command: %s", command)
+        activity_logger.debug(
+            "Resolved Devin profile: skill_name=%s model=%s permission_mode=%s",
+            skill_name,
+            profile.model,
+            profile.permission_mode,
+        )
 
         start = time.monotonic()
         result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)

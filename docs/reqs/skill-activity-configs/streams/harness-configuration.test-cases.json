@@ -76,7 +76,7 @@
         {
           "id": 8,
           "name": "Run_WithResolvedProfile_LogsSafeSelection",
-          "status": "pending",
+          "status": "passing",
           "description": "Activity telemetry records only canonical skill, model, and permission mode for profile selection.",
           "arrange": "An activity log context, configured skill profile, and a prompt containing sensitive marker text.",
           "act": "Run the harness.",

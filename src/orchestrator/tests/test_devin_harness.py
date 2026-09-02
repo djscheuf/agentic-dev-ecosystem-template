@@ -268,6 +268,36 @@ def test_devin_harness_run_returns_harness_result_with_exit_code_and_output(tmp_
     assert result.stderr == "err"
 
 
+def test_harness_run_logs_safe_resolved_profile_selection(tmp_path):
+    logger_config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    activity_info = SimpleNamespace(
+        workflow_id="wf-profile",
+        workflow_run_id="run-profile",
+        activity_type="analyze_story",
+        activity_id="act-profile",
+        attempt=1,
+    )
+    harness = DevinHarness(
+        config=DevinHarnessConfig(
+            model="SWE-2.0", permission_mode="accept-edits"
+        ),
+        runner=lambda command, **kwargs: SimpleNamespace(
+            returncode=0, stdout="", stderr=""
+        ),
+    )
+
+    with activity_log_context(activity_info=activity_info, config=logger_config):
+        with skill_invocation_context("analyze-story"):
+            harness.run("sensitive-prompt-marker", cwd=tmp_path)
+        activity_log_path = get_activity_log_path()
+
+    content = (tmp_path / activity_log_path).read_text()
+    assert "skill_name=analyze-story" in content
+    assert "model=SWE-2.0" in content
+    assert "permission_mode=accept-edits" in content
+    assert "sensitive-prompt-marker" not in content
+
+
 def test_devin_harness_logs_stdout_and_stderr_to_separate_devin_log(tmp_path):
     config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
     activity_info = SimpleNamespace(
