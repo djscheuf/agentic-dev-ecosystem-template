@@ -1,6 +1,6 @@
 # ADR-014: Colocated Skill Activity Configuration and Template Method
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-03
 **Author:** Project team
 

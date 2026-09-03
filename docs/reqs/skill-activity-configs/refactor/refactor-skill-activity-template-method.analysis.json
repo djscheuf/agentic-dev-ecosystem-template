@@ -1,0 +1,361 @@
+{
+  "raw_request": "docs/reqs/skill-activity-configs/refactor/skill-activity-template-method.design.md",
+  "title": "Refactor Skill Activity Execution into Template Method with Colocated Configuration",
+  "story": {
+    "so_that": "the generic Skill Activity runner can support new Activities without skill-name conditionals, each Activity owns its configuration alongside its code, and Devin-specific CLI details stay inside DevinHarness",
+    "as_a": "Software Engineer maintaining the skill orchestration layer and adding new workflow Activities",
+    "i_want": "to refactor `run_skill` into a `SkillActivity` template-method class with adjacent per-Activity JSON configuration and an immutable, namespaced Harness configuration mapping"
+  },
+  "target_persona": {
+    "name": "Morgan - Infrastructure Engineer & Workflow Maintainer",
+    "role": "Software Engineer / Infrastructure Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Morgan maintains the orchestration layer, adds new Skills, reviews ADRs, manages the central skill catalog, and troubleshoots Activity lifecycle issues.",
+      "during": "Morgan refactors the generic `run_skill` function into a `SkillActivity` template method, creates adjacent `*.config.json` files, updates the `Harness.run` signature, and validates that concrete Activities can be added without touching generic code.",
+      "after": "Morgan verifies the template order, sentinel handling, logging, and output resolution remain compatible, and that new Activities can be added by creating a class and a config file."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Refactor the generic `run_skill` runner into a `SkillActivity` template-method class, move per-Activity configuration into adjacent JSON files, and update the `Harness` boundary to receive an immutable namespaced configuration mapping.",
+    "inputs": [
+      "Current `run_skill` implementation and `SkillActivityInput`/`SkillActivityOutput` contracts in `src/orchestrator/skill_activity.py`",
+      "Existing `Harness` protocol in `src/orchestrator/harness.py`",
+      "Existing `DevinHarness` and `DevinHarnessConfig` in `src/orchestrator/devin_harness.py`",
+      "Central `src/orchestrator/devin_harness.config.json` and ADR-012",
+      "Concrete Cadence Activity wrappers in `src/orchestrator/activities/*.py`",
+      "Accepted design in `docs/reqs/skill-activity-configs/refactor/skill-activity-template-method.design.md` and ADR-014"
+    ],
+    "outputs": [
+      "Base `SkillActivity` class with a fixed `execute` method and typed no-op transformation hooks",
+      "Adjacent `*.config.json` files for each concrete Skill Activity",
+      "Updated `Harness.run(prompt, cwd, config)` protocol with an immutable namespaced mapping",
+      "Updated `DevinHarness` that consumes `config['devin']` and ignores sibling namespaces",
+      "Refactored concrete Activity wrappers that delegate to `SkillActivity.execute`",
+      "Passing tests for template order, configuration loading, namespaced Harness translation, and backward compatibility",
+      "Updated ADR-012 marked partially superseded by ADR-014"
+    ],
+    "state_changes": [
+      "`run_skill` is removed or deprecated once all callers use `SkillActivity.execute`",
+      "Skill-name branches in `_conventional_output_path` are removed from generic code",
+      "Per-skill entries in `devin_harness.config.json` are removed",
+      "Activity behavior and configuration are colocated in adjacent files",
+      "`DevinHarness` no longer depends on invocation context or a central skill catalog",
+      "Worker loads an immutable Activity configuration snapshot at startup"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "Cadence Activity wire names and argument/result shapes remain unchanged",
+        "`Harness.run` signature changes from `(prompt, cwd)` to `(prompt, cwd, config)`",
+        "`SkillActivityInput` may retain `skill_name` during migration"
+      ],
+      "database": [],
+      "external_services": [
+        "Host-installed `devin` CLI is invoked by `DevinHarness` with `--model` and `--permission-mode` translated from the `devin` namespace",
+        "Cadence service executes Activities and retries using the Worker-loaded configuration snapshot"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Each concrete Skill Activity has an adjacent JSON configuration.",
+      "gherkin": "Given a concrete Skill Activity exists When its configuration is loaded Then an adjacent JSON file provides its activity and harness settings",
+      "type": "Functional",
+      "jtbd": "Configure each Activity from a colocated file",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Adding a new Activity requires no edit to a central skill-name switch or Devin profile map.",
+      "gherkin": "Given a new Skill Activity is added When it is registered with the worker Then no central skill-name switch or Devin profile map needs to be modified",
+      "type": "Business rule",
+      "jtbd": "Add a Skill Activity without touching generic code",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Harness.run receives an immutable namespaced configuration mapping.",
+      "gherkin": "Given a Skill Activity is configured with harness settings When it invokes the Harness Then the Harness receives an immutable mapping containing its own namespace",
+      "type": "Functional",
+      "jtbd": "Pass configuration to Harness safely",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "DevinHarness alone validates devin settings and translates them to CLI arguments.",
+      "gherkin": "Given a configuration contains a devin namespace When DevinHarness runs Then it validates the devin settings and translates them to CLI arguments",
+      "type": "Functional",
+      "jtbd": "Let DevinHarness own Devin CLI translation",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Unknown keys inside devin fail; unrelated Harness namespaces are ignored.",
+      "gherkin": "Given a devin namespace contains an unknown key or a sibling harness namespace exists When the configuration is validated Then unknown devin keys are rejected and sibling namespaces are ignored",
+      "type": "Business rule",
+      "jtbd": "Keep harness namespaces isolated and strict",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "SkillActivity.execute owns and preserves the complete lifecycle order.",
+      "gherkin": "Given a SkillActivity is invoked When execute runs Then it performs the documented lifecycle steps in order and does not skip or reorder them",
+      "type": "Functional",
+      "jtbd": "Rely on a stable Activity lifecycle",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Prompt, sentinel path, Harness config, invocation context, output path, and result have typed no-op transformation hooks.",
+      "gherkin": "Given a concrete SkillActivity overrides a typed hook When execute runs Then the hook receives and returns the same type and can replace its value",
+      "type": "Functional",
+      "jtbd": "Specialize Activity behavior through typed hooks",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Required identity and output contract fields fail at construction/startup rather than after invocation.",
+      "gherkin": "Given a concrete SkillActivity is missing a required identity or output field When it is constructed or the Worker starts Then it fails before any invocation",
+      "type": "Functional",
+      "jtbd": "Catch missing Activity configuration early",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Existing Activity wire names, argument shapes, output shape, sentinel validation, logging hygiene, and retry behavior remain compatible.",
+      "gherkin": "Given the refactor is complete When existing Activities are invoked Then wire names, shapes, output, sentinel validation, logging, and retry behavior remain compatible",
+      "type": "Constraint",
+      "jtbd": "Preserve existing Activity contracts",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "All unit and live integration checks pass before removing the old interface.",
+      "gherkin": "Given the refactor is implemented When the test suite and live integration checks run Then they pass before the old run_skill interface is removed",
+      "type": "Non-functional",
+      "jtbd": "Verify the refactor before removing the old interface",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "A concrete Skill Activity runs end-to-end using the new template and adjacent configuration.",
+      "gherkin": "Given a concrete SkillActivity is configured with an adjacent JSON file and a compatible Harness When execute is invoked Then it completes all lifecycle steps in order and returns a SkillActivityOutput with the expected output path",
+      "type": "Happy path",
+      "jtbd": "Run a Skill Activity with the new template method",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Missing, unreadable, or invalid adjacent Activity configuration fails at Worker startup.",
+      "gherkin": "Given a concrete SkillActivity is constructed with a missing or malformed adjacent config file When the Worker starts or the instance is built Then it fails before any Activity invocation with a clear configuration error",
+      "type": "Error handling",
+      "jtbd": "Detect bad Activity configuration early",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Unknown keys inside the active Harness namespace are rejected while sibling namespaces are ignored.",
+      "gherkin": "Given a harness config contains an unknown key in devin and a valid key in another-harness namespace When DevinHarness validates the config Then the unknown devin key raises an error and the other namespace is not inspected",
+      "type": "Boundary condition",
+      "jtbd": "Keep Harness namespaces strict and isolated",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Unattended artifact-producing Activities explicitly opt into accept-edits through adjacent configuration.",
+      "gherkin": "Given a concrete Activity writes repository artifacts When its adjacent config supplies harness.devin.permission_mode accept-edits Then DevinHarness emits --permission-mode accept-edits; otherwise the default remains auto",
+      "type": "Permission/access",
+      "jtbd": "Preserve least-privilege defaults while enabling unattended writes",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Missing adjacent Activity configuration file",
+      "gherkin": "Given a concrete SkillActivity config path points to a non-existent file When the instance is constructed Then construction fails with a clear missing-config error",
+      "type": "Input edge case",
+      "jtbd": "Fail fast when Activity configuration is missing",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Malformed or non-JSON adjacent configuration",
+      "gherkin": "Given an adjacent config file contains invalid JSON or a wrong-typed top-level value When it is loaded Then the error names the file and no Activity starts",
+      "type": "Input edge case",
+      "jtbd": "Reject malformed Activity configuration",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Unknown key inside the devin namespace",
+      "gherkin": "Given harness.devin contains an unsupported key like permisson_mode When DevinHarness validates Then it raises an invalid-value error before building the command",
+      "type": "Input edge case",
+      "jtbd": "Catch misspelled or unsupported Devin settings",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Wrong-typed or empty known value in devin namespace",
+      "gherkin": "Given harness.devin.model is null, an integer, or an empty string When DevinHarness validates Then it raises an invalid-value error",
+      "type": "Input edge case",
+      "jtbd": "Reject invalid Devin field values",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Sibling Harness namespace is present",
+      "gherkin": "Given the harness mapping contains both devin and another-agent namespaces When DevinHarness runs Then it consumes only devin and leaves another-agent untouched",
+      "type": "Input edge case",
+      "jtbd": "Keep alternate Harness settings intact",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Stale sentinel from a previous crashed attempt",
+      "gherkin": "Given a previous invocation left a `.process/<skill>.done.json` sentinel When execute starts Then it removes the stale sentinel before invoking the Harness",
+      "type": "State edge case",
+      "jtbd": "Avoid using stale verification output",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Missing sentinel after a successful Harness invocation",
+      "gherkin": "Given the Harness exits successfully but the skill does not write a sentinel When execute resolves the output Then it falls back to the concrete Activity's expected output path and logs a sanitized warning",
+      "type": "State edge case",
+      "jtbd": "Recover output path when the skill omits the sentinel",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Malformed or mismatched sentinel",
+      "gherkin": "Given the sentinel file exists but is not valid JSON or its task field does not match the Activity's skill name When execute reads it Then it raises a SkillActivityError",
+      "type": "State edge case",
+      "jtbd": "Detect corrupted or wrong sentinel files",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Empty input_paths for Activities that require them",
+      "gherkin": "Given a concrete Activity's expected_output_path requires an input path and SkillActivityInput.input_paths is empty When execute attempts output resolution Then it fails with a clear error",
+      "type": "Input edge case",
+      "jtbd": "Catch missing Activity input early",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Concurrent Activity invocations on the same Worker",
+      "gherkin": "Given the Worker is executing multiple Activities in parallel When each invokes its SkillActivity Then each uses the same immutable Worker-loaded configuration snapshot and does not observe mutation from another invocation",
+      "type": "State edge case",
+      "jtbd": "Keep concurrent invocations isolated",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Invalid hook return type",
+      "gherkin": "Given a concrete Activity overrides a hook and returns a value of the wrong type When the hook is called Then execute raises an error before or during the next lifecycle step",
+      "type": "State edge case",
+      "jtbd": "Detect incorrect hook specialization",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Activity configuration file is unreadable due to filesystem permissions",
+      "gherkin": "Given the Worker process lacks read permission for an adjacent config file When it attempts to load the config Then it fails with a sanitized error and no raw system detail",
+      "type": "User edge case",
+      "jtbd": "Diagnose inaccessible configuration safely",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Devin CLI exits nonzero or cannot be started",
+      "gherkin": "Given the Devin subprocess returns a non-zero exit code or the executable cannot be launched When the Harness returns Then execute raises SkillActivityError and logs a sanitized failure",
+      "type": "System edge case",
+      "jtbd": "Detect failed Devin invocation",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    },
+    {
+      "criterion": "Configuration is mutated after Worker startup",
+      "gherkin": "Given an adjacent config file is modified after the Worker has loaded it When an Activity is invoked Then it still uses the original immutable snapshot",
+      "type": "System edge case",
+      "jtbd": "Preserve stable Worker configuration during retries",
+      "persona_served": "Morgan - Infrastructure Engineer & Workflow Maintainer"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Should `skill_name` remain in `SkillActivityInput` or move entirely into the immutable Activity configuration?",
+      "impacts": ["Activity wire input shape", "Cadence Activity argument contract", "template-method input design", "backward compatibility"]
+    },
+    {
+      "question": "Is the absence of an adjacent config file always fatal, or may a test-only constructor omit it and supply values directly?",
+      "impacts": ["test design", "Worker startup behavior", "configuration precedence"]
+    },
+    {
+      "question": "Should the initial `DevinHarness` support only `model` and `permission_mode`, or also `sandbox` and `config_path` from the start?",
+      "impacts": ["security surface", "CLI schema", "validation scope", "test coverage"]
+    },
+    {
+      "question": "Should the Activity `*.config.json` files receive a formal JSON Schema and validation in the first implementation?",
+      "impacts": ["configuration documentation", "runtime validation", "test expectations", "schema maintenance"]
+    },
+    {
+      "question": "Should hook return types be checked at runtime or only through static typing and tests?",
+      "impacts": ["template robustness", "observability", "test coverage", "performance"]
+    },
+    {
+      "question": "Is a future operational-override layer needed, and how would its snapshot enter Cadence retry history?",
+      "impacts": ["configuration precedence", "Cadence retry behavior", "ADR-012 supersession", "operational runbook"]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "`src/orchestrator/skill_activity.py`: current `run_skill`, `_conventional_output_path`, `_build_prompt`, `SkillActivityInput`, `SkillActivityOutput`",
+        "`src/orchestrator/harness.py`: current `Harness` Protocol with `run(prompt, cwd)`",
+        "`src/orchestrator/devin_harness.py`: `DevinHarness`, `DevinHarnessConfig`, and command construction",
+        "`src/orchestrator/devin_harness.config.json`: central per-skill configuration to be removed",
+        "`src/orchestrator/activities/*.py`: four concrete Cadence Activity wrappers",
+        "`src/orchestrator/activities/harness_instance.py`: shared `HARNESS` instance",
+        "`src/orchestrator/invocation_context.py`: `skill_invocation_context` context manager",
+        "`src/orchestrator/workflow_logger.py`: safe Activity and Devin logging",
+        "`src/orchestrator/worker.py` and `src/orchestrator/workflow.py`: Cadence Worker and Activity registration",
+        "`src/orchestrator/tests/test_skill_activity.py` and `src/orchestrator/tests/test_devin_harness.py`: existing characterization tests"
+      ],
+      "new_code": [
+        "`src/orchestrator/skill_activity_config.py` or equivalent: Activity config loading and validation",
+        "Base `SkillActivity` class with fixed `execute` and typed no-op hooks",
+        "Adjacent `*.config.json` files for each concrete Activity",
+        "Updated `Harness` Protocol and all fakes/callers to the `run(prompt, cwd, config)` signature",
+        "Migration tests for backward compatibility and template order",
+        "Updated documentation and ADR-012 supersession note"
+      ],
+      "infrastructure": [
+        "Existing host-side Worker, repository root, `.process/` sentinel directory, and test environment",
+        "Existing Cadence local stack for integration verification",
+        "No new database, queue, UI, or service deployment"
+      ],
+      "external_services": [
+        "Host-installed and authenticated `devin` CLI",
+        "Cadence service for Activity execution and retries"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Configure Core Skill Activity Invocation Profiles (`docs/reqs/skill-activity-configs/configure-skill-activity-invocations.analysis.json`) — the current `DevinHarness` and central configuration must exist before they can be refactored"
+      ],
+      "blocks": [
+        "Port additional non-Story-Analysis Skill Activities without editing central skill code",
+        "Activity-start configuration snapshot transport for Cadence retries",
+        "Move Story Analysis Activities into workflow-specific packages"
+      ],
+      "related": [
+        "Story Analysis Workflow orchestration (`docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json`)",
+        "ADR-004: Skill Output Contracts & Sentinel Files",
+        "ADR-012: Skill Activity Invocation Configuration",
+        "ADR-014: Colocated Skill Activity Configuration and Template Method"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Canonical skill names and the four Story Analysis output conventions",
+        "Sentinel file contract and `verify_params` output-key semantics (ADR-004)",
+        "Least-privilege permission model: `auto` default and explicit `accept-edits` for unattended writes",
+        "Template-method pattern and typed no-op hook constraints",
+        "Configuration colocation and namespacing rationale (ADR-014)"
+      ],
+      "technical_knowledge": [
+        "Python dataclasses, `MappingProxyType`, and immutable mapping patterns",
+        "`contextlib` context managers and `contextvars` for invocation context",
+        "JSON validation, schema design, and safe error logging",
+        "Devin CLI argument construction with `subprocess.run` and argument lists",
+        "Cadence Python client Activity registration, Worker startup, and retry behavior",
+        "Protocol-based `Harness` fakes and unit testing"
+      ],
+      "stakeholder_questions": [
+        "Should the legacy `DevinHarnessConfig.resolve(skill_name)` and central `devin_harness.config.json` be deprecated with a concrete timeline?",
+        "Which team owns the Activity `*.config.json` files: skill authors or infrastructure maintainers?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  }
+}
