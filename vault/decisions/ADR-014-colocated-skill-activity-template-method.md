@@ -49,7 +49,3 @@ The current function-based `run_skill` contains Story Analysis output convention
 - **Typed object only** — rejected because adjacent JSON was selected as the source of Activity configuration.
 - **Ignore all unknown keys** — rejected because misspellings inside the active Harness namespace should fail.
 - **Blind dictionary-to-CLI conversion** — rejected because it bypasses validation and creates security and compatibility risks.
-
-## Detailed design
-
-See [Skill Activity Template Method and Colocated Configuration Refactor](../../docs/reqs/skill-activity-configs/refactor/skill-activity-template-method.design.md).
