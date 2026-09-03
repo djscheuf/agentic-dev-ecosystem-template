@@ -7,6 +7,17 @@ attempts) — implemented as a durable Cadence Workflow. See
 for the full design and `docs/reqs/workflow-orchestration/workflow-engine.test-plan.md`
 for the test plan.
 
+## Extending the orchestration system
+
+See [`docs/reqs/workflow-orchestration/mapping-workflows-and-skill-activities.md`](../../docs/reqs/workflow-orchestration/mapping-workflows-and-skill-activities.md)
+for an end-to-end source map and checklists for registering another Cadence Workflow,
+wrapping Devin skills as Activities, composing Worker registries and task lists, and
+chaining independent workflow results through a durable or external coordinator.
+
+The existing Story Analysis code is the reference implementation, not a workflow base
+class. New business workflows should own their contracts, pure engine, Cadence adapter,
+Activities, configuration, and starter rather than importing Story Analysis internals.
+
 ## Layout
 
 | File | Purpose |

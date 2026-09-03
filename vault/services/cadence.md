@@ -113,3 +113,18 @@ sends `human_response`, queries `get_status`, and registers the domain, without 
   the pure `StoryAnalysisEngine` decision logic).
 - [Client API usage](../../docs/reqs/workflow-orchestration/streams/client-api-usage.md) — starter/
   CLI/Signal/Query usage for `src/story_analysis_workflow/`.
+
+## Multi-workflow extension map (2026-09-03)
+
+The Story Analysis implementation is a reference pattern, not a reusable workflow base class.
+The generic `Harness` and `run_skill` boundary is reusable, but the current Cadence registry is
+owned by `orchestrator.workflow`, imports Story Analysis Activities directly, and is consumed by
+a Worker polling one task list. Adding independent workflows cleanly therefore requires a Worker
+composition root for workflow-owned registries rather than adding more business-workflow imports
+to the Story Analysis module.
+
+Workflow chaining has two supported design directions: a separate durable Cadence coordinator
+that invokes configured child workflow wire types, or an external coordinator that persists its
+own progress and starts each workflow through its public client API. Business workflows exchange
+stable input/result envelopes and do not import or name one another. See
+[Mapping Cadence Workflows and Devin Skill Activities](../../docs/mapping-workflows-and-skill-activities.md).
