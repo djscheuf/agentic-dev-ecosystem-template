@@ -21,3 +21,9 @@ class WorkerSpec:
             or any(not isinstance(module, WorkflowModuleSpec) for module in self.modules)
         ):
             raise ValueError("modules must be a non-empty tuple of WorkflowModuleSpec")
+        for module in self.modules:
+            for field_name in ("domain", "task_list"):
+                if getattr(module, field_name) != getattr(self, field_name):
+                    raise ValueError(
+                        f"module {field_name} must match worker {field_name}"
+                    )

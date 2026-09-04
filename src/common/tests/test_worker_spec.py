@@ -40,3 +40,18 @@ def test_worker_spec_rejects_invalid_modules(modules):
             cadence_target="localhost:7933",
             modules=modules,
         )
+
+
+@pytest.mark.parametrize("field", ["domain", "task_list"])
+def test_worker_spec_rejects_module_on_different_route(field):
+    module = _module()
+    values = {
+        "domain": module.domain,
+        "task_list": module.task_list,
+        "cadence_target": "localhost:7933",
+        "modules": (module,),
+    }
+    values[field] = "different"
+
+    with pytest.raises(ValueError, match=rf"module {field} must match worker {field}"):
+        WorkerSpec(**values)
