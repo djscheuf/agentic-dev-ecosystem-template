@@ -28,3 +28,16 @@ def test_read_atif_usage_normalizes_supported_metrics(tmp_path) -> None:
         cached_tokens=40,
         cost_usd=2.0,
     )
+
+
+def test_read_atif_usage_returns_none_for_missing_or_invalid_document(tmp_path) -> None:
+    invalid_path = tmp_path / "invalid.json"
+    invalid_path.write_text("not json")
+
+    results = [
+        read_atif_usage(tmp_path / "missing.json"),
+        read_atif_usage(tmp_path),
+        read_atif_usage(invalid_path),
+    ]
+
+    assert results == [None, None, None]

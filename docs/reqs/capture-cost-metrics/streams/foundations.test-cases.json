@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "read_atif_usage_returns_none_for_missing_or_invalid_document",
-          "status": "pending",
+          "status": "passing",
           "description": "Missing, unreadable, and invalid JSON exports do not produce usage",
           "arrange": "Use a missing path, an unreadable path, and an invalid JSON file",
           "act": "Read usage from each path",
