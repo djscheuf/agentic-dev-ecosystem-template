@@ -1,3 +1,4 @@
+import importlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -976,3 +977,24 @@ def test_execute_concurrently_shares_immutable_snapshot_without_mutation(tmp_pat
         "docs/first.json",
         "docs/second.json",
     ]
+
+
+def test_import_with_invalid_concrete_config_prevents_worker_startup(monkeypatch):
+    from orchestrator.activities import analyze_story as module
+
+    original_read_text = Path.read_text
+
+    def read_text(path, *args, **kwargs):
+        if path.name == "analyze_story.config.json":
+            return "{}"
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    try:
+        with pytest.raises(
+            ValueError, match="invalid_type: activity"
+        ):
+            importlib.reload(module)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(module)
