@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
-from .harness import Harness
+from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
 from .skill_activity_config import SkillActivityConfig
 from .workflow_logger import (
@@ -144,24 +144,47 @@ class SkillActivity(ABC):
     def modify_result(self, result: SkillActivityOutput) -> SkillActivityOutput:
         return result
 
+    def _hook(self, name: str, value: object, expected: type) -> object:
+        result = getattr(self, name)(value)
+        valid = isinstance(result, expected)
+        if expected is AbstractContextManager:
+            valid = hasattr(result, "__enter__") and hasattr(result, "__exit__")
+        if not valid:
+            get_activity_logger().error(
+                "RejectHookResult: skill_name=%s hook_name=%s "
+                "error_category=invalid_hook_return_type",
+                self.skill_name,
+                name,
+            )
+            raise SkillActivityError(f"invalid_hook_return_type: {name}")
+        return result
+
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
-        sentinel_file = self.modify_sentinel_path(
-            _sentinel_path(self.repo_root, self.skill_name)
+        sentinel_file = self._hook(
+            "modify_sentinel_path",
+            _sentinel_path(self.repo_root, self.skill_name),
+            Path,
         )
         if sentinel_file.exists():
             sentinel_file.unlink()
-        prompt = self.modify_prompt(
+        prompt = self._hook(
+            "modify_prompt",
             _build_prompt(
                 SkillActivityInput(
                     skill_name=self.skill_name,
                     input_paths=skill_input.input_paths,
                     context=skill_input.context,
                 )
-            )
+            ),
+            str,
         )
-        config = self.modify_harness_config(self.harness_config)
-        context = self.modify_invocation_context(
-            skill_invocation_context(self.skill_name)
+        config = self._hook(
+            "modify_harness_config", self.harness_config, Mapping
+        )
+        context = self._hook(
+            "modify_invocation_context",
+            skill_invocation_context(self.skill_name),
+            AbstractContextManager,
         )
 
         with activity_log_context():
@@ -171,6 +194,8 @@ class SkillActivity(ABC):
                     prompt, cwd=self.repo_root, config=config
                 )
             duration_ms = int((time.monotonic() - start) * 1000)
+            if not isinstance(result, HarnessResult):
+                raise SkillActivityError("invalid_harness_result")
             if result.exit_code != 0:
                 raise SkillActivityError(
                     f"Harness exited {result.exit_code} while running skill "
@@ -189,7 +214,9 @@ class SkillActivity(ABC):
                     f"Sentinel for skill '{self.skill_name}' is missing "
                     f"verify_params.{self.output_path_key}"
                 )
-            output_path = self.modify_output_path(Path(output_value))
+            output_path = self._hook(
+                "modify_output_path", Path(output_value), Path
+            )
             output = SkillActivityOutput(
                 status="success",
                 output_path=str(output_path),
@@ -198,7 +225,7 @@ class SkillActivity(ABC):
                 activity_log_path=get_activity_log_path() or "",
                 devin_log_path=get_devin_log_path() or "",
             )
-        return self.modify_result(output)
+        return self._hook("modify_result", output, SkillActivityOutput)
 
 
 def run_skill(

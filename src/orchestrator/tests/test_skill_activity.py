@@ -617,3 +617,71 @@ def test_load_with_invalid_adjacent_config_fails_sanitized(tmp_path, monkeypatch
 
     assert errors == [expected for config_path, expected in cases]
     assert "sensitive operating-system detail" not in " ".join(errors)
+
+
+def test_execute_with_invalid_harness_or_hook_result_fails_clearly(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {},
+            }
+        )
+    )
+
+    class ProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+    class ValidHarness:
+        def run(self, prompt, *, cwd, config):
+            _write_sentinel(
+                cwd,
+                "probe-skill",
+                verify_params={"probe_path": "docs/probe.json"},
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    boundaries = [
+        "modify_sentinel_path",
+        "modify_prompt",
+        "modify_harness_config",
+        "modify_invocation_context",
+        "modify_output_path",
+        "modify_result",
+    ]
+    errors = []
+    for boundary in boundaries:
+        activity = ProbeActivity(
+            config_path=config_path,
+            harness=ValidHarness(),
+            repo_root=tmp_path,
+        )
+        setattr(activity, boundary, lambda value: object())
+        with pytest.raises(SkillActivityError) as error:
+            activity.execute(SkillActivityInput(skill_name="ignored"))
+        errors.append(str(error.value))
+
+    class InvalidHarness:
+        def run(self, prompt, *, cwd, config):
+            return object()
+
+    activity = ProbeActivity(
+        config_path=config_path,
+        harness=InvalidHarness(),
+        repo_root=tmp_path,
+    )
+    with pytest.raises(SkillActivityError) as error:
+        activity.execute(SkillActivityInput(skill_name="ignored"))
+    errors.append(str(error.value))
+
+    assert errors == [
+        *(f"invalid_hook_return_type: {boundary}" for boundary in boundaries),
+        "invalid_harness_result",
+    ]
