@@ -5,6 +5,7 @@ from cadence import Registry
 from common import WorkerSpec, WorkflowModuleSpec
 
 from .catalog import CatalogError
+from .single_activity_workflow import WORKFLOW_TYPE, build_single_activity_workflow
 
 
 def compose_worker_specs(
@@ -33,12 +34,18 @@ def build_worker_registry(worker_spec: WorkerSpec) -> Registry:
     try:
         for module in worker_spec.modules:
             module.register(registry)
+        allowed_activity_types = frozenset(
+            name for module in worker_spec.modules for name in module.activity_types
+        )
+        registry.workflow(name=WORKFLOW_TYPE)(
+            build_single_activity_workflow(allowed_activity_types)
+        )
     except Exception as exc:
         raise CatalogError(f"registration_failed: {module.name}") from exc
 
     declared_workflows = {
         name for module in worker_spec.modules for name in module.workflow_types
-    }
+    } | {WORKFLOW_TYPE}
     declared_activities = {
         name for module in worker_spec.modules for name in module.activity_types
     }

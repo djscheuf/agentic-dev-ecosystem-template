@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "DiagnosticWorkflow_WhenRegistered_IsRouteScoped",
-          "status": "pending",
+          "status": "passing",
           "description": "Each Worker registry contains a generic SingleActivityWorkflow limited to that route's declared Activity names.",
           "arrange": "Two worker routes with distinct declared Activity names",
           "act": "Build both registries and execute their diagnostic workflow validation paths",
