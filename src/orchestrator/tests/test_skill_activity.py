@@ -892,3 +892,23 @@ def test_execute_with_invalid_present_sentinel_fails_strictly(tmp_path):
         errors.append(str(error.value))
 
     assert errors == [expected for sentinel, expected in cases]
+
+
+def test_execute_with_required_input_missing_fails_at_fallback(tmp_path):
+    from orchestrator.activities import analyze_story as module
+
+    class SuccessfulHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    activity = module.AnalyzeStorySkillActivity(
+        config_path=Path(module.__file__).with_suffix(".config.json"),
+        harness=SuccessfulHarness(),
+        repo_root=tmp_path,
+    )
+
+    with pytest.raises(
+        SkillActivityError,
+        match="Cannot derive output path without an input path",
+    ):
+        activity.execute(SkillActivityInput(skill_name="ignored"))
