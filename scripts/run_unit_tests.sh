@@ -15,7 +15,7 @@ for arg in "$@"; do
   QUOTED_ARGS+=("$(printf '%q' "$arg")")
 done
 
-RUN_CMD="PYTHONPATH=src .venv/bin/python -m pytest tests/unit src/orchestrator/tests src/story_analysis_workflow/tests ${QUOTED_ARGS[*]}"
+RUN_CMD="PYTHONPATH=src .venv/bin/python -m pytest tests/unit src/common/tests src/orchestrator/tests src/story_analysis_workflow/tests ${QUOTED_ARGS[*]}"
 
 cd "$REPO_ROOT"
 exec nix-shell --run "$RUN_CMD"
