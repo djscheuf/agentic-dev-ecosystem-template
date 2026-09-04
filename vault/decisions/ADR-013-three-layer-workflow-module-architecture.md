@@ -70,3 +70,11 @@ The implementation design resolves the open topology choices for the first incre
 - Register workflow classes after definition through `registry.workflow(name=...)(WorkflowClass)`; local inspection confirms `cadence-python-client` 0.3.0 supports direct registration, and an executable characterization test must preserve this assumption.
 - Keep Story Analysis artifact fallback behavior in concrete Story Analysis Activities while generalized resolution remains deferred.
 - Use static architecture tests for package dependency rules and runtime validation for module descriptors and registry conflicts.
+
+## Implementation status (2026-09-04)
+
+- `src/common` now exposes frozen, intrinsically validated `WorkflowModuleSpec` and `WorkerSpec` contracts.
+- Generic Harness, invocation context, colocated Activity configuration, Devin Harness, SkillActivity lifecycle, and route-aware worker logging have common-layer APIs.
+- An AST-based test enforces that `common` does not import `orchestrator` or workflow packages.
+- `scripts/run_unit_tests.sh` includes the common suite.
+- Existing orchestrator implementations remain during the staged migration; later workstreams must redirect consumers before removing them.
