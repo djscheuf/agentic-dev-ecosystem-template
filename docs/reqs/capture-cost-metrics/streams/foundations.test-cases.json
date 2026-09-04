@@ -72,7 +72,7 @@
         {
           "id": 7,
           "name": "read_atif_usage_preserves_partial_supported_metrics",
-          "status": "pending",
+          "status": "passing",
           "description": "Partial standard metrics remain useful without inventing zero values",
           "arrange": "Write final_metrics with prompt tokens and an unknown billing field only",
           "act": "Read usage from the export",
