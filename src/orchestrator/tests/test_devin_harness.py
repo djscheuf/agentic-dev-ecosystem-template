@@ -541,3 +541,34 @@ def test_run_with_unknown_or_invalid_devin_setting_rejects_before_launch(tmp_pat
 
     assert errors == [expected for config, expected in cases]
     assert calls == []
+
+
+def test_run_with_sibling_harness_namespace_ignores_sibling(tmp_path):
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    sibling = {"unknown": ["preserve", {"nested": True}]}
+    config = {
+        "devin": {"model": "SWE-2.0", "permission_mode": "accept-edits"},
+        "other-agent": sibling,
+    }
+
+    DevinHarness(runner=runner).run("prompt", cwd=tmp_path, config=config)
+
+    assert commands == [
+        [
+            "devin",
+            "-p",
+            "--permission-mode",
+            "accept-edits",
+            "--model",
+            "SWE-2.0",
+            "--",
+            "prompt",
+        ]
+    ]
+    assert config["other-agent"] is sibling
+    assert sibling == {"unknown": ["preserve", {"nested": True}]}
