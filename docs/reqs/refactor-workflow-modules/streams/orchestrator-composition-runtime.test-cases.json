@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "WorkerRuntime_WhenStarted_ManagesTopologyTransactionally",
-          "status": "pending",
+          "status": "passing",
           "description": "One Client and Worker context is supervised per WorkerSpec with all-or-nothing startup and reverse-order cleanup.",
           "arrange": "Fake async Client and Worker factories for successful startup, second-worker startup failure, and stop signaling",
           "act": "Run the composed topology supervisor",
