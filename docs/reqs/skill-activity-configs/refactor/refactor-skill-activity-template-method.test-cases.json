@@ -1,0 +1,38 @@
+{
+  "target_story": "docs/reqs/skill-activity-configs/refactor/refactor-skill-activity-template-method.analysis.json",
+  "source_workstream": "docs/reqs/skill-activity-configs/refactor/refactor-skill-activity-template-method.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Core configuration and Harness flow",
+      "tests": [
+        {"id": 1, "name": "Load_WithValidAdjacentConfig_ReturnsImmutableSnapshot", "status": "pending", "description": "Load required activity fields and recursively freeze Harness settings once at startup.", "arrange": "A valid adjacent JSON config with nested mappings and arrays", "act": "Construct and load SkillActivityConfig, then modify the source file", "assert": "Required values and the original deeply immutable Harness snapshot remain"},
+        {"id": 2, "name": "Run_WithNamespacedDevinConfig_BuildsSafeCommand", "status": "pending", "description": "DevinHarness translates explicit settings and defaults with an argv list.", "arrange": "A controlled runner and devin model/permission mapping", "act": "Run DevinHarness", "assert": "Exactly one non-shell command contains the configured flags and prompt"},
+        {"id": 3, "name": "Execute_WithSuccessfulSentinel_CompletesFixedLifecycle", "status": "pending", "description": "The template invokes each hook in order, enters context, calls Harness once, and resolves the sentinel.", "arrange": "A recording SkillActivity and Harness that writes a valid sentinel", "act": "Execute the Activity", "assert": "Lifecycle order, context cleanup, immutable config, and output are correct"},
+        {"id": 4, "name": "Adapters_WithConcreteActivities_PreserveWireAndGradeSemantics", "status": "pending", "description": "Four concrete classes/configs retain naming, adapters, and grade enrichment.", "arrange": "Concrete Activities with a fake Harness and grade artifact", "act": "Execute conventions and Cadence adapters", "assert": "Wire shapes, fallback names, score/passed, and accept-edits configs remain compatible"}
+      ]
+    },
+    {
+      "description": "Priority 2: Critical validation and failures",
+      "tests": [
+        {"id": 5, "name": "Load_WithMissingUnreadableMalformedOrIncompleteConfig_FailsSanitized", "status": "pending", "description": "Invalid adjacent configuration prevents startup without leaking OS details.", "arrange": "Missing, unreadable, malformed, wrong-typed, and incomplete files", "act": "Construct SkillActivityConfig/SkillActivity", "assert": "Stable categorized errors name only safe paths/fields and Harness is not invoked"},
+        {"id": 6, "name": "Run_WithUnknownOrInvalidDevinSetting_RejectsBeforeLaunch", "status": "pending", "description": "Strictly validate only Devin's namespace.", "arrange": "Unknown keys, wrong namespace types, null/empty/wrong values", "act": "Run DevinHarness", "assert": "A sanitized ValueError occurs and runner is not called"},
+        {"id": 7, "name": "Execute_WithInvalidHarnessOrHookResult_FailsClearly", "status": "pending", "description": "Template boundary validation rejects wrong Harness and six hook result types.", "arrange": "Implementations returning invalid values", "act": "Execute the Activity", "assert": "SkillActivityError identifies the invalid boundary"},
+        {"id": 8, "name": "Execute_WithNonzeroHarnessResult_FailsWithoutSensitiveOutput", "status": "pending", "description": "Nonzero execution fails once and logs only sanitized metadata.", "arrange": "Harness result containing sensitive stderr", "act": "Execute the Activity", "assert": "SkillActivityError and safe event occur without stderr/prompt/config"},
+        {"id": 9, "name": "Run_WithLaunchOSError_ReportsSanitizedFailure", "status": "pending", "description": "CLI startup errors are sanitized.", "arrange": "Runner raises OSError with sensitive detail", "act": "Run DevinHarness", "assert": "devin_launch_failed is raised/logged without raw detail"}
+      ]
+    },
+    {
+      "description": "Priority 3: Sentinel, isolation, and compatibility edges",
+      "tests": [
+        {"id": 10, "name": "Execute_WithStaleSentinel_RemovesBeforeHarness", "status": "pending", "description": "Retries cannot consume stale completion state.", "arrange": "A stale sentinel and recording Harness", "act": "Execute the Activity", "assert": "Sentinel is absent when Harness starts and fresh output wins"},
+        {"id": 11, "name": "Execute_WithMissingSentinel_UsesConcreteFallbackAndWarns", "status": "pending", "description": "Consumed sentinels use the concrete output convention.", "arrange": "Successful Harness without a sentinel", "act": "Execute the Activity", "assert": "Expected output path is returned with a sanitized warning"},
+        {"id": 12, "name": "Execute_WithMalformedMismatchedOrIncompleteSentinel_Fails", "status": "pending", "description": "Present invalid sentinels retain strict ADR-004 semantics.", "arrange": "Malformed JSON, wrong task, or missing verify key", "act": "Execute the Activity", "assert": "SkillActivityError is raised"},
+        {"id": 13, "name": "Execute_WithRequiredInputMissing_FailsAtFallback", "status": "pending", "description": "Concrete output conventions clearly reject absent input paths.", "arrange": "No input paths and no sentinel", "act": "Execute a concrete Activity", "assert": "A clear SkillActivityError is raised"},
+        {"id": 14, "name": "Run_WithSiblingHarnessNamespace_IgnoresSibling", "status": "pending", "description": "Harness ownership stays isolated.", "arrange": "Valid devin and arbitrary sibling namespace", "act": "Run DevinHarness", "assert": "Only devin is inspected and sibling data is unchanged"},
+        {"id": 15, "name": "Execute_Concurrently_SharesImmutableSnapshotWithoutMutation", "status": "pending", "description": "Worker-lifetime configuration is safe across invocations.", "arrange": "One Activity instance used by concurrent calls", "act": "Execute calls that attempt nested mutation", "assert": "Both calls observe the same unchanged immutable snapshot"},
+        {"id": 16, "name": "Import_WithInvalidConcreteConfig_PreventsWorkerStartup", "status": "pending", "description": "Eager concrete instance construction validates before polling.", "arrange": "A concrete module whose adjacent config is invalid", "act": "Import/register Activities", "assert": "Import fails before a Worker starts"},
+        {"id": 17, "name": "Onboard_WithNewClassAndAdjacentConfig_RequiresNoCentralCatalogEdit", "status": "pending", "description": "A probe Activity demonstrates the two-file extension contract.", "arrange": "A new subclass and adjacent config with alternate Harness namespace", "act": "Construct and execute it", "assert": "It succeeds without generic runner or Devin profile-map changes"}
+      ]
+    }
+  ]
+}
