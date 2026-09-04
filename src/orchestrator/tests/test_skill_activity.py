@@ -833,3 +833,62 @@ def test_execute_with_missing_sentinel_uses_concrete_fallback_and_warns(tmp_path
         "WarnSkillArtifactVerification: skill_name=analyze-story "
         "failure_reason=missing_sentinel output_path=docs/story.analysis.json"
     ]
+
+
+def test_execute_with_invalid_present_sentinel_fails_strictly(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {},
+            }
+        )
+    )
+
+    class ProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+    class SentinelHarness:
+        def __init__(self, sentinel):
+            self.sentinel = sentinel
+
+        def run(self, prompt, *, cwd, config):
+            sentinel_path = cwd / ".process" / "probe-skill.done.json"
+            sentinel_path.parent.mkdir(parents=True, exist_ok=True)
+            sentinel_path.write_text(
+                self.sentinel
+                if isinstance(self.sentinel, str)
+                else json.dumps(self.sentinel)
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    cases = [
+        ("{", "Malformed sentinel for skill 'probe-skill'"),
+        (
+            {"task": "other-skill", "verify_params": {"probe_path": "out.json"}},
+            "Sentinel task mismatch for skill 'probe-skill'",
+        ),
+        (
+            {"task": "probe-skill", "verify_params": {}},
+            "Sentinel for skill 'probe-skill' is missing verify_params.probe_path",
+        ),
+    ]
+    errors = []
+    for sentinel, expected in cases:
+        activity = ProbeActivity(
+            config_path=config_path,
+            harness=SentinelHarness(sentinel),
+            repo_root=tmp_path,
+        )
+        with pytest.raises(SkillActivityError) as error:
+            activity.execute(SkillActivityInput(skill_name="ignored"))
+        errors.append(str(error.value))
+
+    assert errors == [expected for sentinel, expected in cases]

@@ -217,6 +217,10 @@ class SkillActivity(ABC):
                     "missing_sentinel",
                     output_path,
                 )
+            except json.JSONDecodeError as exc:
+                raise SkillActivityError(
+                    f"Malformed sentinel for skill '{self.skill_name}'"
+                ) from exc
             else:
                 if sentinel.get("task") != self.skill_name:
                     raise SkillActivityError(
