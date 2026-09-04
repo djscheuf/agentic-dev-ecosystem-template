@@ -7,12 +7,21 @@ def _register(registry):
     return None
 
 
-def test_workflow_module_spec_rejects_blank_name():
-    with pytest.raises(ValueError, match="name must be a non-empty trimmed string"):
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("name", " "),
+        ("domain", " domain "),
+        ("task_list", ""),
+    ],
+)
+def test_workflow_module_spec_rejects_invalid_identity(field, value):
+    values = {"name": "module", "domain": "domain", "task_list": "task-list"}
+    values[field] = value
+
+    with pytest.raises(ValueError, match=rf"{field} must be a non-empty trimmed string"):
         WorkflowModuleSpec(
-            name=" ",
-            domain="domain",
-            task_list="task-list",
+            **values,
             workflow_types=("Workflow",),
             activity_types=("activity",),
             register=_register,

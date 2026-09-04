@@ -12,5 +12,7 @@ class WorkflowModuleSpec:
     register: Callable[[object], None]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name.strip() or self.name != self.name.strip():
-            raise ValueError("name must be a non-empty trimmed string")
+        for field_name in ("name", "domain", "task_list"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError(f"{field_name} must be a non-empty trimmed string")
