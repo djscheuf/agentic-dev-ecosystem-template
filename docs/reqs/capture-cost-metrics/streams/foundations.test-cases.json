@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "harness_usage_is_immutable",
-          "status": "pending",
+          "status": "passing",
           "description": "Normalized usage is an immutable value object with optional metrics",
           "arrange": "Construct HarnessUsage with all four supported metrics",
           "act": "Attempt to mutate a metric",

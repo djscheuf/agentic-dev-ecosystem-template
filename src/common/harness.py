@@ -6,11 +6,19 @@ from typing import Mapping, Protocol
 
 
 @dataclass(frozen=True)
+class HarnessUsage:
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cached_tokens: int | None = None
+    cost_usd: float | None = None
+
+
+@dataclass(frozen=True)
 class HarnessResult:
     exit_code: int
     stdout: str
     stderr: str
-    usage: object | None = None
+    usage: HarnessUsage | None = None
 
 
 class Harness(Protocol):
