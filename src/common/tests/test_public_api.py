@@ -1,6 +1,16 @@
-def test_common_exports_workflow_module_and_worker_specs():
+def test_common_exports_stable_foundation_api():
     import common
 
-    assert common.__all__ == ["WorkflowModuleSpec", "WorkerSpec"]
-    assert common.WorkflowModuleSpec.__name__ == "WorkflowModuleSpec"
-    assert common.WorkerSpec.__name__ == "WorkerSpec"
+    assert common.__all__ == [
+        "DevinHarness",
+        "DevinHarnessConfig",
+        "Harness",
+        "HarnessResult",
+        "SkillActivity",
+        "SkillActivityConfig",
+        "SkillActivityError",
+        "SkillActivityInput",
+        "SkillActivityOutput",
+        "WorkerSpec",
+        "WorkflowModuleSpec",
+    ]
