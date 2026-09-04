@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "StoryAnalysisClients_WhenMigrated_UseOwnedContractsAndCommonLogging",
-          "status": "pending",
+          "status": "passing",
           "description": "Starter, CLI, signals, queries, and diagnostic client use workflow-owned contracts and common logging.",
           "arrange": "Existing Story Analysis client tests and centralized wire constants",
           "act": "Run client unit tests after replacing orchestrator imports",

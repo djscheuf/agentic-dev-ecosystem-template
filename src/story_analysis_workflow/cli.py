@@ -14,7 +14,7 @@ from typing import Callable, Optional, Sequence
 from cadence.client import Client
 from cadence.error import EntityNotExistsError
 from cadence.api.v1 import service_domain_pb2
-from orchestrator.workflow_logger import client_log_context, get_client_logger
+from .workflow_logger import client_log_context, get_client_logger
 
 from .config import CadenceConfig, load_config
 from .queries import get_status

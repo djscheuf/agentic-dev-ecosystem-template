@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from orchestrator.workflow_logger import client_log_context, get_client_logger
+from .workflow_logger import client_log_context, get_client_logger
 
 from .config import CadenceConfig, load_config
 

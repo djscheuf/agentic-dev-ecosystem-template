@@ -1,6 +1,6 @@
 """Client-side helpers for sending the Story Analysis Workflow's human_response Signal."""
 
-from orchestrator.escalation import parse_human_response
+from .escalation import parse_human_response
 
 SIGNAL_NAME = "human_response"
 

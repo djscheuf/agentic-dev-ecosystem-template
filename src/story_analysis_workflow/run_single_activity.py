@@ -24,20 +24,20 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
 from cadence.client import Client
-from orchestrator.workflow_logger import client_log_context, get_client_logger
-
-from orchestrator.single_activity_workflow import (
-    KNOWN_ACTIVITY_NAMES,
-    UNSUPPORTED_ACTIVITY_NAMES,
-    WORKFLOW_TYPE,
-)
 
 from .config import CadenceConfig, load_config
+from .workflow_logger import client_log_context, get_client_logger
 from .queries import get_activity_result
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ClientFactory = Callable[[CadenceConfig], Client]
-
+WORKFLOW_TYPE = "SingleActivityWorkflow"
+KNOWN_ACTIVITY_NAMES = frozenset(
+    {"extract_story_intent", "analyze_story", "grade_story_analysis", "repair_story_analysis"}
+)
+UNSUPPORTED_ACTIVITY_NAMES = {
+    "repair_story_analysis": "needs two input files (analysis + grade)",
+}
 SUPPORTED_ACTIVITY_NAMES = KNOWN_ACTIVITY_NAMES - set(UNSUPPORTED_ACTIVITY_NAMES)
 
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
