@@ -752,3 +752,48 @@ def test_execute_with_nonzero_harness_result_fails_without_sensitive_output(tmp_
             "sensitive-config",
         )
     )
+
+
+def test_execute_with_stale_sentinel_removes_before_harness(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {},
+            }
+        )
+    )
+    _write_sentinel(
+        tmp_path,
+        "probe-skill",
+        verify_params={"probe_path": "docs/stale.json"},
+    )
+    sentinel_path = tmp_path / ".process" / "probe-skill.done.json"
+
+    class ProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+    class RecordingHarness:
+        def run(self, prompt, *, cwd, config):
+            assert not sentinel_path.exists()
+            _write_sentinel(
+                cwd,
+                "probe-skill",
+                verify_params={"probe_path": "docs/fresh.json"},
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    output = ProbeActivity(
+        config_path=config_path,
+        harness=RecordingHarness(),
+        repo_root=tmp_path,
+    ).execute(SkillActivityInput(skill_name="ignored"))
+
+    assert output.output_path == "docs/fresh.json"
