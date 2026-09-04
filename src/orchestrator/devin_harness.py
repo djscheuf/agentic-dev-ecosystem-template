@@ -22,6 +22,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.js
 DEFAULT_MODEL = "SWE-1.7"
 DEFAULT_PERMISSION_MODE = "auto"
 SUPPORTED_PERMISSION_MODES = frozenset({"auto", "accept-edits", "dangerous", "bypass"})
+_SUPPORTED_KEYS = frozenset({"model", "permission_mode"})
 
 
 def _validate_profile(data: dict, scope: str) -> None:
@@ -125,6 +126,24 @@ class DevinHarness:
         self.config = config or DevinHarnessConfig.load()
         self._runner = runner
 
+    def _profile(self, config: Mapping[str, object]) -> EffectiveDevinProfile:
+        namespace = config.get("devin", {})
+        if not isinstance(namespace, Mapping):
+            raise ValueError("invalid_namespace_type: devin")
+        unknown = set(namespace) - _SUPPORTED_KEYS
+        if unknown:
+            raise ValueError(f"unknown_key: devin.{sorted(unknown)[0]}")
+        model = namespace.get("model", DEFAULT_MODEL)
+        permission_mode = namespace.get("permission_mode", DEFAULT_PERMISSION_MODE)
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("invalid_value: devin.model")
+        if (
+            not isinstance(permission_mode, str)
+            or permission_mode not in SUPPORTED_PERMISSION_MODES
+        ):
+            raise ValueError("invalid_value: devin.permission_mode")
+        return EffectiveDevinProfile(model=model, permission_mode=permission_mode)
+
     def run(
         self,
         prompt: str,
@@ -136,13 +155,15 @@ class DevinHarness:
         if config is None:
             profile = self.config.resolve(skill_name)
         else:
-            namespace = config.get("devin", {})
-            profile = EffectiveDevinProfile(
-                model=namespace.get("model", DEFAULT_MODEL),
-                permission_mode=namespace.get(
-                    "permission_mode", DEFAULT_PERMISSION_MODE
-                ),
-            )
+            try:
+                profile = self._profile(config)
+            except ValueError as exc:
+                get_activity_logger().error(
+                    "RejectDevinConfiguration: skill_name=%s error_category=%s",
+                    skill_name,
+                    exc,
+                )
+                raise
         command = [
             "devin",
             "-p",

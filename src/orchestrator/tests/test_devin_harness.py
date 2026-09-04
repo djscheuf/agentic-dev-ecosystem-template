@@ -514,3 +514,30 @@ def test_run_with_namespaced_devin_config_builds_safe_command(tmp_path):
             {"cwd": str(tmp_path), "capture_output": True, "text": True},
         )
     ]
+
+
+def test_run_with_unknown_or_invalid_devin_setting_rejects_before_launch(tmp_path):
+    calls = []
+    harness = DevinHarness(
+        runner=lambda command, **kwargs: calls.append((command, kwargs))
+    )
+    cases = [
+        ({"devin": {"permisson_mode": "auto"}}, "unknown_key: devin.permisson_mode"),
+        ({"devin": []}, "invalid_namespace_type: devin"),
+        ({"devin": {"model": None}}, "invalid_value: devin.model"),
+        ({"devin": {"model": ""}}, "invalid_value: devin.model"),
+        ({"devin": {"model": 7}}, "invalid_value: devin.model"),
+        (
+            {"devin": {"permission_mode": "unsupported"}},
+            "invalid_value: devin.permission_mode",
+        ),
+    ]
+
+    errors = []
+    for config, expected in cases:
+        with pytest.raises(ValueError) as error:
+            harness.run("prompt", cwd=tmp_path, config=config)
+        errors.append(str(error.value))
+
+    assert errors == [expected for config, expected in cases]
+    assert calls == []
