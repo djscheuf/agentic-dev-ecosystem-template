@@ -1,0 +1,52 @@
+{
+  "target_story": "docs/reqs/capture-cost-metrics/capture-devin-cost-metrics.analysis.json",
+  "source_workstream": "docs/reqs/capture-cost-metrics/streams/logging-infrastructure.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Activity artifact context",
+      "tests": [
+        {
+          "id": 1,
+          "name": "activity_log_context_exposes_attempt_scoped_artifact_directory",
+          "status": "passing",
+          "description": "Activity and Devin logs share an exposed attempt-scoped artifact directory",
+          "arrange": "Configure a temporary log root and explicit Cadence Activity info",
+          "act": "Enter activity_log_context and request the artifact directory",
+          "assert": "The directory contains activity.log and devin.log and includes the Activity attempt"
+        },
+        {
+          "id": 2,
+          "name": "activity_artifact_directory_is_none_without_activity_context",
+          "status": "pending",
+          "description": "Callers outside Cadence Activity logging do not receive a durable artifact path",
+          "arrange": "Use no Activity context and an activity_log_context with no resolvable Activity info",
+          "act": "Request the current artifact directory",
+          "assert": "The result is None before, during, and after the fallback context"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Filesystem safety and isolation",
+      "tests": [
+        {
+          "id": 3,
+          "name": "activity_artifact_directory_sanitizes_path_unsafe_identifiers",
+          "status": "pending",
+          "description": "Workflow, run, and Activity identifiers cannot escape the configured log root",
+          "arrange": "Provide identifiers containing traversal segments, separators, dots, and unicode",
+          "act": "Enter activity_log_context and request the artifact directory",
+          "assert": "Every derived component is sanitized and the resolved directory remains below the log root"
+        },
+        {
+          "id": 4,
+          "name": "activity_artifact_directories_isolate_activities_and_retry_attempts",
+          "status": "pending",
+          "description": "Concurrent Activity identities and retry attempts never select the same artifact directory",
+          "arrange": "Create Activity info values that vary by Activity id and attempt within one workflow run",
+          "act": "Resolve an artifact directory for each Activity context",
+          "assert": "All resulting directories are distinct and each retains its own log files"
+        }
+      ]
+    }
+  ]
+}
