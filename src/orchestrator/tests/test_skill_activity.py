@@ -404,3 +404,41 @@ def test_run_skill_for_each_story_analysis_skill_uses_configured_profile_and_art
     for command in commands:
         assert command[command.index("--model") + 1] == "SWE-1.7"
         assert command[command.index("--permission-mode") + 1] == "accept-edits"
+
+
+def test_load_with_valid_adjacent_config_returns_immutable_snapshot(tmp_path):
+    from orchestrator.skill_activity_config import SkillActivityConfig
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {
+                    "devin": {
+                        "model": "SWE-1.7",
+                        "permission_mode": "accept-edits",
+                        "options": ["first", {"nested": ["value"]}],
+                    }
+                },
+            }
+        )
+    )
+
+    loaded = SkillActivityConfig.load(config_path)
+    config_path.write_text("{}")
+
+    assert loaded.skill_name == "probe-skill"
+    assert loaded.output_path_key == "probe_path"
+    assert loaded.harness["devin"]["options"] == (
+        "first",
+        loaded.harness["devin"]["options"][1],
+    )
+    assert loaded.harness["devin"]["options"][1]["nested"] == ("value",)
+    with pytest.raises(TypeError):
+        loaded.harness["devin"]["model"] = "changed"
+    with pytest.raises(TypeError):
+        loaded.harness["devin"]["options"][1]["nested"] = ()
