@@ -22,6 +22,15 @@
           "arrange": "A catalog inspection result containing multiple routes, repeated domains, and the empty-catalog shape.",
           "act": "Inspect the startup script's topology discovery, registration, readiness, and summary behavior.",
           "assert": "The script calls inspect-catalog, registers each distinct domain once, checks every domain/task-list route, contains no hard-coded Story Analysis route, and handles zero Workers successfully."
+        },
+        {
+          "id": 5,
+          "name": "WorkerStart_OnTerminationSignal_RequestsCoordinatedShutdown",
+          "status": "passing",
+          "description": "The host process converts SIGTERM and SIGINT into the shared stop event so AsyncExitStack can close every Worker context.",
+          "arrange": "A recording event loop and a shared asyncio Event.",
+          "act": "Install orchestrator shutdown handlers and invoke the registered signal callbacks.",
+          "assert": "Both termination signals register callbacks that set the shared stop event instead of terminating before context cleanup."
         }
       ]
     },

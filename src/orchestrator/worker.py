@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 from pathlib import Path
 
 from cadence.client import Client
@@ -34,23 +35,33 @@ def inspect_catalog(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CA
     }
 
 
+def install_shutdown_handlers(stop_event, loop=None):
+    event_loop = loop or asyncio.get_running_loop()
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        event_loop.add_signal_handler(signum, stop_event.set)
+
+
+async def _run_worker_specs(worker_specs):
+    stop_event = asyncio.Event()
+    install_shutdown_handlers(stop_event)
+    await run_worker_topology(
+        worker_specs,
+        stop_event,
+        client_factory=lambda spec: Client(
+            domain=spec.domain, target=spec.cadence_target
+        ),
+        worker_factory=lambda spec, client: Worker(
+            client, spec.task_list, build_worker_registry(spec)
+        ),
+    )
+
+
 def start(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CADENCE_TARGET):
     worker_specs = load_worker_specs(catalog_path, cadence_target)
     if not worker_specs:
         logging.getLogger(__name__).warning("zero configured Workers; exiting")
         return 0
-    asyncio.run(
-        run_worker_topology(
-            worker_specs,
-            asyncio.Event(),
-            client_factory=lambda spec: Client(
-                domain=spec.domain, target=spec.cadence_target
-            ),
-            worker_factory=lambda spec, client: Worker(
-                client, spec.task_list, build_worker_registry(spec)
-            ),
-        )
-    )
+    asyncio.run(_run_worker_specs(worker_specs))
     return 0
 
 
