@@ -578,3 +578,42 @@ def test_adapters_with_concrete_activities_preserve_output_and_config_contracts(
         (activity.skill_name, expected_path, "accept-edits")
         for activity, skill_input, expected_path in cases
     ]
+
+
+def test_load_with_invalid_adjacent_config_fails_sanitized(tmp_path, monkeypatch):
+    from orchestrator.skill_activity_config import SkillActivityConfig
+
+    malformed = tmp_path / "malformed.config.json"
+    malformed.write_text("{")
+    wrong_type = tmp_path / "wrong-type.config.json"
+    wrong_type.write_text("[]")
+    incomplete = tmp_path / "incomplete.config.json"
+    incomplete.write_text(
+        json.dumps({"activity": {"skill_name": "probe"}, "harness": {}})
+    )
+    unreadable = tmp_path / "unreadable.config.json"
+    unreadable.write_text("{}")
+    original_read_text = type(unreadable).read_text
+
+    def read_text(path, *args, **kwargs):
+        if path == unreadable:
+            raise PermissionError("sensitive operating-system detail")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(type(unreadable), "read_text", read_text)
+    cases = [
+        (tmp_path / "missing.config.json", "missing_file: missing.config.json"),
+        (unreadable, "unreadable_file: unreadable.config.json"),
+        (malformed, "malformed_json: malformed.config.json"),
+        (wrong_type, "invalid_type: root"),
+        (incomplete, "missing_field: activity.output_path_key"),
+    ]
+
+    errors = []
+    for config_path, expected in cases:
+        with pytest.raises(ValueError) as error:
+            SkillActivityConfig.load(config_path)
+        errors.append(str(error.value))
+
+    assert errors == [expected for config_path, expected in cases]
+    assert "sensitive operating-system detail" not in " ".join(errors)
