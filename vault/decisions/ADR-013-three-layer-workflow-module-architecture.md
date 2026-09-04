@@ -95,3 +95,11 @@ The implementation design resolves the open topology choices for the first incre
 - Worker startup uses one process and `AsyncExitStack`, so partial startup failure and normal cancellation close entered Worker and Client contexts in reverse order.
 - `python -m orchestrator.worker inspect-catalog` emits machine-readable topology; an empty valid catalog warns and exits successfully.
 - The NixOS unit entry point passes 171 tests after orchestrator composition implementation.
+
+## Operations implementation status (2026-09-04)
+
+- `start-workflow-engine.sh` consumes validated `inspect-catalog` JSON, registers every distinct domain, waits for every domain/task-list poller, and treats an empty catalog as a successful no-Worker startup.
+- The worker converts SIGINT and SIGTERM into its shared stop event so `AsyncExitStack` closes all Worker and Client contexts before the host process exits.
+- Worker lifecycle logs identify each domain/task-list route and report topology readiness only after every Worker context enters.
+- The single-Activity diagnostic CLI requires explicit `--domain` and `--task-list` routing and rejects invalid Activity selections before creating a Cadence client.
+- The NixOS unit entry point passes 175 tests after operations implementation.
