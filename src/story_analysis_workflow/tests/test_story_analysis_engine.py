@@ -1,7 +1,7 @@
 import pytest
 
-from orchestrator.escalation import EscalationReason, HumanDecision, HumanResponse
-from orchestrator.story_analysis_engine import ActivityFailure, StoryAnalysisEngine
+from story_analysis_workflow.escalation import EscalationReason, HumanDecision, HumanResponse
+from story_analysis_workflow.story_analysis_engine import ActivityFailure, StoryAnalysisEngine
 
 
 class FakeActivities:

@@ -17,7 +17,7 @@ from cadence.client import Client
 from cadence.worker import Worker
 
 from . import single_activity_workflow  # noqa: F401  (registers SingleActivityWorkflow)
-from .workflow import registry
+from story_analysis_workflow.workflow import registry
 from .workflow_logger import get_worker_logger, setup_worker_logging
 
 CADENCE_TARGET = os.environ.get("CADENCE_TARGET", "localhost:7833")

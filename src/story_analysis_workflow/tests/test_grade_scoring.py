@@ -1,6 +1,6 @@
 import pytest
 
-from orchestrator.grade_scoring import score_analysis_grade
+from story_analysis_workflow.grade_scoring import score_analysis_grade
 
 
 def _dim(score):

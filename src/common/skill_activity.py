@@ -9,6 +9,7 @@ from pathlib import Path
 from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
 from .skill_activity_config import SkillActivityConfig
+from .workflow_logger import get_activity_logger
 
 
 class SkillActivityError(RuntimeError):
@@ -64,7 +65,9 @@ class SkillActivity(ABC):
                 config=self.harness_config,
             )
         duration_ms = int((time.monotonic() - start) * 1000)
-        if not isinstance(result, HarnessResult):
+        if not isinstance(result, HarnessResult) and not all(
+            hasattr(result, field) for field in ("exit_code", "stdout", "stderr")
+        ):
             raise SkillActivityError("invalid_harness_result")
         if result.exit_code:
             raise SkillActivityError(
@@ -74,6 +77,11 @@ class SkillActivity(ABC):
             payload = json.loads(sentinel.read_text())
         except FileNotFoundError:
             output_path = self.expected_output_path(skill_input)
+            get_activity_logger().warning(
+                "WarnSkillArtifactVerification: skill_name=%s failure_reason=missing_sentinel output_path=%s",
+                self.skill_name,
+                output_path,
+            )
         except json.JSONDecodeError as exc:
             raise SkillActivityError(f"Malformed sentinel for skill '{self.skill_name}'") from exc
         else:

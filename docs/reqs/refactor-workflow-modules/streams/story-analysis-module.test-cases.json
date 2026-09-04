@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "StoryAnalysisPackage_WhenImportsAnalyzed_RespectsLayerBoundary",
-          "status": "pending",
+          "status": "passing",
           "description": "The workflow package imports common and its own modules but not orchestrator or another workflow package.",
           "arrange": "All Python files under story_analysis_workflow",
           "act": "Analyze imports statically",

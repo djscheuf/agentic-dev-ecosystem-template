@@ -23,7 +23,11 @@ from cadence import workflow
 from cadence.error import ActivityFailure as CadenceActivityFailure
 from cadence.workflow import execute_activity
 
-from .workflow import ACTIVITY_RETRY_POLICY, ACTIVITY_START_TO_CLOSE_TIMEOUT, registry
+from story_analysis_workflow.workflow import (
+    ACTIVITY_RETRY_POLICY,
+    ACTIVITY_START_TO_CLOSE_TIMEOUT,
+    registry,
+)
 
 WORKFLOW_TYPE = "SingleActivityWorkflow"
 

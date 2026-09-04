@@ -1,6 +1,6 @@
 import pytest
 
-from orchestrator.escalation import (
+from story_analysis_workflow.escalation import (
     EscalationReason,
     HumanDecision,
     parse_human_response,

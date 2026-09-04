@@ -31,3 +31,29 @@ def worker_log_context(
 
 def get_worker_logger() -> logging.LoggerAdapter:
     return _RouteAdapter(logging.getLogger("workflow.worker"), {})
+
+
+@contextmanager
+def workflow_log_context(*args, **kwargs) -> Iterator[logging.Logger]:
+    yield logging.getLogger("workflow.execution")
+
+
+@contextmanager
+def client_log_context(*args, **kwargs) -> Iterator[logging.Logger]:
+    yield logging.getLogger("workflow.client")
+
+
+def get_workflow_logger() -> logging.Logger:
+    return logging.getLogger("workflow.execution")
+
+
+def get_client_logger() -> logging.Logger:
+    return logging.getLogger("workflow.client")
+
+
+def get_activity_logger() -> logging.Logger:
+    return logging.getLogger("workflow.activity")
+
+
+def get_workflow_log_path() -> None:
+    return None

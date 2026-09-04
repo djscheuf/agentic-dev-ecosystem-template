@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from common.skill_activity import SkillActivityError as CommonSkillActivityError
 from orchestrator.devin_harness import DevinHarness, DevinHarnessConfig
 from orchestrator.harness import HarnessResult
 from orchestrator.invocation_context import get_current_skill_name
@@ -543,10 +544,10 @@ def test_execute_with_successful_sentinel_completes_fixed_lifecycle(tmp_path):
 
 
 def test_adapters_with_concrete_activities_preserve_output_and_config_contracts():
-    from orchestrator.activities.analyze_story import ANALYZE_STORY_ACTIVITY
-    from orchestrator.activities.extract_story_intent import EXTRACT_STORY_INTENT_ACTIVITY
-    from orchestrator.activities.grade_story_analysis import GRADE_STORY_ANALYSIS_ACTIVITY
-    from orchestrator.activities.repair_story_analysis import REPAIR_STORY_ANALYSIS_ACTIVITY
+    from story_analysis_workflow.activities.analyze_story import ANALYZE_STORY_ACTIVITY
+    from story_analysis_workflow.activities.extract_story_intent import EXTRACT_STORY_INTENT_ACTIVITY
+    from story_analysis_workflow.activities.grade_story_analysis import GRADE_STORY_ANALYSIS_ACTIVITY
+    from story_analysis_workflow.activities.repair_story_analysis import REPAIR_STORY_ANALYSIS_ACTIVITY
 
     cases = [
         (
@@ -804,7 +805,7 @@ def test_execute_with_stale_sentinel_removes_before_harness(tmp_path):
 
 
 def test_execute_with_missing_sentinel_uses_concrete_fallback_and_warns(tmp_path):
-    from orchestrator.activities import analyze_story as module
+    from story_analysis_workflow.activities import analyze_story as module
 
     events = []
 
@@ -824,7 +825,7 @@ def test_execute_with_missing_sentinel_uses_concrete_fallback_and_warns(tmp_path
         repo_root=tmp_path,
     )
 
-    with patch("orchestrator.skill_activity.get_activity_logger", return_value=logger):
+    with patch("common.skill_activity.get_activity_logger", return_value=logger):
         output = activity.execute(
             SkillActivityInput(
                 skill_name="ignored", input_paths=["docs/story.intent.json"]
@@ -898,7 +899,7 @@ def test_execute_with_invalid_present_sentinel_fails_strictly(tmp_path):
 
 
 def test_execute_with_required_input_missing_fails_at_fallback(tmp_path):
-    from orchestrator.activities import analyze_story as module
+    from story_analysis_workflow.activities import analyze_story as module
 
     class SuccessfulHarness:
         def run(self, prompt, *, cwd, config):
@@ -911,7 +912,7 @@ def test_execute_with_required_input_missing_fails_at_fallback(tmp_path):
     )
 
     with pytest.raises(
-        SkillActivityError,
+        CommonSkillActivityError,
         match="Cannot derive output path without an input path",
     ):
         activity.execute(SkillActivityInput(skill_name="ignored"))
@@ -980,7 +981,7 @@ def test_execute_concurrently_shares_immutable_snapshot_without_mutation(tmp_pat
 
 
 def test_import_with_invalid_concrete_config_prevents_worker_startup(monkeypatch):
-    from orchestrator.activities import analyze_story as module
+    from story_analysis_workflow.activities import analyze_story as module
 
     original_read_text = Path.read_text
 
