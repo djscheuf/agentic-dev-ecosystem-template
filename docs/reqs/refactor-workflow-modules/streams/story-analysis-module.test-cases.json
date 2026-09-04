@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "StoryAnalysisActivities_WhenMigrated_PreserveArtifactFallback",
-          "status": "pending",
+          "status": "passing",
           "description": "The complete Activity folder and adjacent configurations are workflow-owned and preserve artifact fallback behavior.",
           "arrange": "Existing Activity tests, common SkillActivity lifecycle, and colocated JSON configuration",
           "act": "Run migrated Activity tests against story_analysis_workflow.activities",

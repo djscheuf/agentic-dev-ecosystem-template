@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "grade-story-analysis",
+    "output_path_key": "analysis_grade_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}
