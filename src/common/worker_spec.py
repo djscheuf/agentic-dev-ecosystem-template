@@ -15,3 +15,9 @@ class WorkerSpec:
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip() or value != value.strip():
                 raise ValueError(f"{field_name} must be a non-empty trimmed string")
+        if (
+            not isinstance(self.modules, tuple)
+            or not self.modules
+            or any(not isinstance(module, WorkflowModuleSpec) for module in self.modules)
+        ):
+            raise ValueError("modules must be a non-empty tuple of WorkflowModuleSpec")

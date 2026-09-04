@@ -29,3 +29,14 @@ def test_worker_spec_rejects_invalid_route(field, value):
 
     with pytest.raises(ValueError, match=rf"{field} must be a non-empty trimmed string"):
         WorkerSpec(**values)
+
+
+@pytest.mark.parametrize("modules", [[], (), (object(),)])
+def test_worker_spec_rejects_invalid_modules(modules):
+    with pytest.raises(ValueError, match="modules must be a non-empty tuple of WorkflowModuleSpec"):
+        WorkerSpec(
+            domain="domain",
+            task_list="task-list",
+            cadence_target="localhost:7933",
+            modules=modules,
+        )
