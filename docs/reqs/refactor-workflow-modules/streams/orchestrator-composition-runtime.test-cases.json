@@ -67,7 +67,7 @@
         {
           "id": 7,
           "name": "OrchestratorCli_WhenInspectingCatalog_ReportsMachineReadableTopology",
-          "status": "pending",
+          "status": "passing",
           "description": "The composition root exposes inspect-catalog output and treats an empty valid catalog as a warned successful no-op without opening Cadence resources.",
           "arrange": "Valid populated and empty catalog snapshots with injectable output, logger, and runtime",
           "act": "Invoke inspect-catalog and worker startup entry points",
