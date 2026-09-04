@@ -18,7 +18,7 @@
         {"id": 6, "name": "Run_WithUnknownOrInvalidDevinSetting_RejectsBeforeLaunch", "status": "passing", "description": "Strictly validate only Devin's namespace.", "arrange": "Unknown keys, wrong namespace types, null/empty/wrong values", "act": "Run DevinHarness", "assert": "A sanitized ValueError occurs and runner is not called"},
         {"id": 7, "name": "Execute_WithInvalidHarnessOrHookResult_FailsClearly", "status": "passing", "description": "Template boundary validation rejects wrong Harness and six hook result types.", "arrange": "Implementations returning invalid values", "act": "Execute the Activity", "assert": "SkillActivityError identifies the invalid boundary"},
         {"id": 8, "name": "Execute_WithNonzeroHarnessResult_FailsWithoutSensitiveOutput", "status": "passing", "description": "Nonzero execution fails once and logs only sanitized metadata.", "arrange": "Harness result containing sensitive stderr", "act": "Execute the Activity", "assert": "SkillActivityError and safe event occur without stderr/prompt/config"},
-        {"id": 9, "name": "Run_WithLaunchOSError_ReportsSanitizedFailure", "status": "pending", "description": "CLI startup errors are sanitized.", "arrange": "Runner raises OSError with sensitive detail", "act": "Run DevinHarness", "assert": "devin_launch_failed is raised/logged without raw detail"}
+        {"id": 9, "name": "Run_WithLaunchOSError_ReportsSanitizedFailure", "status": "passing", "description": "CLI startup errors are sanitized.", "arrange": "Runner raises OSError with sensitive detail", "act": "Run DevinHarness", "assert": "devin_launch_failed is raised/logged without raw detail"}
       ]
     },
     {
