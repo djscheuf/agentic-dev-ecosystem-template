@@ -35,7 +35,7 @@
         {
           "id": 4,
           "name": "WorkerRegistry_WhenBuilt_RegistersDeclaredModuleSurface",
-          "status": "pending",
+          "status": "passing",
           "description": "A fresh Cadence Registry is built per WorkerSpec and registration failures or declaration mismatches are rejected.",
           "arrange": "Worker specs with accurate, throwing, under-registering, and over-registering module callbacks",
           "act": "Build each worker registry",

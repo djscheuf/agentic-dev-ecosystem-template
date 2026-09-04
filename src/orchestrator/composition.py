@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from cadence import Registry
+
 from common import WorkerSpec, WorkflowModuleSpec
 
 from .catalog import CatalogError
@@ -24,3 +26,22 @@ def compose_worker_specs(
                 raise CatalogError(error_category)
         workers.append(WorkerSpec(domain, task_list, cadence_target, ordered))
     return tuple(workers)
+
+
+def build_worker_registry(worker_spec: WorkerSpec) -> Registry:
+    registry = Registry()
+    try:
+        for module in worker_spec.modules:
+            module.register(registry)
+    except Exception as exc:
+        raise CatalogError(f"registration_failed: {module.name}") from exc
+
+    declared_workflows = {
+        name for module in worker_spec.modules for name in module.workflow_types
+    }
+    declared_activities = {
+        name for module in worker_spec.modules for name in module.activity_types
+    }
+    if set(registry._workflows) != declared_workflows or set(registry._activities) != declared_activities:
+        raise CatalogError("registration_mismatch")
+    return registry
