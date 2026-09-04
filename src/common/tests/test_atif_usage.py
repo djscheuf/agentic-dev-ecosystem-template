@@ -41,3 +41,13 @@ def test_read_atif_usage_returns_none_for_missing_or_invalid_document(tmp_path) 
     ]
 
     assert results == [None, None, None]
+
+
+def test_read_atif_usage_returns_none_for_non_object_final_metrics(tmp_path) -> None:
+    results = []
+    for index, metrics in enumerate((None, "invalid", [])):
+        export_path = tmp_path / f"trajectory-{index}.json"
+        export_path.write_text(json.dumps({"final_metrics": metrics}))
+        results.append(read_atif_usage(export_path))
+
+    assert results == [None, None, None]

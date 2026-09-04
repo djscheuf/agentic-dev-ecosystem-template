@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "read_atif_usage_returns_none_for_non_object_final_metrics",
-          "status": "pending",
+          "status": "passing",
           "description": "Null, string, and otherwise non-object final_metrics containers are rejected",
           "arrange": "Write valid ATIF documents with non-object final_metrics values",
           "act": "Read usage from each export",
