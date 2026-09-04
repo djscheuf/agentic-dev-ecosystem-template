@@ -6,7 +6,7 @@
 # Assumes scripts/start-workflow-engine.sh has already brought the local
 # Cadence stack and orchestrator worker up.
 #
-# Usage: scripts/run-single-activity <activity_name> <input_file>
+# Usage: scripts/run-single-activity --domain <domain> --task-list <task_list> <activity_name> <input_file>
 #        scripts/run-single-activity --help
 #
 # See src/story_analysis_workflow/run_single_activity.py for the underlying

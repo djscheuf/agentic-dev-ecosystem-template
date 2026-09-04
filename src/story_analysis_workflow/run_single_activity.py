@@ -16,10 +16,12 @@ input files (the analysis and its grade), not the single input file this
 script accepts.
 """
 
+import argparse
 import asyncio
 import json
 import sys
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
@@ -44,7 +46,7 @@ DEFAULT_POLL_INTERVAL_SECONDS = 2.0
 DEFAULT_WAIT_TIMEOUT_SECONDS = 300.0
 
 _USAGE_TEMPLATE = """\
-Usage: run-single-activity <activity_name> <input_file>
+Usage: run-single-activity --domain <domain> --task-list <task_list> <activity_name> <input_file>
        run-single-activity --help
 
 Manually invoke a single Story Analysis Activity against a real Cadence
@@ -55,13 +57,15 @@ Requires the local Cadence stack + worker to already be running:
   scripts/start-workflow-engine.sh
 
 Arguments:
+  --domain        Cadence domain hosting the target Worker.
+  --task-list     Task list polled by the target Worker.
   activity_name   One of: {names}
   input_file      Path to the activity's input document (repo-relative or absolute).
 
 Examples:
-  run-single-activity extract_story_intent docs/reqs/workflow-orchestration/story.md
-  run-single-activity analyze_story docs/reqs/workflow-orchestration/story.intent.json
-  run-single-activity grade_story_analysis docs/reqs/workflow-orchestration/story.analysis.json
+  run-single-activity --domain story-analysis --task-list story-analysis extract_story_intent docs/reqs/workflow-orchestration/story.md
+  run-single-activity --domain story-analysis --task-list story-analysis analyze_story docs/reqs/workflow-orchestration/story.intent.json
+  run-single-activity --domain story-analysis --task-list story-analysis grade_story_analysis docs/reqs/workflow-orchestration/story.analysis.json
 
 Unsupported activities:
 {unsupported}
@@ -131,6 +135,18 @@ async def _poll_for_result(
         await sleep(poll_interval_seconds)
 
 
+def _parse_args(argv: Sequence[str]):
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--domain", required=True)
+    parser.add_argument("--task-list", required=True)
+    parser.add_argument("activity_name")
+    parser.add_argument("input_file")
+    try:
+        return parser.parse_args(argv)
+    except SystemExit:
+        return None
+
+
 async def run_single_activity_main(
     argv: Sequence[str],
     *,
@@ -144,12 +160,12 @@ async def run_single_activity_main(
         print(_usage_text())
         return 0
 
-    if len(argv) != 2:
-        print(f"Error: expected exactly 2 arguments, got {len(argv)}.\n", file=sys.stderr)
+    args = _parse_args(argv)
+    if args is None:
         print(_usage_text(), file=sys.stderr)
         return 1
 
-    activity_name, input_file_arg = argv
+    activity_name, input_file_arg = args.activity_name, args.input_file
 
     if activity_name in UNSUPPORTED_ACTIVITY_NAMES:
         print(
@@ -173,7 +189,11 @@ async def run_single_activity_main(
         return 1
 
     relative_input = _relative_to_repo_root(input_path, repo_root=repo_root)
-    resolved_config = config or load_config()
+    resolved_config = (
+        replace(config, domain=args.domain, task_list=args.task_list)
+        if config
+        else load_config(domain=args.domain, task_list=args.task_list)
+    )
     factory = client_factory or _default_client_factory
     workflow_id = f"single-activity-{activity_name}-{uuid.uuid4().hex[:8]}"
 

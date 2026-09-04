@@ -28,6 +28,17 @@ def make_client_factory(client):
     return factory
 
 
+def route_args(activity_name, input_file):
+    return [
+        "--domain",
+        "story-analysis",
+        "--task-list",
+        "story-analysis",
+        activity_name,
+        str(input_file),
+    ]
+
+
 @pytest.mark.asyncio
 async def test_no_args_prints_usage_and_returns_0(capsys):
     exit_code = await run_single_activity_main([])
@@ -50,7 +61,7 @@ async def test_wrong_arg_count_returns_1(capsys):
     exit_code = await run_single_activity_main(["extract_story_intent"])
 
     assert exit_code == 1
-    assert "expected exactly 2 arguments" in capsys.readouterr().err
+    assert "--domain" in capsys.readouterr().err
 
 
 @pytest.mark.asyncio
@@ -58,7 +69,7 @@ async def test_unrecognized_activity_lists_supported_and_returns_1(capsys, tmp_p
     input_file = tmp_path / "input.md"
     input_file.write_text("hello")
 
-    exit_code = await run_single_activity_main(["not_a_real_activity", str(input_file)])
+    exit_code = await run_single_activity_main(route_args("not_a_real_activity", input_file))
 
     assert exit_code == 1
     err = capsys.readouterr().err
@@ -72,7 +83,7 @@ async def test_repair_story_analysis_reports_unsupported_and_returns_1(capsys, t
     input_file = tmp_path / "analysis.json"
     input_file.write_text("{}")
 
-    exit_code = await run_single_activity_main(["repair_story_analysis", str(input_file)])
+    exit_code = await run_single_activity_main(route_args("repair_story_analysis", input_file))
 
     assert exit_code == 1
     err = capsys.readouterr().err
@@ -84,7 +95,7 @@ async def test_repair_story_analysis_reports_unsupported_and_returns_1(capsys, t
 async def test_missing_input_file_returns_1(capsys, tmp_path):
     missing_file = tmp_path / "does-not-exist.md"
 
-    exit_code = await run_single_activity_main(["extract_story_intent", str(missing_file)])
+    exit_code = await run_single_activity_main(route_args("extract_story_intent", missing_file))
 
     assert exit_code == 1
     assert "input file not found" in capsys.readouterr().err
@@ -106,7 +117,7 @@ async def test_successful_run_starts_workflow_and_polls_until_succeeded(capsys, 
     )
 
     exit_code = await run_single_activity_main(
-        ["extract_story_intent", str(input_file)],
+        route_args("extract_story_intent", input_file),
         repo_root=tmp_path,
         config=make_config(),
         client_factory=make_client_factory(client),
@@ -127,6 +138,36 @@ async def test_successful_run_starts_workflow_and_polls_until_succeeded(capsys, 
 
 
 @pytest.mark.asyncio
+async def test_explicit_route_starts_on_selected_domain_and_task_list(tmp_path):
+    input_file = tmp_path / "story.intent.json"
+    input_file.write_text("{}")
+    client = FakeClient(query_result={"status": "succeeded", "result": {}})
+    configs = []
+
+    def client_factory(config):
+        configs.append(config)
+        return client
+
+    exit_code = await run_single_activity_main(
+        [
+            "--domain",
+            "payments",
+            "--task-list",
+            "payment-tasks",
+            "analyze_story",
+            str(input_file),
+        ],
+        repo_root=tmp_path,
+        client_factory=client_factory,
+        poll_interval_seconds=0,
+    )
+
+    assert exit_code == 0
+    assert configs[0].domain == "payments"
+    assert client.start_calls[0]["options"]["task_list"] == "payment-tasks"
+
+
+@pytest.mark.asyncio
 async def test_analyze_story_passes_input_path_directly_not_wrapped_in_a_list(tmp_path):
     input_file = tmp_path / "story.intent.json"
     input_file.write_text("{}")
@@ -134,7 +175,7 @@ async def test_analyze_story_passes_input_path_directly_not_wrapped_in_a_list(tm
     client = FakeClient(query_result={"status": "succeeded", "result": {}})
 
     await run_single_activity_main(
-        ["analyze_story", str(input_file)],
+        route_args("analyze_story", input_file),
         repo_root=tmp_path,
         config=make_config(),
         client_factory=make_client_factory(client),
@@ -158,7 +199,7 @@ async def test_activity_failure_prints_error_and_log_hint_and_returns_1(capsys, 
     )
 
     exit_code = await run_single_activity_main(
-        ["grade_story_analysis", str(input_file)],
+        route_args("grade_story_analysis", input_file),
         repo_root=tmp_path,
         config=make_config(),
         client_factory=make_client_factory(client),
@@ -180,7 +221,7 @@ async def test_poll_times_out_if_workflow_never_finishes(capsys, tmp_path):
     client = FakeClient(query_result={"status": "running"})
 
     exit_code = await run_single_activity_main(
-        ["grade_story_analysis", str(input_file)],
+        route_args("grade_story_analysis", input_file),
         repo_root=tmp_path,
         config=make_config(),
         client_factory=make_client_factory(client),

@@ -31,7 +31,7 @@
         {
           "id": 3,
           "name": "RunSingleActivity_WithExplicitRoute_StartsOnSelectedTaskList",
-          "status": "pending",
+          "status": "passing",
           "description": "Diagnostic invocation requires an explicit domain and task list and routes the workflow to that Worker.",
           "arrange": "A valid input file, explicit target domain/task-list arguments, and a fake Cadence client.",
           "act": "Invoke the single-Activity CLI.",
