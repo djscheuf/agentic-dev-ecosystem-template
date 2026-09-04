@@ -78,3 +78,11 @@ The implementation design resolves the open topology choices for the first incre
 - An AST-based test enforces that `common` does not import `orchestrator` or workflow packages.
 - `scripts/run_unit_tests.sh` includes the common suite.
 - Existing orchestrator implementations remain during the staged migration; later workstreams must redirect consumers before removing them.
+
+## Story Analysis module migration status (2026-09-04)
+
+- `story_analysis_workflow` owns its workflow, pure engine, escalation, grading, Activities, adjacent Activity configuration, clients, and tests.
+- `story_analysis_workflow.module` exports an immutable `SPEC` and direct `register(registry)` callback declaring the existing workflow and Activity wire names.
+- Static verification rejects imports from `story_analysis_workflow` into `orchestrator` or another workflow package.
+- Stale Story Analysis workflow, engine, grading, escalation, and Activity implementations are removed from `orchestrator`.
+- The NixOS unit entry point passes 163 tests after migration.
