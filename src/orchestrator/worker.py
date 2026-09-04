@@ -1,10 +1,18 @@
+import argparse
+import asyncio
+import json
 import logging
+import os
 from pathlib import Path
 
-from .catalog import load_workflow_catalog, load_workflow_modules
-from .composition import compose_worker_specs
+from cadence.client import Client
+from cadence.worker import Worker
 
-DEFAULT_CADENCE_TARGET = "localhost:7833"
+from .catalog import load_workflow_catalog, load_workflow_modules
+from .composition import build_worker_registry, compose_worker_specs
+from .runtime import run_worker_topology
+
+DEFAULT_CADENCE_TARGET = os.environ.get("CADENCE_TARGET", "localhost:7833")
 DEFAULT_CATALOG_PATH = Path(__file__).with_name("workflow_catalog.json")
 
 
@@ -27,8 +35,39 @@ def inspect_catalog(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CA
 
 
 def start(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CADENCE_TARGET):
-    topology = inspect_catalog(catalog_path, cadence_target)
-    if topology["worker_count"] == 0:
+    worker_specs = load_worker_specs(catalog_path, cadence_target)
+    if not worker_specs:
         logging.getLogger(__name__).warning("zero configured Workers; exiting")
         return 0
-    return topology["worker_count"]
+    asyncio.run(
+        run_worker_topology(
+            worker_specs,
+            asyncio.Event(),
+            client_factory=lambda spec: Client(
+                domain=spec.domain, target=spec.cadence_target
+            ),
+            worker_factory=lambda spec, client: Worker(
+                client, spec.task_list, build_worker_registry(spec)
+            ),
+        )
+    )
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", nargs="?", choices=("run", "inspect-catalog"), default="run")
+    parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG_PATH)
+    parser.add_argument("--cadence-target", default=DEFAULT_CADENCE_TARGET)
+    args = parser.parse_args()
+    if args.command == "inspect-catalog":
+        print(json.dumps(inspect_catalog(args.catalog, args.cadence_target), sort_keys=True))
+        return 0
+    return start(args.catalog, args.cadence_target)
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        pass
