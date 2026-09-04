@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "WorkerTopology_WhenComposed_GroupsRoutesAndRejectsConflicts",
-          "status": "pending",
+          "status": "passing",
           "description": "Modules are deterministically grouped by exact domain and task list into one WorkerSpec per route while route-local wire-name conflicts are rejected.",
           "arrange": "WorkflowModuleSpec values on shared and independent routes with both disjoint and overlapping names",
           "act": "Compose WorkerSpec values",
