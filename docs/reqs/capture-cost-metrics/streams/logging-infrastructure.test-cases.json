@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "activity_artifact_directory_is_none_without_activity_context",
-          "status": "pending",
+          "status": "passing",
           "description": "Callers outside Cadence Activity logging do not receive a durable artifact path",
           "arrange": "Use no Activity context and an activity_log_context with no resolvable Activity info",
           "act": "Request the current artifact directory",

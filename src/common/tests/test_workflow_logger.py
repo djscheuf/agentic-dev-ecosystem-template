@@ -43,3 +43,12 @@ def test_activity_log_context_exposes_attempt_scoped_artifact_directory(tmp_path
     )
     assert (artifact_dir / "activity.log").exists()
     assert (artifact_dir / "devin.log").exists()
+
+
+def test_activity_artifact_directory_is_none_without_activity_context() -> None:
+    assert get_activity_artifact_dir() is None
+
+    with activity_log_context(activity_info=None):
+        assert get_activity_artifact_dir() is None
+
+    assert get_activity_artifact_dir() is None
