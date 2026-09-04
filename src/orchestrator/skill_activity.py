@@ -197,6 +197,11 @@ class SkillActivity(ABC):
             if not isinstance(result, HarnessResult):
                 raise SkillActivityError("invalid_harness_result")
             if result.exit_code != 0:
+                get_activity_logger().error(
+                    "FailSkillHarnessInvocation: skill_name=%s exit_code=%s",
+                    self.skill_name,
+                    result.exit_code,
+                )
                 raise SkillActivityError(
                     f"Harness exited {result.exit_code} while running skill "
                     f"'{self.skill_name}'"

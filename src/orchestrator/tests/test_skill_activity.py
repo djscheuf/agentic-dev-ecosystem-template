@@ -685,3 +685,70 @@ def test_execute_with_invalid_harness_or_hook_result_fails_clearly(tmp_path):
         *(f"invalid_hook_return_type: {boundary}" for boundary in boundaries),
         "invalid_harness_result",
     ]
+
+
+def test_execute_with_nonzero_harness_result_fails_without_sensitive_output(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {"alternate": {"token": "sensitive-config"}},
+            }
+        )
+    )
+    calls = []
+    events = []
+
+    class ProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+    class FailingHarness:
+        def run(self, prompt, *, cwd, config):
+            calls.append((prompt, config))
+            return HarnessResult(
+                exit_code=17,
+                stdout="sensitive-stdout",
+                stderr="sensitive-stderr",
+            )
+
+    logger = SimpleNamespace(
+        error=lambda message, *args: events.append(message % args),
+        info=lambda *args: None,
+        warning=lambda *args: None,
+        debug=lambda *args: None,
+    )
+    activity = ProbeActivity(
+        config_path=config_path,
+        harness=FailingHarness(),
+        repo_root=tmp_path,
+    )
+
+    with patch("orchestrator.skill_activity.get_activity_logger", return_value=logger):
+        with pytest.raises(SkillActivityError) as error:
+            activity.execute(
+                SkillActivityInput(
+                    skill_name="ignored", context="sensitive-prompt"
+                )
+            )
+
+    assert len(calls) == 1
+    assert str(error.value) == "Harness exited 17 while running skill 'probe-skill'"
+    assert events == [
+        "FailSkillHarnessInvocation: skill_name=probe-skill exit_code=17"
+    ]
+    assert all(
+        marker not in " ".join(events) + str(error.value)
+        for marker in (
+            "sensitive-stdout",
+            "sensitive-stderr",
+            "sensitive-prompt",
+            "sensitive-config",
+        )
+    )
