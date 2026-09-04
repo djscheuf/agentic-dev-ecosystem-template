@@ -58,3 +58,15 @@ The current `orchestrator` package mixes generic Cadence/Devin infrastructure, S
 ## Detailed proposal
 
 See [Refactor Workflow Modules: Proposed Architecture](../../docs/reqs/refactor-workflow-modules/proposed-architecture.md).
+
+## Design refinement (2026-09-04)
+
+The implementation design resolves the open topology choices for the first increment:
+
+- Run all task-list-specific Workers in one host Python process and manage Client/Worker contexts transactionally with `AsyncExitStack`.
+- Register the generic single-Activity diagnostic workflow in every Worker registry and start it on the selected target task list.
+- Use a versioned orchestrator-owned catalog containing module paths only; module descriptors remain the source of domain and task-list data.
+- Treat an empty valid catalog as a warned, successful no-op exit.
+- Register workflow classes after definition through `registry.workflow(name=...)(WorkflowClass)`; local inspection confirms `cadence-python-client` 0.3.0 supports direct registration, and an executable characterization test must preserve this assumption.
+- Keep Story Analysis artifact fallback behavior in concrete Story Analysis Activities while generalized resolution remains deferred.
+- Use static architecture tests for package dependency rules and runtime validation for module descriptors and registry conflicts.

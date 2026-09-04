@@ -1,0 +1,581 @@
+{
+  "story_path": "docs/reqs/refactor-workflow-modules/refactor-workflow-modules-into-layers.analysis.json",
+  "repo_state_before_design": "docs/reqs/refactor-workflow-modules/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "WorkflowModuleAuthored — Taylor adds a cohesive workflow package that owns its workflow definition, engine, contracts, Activities, configuration, client APIs, and tests, and exposes only a module entry point containing an immutable WorkflowModuleSpec. This is the story's change from adding behavior to the mixed orchestrator registry to adding one independently owned package.",
+      "layers_involved": ["Workflow Module (Backend)", "Common Contracts (Backend)", "Repository Configuration (Data Layer)"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Module",
+          "to_layer": "Common Contracts",
+          "contract_used": "WorkflowModuleSpec",
+          "data_shape": "frozen {name: non-empty str, domain: non-empty str, task_list: non-empty str, workflow_types: tuple[str, ...], activity_types: tuple[str, ...], register: Callable[[Registry], None]}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "WorkflowCatalogChanged — Taylor adds the package's importable module path to the orchestrator-owned workflow catalog. Existing workflow packages, including Story Analysis, remain unchanged. The catalog stores support policy only; routing remains declared by each module descriptor.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Repository Configuration (Data Layer)"],
+      "handshake_points": [
+        {
+          "from_layer": "Repository Configuration",
+          "to_layer": "Orchestrator Composition",
+          "contract_used": "WorkflowCatalogV1",
+          "data_shape": "{version: 1, workflow_modules: [non-empty Python module path, ...]}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "WorkflowCatalogLoaded or WorkflowCatalogRejected — at process startup the orchestrator reads one immutable catalog snapshot, validates its version and module-path list, and treats an empty list as a valid zero-Worker configuration that logs a warning and exits successfully. Malformed catalogs fail before any module is mounted.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Repository Configuration (Data Layer)", "Common Logging (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Repository Configuration",
+          "to_layer": "Orchestrator Composition",
+          "contract_used": "WorkflowCatalogV1",
+          "data_shape": "validated immutable tuple of unique module-path strings or a categorized startup error"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "WorkflowModulesLoaded or WorkflowModuleRejected — the orchestrator imports every configured path, requires a SPEC of the common WorkflowModuleSpec type, validates required values, uniqueness of module names, and declared wire names, and completes validation for the whole catalog before creating a Cadence Client or Worker.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Workflow Module (Backend)", "Common Contracts (Backend)", "Common Logging (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Module",
+          "to_layer": "Orchestrator Composition",
+          "contract_used": "WorkflowModuleEntryPoint",
+          "data_shape": "importable Python module exporting SPEC: WorkflowModuleSpec"
+        },
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Common Contracts",
+          "contract_used": "WorkflowModuleSpec",
+          "data_shape": "validated immutable module identity, route, declared wire-name tuples, and registration callable"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "WorkerTopologyComposed or WorkerTopologyRejected — validated modules are grouped by exact (domain, task_list). Modules sharing a route contribute to one Worker only when module names and workflow/Activity wire names are disjoint. The orchestrator derives one immutable WorkerSpec per group and rejects all conflicts before runtime startup.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Common Contracts (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Common Contracts",
+          "contract_used": "WorkerSpec",
+          "data_shape": "frozen {domain: str, task_list: str, cadence_target: str, modules: tuple[WorkflowModuleSpec, ...]}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "WorkerRegistriesBuilt or RegistrationRejected — for each WorkerSpec the orchestrator creates a fresh Registry, invokes each module's register callable, and mounts the generic SingleActivityWorkflow into that same registry with the union of declared Activity names. Registration exceptions or declaration/registration inconsistencies fail startup before polling begins.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Workflow Module (Backend)", "Cadence SDK", "Diagnostic Workflow (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Workflow Module",
+          "contract_used": "WorkflowModuleRegistration",
+          "data_shape": "register(registry: cadence.Registry) -> None"
+        },
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Diagnostic Workflow",
+          "contract_used": "DiagnosticRegistration",
+          "data_shape": "build/register probe with allowed_activity_types=frozenset(worker module activity_types) and shared generic Activity policy"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "WorkersStarted or WorkerStartupFailed — one host Python process enters one Cadence Client and Worker context per WorkerSpec using AsyncExitStack. Startup is all-or-nothing: if any context fails, previously entered Workers and Clients close in reverse order and the process exits nonzero. Only after all contexts enter does the process report every domain/task-list pair ready.",
+      "layers_involved": ["Orchestrator Runtime (Backend)", "Common Runtime (Backend)", "Cadence Service", "Common Logging (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Orchestrator Runtime",
+          "contract_used": "WorkerSpec",
+          "data_shape": "tuple of fully validated WorkerSpec values"
+        },
+        {
+          "from_layer": "Orchestrator Runtime",
+          "to_layer": "Cadence Service",
+          "contract_used": "CadenceWorkerLifecycle",
+          "data_shape": "Client(domain, target) plus Worker(client, task_list, registry) async contexts"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "WorkflowTaskRouted — Cadence routes each workflow and Activity task to the Worker polling its module-declared task list. Story Analysis executes with unchanged wire names and domain behavior, while a catalog-added integration fixture workflow executes on a second independent domain/task-list Worker without changes to Story Analysis source.",
+      "layers_involved": ["Cadence Service", "Workflow Module (Backend)", "Orchestrator Runtime (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Cadence Service",
+          "to_layer": "Workflow Module",
+          "contract_used": "WorkflowWireContract",
+          "data_shape": "module-owned workflow and Activity names with existing serializable input/result shapes"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "DiagnosticActivityRequested — the diagnostic client starts SingleActivityWorkflow on the selected target task list. Because the diagnostic workflow is registered in every Worker registry and validates against that Worker's declared Activity names, its scheduled Activity remains on the same task list and cannot silently route to another module.",
+      "layers_involved": ["Diagnostic Client", "Diagnostic Workflow (Backend)", "Cadence Service", "Workflow Module (Backend)"],
+      "handshake_points": [
+        {
+          "from_layer": "Diagnostic Client",
+          "to_layer": "Cadence Service",
+          "contract_used": "DiagnosticStartRequest",
+          "data_shape": "{workflow_type: SingleActivityWorkflow, task_list: selected WorkerSpec.task_list, activity_name: declared activity type, args: list}"
+        },
+        {
+          "from_layer": "Diagnostic Workflow",
+          "to_layer": "Workflow Module",
+          "contract_used": "CadenceActivityWireContract",
+          "data_shape": "execute_activity(activity_name, result_type=dict, *args, generic retry policy) on the workflow's current task list"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "WorkerProcessStopped — SIGTERM, KeyboardInterrupt, startup failure, or a surfaced runtime failure leaves the shared wait condition and exits AsyncExitStack, closing every Worker and Client in reverse startup order. The shell stop path continues to terminate the one process group and then stops the Cadence Docker stack.",
+      "layers_involved": ["Operational Scripts", "Orchestrator Runtime (Backend)", "Common Runtime (Backend)", "Cadence Service"],
+      "handshake_points": [
+        {
+          "from_layer": "Operational Scripts",
+          "to_layer": "Orchestrator Runtime",
+          "contract_used": "ProcessLifecycleContract",
+          "data_shape": "SIGTERM/SIGINT -> coordinated async cancellation and context closure -> process exit status"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "LoadWorkflowCatalog",
+      "description": "Records successful loading of the immutable deployment catalog without logging module contents beyond safe paths.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "catalog_path", "description": "Repository-relative catalog path."},
+        {"point": "catalog_version", "description": "Validated schema version."},
+        {"point": "module_count", "description": "Number of configured module paths."}
+      ]
+    },
+    {
+      "event_name": "RejectWorkflowCatalog",
+      "description": "Records a sanitized catalog validation failure before module imports or Worker creation.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "catalog_path", "description": "Affected repository-relative path."},
+        {"point": "error_category", "description": "missing_file, malformed_json, unsupported_version, invalid_module_path, or duplicate_module_path."}
+      ]
+    },
+    {
+      "event_name": "LoadWorkflowModule",
+      "description": "Records one validated workflow module entry point.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Workflow Module (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "module_path", "description": "Configured import path."},
+        {"point": "module_name", "description": "Validated descriptor name."},
+        {"point": "domain", "description": "Declared Cadence domain."},
+        {"point": "task_list", "description": "Declared task list."},
+        {"point": "workflow_count", "description": "Declared workflow wire-name count."},
+        {"point": "activity_count", "description": "Declared Activity wire-name count."}
+      ]
+    },
+    {
+      "event_name": "RejectWorkflowModule",
+      "description": "Records a fail-fast import, descriptor, dependency, or naming conflict without starting a partial topology.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "module_path", "description": "Configured import path when available."},
+        {"point": "module_name", "description": "Descriptor name when validation reached it."},
+        {"point": "error_category", "description": "import_failed, missing_spec, wrong_spec_type, empty_field, duplicate_module, duplicate_workflow_type, duplicate_activity_type, or dependency_violation."}
+      ]
+    },
+    {
+      "event_name": "ComposeWorkerTopology",
+      "description": "Records the complete validated Worker topology before external Cadence resources are opened.",
+      "layers_involved": ["Orchestrator Composition (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "worker_count", "description": "Number of unique domain/task-list groups."},
+        {"point": "domains", "description": "Sorted distinct configured domains."},
+        {"point": "task_lists", "description": "Sorted task-list identities."}
+      ]
+    },
+    {
+      "event_name": "StartWorkerContext",
+      "description": "Records successful entry of one task-list-specific Worker context.",
+      "layers_involved": ["Orchestrator Runtime (Backend)", "Cadence Service", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "domain", "description": "Worker domain."},
+        {"point": "task_list", "description": "Worker task list."},
+        {"point": "module_names", "description": "Names of modules mounted in the Worker."},
+        {"point": "cadence_target", "description": "Cadence endpoint without credentials."}
+      ]
+    },
+    {
+      "event_name": "FailWorkerStartup",
+      "description": "Records startup failure and coordinated rollback of any previously entered contexts.",
+      "layers_involved": ["Orchestrator Runtime (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "domain", "description": "Failing Worker domain."},
+        {"point": "task_list", "description": "Failing Worker task list."},
+        {"point": "error_category", "description": "Stable client_connect, worker_enter, registration, or unavailable_domain category."},
+        {"point": "started_worker_count", "description": "Contexts to be closed during rollback."}
+      ]
+    },
+    {
+      "event_name": "CompleteWorkerTopologyStartup",
+      "description": "Marks the point at which every configured Worker context has entered and external readiness checks may begin.",
+      "layers_involved": ["Orchestrator Runtime (Backend)", "Operational Scripts", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "worker_count", "description": "Number of started Workers."},
+        {"point": "routes", "description": "Sorted domain/task-list pairs."}
+      ]
+    },
+    {
+      "event_name": "RouteDiagnosticActivity",
+      "description": "Records a diagnostic request's selected Worker boundary and Activity wire name.",
+      "layers_involved": ["Diagnostic Workflow (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "domain", "description": "Selected Cadence domain."},
+        {"point": "task_list", "description": "Selected task list."},
+        {"point": "activity_type", "description": "Validated declared Activity wire name."},
+        {"point": "workflow_id", "description": "Diagnostic WorkflowID for correlation."}
+      ]
+    },
+    {
+      "event_name": "StopWorkerContext",
+      "description": "Records closure of each Worker during coordinated shutdown.",
+      "layers_involved": ["Orchestrator Runtime (Backend)", "Common Logging (Backend)"],
+      "data_points": [
+        {"point": "domain", "description": "Stopped Worker domain."},
+        {"point": "task_list", "description": "Stopped Worker task list."},
+        {"point": "reason", "description": "signal, startup_rollback, runtime_failure, or normal_completion."}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Repository Configuration (Data Layer)",
+      "new_responsibilities": [
+        {"responsibility": "Store the versioned workflow catalog containing unique supported module import paths.", "intent": "Deployment support policy is persisted here, while domain and task-list routing stays with the module that owns that information."},
+        {"responsibility": "Keep workflow-specific runtime and Activity configuration colocated with the owning workflow package.", "intent": "ADRs 009 and 014 establish colocation as the smallest ownership-preserving data change."},
+        {"responsibility": "Provide static dependency-boundary rules for common, workflow packages, and orchestrator.", "intent": "Import direction is a source-tree invariant best enforced deterministically in tests rather than inferred after dynamic import."}
+      ]
+    },
+    {
+      "layer": "Common Contracts and Infrastructure (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Define frozen WorkflowModuleSpec and WorkerSpec values without importing workflow packages or orchestrator.", "intent": "This layer owns stable cross-package abstractions and has all information needed to validate their intrinsic shape."},
+        {"responsibility": "Own generic Harness, DevinHarness, invocation context, SkillActivity lifecycle, Activity policy, logging, and reusable Worker runtime mechanics.", "intent": "These mechanisms are workflow-agnostic and must not accumulate domain names or artifact rules."},
+        {"responsibility": "Emit component-, domain-, and task-list-aware logs without assuming Story Analysis.", "intent": "The generic layer owns formatting and context propagation while callers provide identity."}
+      ]
+    },
+    {
+      "layer": "Workflow Module (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Own workflow definitions, pure engines, contracts, Signals, Queries, Activities, domain rules, client APIs, configuration, and tests.", "intent": "This is where workflow behavior and wire-name information originate, so cohesive ownership prevents cross-workflow coupling."},
+        {"responsibility": "Expose one module entry point with a validated SPEC and a register(registry) callable.", "intent": "The orchestrator needs only registration metadata and behavior, not workflow internals."},
+        {"responsibility": "Declare workflow and Activity wire names, domain, and task list accurately.", "intent": "The workflow module owns routing and registration knowledge; declarations let composition detect conflicts before startup."},
+        {"responsibility": "Keep Story Analysis-specific fallback artifact resolution in its concrete Activities while generalization remains deferred.", "intent": "Domain information is available in concrete adapters, not in common infrastructure."}
+      ]
+    },
+    {
+      "layer": "Orchestrator Composition (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Load and validate the complete configured module catalog before creating external runtime resources.", "intent": "The composition root has deployment configuration and can guarantee fail-fast, all-or-nothing startup."},
+        {"responsibility": "Group modules by domain/task list, detect descriptor and wire-name conflicts, and build one registry and WorkerSpec per group.", "intent": "Only the composition root sees all modules and therefore has enough information to negotiate shared Worker boundaries."},
+        {"responsibility": "Contain no Story Analysis skill names, grading logic, artifact conventions, Activity implementations, or result details.", "intent": "The orchestrator supports modules through the common contract rather than domain knowledge."},
+        {"responsibility": "Handle an empty catalog as a successful no-op with an explicit warning.", "intent": "The acceptance criterion requires graceful behavior; a terminating no-op avoids an apparently healthy process that serves nothing."}
+      ]
+    },
+    {
+      "layer": "Orchestrator Runtime (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Run all WorkerSpec instances in one host process with one Worker per domain/task-list pair.", "intent": "The existing process-group scripts and ADR-013 topology are preserved with the minimum operational change."},
+        {"responsibility": "Enter Worker contexts transactionally and close all contexts on startup failure or shutdown.", "intent": "AsyncExitStack provides deterministic reverse-order cleanup where lifecycle information is available."},
+        {"responsibility": "Expose topology readiness only after every Worker context has entered.", "intent": "The runtime knows which contexts started; scripts independently confirm Cadence pollers for each route."}
+      ]
+    },
+    {
+      "layer": "Diagnostic Workflow (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Remain an orchestrator-owned generic operational probe registered in every Worker registry.", "intent": "Starting the probe on a selected module task list ensures its Activity is routed to the same Worker without SDK-specific cross-task-list options."},
+        {"responsibility": "Validate requested Activity names against only the current Worker's declared Activity set.", "intent": "The registration factory has the WorkerSpec and can prevent accidental cross-module execution."}
+      ]
+    },
+    {
+      "layer": "Operational Scripts (Backend Operations)",
+      "new_responsibilities": [
+        {"responsibility": "Read validated catalog metadata through an orchestrator command, register every distinct domain, and wait for every domain/task-list poller.", "intent": "Scripts operate external Cadence lifecycle, while Python composition remains the single parser and validator of catalog/module contracts."},
+        {"responsibility": "Continue supervising one host process group and stop all Workers through coordinated process termination.", "intent": "This preserves current NixOS, Devin authentication, log capture, and stop behavior."}
+      ]
+    },
+    {
+      "layer": "Verification (Test Layer)",
+      "new_responsibilities": [
+        {"responsibility": "Enforce import boundaries and absence of Story Analysis concepts from orchestrator with static source tests.", "intent": "Dependency violations are repository properties and can be detected without importing untrusted or broken modules."},
+        {"responsibility": "Characterize Cadence Registry.workflow direct registration and Worker async context behavior against cadence-python-client 0.3.0.", "intent": "SDK behavior is external and version-specific; executable tests prevent design assumptions from drifting."},
+        {"responsibility": "Mount a minimal second workflow fixture through a catalog override and prove both independent Workers poll and execute.", "intent": "The extension acceptance criterion needs a real second module while avoiding invention of an unsupported production business workflow."}
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "WorkflowModuleSpec",
+      "description": "Immutable public descriptor defined in common and exported as SPEC by each workflow module entry point.",
+      "changes": {
+        "added": "frozen dataclass fields name, domain, task_list, workflow_types tuple, activity_types tuple, and register callable; intrinsic validation requires non-empty trimmed identities, non-empty unique wire names, and a callable registration function",
+        "modified": "replaces consumption of the process-global src/orchestrator/workflow.py registry with orchestrator-owned registry instances",
+        "removed": "orchestrator inspection or import of workflow-internal files"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "WorkerSpec",
+      "description": "Immutable runtime plan derived by composition after full catalog validation.",
+      "changes": {
+        "added": "domain, task_list, cadence_target, and ordered tuple of WorkflowModuleSpec values sharing that exact route",
+        "modified": "expands the current single environment-selected DOMAIN/TASK_LIST constants into a validated topology",
+        "removed": "implicit one-Worker/one-Story-Analysis assumption"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "WorkflowCatalogV1",
+      "description": "Versioned orchestrator-owned JSON configuration listing explicitly supported workflow entry points.",
+      "changes": {
+        "added": "{version: 1, workflow_modules: string[]} with unique non-empty Python module paths and optional path override through an orchestrator environment variable or CLI option",
+        "modified": "deployment support moves from hard-coded imports in worker.py to explicit startup data",
+        "removed": "automatic repository scanning and duplicated domain/task-list values in the central catalog"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "WorkflowModuleEntryPoint",
+      "description": "Import boundary between orchestrator and an independently owned workflow package.",
+      "changes": {
+        "added": "configured module exports SPEC: common.workflow_module.WorkflowModuleSpec",
+        "modified": "Story Analysis exports story_analysis_workflow.module instead of exposing an orchestrator-owned registry",
+        "removed": "direct imports from orchestrator into Story Analysis workflow internals"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "WorkflowModuleRegistration",
+      "description": "Mockable callback through which a module contributes implementations to an orchestrator-owned Registry.",
+      "changes": {
+        "added": "register(registry: Registry) -> None; modules use registry.workflow(name=...)(WorkflowClass) and registry.register_activity(callable)",
+        "modified": "Cadence decorators are applied during composition rather than against a module-global Registry",
+        "removed": "process-global shared registry ownership in story_analysis_workflow"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "StoryAnalysisContracts",
+      "description": "Workflow-owned source of truth for Story Analysis wire names and serializable input/result/status structures.",
+      "changes": {
+        "added": "contracts.py constants for StoryAnalysisWorkflow, four Activity types, human_response, get_status, SingleActivityWorkflow client reference where appropriate, and domain-specific structures",
+        "modified": "workflow, module descriptor, starter, CLI, Signals, Queries, Activities, and tests import shared workflow-owned constants",
+        "removed": "duplicated string literals and Story Analysis constants from orchestrator"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "TransactionalWorkerStartup",
+      "description": "All configuration and registrations validate first; one shared process then enters Client/Worker contexts as one rollback-capable operation.",
+      "changes": {
+        "added": "AsyncExitStack-based reverse cleanup, topology-level readiness, categorized startup failure, and one Worker per domain/task-list pair",
+        "modified": "python -m orchestrator.worker starts N Workers rather than one hard-coded Worker",
+        "removed": "partial startup that leaves previously started Workers polling after another Worker fails"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "CatalogInspectionCommand",
+      "description": "Machine-readable orchestrator command used by shell scripts so catalog parsing and module validation are not duplicated in Bash.",
+      "changes": {
+        "added": "python -m orchestrator.cli inspect-catalog emits validated JSON containing distinct domains and domain/task_list routes; nonzero exit on invalid catalog",
+        "modified": "start-workflow-engine.sh iterates returned routes for domain registration and poller readiness",
+        "removed": "hard-coded DOMAIN and TASK_LIST shell constants"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PerWorkerDiagnosticRegistration",
+      "description": "Generic diagnostic workflow registration factory scoped to one WorkerSpec's declared Activity types.",
+      "changes": {
+        "added": "diagnostic workflow is registered in every Worker registry and started on the selected target task list; allowed names come from WorkerSpec modules",
+        "modified": "run_single_activity selects a target domain/task list instead of assuming story-analysis",
+        "removed": "diagnostic imports of Story Analysis registry, retry constants, and hard-coded Activity names"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PackageDependencyRules",
+      "description": "Static contract enforcing common <- workflow modules <- orchestrator and workflow-package isolation.",
+      "changes": {
+        "added": "tests fail when common imports orchestrator/workflow packages, a workflow imports orchestrator/another workflow, or orchestrator imports workflow internals beyond configured entry points",
+        "modified": "story_analysis_workflow client logging imports common rather than orchestrator",
+        "removed": "stale Story Analysis modules and imports under src/orchestrator after migration"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Implement the accepted three-layer dependency direction: common <- workflow modules <- orchestrator.",
+      "justification": "It separates reusable mechanisms, cohesive domain behavior, and deployment composition while allowing explicit workflow support without automatic discovery.",
+      "basis": "ADR-013 and docs/reqs/refactor-workflow-modules/proposed-architecture.md",
+      "impact": "Creates src/common, completes src/story_analysis_workflow, and reduces src/orchestrator to catalog, composition, diagnostic, and lifecycle code. This intentionally changes the current mixed architecture.",
+      "answers_open_question": "Defines the overall package ownership and dependency model."
+    },
+    {
+      "decision": "Use frozen WorkflowModuleSpec and WorkerSpec dataclasses as the only cross-layer topology models.",
+      "justification": "Static startup descriptors are independently mockable, cannot change during workflow replay, and carry exactly the information needed for grouping, conflict checks, registration, readiness, and diagnostics.",
+      "basis": "ADR-013 target architecture and existing frozen dataclass pattern in src/story_analysis_workflow/config.py",
+      "impact": "Adds common/workflow_module.py and common/worker_spec.py plus unit validation tests.",
+      "answers_open_question": "What stable contract should workflow modules expose?"
+    },
+    {
+      "decision": "Register workflow classes after definition by calling registry.workflow(name=...)(WorkflowClass), and characterize this SDK behavior in a test.",
+      "justification": "cadence-python-client 0.3.0 documents Registry.workflow as usable directly or as a decorator; local introspection confirms the direct-call path constructs the same WorkflowDecorator and registers the class.",
+      "basis": "Installed cadence-python-client 0.3.0 Registry.workflow source and proposed architecture registry section",
+      "impact": "Workflow modules expose simple registration callables and no process-global registries or class factories.",
+      "answers_open_question": "Does the installed Cadence Python SDK support registry-bound workflow registration after class definition?"
+    },
+    {
+      "decision": "Run all Cadence Workers in one host Python process and manage their Client/Worker contexts with AsyncExitStack.",
+      "justification": "This is the smallest operational step from the current host process, retains one process-group contract, and provides deterministic rollback when context entry fails while still creating one Worker per routing boundary.",
+      "basis": "ADR-013, existing scripts/start-workflow-engine.sh process model, and installed Worker __aenter__/__aexit__ behavior",
+      "impact": "Rebuilds orchestrator.worker as a multi-Worker supervisor; process isolation remains a future option if operational evidence requires it.",
+      "answers_open_question": "Should multiple Cadence Workers share one Python process or run in separate subprocesses?"
+    },
+    {
+      "decision": "Register a generic SingleActivityWorkflow in every Worker registry and require the client to start it on the target task list.",
+      "justification": "The Activity inherits the workflow's task-list boundary, avoiding unverified per-Activity routing support. Scoping allowed names to the WorkerSpec prevents accidental routing to another module.",
+      "basis": "ADR-013 and proposed architecture's safest initial diagnostic option",
+      "impact": "Introduces a diagnostic registration factory and updates the diagnostic client arguments/configuration; requires live tests on at least two task lists.",
+      "answers_open_question": "How will SingleActivityWorkflow route its Activity to the correct task list when workflow modules are isolated?"
+    },
+    {
+      "decision": "Keep Story Analysis artifact fallback logic in concrete Story Analysis Activities and make common SkillActivity require an injected expected-output resolver.",
+      "justification": "The common layer cannot branch on workflow skill names without violating the accepted boundary, while concrete Activities have the domain information needed to derive paths. Generalized resolution remains out of scope.",
+      "basis": "ADR-013 deferred scope and ADR-014 concrete SkillActivity template method",
+      "impact": "Moves generic execution to common, retains behavior in workflow-local subclasses/adapters, and removes _conventional_output_path skill switches from common.",
+      "answers_open_question": "How should the Story Analysis-specific skill output-path fallback be handled while the general resolution refactor is deferred?"
+    },
+    {
+      "decision": "Use a versioned orchestrator/workflow_catalog.json containing only module paths, with one Python catalog inspection command shared by scripts and runtime.",
+      "justification": "Versioning permits controlled evolution; excluding route data avoids duplication; one parser prevents Bash and Python from disagreeing about deployment topology.",
+      "basis": "ADR-013 explicit catalog decision and proposed architecture catalog format",
+      "impact": "Adds orchestrator config/loader/CLI modules and updates start-workflow-engine.sh to consume machine-readable validated topology.",
+      "answers_open_question": "What is the exact format, versioning, and ownership of workflow_catalog.json?"
+    },
+    {
+      "decision": "Validate the complete topology before opening Cadence resources and make startup context entry transactional; on any startup failure, close all entered contexts and exit nonzero.",
+      "justification": "The composition root sees the entire topology and can prevent partial service. AsyncExitStack guarantees cleanup of successfully entered contexts if a later context fails.",
+      "basis": "ADR-013 multi-Worker lifecycle responsibility and Python async context-management best practice",
+      "impact": "Adds categorized failure logging, startup rollback tests with fake clients/workers, and process-level failure propagation.",
+      "answers_open_question": "How will the orchestrator detect, report, and clean up a failed Worker in a multi-Worker process?"
+    },
+    {
+      "decision": "Treat an empty valid catalog as a warning and successful process exit with zero Workers.",
+      "justification": "This satisfies graceful no-crash behavior without leaving an idle process that could be mistaken for a healthy workflow service.",
+      "basis": "Analysis boundary criterion and least-surprising operational behavior",
+      "impact": "Composition returns an empty topology; scripts skip domain/poller loops and report no configured Workers.",
+      "answers_open_question": "Should an empty workflow catalog be an error, a warning, or an idle process?"
+    },
+    {
+      "decision": "Enforce package dependency rules with static import/source tests, while runtime loading validates descriptor and registration contracts.",
+      "justification": "Runtime import inspection cannot reliably detect all transitive or conditional source dependencies; static tests have repository-wide information and fail deterministically before deployment.",
+      "basis": "ADR-013 dependency rules and analysis acceptance criterion allowing validation or static checks",
+      "impact": "Adds architecture tests and removes stale orchestrator domain files only after migrated tests pass.",
+      "answers_open_question": "How are workflow module dependency violations detected?"
+    },
+    {
+      "decision": "Use a minimal integration-test workflow module and catalog override to prove second-module extensibility rather than inventing a production business workflow.",
+      "justification": "The acceptance criterion requires real independent mounting and execution, but the story supplies no second domain behavior. A fixture exercises the public contract and two-Worker topology without expanding product scope.",
+      "basis": "Analysis acceptance criteria and minimum-change design principle",
+      "impact": "Adds test fixture module, temporary test catalog, and live Cadence test using a distinct domain/task list; default production catalog remains Story Analysis only.",
+      "answers_open_question": "What constitutes the required second workflow demonstration?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "How will SingleActivityWorkflow route its Activity to the correct task list when workflow modules are isolated?",
+      "answer": "Register a generic probe in each Worker registry, start it on the selected target task list, and constrain it to that WorkerSpec's declared Activity names.",
+      "justification": "Cadence schedules the Activity on the workflow's task-list boundary by default, so workflow and Activity are consumed by the same Worker without cross-task-list SDK assumptions.",
+      "basis": "ADR-013 and option 1 in docs/reqs/refactor-workflow-modules/proposed-architecture.md"
+    },
+    {
+      "question": "Should multiple Cadence Workers share one Python process or run in separate subprocesses?",
+      "answer": "Share one Python process for this increment, with one Worker and Client context per domain/task-list WorkerSpec managed by AsyncExitStack.",
+      "justification": "It preserves current scripts and log/process supervision while adding the required routing isolation; subprocess isolation has no stated requirement or demonstrated need.",
+      "basis": "Existing src/orchestrator/worker.py and scripts/start-workflow-engine.sh pattern plus ADR-013"
+    },
+    {
+      "question": "Does the installed Cadence Python SDK support registry-bound workflow registration after class definition?",
+      "answer": "Yes. Registry.workflow accepts a class directly or returns a decorator, so register uses registry.workflow(name=wire_name)(WorkflowClass); add an executable characterization test.",
+      "justification": "The installed method's implementation explicitly supports direct calls and applies WorkflowDecorator to the supplied class.",
+      "basis": "Local introspection of cadence-python-client 0.3.0 Registry.workflow on 2026-09-04"
+    },
+    {
+      "question": "How should the Story Analysis-specific skill output-path fallback be handled while the general resolution refactor is deferred?",
+      "answer": "Concrete Story Analysis SkillActivity classes retain expected_output_path implementations; common contains only the template lifecycle and invokes the concrete resolver when a successful invocation's sentinel has already been consumed.",
+      "justification": "This preserves existing missing-sentinel behavior without embedding Story Analysis skill names in common.",
+      "basis": "ADR-004 runtime consumption update, ADR-013 deferral, ADR-014 template method, and current src/orchestrator/skill_activity.py"
+    },
+    {
+      "question": "What is the exact format, versioning, and ownership of workflow_catalog.json?",
+      "answer": "src/orchestrator/workflow_catalog.json is owned by deployment composition and has {version: 1, workflow_modules: [unique import paths]}; modules own route metadata inside SPEC.",
+      "justification": "The catalog explicitly selects supported capabilities without duplicating module-owned domain/task-list information, and a version enables future format migration.",
+      "basis": "ADR-013 and proposed architecture configured-module-path design"
+    },
+    {
+      "question": "How will the orchestrator detect, report, and clean up a failed Worker in a multi-Worker process?",
+      "answer": "Prevalidate all modules and registries, enter all Client/Worker contexts through one AsyncExitStack, emit categorized lifecycle events, and propagate any startup/runtime failure to process scope so every context closes and the process exits nonzero.",
+      "justification": "The orchestrator is the only layer with complete Worker topology and lifecycle ownership; transactional context entry prevents a known partial-startup state.",
+      "basis": "ADR-013 and installed cadence Worker async context contract"
+    },
+    {
+      "question": "Should an empty workflow catalog be an error, a warning, or an idle process?",
+      "answer": "It is a valid no-op: emit a warning describing zero configured Workers and exit successfully.",
+      "justification": "This is graceful and automatable while avoiding a misleading idle service process.",
+      "basis": "Analysis boundary acceptance criterion and operational fail-clarity principle"
+    },
+    {
+      "question": "How are duplicate module names and workflow/Activity names handled?",
+      "answer": "Duplicate module names are globally invalid. Duplicate workflow or Activity names are invalid within a shared domain/task-list registry; disjoint names may share one Worker.",
+      "justification": "Only registrations that coexist in one Registry collide, while module identity must remain globally unambiguous for diagnostics and configuration.",
+      "basis": "Analysis edge cases and proposed architecture startup-validation rules"
+    },
+    {
+      "question": "How are package dependency violations detected?",
+      "answer": "Static architecture tests parse/import-scan src packages according to common <- workflow modules <- orchestrator; runtime loading separately validates module contracts and registration conflicts.",
+      "justification": "Static source checks can see conditional and transitive package references that descriptor validation cannot prove absent.",
+      "basis": "ADR-013 dependency table and analysis dependency-violation criterion"
+    },
+    {
+      "question": "How does the start script discover domains and task lists without duplicating Python catalog logic?",
+      "answer": "It invokes an orchestrator inspect-catalog command that emits validated machine-readable domains and routes, then registers distinct domains and checks every route's poller.",
+      "justification": "One Python parser owns dynamic imports and descriptor validation; Bash remains responsible only for external process and Docker operations.",
+      "basis": "Current scripts/start-workflow-engine.sh responsibilities and composition-root pattern"
+    },
+    {
+      "question": "Does this design preserve existing Cadence history and wire compatibility?",
+      "answer": "Story Analysis wire names and serializable argument/result shapes remain stable where practical, but historical replay compatibility is not a release constraint for this development-stage refactor.",
+      "justification": "Preserving names reduces unnecessary client changes, while forcing replay compatibility would contradict the accepted non-goal and complicate package movement.",
+      "basis": "ADR-013 and docs/reqs/refactor-workflow-modules/proposed-architecture.md non-goals"
+    }
+  ]
+}
