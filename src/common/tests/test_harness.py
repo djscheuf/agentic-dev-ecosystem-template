@@ -20,3 +20,9 @@ def test_harness_protocol_accepts_namespaced_configuration() -> None:
     result = harness.run("prompt", cwd=Path("."), config={"fake": {"mode": "safe"}})
 
     assert result.exit_code == 0
+
+
+def test_harness_result_without_usage_defaults_to_none() -> None:
+    result = HarnessResult(exit_code=0, stdout="done", stderr="")
+
+    assert result.usage is None

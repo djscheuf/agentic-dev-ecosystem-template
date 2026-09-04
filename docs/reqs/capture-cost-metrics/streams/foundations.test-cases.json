@@ -1,0 +1,93 @@
+{
+  "target_story": "docs/reqs/capture-cost-metrics/capture-devin-cost-metrics.analysis.json",
+  "source_workstream": "docs/reqs/capture-cost-metrics/streams/foundations.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Stable harness usage contract",
+      "tests": [
+        {
+          "id": 1,
+          "name": "harness_result_without_usage_defaults_to_none",
+          "status": "passing",
+          "description": "Existing three-field HarnessResult construction remains valid",
+          "arrange": "Construct HarnessResult with exit_code, stdout, and stderr only",
+          "act": "Read the usage field",
+          "assert": "Usage is None and existing fields are unchanged"
+        },
+        {
+          "id": 2,
+          "name": "harness_usage_is_immutable",
+          "status": "pending",
+          "description": "Normalized usage is an immutable value object with optional metrics",
+          "arrange": "Construct HarnessUsage with all four supported metrics",
+          "act": "Attempt to mutate a metric",
+          "assert": "Mutation raises FrozenInstanceError and values retain their declared types"
+        },
+        {
+          "id": 3,
+          "name": "read_atif_usage_normalizes_supported_metrics",
+          "status": "pending",
+          "description": "A complete final_metrics object maps only supported aggregate fields",
+          "arrange": "Write ATIF JSON with all standard metrics and an additional billing dimension",
+          "act": "Read usage from the export",
+          "assert": "Supported metrics are normalized, integer USD becomes float, and the extra field is excluded"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Non-fatal malformed telemetry",
+      "tests": [
+        {
+          "id": 4,
+          "name": "read_atif_usage_returns_none_for_missing_or_invalid_document",
+          "status": "pending",
+          "description": "Missing, unreadable, and invalid JSON exports do not produce usage",
+          "arrange": "Use a missing path, an unreadable path, and an invalid JSON file",
+          "act": "Read usage from each path",
+          "assert": "Every result is None and no exception escapes"
+        },
+        {
+          "id": 5,
+          "name": "read_atif_usage_returns_none_for_non_object_final_metrics",
+          "status": "pending",
+          "description": "Null, string, and otherwise non-object final_metrics containers are rejected",
+          "arrange": "Write valid ATIF documents with non-object final_metrics values",
+          "act": "Read usage from each export",
+          "assert": "Every result is None"
+        },
+        {
+          "id": 6,
+          "name": "read_atif_usage_rejects_wrong_typed_fields_independently",
+          "status": "pending",
+          "description": "Boolean and other wrong-typed values do not invalidate valid sibling metrics",
+          "arrange": "Write final_metrics containing invalid token and cost values plus valid siblings",
+          "act": "Read usage from the export",
+          "assert": "Affected fields are None while valid fields remain populated"
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Partial and large exports",
+      "tests": [
+        {
+          "id": 7,
+          "name": "read_atif_usage_preserves_partial_supported_metrics",
+          "status": "pending",
+          "description": "Partial standard metrics remain useful without inventing zero values",
+          "arrange": "Write final_metrics with prompt tokens and an unknown billing field only",
+          "act": "Read usage from the export",
+          "assert": "Prompt tokens are populated and all other supported fields are None"
+        },
+        {
+          "id": 8,
+          "name": "read_atif_usage_handles_large_trajectory_without_logging_content",
+          "status": "pending",
+          "description": "Large trajectory content does not affect aggregate parsing or leak through diagnostics",
+          "arrange": "Write a large ATIF document containing sensitive marker text in steps and valid final_metrics",
+          "act": "Read usage while capturing logs",
+          "assert": "Usage is returned and captured logs do not contain trajectory marker text"
+        }
+      ]
+    }
+  ]
+}

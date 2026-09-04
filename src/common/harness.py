@@ -10,6 +10,7 @@ class HarnessResult:
     exit_code: int
     stdout: str
     stderr: str
+    usage: object | None = None
 
 
 class Harness(Protocol):
