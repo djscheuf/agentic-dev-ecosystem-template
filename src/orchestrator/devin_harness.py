@@ -125,9 +125,24 @@ class DevinHarness:
         self.config = config or DevinHarnessConfig.load()
         self._runner = runner
 
-    def run(self, prompt: str, *, cwd: Path) -> HarnessResult:
+    def run(
+        self,
+        prompt: str,
+        *,
+        cwd: Path,
+        config: Mapping[str, object] | None = None,
+    ) -> HarnessResult:
         skill_name = get_current_skill_name() or ""
-        profile = self.config.resolve(skill_name)
+        if config is None:
+            profile = self.config.resolve(skill_name)
+        else:
+            namespace = config.get("devin", {})
+            profile = EffectiveDevinProfile(
+                model=namespace.get("model", DEFAULT_MODEL),
+                permission_mode=namespace.get(
+                    "permission_mode", DEFAULT_PERMISSION_MODE
+                ),
+            )
         command = [
             "devin",
             "-p",

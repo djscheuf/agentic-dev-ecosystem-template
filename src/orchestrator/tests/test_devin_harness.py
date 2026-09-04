@@ -1,7 +1,7 @@
 import json
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
@@ -483,3 +483,34 @@ def test_documentation_for_harness_profiles_explains_first_slice_contract():
         "Activity-start retry snapshot",
     ):
         assert required_text in documentation
+
+
+def test_run_with_namespaced_devin_config_builds_safe_command(tmp_path):
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    harness = DevinHarness(runner=runner)
+    config = MappingProxyType(
+        {"devin": MappingProxyType({"model": "SWE-2.0"})}
+    )
+
+    harness.run("sensitive prompt", cwd=tmp_path, config=config)
+
+    assert calls == [
+        (
+            [
+                "devin",
+                "-p",
+                "--permission-mode",
+                "auto",
+                "--model",
+                "SWE-2.0",
+                "--",
+                "sensitive prompt",
+            ],
+            {"cwd": str(tmp_path), "capture_output": True, "text": True},
+        )
+    ]
