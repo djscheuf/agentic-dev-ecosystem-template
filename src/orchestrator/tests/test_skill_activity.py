@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -797,3 +798,38 @@ def test_execute_with_stale_sentinel_removes_before_harness(tmp_path):
     ).execute(SkillActivityInput(skill_name="ignored"))
 
     assert output.output_path == "docs/fresh.json"
+
+
+def test_execute_with_missing_sentinel_uses_concrete_fallback_and_warns(tmp_path):
+    from orchestrator.activities import analyze_story as module
+
+    events = []
+
+    class SuccessfulHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    logger = SimpleNamespace(
+        warning=lambda message, *args: events.append(message % args),
+        error=lambda *args: None,
+        info=lambda *args: None,
+        debug=lambda *args: None,
+    )
+    activity = module.AnalyzeStorySkillActivity(
+        config_path=Path(module.__file__).with_suffix(".config.json"),
+        harness=SuccessfulHarness(),
+        repo_root=tmp_path,
+    )
+
+    with patch("orchestrator.skill_activity.get_activity_logger", return_value=logger):
+        output = activity.execute(
+            SkillActivityInput(
+                skill_name="ignored", input_paths=["docs/story.intent.json"]
+            )
+        )
+
+    assert output.output_path == "docs/story.analysis.json"
+    assert events == [
+        "WarnSkillArtifactVerification: skill_name=analyze-story "
+        "failure_reason=missing_sentinel output_path=docs/story.analysis.json"
+    ]

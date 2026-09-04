@@ -206,21 +206,33 @@ class SkillActivity(ABC):
                     f"Harness exited {result.exit_code} while running skill "
                     f"'{self.skill_name}'"
                 )
-            sentinel = json.loads(sentinel_file.read_text())
-            if sentinel.get("task") != self.skill_name:
-                raise SkillActivityError(
-                    f"Sentinel task mismatch for skill '{self.skill_name}'"
+            try:
+                sentinel = json.loads(sentinel_file.read_text())
+            except FileNotFoundError:
+                output_path = self.expected_output_path(skill_input)
+                get_activity_logger().warning(
+                    "WarnSkillArtifactVerification: skill_name=%s "
+                    "failure_reason=%s output_path=%s",
+                    self.skill_name,
+                    "missing_sentinel",
+                    output_path,
                 )
-            output_value = sentinel.get("verify_params", {}).get(
-                self.output_path_key
-            )
-            if not output_value:
-                raise SkillActivityError(
-                    f"Sentinel for skill '{self.skill_name}' is missing "
-                    f"verify_params.{self.output_path_key}"
+            else:
+                if sentinel.get("task") != self.skill_name:
+                    raise SkillActivityError(
+                        f"Sentinel task mismatch for skill '{self.skill_name}'"
+                    )
+                output_value = sentinel.get("verify_params", {}).get(
+                    self.output_path_key
                 )
+                if not output_value:
+                    raise SkillActivityError(
+                        f"Sentinel for skill '{self.skill_name}' is missing "
+                        f"verify_params.{self.output_path_key}"
+                    )
+                output_path = Path(output_value)
             output_path = self._hook(
-                "modify_output_path", Path(output_value), Path
+                "modify_output_path", output_path, Path
             )
             output = SkillActivityOutput(
                 status="success",
