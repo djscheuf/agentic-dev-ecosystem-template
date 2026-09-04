@@ -44,3 +44,15 @@ def test_workflow_module_spec_rejects_invalid_wire_names(field):
         ValueError, match=rf"{field} must contain unique non-empty trimmed strings"
     ):
         WorkflowModuleSpec(**values)
+
+
+def test_workflow_module_spec_rejects_non_callable_registration():
+    with pytest.raises(ValueError, match="register must be callable"):
+        WorkflowModuleSpec(
+            name="module",
+            domain="domain",
+            task_list="task-list",
+            workflow_types=("Workflow",),
+            activity_types=("activity",),
+            register=None,
+        )

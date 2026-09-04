@@ -31,3 +31,5 @@ class WorkflowModuleSpec:
                 raise ValueError(
                     f"{field_name} must contain unique non-empty trimmed strings"
                 )
+        if not callable(self.register):
+            raise ValueError("register must be callable")
