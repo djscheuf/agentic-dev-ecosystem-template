@@ -21,3 +21,8 @@ This repository is developed on NixOS. Use `nix-shell` as the default way to pro
 - `scripts/run_integration_tests.sh` runs only `tests/integration` and requires Cadence on `localhost:7833`.
 - `scripts/run_e2e_tests.sh` runs only `tests/e2e` and requires the Cadence server and Web UI.
 - All three enter `nix-shell`, use `.venv/bin/python`, and forward additional pytest arguments.
+
+## JSON Schema validation utility (2026-09-04)
+
+- `.devin/skills/validate-json-schema/scripts/validate-json-schema.sh <schema.json> <document.json>` validates JSON with `python313Packages.jsonschema` supplied by `nix-shell`.
+- The script prints concise validation errors and exits nonzero on invalid schemas or documents; no arguments or `--help` prints usage.
