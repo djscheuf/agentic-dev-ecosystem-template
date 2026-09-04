@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "activity_artifact_directories_isolate_activities_and_retry_attempts",
-          "status": "pending",
+          "status": "passing",
           "description": "Concurrent Activity identities and retry attempts never select the same artifact directory",
           "arrange": "Create Activity info values that vary by Activity id and attempt within one workflow run",
           "act": "Resolve an artifact directory for each Activity context",

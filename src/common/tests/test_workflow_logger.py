@@ -71,3 +71,28 @@ def test_activity_artifact_directory_sanitizes_path_unsafe_identifiers(tmp_path)
         config.log_root / "wf" / "run_id" / "activities" / "skill_type_act_1"
     )
     assert artifact_dir.resolve().is_relative_to(config.log_root.resolve())
+
+
+def test_activity_artifact_directories_isolate_activities_and_retry_attempts(
+    tmp_path,
+) -> None:
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    base_info = {
+        "workflow_id": "wf-1",
+        "workflow_run_id": "run-1",
+        "activity_type": "extract_story_intent",
+    }
+    activity_infos = [
+        SimpleNamespace(**base_info, activity_id="act-1", attempt=1),
+        SimpleNamespace(**base_info, activity_id="act-2", attempt=1),
+        SimpleNamespace(**base_info, activity_id="act-1", attempt=2),
+    ]
+    artifact_dirs = []
+
+    for info in activity_infos:
+        with activity_log_context(activity_info=info, config=config):
+            artifact_dirs.append(get_activity_artifact_dir())
+
+    assert len(set(artifact_dirs)) == len(activity_infos)
+    assert all((path / "activity.log").exists() for path in artifact_dirs)
+    assert all((path / "devin.log").exists() for path in artifact_dirs)
