@@ -51,3 +51,23 @@ def test_read_atif_usage_returns_none_for_non_object_final_metrics(tmp_path) -> 
         results.append(read_atif_usage(export_path))
 
     assert results == [None, None, None]
+
+
+def test_read_atif_usage_rejects_wrong_typed_fields_independently(tmp_path) -> None:
+    export_path = tmp_path / "trajectory.json"
+    export_path.write_text(
+        json.dumps(
+            {
+                "final_metrics": {
+                    "total_prompt_tokens": True,
+                    "total_completion_tokens": 20,
+                    "total_cached_tokens": "40",
+                    "total_cost_usd": False,
+                }
+            }
+        )
+    )
+
+    usage = read_atif_usage(export_path)
+
+    assert usage == HarnessUsage(completion_tokens=20)

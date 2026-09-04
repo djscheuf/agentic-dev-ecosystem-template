@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "read_atif_usage_rejects_wrong_typed_fields_independently",
-          "status": "pending",
+          "status": "passing",
           "description": "Boolean and other wrong-typed values do not invalidate valid sibling metrics",
           "arrange": "Write final_metrics containing invalid token and cost values plus valid siblings",
           "act": "Read usage from the export",
