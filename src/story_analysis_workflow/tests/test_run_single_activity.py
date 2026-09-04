@@ -68,12 +68,20 @@ async def test_wrong_arg_count_returns_1(capsys):
 async def test_unrecognized_activity_lists_supported_and_returns_1(capsys, tmp_path):
     input_file = tmp_path / "input.md"
     input_file.write_text("hello")
+    client_created = False
 
-    exit_code = await run_single_activity_main(route_args("not_a_real_activity", input_file))
+    def client_factory(config):
+        nonlocal client_created
+        client_created = True
+
+    exit_code = await run_single_activity_main(
+        route_args("not_a_real_activity", input_file), client_factory=client_factory
+    )
 
     assert exit_code == 1
     err = capsys.readouterr().err
-    assert "unrecognized activity 'not_a_real_activity'" in err
+    assert "invalid activity selection 'not_a_real_activity'" in err
+    assert not client_created
     assert "analyze_story" in err and "extract_story_intent" in err and "grade_story_analysis" in err
     assert "repair_story_analysis" not in err
 

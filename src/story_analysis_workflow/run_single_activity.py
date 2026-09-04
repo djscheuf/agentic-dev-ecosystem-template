@@ -177,7 +177,7 @@ async def run_single_activity_main(
         return 1
     if activity_name not in SUPPORTED_ACTIVITY_NAMES:
         print(
-            f"Error: unrecognized activity '{activity_name}'.\n"
+            f"Error: invalid activity selection '{activity_name}'.\n"
             f"Supported activities: {', '.join(sorted(SUPPORTED_ACTIVITY_NAMES))}",
             file=sys.stderr,
         )

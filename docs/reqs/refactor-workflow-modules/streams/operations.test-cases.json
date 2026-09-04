@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "RunSingleActivity_WithInvalidSelection_ReturnsClearError",
-          "status": "pending",
+          "status": "passing",
           "description": "An invalid or unsupported Activity selection is rejected before a diagnostic workflow is started.",
           "arrange": "Explicit routing arguments, a valid input file, and an invalid Activity name.",
           "act": "Invoke the single-Activity CLI.",
