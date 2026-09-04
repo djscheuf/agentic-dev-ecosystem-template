@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "read_atif_usage_normalizes_supported_metrics",
-          "status": "pending",
+          "status": "passing",
           "description": "A complete final_metrics object maps only supported aggregate fields",
           "arrange": "Write ATIF JSON with all standard metrics and an additional billing dimension",
           "act": "Read usage from the export",
