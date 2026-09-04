@@ -81,7 +81,7 @@
         {
           "id": 8,
           "name": "read_atif_usage_handles_large_trajectory_without_logging_content",
-          "status": "pending",
+          "status": "passing",
           "description": "Large trajectory content does not affect aggregate parsing or leak through diagnostics",
           "arrange": "Write a large ATIF document containing sensitive marker text in steps and valid final_metrics",
           "act": "Read usage while capturing logs",

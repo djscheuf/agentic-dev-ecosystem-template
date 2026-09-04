@@ -89,3 +89,23 @@ def test_read_atif_usage_preserves_partial_supported_metrics(tmp_path) -> None:
     usage = read_atif_usage(export_path)
 
     assert usage == HarnessUsage(prompt_tokens=100)
+
+
+def test_read_atif_usage_handles_large_trajectory_without_logging_content(
+    tmp_path, caplog
+) -> None:
+    marker = "sensitive-trajectory-content"
+    export_path = tmp_path / "trajectory.json"
+    export_path.write_text(
+        json.dumps(
+            {
+                "steps": [{"content": marker * 1000} for _ in range(100)],
+                "final_metrics": {"total_prompt_tokens": 100},
+            }
+        )
+    )
+
+    usage = read_atif_usage(export_path)
+
+    assert usage == HarnessUsage(prompt_tokens=100)
+    assert marker not in caplog.text
