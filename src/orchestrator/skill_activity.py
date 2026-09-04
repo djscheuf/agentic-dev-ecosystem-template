@@ -1,15 +1,8 @@
-"""Generic Activity-side wrapper for invoking an agentic SDLC skill.
+"""Compatibility API for the common Activity-side skill wrapper.
 
-Builds the prompt that connects a skill (extract-story-intent, analyze-story,
-grade-story-analysis, repair-story-analysis) and its inputs, sends that prompt
-to a given `Harness` to execute, then reads the skill's sentinel file from
-`.process/` to discover the repository-relative path of the artifact it
-produced (ADR-004).
-
-This module knows nothing about *how* the prompt gets executed -- that is the
-`Harness`'s job (see `harness.py`; `devin_harness.DevinHarness` is the default
-implementation). `repo_root` is also injectable so this module can be unit
-tested without a real repository checkout.
+This module contains workflow-agnostic infrastructure. It builds a configured
+skill prompt, delegates execution to a `Harness`, and resolves the configured
+sentinel output. `repo_root` remains injectable for isolated unit tests.
 """
 
 import json
@@ -66,26 +59,14 @@ def _conventional_output_path(skill_input: SkillActivityInput) -> str:
 
     input_path = Path(skill_input.input_paths[0])
     name = input_path.name
-    if skill_input.skill_name == "extract-story-intent":
-        output_name = f"{input_path.stem}.intent.json"
-    elif skill_input.skill_name == "analyze-story":
-        output_name = (
-            f"{name[:-len('.intent.json')]}.analysis.json"
-            if name.endswith(".intent.json")
-            else "analysis.json"
-        )
-    elif skill_input.skill_name == "grade-story-analysis":
-        output_name = (
-            f"{name[:-len('.analysis.json')]}.analysis-grade.json"
-            if name.endswith(".analysis.json")
-            else "analysis-grade.json"
-        )
-    elif skill_input.skill_name == "repair-story-analysis":
+    if len(skill_input.input_paths) > 1:
         output_name = name
+    elif name.endswith(".intent.json"):
+        output_name = f"{name[:-len('.intent.json')]}.analysis.json"
+    elif name.endswith(".analysis.json"):
+        output_name = f"{name[:-len('.analysis.json')]}.analysis-grade.json"
     else:
-        raise SkillActivityError(
-            f"Cannot derive output path for unknown skill '{skill_input.skill_name}'"
-        )
+        output_name = f"{input_path.stem}.intent.json"
     return str(input_path.with_name(output_name))
 
 

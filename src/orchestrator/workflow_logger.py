@@ -1,4 +1,4 @@
-"""Workflow-aware file logging for the Story Analysis orchestrator.
+"""Workflow-aware file logging compatibility API for the orchestrator.
 
 Provides per-execution loggers for the worker, workflow, client, activity,
 and devin subprocess output. Log directories are derived from the Cadence
