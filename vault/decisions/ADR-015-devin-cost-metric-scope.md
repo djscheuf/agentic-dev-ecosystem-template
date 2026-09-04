@@ -51,3 +51,10 @@ The existing Activity logging layout isolates Cadence attempts, and each Skill A
 - **Block on complete Devin billing semantics** — rejected because raw ATIF preserves unknown dimensions safely.
 - **Normalize every field under `final_metrics`** — rejected because it would make the result contract depend on unstable or vendor-specific dimensions.
 - **Implement retention here** — rejected because retention belongs to another service.
+
+## Logging infrastructure status (2026-09-04)
+
+- `common.workflow_logger.activity_log_context` creates `activity.log` and `devin.log` in a sanitized workflow/run/Activity/attempt directory.
+- `get_activity_artifact_dir()` exposes that directory only while the Activity context is active and returns `None` without one.
+- Activity IDs and retry attempts select distinct directories, so their artifacts do not overwrite one another.
+- The NixOS unit entry point passes 190 tests after the logging infrastructure increment.
