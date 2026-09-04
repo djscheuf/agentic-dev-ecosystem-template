@@ -128,3 +128,13 @@ that invokes configured child workflow wire types, or an external coordinator th
 own progress and starts each workflow through its public client API. Business workflows exchange
 stable input/result envelopes and do not import or name one another. See
 [Mapping Cadence Workflows and Devin Skill Activities](../../docs/mapping-workflows-and-skill-activities.md).
+
+## Python SDK registration and Worker context contracts (2026-09-04)
+
+Executable characterization tests for `cadence-python-client` 0.3.0 establish that:
+
+- `registry.workflow(name=...)(WorkflowClass)` returns the original class and stores a workflow definition under the explicit name.
+- `registry.register_activity(activity_definition)` returns `None` and stores the Activity under its decorated wire name.
+- `Worker.__aenter__` awaits `run()` and returns the Worker; `Worker.__aexit__` then awaits `close()`.
+
+These contracts are pinned in `tests/unit/test_cadence_sdk_contracts.py`.
