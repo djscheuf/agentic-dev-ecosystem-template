@@ -1,5 +1,7 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -912,3 +914,65 @@ def test_execute_with_required_input_missing_fails_at_fallback(tmp_path):
         match="Cannot derive output path without an input path",
     ):
         activity.execute(SkillActivityInput(skill_name="ignored"))
+
+
+def test_execute_concurrently_shares_immutable_snapshot_without_mutation(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {
+                    "alternate": {"nested": [{"value": "original"}]}
+                },
+            }
+        )
+    )
+    barrier = Barrier(2)
+    observations = []
+
+    class ProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return Path(skill_input.input_paths[0])
+
+    class MutatingHarness:
+        def run(self, prompt, *, cwd, config):
+            snapshot_id = id(config)
+            with pytest.raises(TypeError):
+                config["alternate"]["nested"][0]["value"] = "changed"
+            barrier.wait()
+            observations.append(
+                (snapshot_id, config["alternate"]["nested"][0]["value"])
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    activity = ProbeActivity(
+        config_path=config_path,
+        harness=MutatingHarness(),
+        repo_root=tmp_path,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outputs = list(
+            executor.map(
+                activity.execute,
+                [
+                    SkillActivityInput("ignored", ["docs/first.json"]),
+                    SkillActivityInput("ignored", ["docs/second.json"]),
+                ],
+            )
+        )
+
+    assert observations == [
+        (id(activity.harness_config), "original"),
+        (id(activity.harness_config), "original"),
+    ]
+    assert [output.output_path for output in outputs] == [
+        "docs/first.json",
+        "docs/second.json",
+    ]
