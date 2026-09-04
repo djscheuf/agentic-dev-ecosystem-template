@@ -31,7 +31,7 @@
         {
           "id": 3,
           "name": "activity_artifact_directory_sanitizes_path_unsafe_identifiers",
-          "status": "pending",
+          "status": "passing",
           "description": "Workflow, run, and Activity identifiers cannot escape the configured log root",
           "arrange": "Provide identifiers containing traversal segments, separators, dots, and unicode",
           "act": "Enter activity_log_context and request the artifact directory",

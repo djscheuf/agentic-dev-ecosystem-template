@@ -52,3 +52,22 @@ def test_activity_artifact_directory_is_none_without_activity_context() -> None:
         assert get_activity_artifact_dir() is None
 
     assert get_activity_artifact_dir() is None
+
+
+def test_activity_artifact_directory_sanitizes_path_unsafe_identifiers(tmp_path) -> None:
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    info = SimpleNamespace(
+        workflow_id="../wf/文",
+        workflow_run_id=".run/../id",
+        activity_type="skill/type",
+        activity_id="../act.文",
+        attempt=1,
+    )
+
+    with activity_log_context(activity_info=info, config=config):
+        artifact_dir = get_activity_artifact_dir()
+
+    assert artifact_dir == (
+        config.log_root / "wf" / "run_id" / "activities" / "skill_type_act_1"
+    )
+    assert artifact_dir.resolve().is_relative_to(config.log_root.resolve())
