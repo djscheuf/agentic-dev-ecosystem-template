@@ -23,5 +23,6 @@ This vault captures architectural decisions, patterns, and operational knowledge
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)
+- [Devin ATIF usage exports](services/devin-atif.md)
 - [NixOS development environment](services/nixos.md)
 - [Orchestrator Harness (DevinHarness) — where it runs, auth gotchas](services/orchestrator-harness.md)
