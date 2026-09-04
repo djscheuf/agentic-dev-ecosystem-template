@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "StartWorkflowEngine_WithCatalogTopology_RegistersDomainsAndWaitsForRoutes",
-          "status": "pending",
+          "status": "passing",
           "description": "The startup script consumes validated inspect-catalog JSON instead of hard-coded routing constants.",
           "arrange": "A catalog inspection result containing multiple routes, repeated domains, and the empty-catalog shape.",
           "act": "Inspect the startup script's topology discovery, registration, readiness, and summary behavior.",

@@ -24,9 +24,6 @@ WORKER_PID_FILE="$RUN_DIR/worker.pid"
 WORKER_PGID_FILE="$RUN_DIR/worker.pgid"
 COMPOSE_FILE="$REPO_ROOT/docker/docker-compose.yml"
 
-DOMAIN="story-analysis"
-TASK_LIST="story-analysis"
-
 TIMEOUT_SECONDS=180
 POLL_INTERVAL=2
 
@@ -80,6 +77,17 @@ if devin auth status 2>&1 | grep -qi "not logged in"; then
   die "devin CLI is not authenticated. Run: devin auth login --force-manual-token-flow (see vault/services/orchestrator-harness.md)"
 fi
 
+TOPOLOGY_JSON="$(cd "$REPO_ROOT" && nix-shell --run \
+  "PYTHONPATH=src '$REPO_ROOT/.venv/bin/python' -m orchestrator.worker inspect-catalog")" \
+  || die "failed to inspect workflow catalog"
+WORKER_COUNT="$(TOPOLOGY_JSON="$TOPOLOGY_JSON" "$REPO_ROOT/.venv/bin/python" -c \
+  'import json, os; print(json.loads(os.environ["TOPOLOGY_JSON"])["worker_count"])')" \
+  || die "invalid inspect-catalog output"
+mapfile -t DOMAINS < <(TOPOLOGY_JSON="$TOPOLOGY_JSON" "$REPO_ROOT/.venv/bin/python" -c \
+  'import json, os; print("\n".join(json.loads(os.environ["TOPOLOGY_JSON"])["domains"]))')
+mapfile -t ROUTES < <(TOPOLOGY_JSON="$TOPOLOGY_JSON" "$REPO_ROOT/.venv/bin/python" -c \
+  'import json, os; print("\n".join(f"{route['"'"'domain'"'"']}\t{route['"'"'task_list'"'"']}" for route in json.loads(os.environ["TOPOLOGY_JSON"])["routes"]))')
+
 # --- 1. Start the docker network (Cadence server + Web UI) -----------------
 log "Starting Cadence docker network..."
 docker compose -f "$COMPOSE_FILE" up -d || die "docker compose up failed"
@@ -92,15 +100,22 @@ done
 log "Cadence server is healthy (gRPC localhost:7833, Web UI http://localhost:8088)."
 
 # --- 2. Register the domain if needed --------------------------------------
-log "Checking domain '$DOMAIN'..."
-if ! docker compose -f "$COMPOSE_FILE" exec -T cadence \
-      cadence --ad 127.0.0.1:7833 -t grpc --do "$DOMAIN" domain describe >/dev/null 2>&1; then
-  log "Domain '$DOMAIN' not found, registering it..."
-  docker compose -f "$COMPOSE_FILE" exec -T cadence \
-    cadence --ad 127.0.0.1:7833 -t grpc --do "$DOMAIN" domain register -rd 1 \
-    || die "failed to register domain '$DOMAIN'"
-else
-  log "Domain '$DOMAIN' already registered."
+for domain in "${DOMAINS[@]}"; do
+  log "Checking domain '$domain'..."
+  if ! docker compose -f "$COMPOSE_FILE" exec -T cadence \
+        cadence --ad 127.0.0.1:7833 -t grpc --do "$domain" domain describe >/dev/null 2>&1; then
+    log "Domain '$domain' not found, registering it..."
+    docker compose -f "$COMPOSE_FILE" exec -T cadence \
+      cadence --ad 127.0.0.1:7833 -t grpc --do "$domain" domain register -rd 1 \
+      || die "failed to register domain '$domain'"
+  else
+    log "Domain '$domain' already registered."
+  fi
+done
+
+if [[ "$WORKER_COUNT" -eq 0 ]]; then
+  log "No configured Workers; Cadence is ready with no worker routes."
+  exit 0
 fi
 
 # --- 3. Start the worker in the background, and leave it running -----------
@@ -123,20 +138,25 @@ if ! kill -0 "$WORKER_PID" 2>/dev/null; then
   die "worker process exited immediately, see $WORKER_LOG"
 fi
 
-log "Waiting for the worker to start polling task list '$TASK_LIST'..."
-until docker compose -f "$COMPOSE_FILE" exec -T cadence \
-        cadence --ad 127.0.0.1:7833 -t grpc --do "$DOMAIN" tasklist desc --tl "$TASK_LIST" >/dev/null 2>&1; do
-  require_deadline "worker to start polling task list '$TASK_LIST'"
-  if ! kill -0 "$WORKER_PID" 2>/dev/null; then
-    die "worker process died while starting, see $WORKER_LOG"
-  fi
-  sleep "$POLL_INTERVAL"
+for route in "${ROUTES[@]}"; do
+  IFS=$'\t' read -r domain task_list <<< "$route"
+  log "Waiting for the worker to start polling domain '$domain' task list '$task_list'..."
+  until docker compose -f "$COMPOSE_FILE" exec -T cadence \
+          cadence --ad 127.0.0.1:7833 -t grpc --do "$domain" tasklist desc --tl "$task_list" >/dev/null 2>&1; do
+    require_deadline "worker to start polling domain '$domain' task list '$task_list'"
+    if ! kill -0 "$WORKER_PID" 2>/dev/null; then
+      die "worker process died while starting, see $WORKER_LOG"
+    fi
+    sleep "$POLL_INTERVAL"
+  done
 done
 
 log "Workflow engine is ready."
 log "  Cadence gRPC:    localhost:7833"
 log "  Cadence Web UI:  http://localhost:8088"
-log "  Domain:          $DOMAIN"
-log "  Task list:       $TASK_LIST (poller pid $WORKER_PID)"
+for route in "${ROUTES[@]}"; do
+  IFS=$'\t' read -r domain task_list <<< "$route"
+  log "  Worker route:    $domain / $task_list (poller pid $WORKER_PID)"
+done
 log "  Worker log:      $WORKER_LOG"
 log "Stop everything with: $SCRIPT_DIR/stop-workflow-engine.sh"
