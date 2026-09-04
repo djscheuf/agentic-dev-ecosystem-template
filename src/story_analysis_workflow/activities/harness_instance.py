@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Type
 
 from common.devin_harness import DevinHarness
@@ -16,4 +17,5 @@ def _load_harness() -> Harness:
     return cls()
 
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 HARNESS = _load_harness()

@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "StoryAnalysisModule_WhenRegistered_DeclaresAccurateSpec",
-          "status": "pending",
+          "status": "passing",
           "description": "The package exports an immutable WorkflowModuleSpec and registers every declared workflow and Activity using existing wire names.",
           "arrange": "A fresh Cadence Registry and the story_analysis_workflow module entry point",
           "act": "Inspect SPEC and invoke register(registry)",

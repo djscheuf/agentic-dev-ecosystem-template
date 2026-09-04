@@ -5,9 +5,9 @@ from pathlib import Path
 
 from cadence import activity
 
-from common.skill_activity import REPO_ROOT, SkillActivity, SkillActivityError, SkillActivityInput
+from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 from ..grade_scoring import score_analysis_grade
-from .harness_instance import HARNESS
+from .harness_instance import HARNESS, REPO_ROOT
 
 
 class GradeStoryAnalysisSkillActivity(SkillActivity):
@@ -24,7 +24,7 @@ class GradeStoryAnalysisSkillActivity(SkillActivity):
 
 
 GRADE_STORY_ANALYSIS_ACTIVITY = GradeStoryAnalysisSkillActivity(
-    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS
+    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS, repo_root=REPO_ROOT
 )
 
 

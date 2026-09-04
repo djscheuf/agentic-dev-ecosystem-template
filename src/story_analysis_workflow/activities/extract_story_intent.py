@@ -5,7 +5,7 @@ from pathlib import Path
 from cadence import activity
 
 from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
-from .harness_instance import HARNESS
+from .harness_instance import HARNESS, REPO_ROOT
 
 
 class ExtractStoryIntentSkillActivity(SkillActivity):
@@ -17,7 +17,7 @@ class ExtractStoryIntentSkillActivity(SkillActivity):
 
 
 EXTRACT_STORY_INTENT_ACTIVITY = ExtractStoryIntentSkillActivity(
-    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS
+    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS, repo_root=REPO_ROOT
 )
 
 
