@@ -86,3 +86,12 @@ The implementation design resolves the open topology choices for the first incre
 - Static verification rejects imports from `story_analysis_workflow` into `orchestrator` or another workflow package.
 - Stale Story Analysis workflow, engine, grading, escalation, and Activity implementations are removed from `orchestrator`.
 - The NixOS unit entry point passes 163 tests after migration.
+
+## Orchestrator composition status (2026-09-04)
+
+- `orchestrator.workflow_catalog.json` is a versioned path-only catalog; loading produces an immutable snapshot and rejects malformed, blank, or duplicate paths.
+- Composition imports and validates every module before runtime, groups modules deterministically by exact domain/task-list route, and rejects module and route-local wire-name conflicts.
+- Every route receives a fresh validated Registry containing its module registrations and a route-scoped `SingleActivityWorkflow`.
+- Worker startup uses one process and `AsyncExitStack`, so partial startup failure and normal cancellation close entered Worker and Client contexts in reverse order.
+- `python -m orchestrator.worker inspect-catalog` emits machine-readable topology; an empty valid catalog warns and exits successfully.
+- The NixOS unit entry point passes 171 tests after orchestrator composition implementation.
