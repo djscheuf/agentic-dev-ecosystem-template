@@ -17,6 +17,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-012: Skill Activity Invocation Configuration](decisions/ADR-012-skill-activity-invocation-configuration.md)
 - [ADR-013: Three-Layer Workflow Module Architecture](decisions/ADR-013-three-layer-workflow-module-architecture.md)
 - [ADR-014: Colocated Skill Activity Configuration and Template Method](decisions/ADR-014-colocated-skill-activity-template-method.md)
+- [ADR-015: Devin Cost Metric Capture Scope](decisions/ADR-015-devin-cost-metric-scope.md)
 
  
 ## Services
