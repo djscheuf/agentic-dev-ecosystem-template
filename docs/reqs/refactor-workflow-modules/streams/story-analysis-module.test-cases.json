@@ -1,0 +1,61 @@
+{
+  "target_story": "docs/reqs/refactor-workflow-modules/refactor-workflow-modules-into-layers.analysis.json",
+  "source_workstream": "docs/reqs/refactor-workflow-modules/streams/story-analysis-module.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Workflow ownership and behavior",
+      "tests": [
+        {
+          "id": 1,
+          "name": "StoryAnalysisPackage_WhenImported_OwnsDomainBehavior",
+          "status": "passing",
+          "description": "Story Analysis workflow, engine, escalation, grading, and workflow logging are importable from the workflow-owned package and retain existing behavior.",
+          "arrange": "Existing orchestrator domain tests and Story Analysis package",
+          "act": "Import domain symbols from story_analysis_workflow and run the migrated unit suite",
+          "assert": "Behavior remains green without importing domain implementations from orchestrator"
+        },
+        {
+          "id": 2,
+          "name": "StoryAnalysisActivities_WhenMigrated_PreserveArtifactFallback",
+          "status": "pending",
+          "description": "The complete Activity folder and adjacent configurations are workflow-owned and preserve artifact fallback behavior.",
+          "arrange": "Existing Activity tests, common SkillActivity lifecycle, and colocated JSON configuration",
+          "act": "Run migrated Activity tests against story_analysis_workflow.activities",
+          "assert": "All Activities retain wire names, configuration, sentinel handling, and fallback output resolution"
+        },
+        {
+          "id": 3,
+          "name": "StoryAnalysisClients_WhenMigrated_UseOwnedContractsAndCommonLogging",
+          "status": "pending",
+          "description": "Starter, CLI, signals, queries, and diagnostic client use workflow-owned contracts and common logging.",
+          "arrange": "Existing Story Analysis client tests and centralized wire constants",
+          "act": "Run client unit tests after replacing orchestrator imports",
+          "assert": "Public client behavior and wire names remain unchanged with no Story Analysis dependency on orchestrator"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Module contract and architecture",
+      "tests": [
+        {
+          "id": 4,
+          "name": "StoryAnalysisModule_WhenRegistered_DeclaresAccurateSpec",
+          "status": "pending",
+          "description": "The package exports an immutable WorkflowModuleSpec and registers every declared workflow and Activity using existing wire names.",
+          "arrange": "A fresh Cadence Registry and the story_analysis_workflow module entry point",
+          "act": "Inspect SPEC and invoke register(registry)",
+          "assert": "SPEC declares the domain, task list, workflow type, Activity types, and callable registration accurately"
+        },
+        {
+          "id": 5,
+          "name": "StoryAnalysisPackage_WhenImportsAnalyzed_RespectsLayerBoundary",
+          "status": "pending",
+          "description": "The workflow package imports common and its own modules but not orchestrator or another workflow package.",
+          "arrange": "All Python files under story_analysis_workflow",
+          "act": "Analyze imports statically",
+          "assert": "No disallowed package dependency is present and no stale Story Analysis implementation remains in orchestrator"
+        }
+      ]
+    }
+  ]
+}
