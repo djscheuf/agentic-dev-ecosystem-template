@@ -16,3 +16,18 @@ class WorkflowModuleSpec:
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip() or value != value.strip():
                 raise ValueError(f"{field_name} must be a non-empty trimmed string")
+        for field_name in ("workflow_types", "activity_types"):
+            values = getattr(self, field_name)
+            if (
+                not isinstance(values, tuple)
+                or len(values) != len(set(values))
+                or any(
+                    not isinstance(value, str)
+                    or not value.strip()
+                    or value != value.strip()
+                    for value in values
+                )
+            ):
+                raise ValueError(
+                    f"{field_name} must contain unique non-empty trimmed strings"
+                )

@@ -26,3 +26,21 @@ def test_workflow_module_spec_rejects_invalid_identity(field, value):
             activity_types=("activity",),
             register=_register,
         )
+
+
+@pytest.mark.parametrize("field", ["workflow_types", "activity_types"])
+def test_workflow_module_spec_rejects_invalid_wire_names(field):
+    values = {
+        "name": "module",
+        "domain": "domain",
+        "task_list": "task-list",
+        "workflow_types": ("valid",),
+        "activity_types": ("valid",),
+        "register": _register,
+    }
+    values[field] = ("valid", "", "valid")
+
+    with pytest.raises(
+        ValueError, match=rf"{field} must contain unique non-empty trimmed strings"
+    ):
+        WorkflowModuleSpec(**values)
