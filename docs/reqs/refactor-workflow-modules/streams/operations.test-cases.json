@@ -1,0 +1,52 @@
+{
+  "target_story": "docs/reqs/refactor-workflow-modules/refactor-workflow-modules-into-layers.analysis.json",
+  "source_workstream": "docs/reqs/refactor-workflow-modules/streams/operations.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Multi-worker lifecycle and startup operations",
+      "tests": [
+        {
+          "id": 1,
+          "name": "RunWorkerTopology_WhenStopped_LogsAndClosesEveryRoute",
+          "status": "passing",
+          "description": "The shared worker process reports route-aware readiness and closes every Worker and Client context after cancellation.",
+          "arrange": "Two WorkerSpec routes with recording async contexts and a controllable stop event.",
+          "act": "Run the topology, release the stop event, and capture workflow.worker logs.",
+          "assert": "Both routes start, topology readiness is logged, every context closes in reverse order, and shutdown logs include domain and task_list without Story Analysis assumptions."
+        },
+        {
+          "id": 2,
+          "name": "StartWorkflowEngine_WithCatalogTopology_RegistersDomainsAndWaitsForRoutes",
+          "status": "pending",
+          "description": "The startup script consumes validated inspect-catalog JSON instead of hard-coded routing constants.",
+          "arrange": "A catalog inspection result containing multiple routes, repeated domains, and the empty-catalog shape.",
+          "act": "Inspect the startup script's topology discovery, registration, readiness, and summary behavior.",
+          "assert": "The script calls inspect-catalog, registers each distinct domain once, checks every domain/task-list route, contains no hard-coded Story Analysis route, and handles zero Workers successfully."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Route-aware single-Activity diagnostics",
+      "tests": [
+        {
+          "id": 3,
+          "name": "RunSingleActivity_WithExplicitRoute_StartsOnSelectedTaskList",
+          "status": "pending",
+          "description": "Diagnostic invocation requires an explicit domain and task list and routes the workflow to that Worker.",
+          "arrange": "A valid input file, explicit target domain/task-list arguments, and a fake Cadence client.",
+          "act": "Invoke the single-Activity CLI.",
+          "assert": "The client is created for the selected domain and SingleActivityWorkflow starts on the selected task list."
+        },
+        {
+          "id": 4,
+          "name": "RunSingleActivity_WithInvalidSelection_ReturnsClearError",
+          "status": "pending",
+          "description": "An invalid or unsupported Activity selection is rejected before a diagnostic workflow is started.",
+          "arrange": "Explicit routing arguments, a valid input file, and an invalid Activity name.",
+          "act": "Invoke the single-Activity CLI.",
+          "assert": "The command exits nonzero, names the invalid Activity, and does not create a Cadence client or silently route work."
+        }
+      ]
+    }
+  ]
+}
