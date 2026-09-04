@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "WorkflowModules_WhenLoaded_ValidateEverySpecBeforeRuntime",
-          "status": "pending",
+          "status": "passing",
           "description": "Configured modules are imported and their SPEC values and globally unique module names are validated before runtime resources are opened.",
           "arrange": "Importable fake modules covering valid, missing, wrong-type, duplicate-name, and failed-import entries",
           "act": "Load all configured module entry points",
