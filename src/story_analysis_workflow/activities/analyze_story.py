@@ -30,6 +30,6 @@ ANALYZE_STORY_ACTIVITY = AnalyzeStorySkillActivity(
 async def analyze_story(intent_path: str) -> dict:
     output = await asyncio.to_thread(
         ANALYZE_STORY_ACTIVITY.execute,
-        SkillActivityInput(skill_name="analyze-story", input_paths=[intent_path]),
+        SkillActivityInput(input_paths=[intent_path]),
     )
     return dataclasses.asdict(output)

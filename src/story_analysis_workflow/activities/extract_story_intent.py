@@ -25,8 +25,6 @@ EXTRACT_STORY_INTENT_ACTIVITY = ExtractStoryIntentSkillActivity(
 async def extract_story_intent(input_paths: list[str], context: str = "") -> dict:
     output = await asyncio.to_thread(
         EXTRACT_STORY_INTENT_ACTIVITY.execute,
-        SkillActivityInput(
-            skill_name="extract-story-intent", input_paths=input_paths, context=context
-        ),
+        SkillActivityInput(input_paths=input_paths, context=context),
     )
     return dataclasses.asdict(output)

@@ -32,7 +32,7 @@ GRADE_STORY_ANALYSIS_ACTIVITY = GradeStoryAnalysisSkillActivity(
 async def grade_story_analysis(analysis_path: str) -> dict:
     output = await asyncio.to_thread(
         GRADE_STORY_ANALYSIS_ACTIVITY.execute,
-        SkillActivityInput(skill_name="grade-story-analysis", input_paths=[analysis_path]),
+        SkillActivityInput(input_paths=[analysis_path]),
     )
     grade_document = json.loads((REPO_ROOT / output.output_path).read_text())
     score_pct, passed = score_analysis_grade(grade_document)

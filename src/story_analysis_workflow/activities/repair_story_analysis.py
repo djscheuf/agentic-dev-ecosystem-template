@@ -25,7 +25,6 @@ async def repair_story_analysis(analysis_path: str, grade_path: str, notes: str 
     output = await asyncio.to_thread(
         REPAIR_STORY_ANALYSIS_ACTIVITY.execute,
         SkillActivityInput(
-            skill_name="repair-story-analysis",
             input_paths=[analysis_path, grade_path],
             context=notes,
         ),
