@@ -536,3 +536,45 @@ def test_execute_with_successful_sentinel_completes_fixed_lifecycle(tmp_path):
     ]
     assert output.output_path == "docs/probe.json"
     assert get_current_skill_name() is None
+
+
+def test_adapters_with_concrete_activities_preserve_output_and_config_contracts():
+    from orchestrator.activities.analyze_story import ANALYZE_STORY_ACTIVITY
+    from orchestrator.activities.extract_story_intent import EXTRACT_STORY_INTENT_ACTIVITY
+    from orchestrator.activities.grade_story_analysis import GRADE_STORY_ANALYSIS_ACTIVITY
+    from orchestrator.activities.repair_story_analysis import REPAIR_STORY_ANALYSIS_ACTIVITY
+
+    cases = [
+        (
+            EXTRACT_STORY_INTENT_ACTIVITY,
+            SkillActivityInput("ignored", ["docs/story.md"]),
+            "docs/story.intent.json",
+        ),
+        (
+            ANALYZE_STORY_ACTIVITY,
+            SkillActivityInput("ignored", ["docs/story.intent.json"]),
+            "docs/story.analysis.json",
+        ),
+        (
+            GRADE_STORY_ANALYSIS_ACTIVITY,
+            SkillActivityInput("ignored", ["docs/story.analysis.json"]),
+            "docs/story.analysis-grade.json",
+        ),
+        (
+            REPAIR_STORY_ANALYSIS_ACTIVITY,
+            SkillActivityInput("ignored", ["docs/story.analysis.json"]),
+            "docs/story.analysis.json",
+        ),
+    ]
+
+    assert [
+        (
+            activity.skill_name,
+            str(activity.expected_output_path(skill_input)),
+            activity.harness_config["devin"]["permission_mode"],
+        )
+        for activity, skill_input, expected_path in cases
+    ] == [
+        (activity.skill_name, expected_path, "accept-edits")
+        for activity, skill_input, expected_path in cases
+    ]
