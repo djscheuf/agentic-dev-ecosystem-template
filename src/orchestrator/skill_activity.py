@@ -14,11 +14,15 @@ tested without a real repository checkout.
 
 import json
 import time
+from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Mapping
 
 from .harness import Harness
 from .invocation_context import skill_invocation_context
+from .skill_activity_config import SkillActivityConfig
 from .workflow_logger import (
     activity_log_context,
     get_activity_log_path,
@@ -97,6 +101,104 @@ def _build_prompt(skill_input: SkillActivityInput) -> str:
     if skill_input.context:
         lines.append(skill_input.context)
     return "\n".join(lines)
+
+
+class SkillActivity(ABC):
+    def __init__(
+        self,
+        *,
+        config_path: Path,
+        harness: Harness,
+        repo_root: Path = REPO_ROOT,
+    ) -> None:
+        config = SkillActivityConfig.load(config_path)
+        self.skill_name = config.skill_name
+        self.output_path_key = config.output_path_key
+        self.harness_config = config.harness
+        self.harness = harness
+        self.repo_root = repo_root
+
+    @abstractmethod
+    def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+        raise NotImplementedError
+
+    def modify_prompt(self, prompt: str) -> str:
+        return prompt
+
+    def modify_sentinel_path(self, sentinel_path: Path) -> Path:
+        return sentinel_path
+
+    def modify_harness_config(
+        self, config: Mapping[str, object]
+    ) -> Mapping[str, object]:
+        return config
+
+    def modify_invocation_context(
+        self, context: AbstractContextManager[None]
+    ) -> AbstractContextManager[None]:
+        return context
+
+    def modify_output_path(self, output_path: Path) -> Path:
+        return output_path
+
+    def modify_result(self, result: SkillActivityOutput) -> SkillActivityOutput:
+        return result
+
+    def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
+        sentinel_file = self.modify_sentinel_path(
+            _sentinel_path(self.repo_root, self.skill_name)
+        )
+        if sentinel_file.exists():
+            sentinel_file.unlink()
+        prompt = self.modify_prompt(
+            _build_prompt(
+                SkillActivityInput(
+                    skill_name=self.skill_name,
+                    input_paths=skill_input.input_paths,
+                    context=skill_input.context,
+                )
+            )
+        )
+        config = self.modify_harness_config(self.harness_config)
+        context = self.modify_invocation_context(
+            skill_invocation_context(self.skill_name)
+        )
+
+        with activity_log_context():
+            start = time.monotonic()
+            with context:
+                result = self.harness.run(
+                    prompt, cwd=self.repo_root, config=config
+                )
+            duration_ms = int((time.monotonic() - start) * 1000)
+            if result.exit_code != 0:
+                raise SkillActivityError(
+                    f"Harness exited {result.exit_code} while running skill "
+                    f"'{self.skill_name}'"
+                )
+            sentinel = json.loads(sentinel_file.read_text())
+            if sentinel.get("task") != self.skill_name:
+                raise SkillActivityError(
+                    f"Sentinel task mismatch for skill '{self.skill_name}'"
+                )
+            output_value = sentinel.get("verify_params", {}).get(
+                self.output_path_key
+            )
+            if not output_value:
+                raise SkillActivityError(
+                    f"Sentinel for skill '{self.skill_name}' is missing "
+                    f"verify_params.{self.output_path_key}"
+                )
+            output_path = self.modify_output_path(Path(output_value))
+            output = SkillActivityOutput(
+                status="success",
+                output_path=str(output_path),
+                sentinel_path=str(sentinel_file.relative_to(self.repo_root)),
+                duration_ms=duration_ms,
+                activity_log_path=get_activity_log_path() or "",
+                devin_log_path=get_devin_log_path() or "",
+            )
+        return self.modify_result(output)
 
 
 def run_skill(

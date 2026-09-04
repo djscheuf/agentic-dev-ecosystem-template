@@ -442,3 +442,97 @@ def test_load_with_valid_adjacent_config_returns_immutable_snapshot(tmp_path):
         loaded.harness["devin"]["model"] = "changed"
     with pytest.raises(TypeError):
         loaded.harness["devin"]["options"][1]["nested"] = ()
+
+
+def test_execute_with_successful_sentinel_completes_fixed_lifecycle(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    events = []
+    config_path = tmp_path / "probe.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "probe-skill",
+                    "output_path_key": "probe_path",
+                },
+                "harness": {"alternate": {"nested": ["value"]}},
+            }
+        )
+    )
+
+    class RecordingContext:
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def __enter__(self):
+            events.append("context_enter")
+            return self.wrapped.__enter__()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            try:
+                return self.wrapped.__exit__(exc_type, exc_value, traceback)
+            finally:
+                events.append("context_exit")
+
+    class RecordingHarness:
+        def run(self, prompt, *, cwd, config):
+            events.append("harness")
+            assert get_current_skill_name() == "probe-skill"
+            assert config["alternate"]["nested"] == ("value",)
+            _write_sentinel(
+                cwd,
+                "probe-skill",
+                verify_params={"probe_path": "docs/probe.json"},
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    class RecordingActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+        def modify_sentinel_path(self, sentinel_path):
+            events.append("sentinel")
+            return sentinel_path
+
+        def modify_prompt(self, prompt):
+            events.append("prompt")
+            return prompt
+
+        def modify_harness_config(self, config):
+            events.append("config")
+            return config
+
+        def modify_invocation_context(self, context):
+            events.append("context")
+            return RecordingContext(context)
+
+        def modify_output_path(self, output_path):
+            events.append("output")
+            return output_path
+
+        def modify_result(self, result):
+            events.append("result")
+            return result
+
+    activity = RecordingActivity(
+        config_path=config_path,
+        harness=RecordingHarness(),
+        repo_root=tmp_path,
+    )
+
+    output = activity.execute(SkillActivityInput(skill_name="ignored"))
+
+    assert events == [
+        "sentinel",
+        "prompt",
+        "config",
+        "context",
+        "context_enter",
+        "harness",
+        "context_exit",
+        "output",
+        "result",
+    ]
+    assert output.output_path == "docs/probe.json"
+    assert get_current_skill_name() is None
