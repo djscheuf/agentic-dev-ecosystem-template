@@ -998,3 +998,48 @@ def test_import_with_invalid_concrete_config_prevents_worker_startup(monkeypatch
     finally:
         monkeypatch.undo()
         importlib.reload(module)
+
+
+def test_onboard_with_new_class_and_adjacent_config_needs_no_catalog_edit(tmp_path):
+    from orchestrator.skill_activity import SkillActivity
+
+    config_path = tmp_path / "probe_activity.config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "activity": {
+                    "skill_name": "new-probe-skill",
+                    "output_path_key": "probe_artifact_path",
+                },
+                "harness": {
+                    "other-agent": {"mode": "controlled", "nested": ["value"]}
+                },
+            }
+        )
+    )
+    calls = []
+
+    class NewProbeActivity(SkillActivity):
+        def expected_output_path(self, skill_input):
+            return tmp_path / "fallback.json"
+
+    class AlternateHarness:
+        def run(self, prompt, *, cwd, config):
+            calls.append((prompt, config))
+            _write_sentinel(
+                cwd,
+                "new-probe-skill",
+                verify_params={"probe_artifact_path": "docs/probe-output.json"},
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    output = NewProbeActivity(
+        config_path=config_path,
+        harness=AlternateHarness(),
+        repo_root=tmp_path,
+    ).execute(SkillActivityInput(skill_name="ignored"))
+
+    assert output.output_path == "docs/probe-output.json"
+    assert len(calls) == 1
+    assert calls[0][1]["other-agent"]["mode"] == "controlled"
+    assert calls[0][1]["other-agent"]["nested"] == ("value",)
