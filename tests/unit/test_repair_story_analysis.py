@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from orchestrator.skill_activity import SkillActivityInput, run_skill
+from common.skill_activity import SkillActivityInput, run_skill
 from tests.fake_harness import FakeHarness
 
 

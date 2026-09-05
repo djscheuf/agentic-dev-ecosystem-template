@@ -5,6 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
@@ -23,6 +24,7 @@ class SkillActivityError(RuntimeError):
 
 @dataclass(frozen=True)
 class SkillActivityInput:
+    skill_name: str = ""
     input_paths: list[str] = field(default_factory=list)
     context: str = ""
 
@@ -124,3 +126,53 @@ class SkillActivity(ABC):
                 activity_log_path=get_activity_log_path() or "",
                 devin_log_path=get_devin_log_path() or "",
             )
+
+
+def run_skill(
+    skill_input: SkillActivityInput,
+    *,
+    output_path_key: str,
+    harness: Harness,
+    repo_root: Path,
+    expected_output_path: Callable[[SkillActivityInput], Path] | None = None,
+) -> SkillActivityOutput:
+    sentinel = repo_root / ".process" / f"{skill_input.skill_name}.done.json"
+    if sentinel.exists():
+        sentinel.unlink()
+    lines = [f"Invoke the '{skill_input.skill_name}' skill."]
+    if skill_input.input_paths:
+        lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
+    if skill_input.context:
+        lines.append(skill_input.context)
+    start = time.monotonic()
+    with skill_invocation_context(skill_input.skill_name):
+        result = harness.run("\n".join(lines), cwd=repo_root)
+    if result.exit_code:
+        raise SkillActivityError(
+            f"Harness exited {result.exit_code} while running skill '{skill_input.skill_name}'"
+        )
+    try:
+        payload = json.loads(sentinel.read_text())
+    except FileNotFoundError:
+        if expected_output_path is None:
+            raise SkillActivityError(
+                f"Missing sentinel for skill '{skill_input.skill_name}'"
+            )
+        output_path = expected_output_path(skill_input)
+    else:
+        if payload.get("task") != skill_input.skill_name:
+            raise SkillActivityError(
+                f"Sentinel task mismatch for skill '{skill_input.skill_name}'"
+            )
+        value = payload.get("verify_params", {}).get(output_path_key)
+        if not value:
+            raise SkillActivityError(
+                f"Sentinel for skill '{skill_input.skill_name}' is missing verify_params.{output_path_key}"
+            )
+        output_path = Path(value)
+    return SkillActivityOutput(
+        status="success",
+        output_path=str(output_path),
+        sentinel_path=str(sentinel.relative_to(repo_root)),
+        duration_ms=int((time.monotonic() - start) * 1000),
+    )
