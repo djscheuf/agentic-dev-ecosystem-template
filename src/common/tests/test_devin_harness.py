@@ -116,6 +116,39 @@ def test_run_with_missing_or_malformed_export_preserves_process_result() -> None
     assert results[1].usage is None
 
 
+def test_run_rejects_wrong_typed_atif_fields_independently(tmp_path) -> None:
+    def runner(command, **kwargs):
+        export_path = Path(command[command.index("--export") + 1])
+        export_path.write_text(
+            json.dumps(
+                {
+                    "final_metrics": {
+                        "total_prompt_tokens": True,
+                        "total_completion_tokens": 20,
+                        "total_cached_tokens": "30",
+                        "total_cost_usd": False,
+                    }
+                }
+            )
+        )
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    result = DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    assert result.usage == HarnessUsage(completion_tokens=20)
+
+
+def test_run_returns_none_usage_when_final_metrics_is_not_object(tmp_path) -> None:
+    def runner(command, **kwargs):
+        export_path = Path(command[command.index("--export") + 1])
+        export_path.write_text(json.dumps({"final_metrics": "invalid"}))
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    result = DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    assert result.usage is None
+
+
 def test_run_returns_full_usage_for_complete_atif_metrics(tmp_path) -> None:
     def runner(command, **kwargs):
         export_path = Path(command[command.index("--export") + 1])
