@@ -116,6 +116,40 @@ def test_run_with_missing_or_malformed_export_preserves_process_result() -> None
     assert results[1].usage is None
 
 
+def test_run_isolates_retry_attempts_in_same_workflow_run(tmp_path) -> None:
+    export_paths = []
+
+    def make_runner(attempt: int):
+        def runner(command, **kwargs):
+            export_path = Path(command[command.index("--export") + 1])
+            export_paths.append(export_path)
+            export_path.write_text(
+                json.dumps({"final_metrics": {"total_prompt_tokens": attempt}})
+            )
+            return subprocess.CompletedProcess(command, 0, "done", "")
+
+        return runner
+
+    for attempt in (1, 2):
+        info = SimpleNamespace(
+            workflow_id="workflow",
+            workflow_run_id="run",
+            activity_type="Analyze",
+            activity_id="activity",
+            attempt=attempt,
+        )
+        with activity_log_context(info, WorkflowLoggerConfig(log_root=tmp_path)):
+            result = DevinHarness(runner=make_runner(attempt)).run(
+                "review this", cwd=Path("/repo"), config={}
+            )
+
+        assert result.usage == HarnessUsage(prompt_tokens=attempt)
+
+    assert len(export_paths) == 2
+    assert export_paths[0] != export_paths[1]
+    assert all(path.exists() for path in export_paths)
+
+
 def test_run_logs_sanitized_export_and_usage_outcomes_without_trajectory_content(caplog) -> None:
     caplog.set_level("INFO", logger="workflow.devin")
     marker = "sensitive-trajectory-content"
