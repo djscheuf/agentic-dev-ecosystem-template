@@ -2,12 +2,14 @@
 
 import subprocess
 import tempfile
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
 
 from .atif_usage import read_atif_usage
 from .harness import HarnessResult
+from .workflow_logger import get_activity_artifact_dir
 
 DEFAULT_MODEL = "SWE-1.7"
 DEFAULT_PERMISSION_MODE = "auto"
@@ -53,8 +55,10 @@ class DevinHarness:
         config: Mapping[str, object],
     ) -> HarnessResult:
         profile = DevinHarnessConfig.from_mapping(config)
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            export_path = Path(temporary_dir) / "devin-trajectory.json"
+        with ExitStack() as stack:
+            artifact_dir = get_activity_artifact_dir()
+            export_dir = artifact_dir or Path(stack.enter_context(tempfile.TemporaryDirectory()))
+            export_path = export_dir / "devin-trajectory.json"
             command = [
                 "devin", "-p", "--export", str(export_path),
                 "--permission-mode", profile.permission_mode,

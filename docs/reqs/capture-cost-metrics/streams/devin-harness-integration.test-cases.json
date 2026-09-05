@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "run_with_activity_context_retains_trajectory_beside_activity_logs",
-          "status": "pending",
+          "status": "passing",
           "description": "Activity invocations retain the raw trajectory in the attempt-scoped artifact directory",
           "arrange": "Enter an Activity logging context and use a runner that writes valid ATIF",
           "act": "Run DevinHarness inside the context",
