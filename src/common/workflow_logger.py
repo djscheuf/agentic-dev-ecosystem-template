@@ -46,7 +46,13 @@ class WorkflowLoggerConfig:
 
     @classmethod
     def load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "WorkflowLoggerConfig":
-        data = json.loads(config_path.read_text()) if config_path.exists() else {}
+        if config_path.exists():
+            data = json.loads(config_path.read_text())
+        else:
+            logging.getLogger(__name__).warning(
+                "logging config not found at %s; using defaults", config_path
+            )
+            data = {}
         levels = data.get("levels", {})
         log_root = Path(
             os.environ.get(

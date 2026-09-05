@@ -10,6 +10,16 @@ from common.workflow_logger import (
 )
 
 
+def test_missing_logging_config_uses_defaults_and_warns(tmp_path, caplog) -> None:
+    missing_path = tmp_path / "missing.json"
+
+    with caplog.at_level(logging.WARNING):
+        config = WorkflowLoggerConfig.load(missing_path)
+
+    assert config.worker_level == "INFO"
+    assert "logging config not found" in caplog.text
+
+
 def test_setup_worker_logging_uses_supplied_worker_level() -> None:
     root = logging.getLogger()
     original_level = root.level
