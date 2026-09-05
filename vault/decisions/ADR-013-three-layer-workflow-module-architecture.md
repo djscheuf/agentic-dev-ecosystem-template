@@ -103,3 +103,11 @@ The implementation design resolves the open topology choices for the first incre
 - Worker lifecycle logs identify each domain/task-list route and report topology readiness only after every Worker context enters.
 - The single-Activity diagnostic CLI requires explicit `--domain` and `--task-list` routing and rejects invalid Activity selections before creating a Cadence client.
 - The NixOS unit entry point passes 175 tests after operations implementation.
+
+## Common infrastructure cleanup status (2026-09-05)
+
+- Reusable Harness, DevinHarness, invocation context, SkillActivity, configuration, and workflow logging implementations now live only in `common`.
+- `SkillActivity` provides prompt, sentinel, harness configuration, invocation context, output path, and result transformation hooks plus the standalone `run_skill` compatibility helper.
+- The orchestrator remains the logging composition root: it loads `workflow_logging.config.json` and passes a `WorkflowLoggerConfig` to common worker logging setup.
+- Static architecture verification rejects reintroduction of the removed orchestrator infrastructure modules, and source code contains no imports of those legacy paths.
+- The NixOS unit entry point passes 140 tests after duplicate test suites and implementations are removed and common coverage is expanded.
