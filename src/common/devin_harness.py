@@ -1,10 +1,12 @@
 """Harness implementation backed by the Devin CLI."""
 
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
 
+from .atif_usage import read_atif_usage
 from .harness import HarnessResult
 
 DEFAULT_MODEL = "SWE-1.7"
@@ -51,12 +53,16 @@ class DevinHarness:
         config: Mapping[str, object],
     ) -> HarnessResult:
         profile = DevinHarnessConfig.from_mapping(config)
-        command = [
-            "devin", "-p", "--permission-mode", profile.permission_mode,
-            "--model", profile.model, "--", prompt,
-        ]
-        try:
-            result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
-        except OSError as exc:
-            raise RuntimeError("devin_launch_failed") from exc
-        return HarnessResult(result.returncode, result.stdout, result.stderr)
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            export_path = Path(temporary_dir) / "devin-trajectory.json"
+            command = [
+                "devin", "-p", "--export", str(export_path),
+                "--permission-mode", profile.permission_mode,
+                "--model", profile.model, "--", prompt,
+            ]
+            try:
+                result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
+            except OSError as exc:
+                raise RuntimeError("devin_launch_failed") from exc
+            usage = read_atif_usage(export_path)
+        return HarnessResult(result.returncode, result.stdout, result.stderr, usage)
