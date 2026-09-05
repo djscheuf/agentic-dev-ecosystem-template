@@ -116,6 +116,34 @@ def test_run_with_missing_or_malformed_export_preserves_process_result() -> None
     assert results[1].usage is None
 
 
+def test_run_sanitizes_path_unsafe_activity_identifiers(tmp_path) -> None:
+    export_paths = []
+
+    def runner(command, **kwargs):
+        export_path = Path(command[command.index("--export") + 1])
+        export_paths.append(export_path)
+        export_path.write_text(
+            json.dumps({"final_metrics": {"total_prompt_tokens": 1}})
+        )
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    info = SimpleNamespace(
+        workflow_id="../wf/文",
+        workflow_run_id=".run/../id",
+        activity_type="skill/type",
+        activity_id="../act.文",
+        attempt=1,
+    )
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    with activity_log_context(info, config):
+        result = DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    assert result.usage == HarnessUsage(prompt_tokens=1)
+    export_path = export_paths[0]
+    assert export_path.name == "devin-trajectory.json"
+    assert export_path.resolve().is_relative_to(config.log_root.resolve())
+
+
 def test_run_rejects_wrong_typed_atif_fields_independently(tmp_path) -> None:
     def runner(command, **kwargs):
         export_path = Path(command[command.index("--export") + 1])
