@@ -5,8 +5,19 @@ from common.workflow_logger import (
     WorkflowLoggerConfig,
     activity_log_context,
     get_activity_artifact_dir,
+    setup_worker_logging,
     worker_log_context,
 )
+
+
+def test_setup_worker_logging_uses_supplied_worker_level() -> None:
+    root = logging.getLogger()
+    original_level = root.level
+    try:
+        setup_worker_logging(WorkflowLoggerConfig(worker_level="DEBUG"))
+        assert root.level == logging.DEBUG
+    finally:
+        root.setLevel(original_level)
 
 
 def test_worker_logging_includes_generic_route_identity(caplog) -> None:

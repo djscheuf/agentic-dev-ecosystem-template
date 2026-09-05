@@ -365,3 +365,17 @@ def get_devin_logger() -> logging.Logger:
     if bundle is None:
         return logging.getLogger("workflow.devin")
     return bundle.devin
+
+
+def setup_worker_logging(config: WorkflowLoggerConfig | None = None) -> None:
+    cfg = config or WorkflowLoggerConfig.load()
+    level = _parse_level(cfg.worker_level)
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(level=level, format=LOG_FORMAT)
+    else:
+        root.setLevel(level)
+        for handler in root.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                handler.setLevel(level)
+                handler.setFormatter(logging.Formatter(LOG_FORMAT))
