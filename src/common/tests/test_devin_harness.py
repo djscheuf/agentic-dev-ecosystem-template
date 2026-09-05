@@ -116,6 +116,34 @@ def test_run_with_missing_or_malformed_export_preserves_process_result() -> None
     assert results[1].usage is None
 
 
+def test_run_returns_full_usage_for_complete_atif_metrics(tmp_path) -> None:
+    def runner(command, **kwargs):
+        export_path = Path(command[command.index("--export") + 1])
+        export_path.write_text(
+            json.dumps(
+                {
+                    "final_metrics": {
+                        "total_prompt_tokens": 10,
+                        "total_completion_tokens": 20,
+                        "total_cached_tokens": 30,
+                        "total_cost_usd": 4.5,
+                        "total_credits": 100,
+                    }
+                }
+            )
+        )
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    result = DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    assert result.usage == HarnessUsage(
+        prompt_tokens=10,
+        completion_tokens=20,
+        cached_tokens=30,
+        cost_usd=4.5,
+    )
+
+
 def test_run_isolates_retry_attempts_in_same_workflow_run(tmp_path) -> None:
     export_paths = []
 
