@@ -9,12 +9,15 @@ from pathlib import Path
 from cadence.client import Client
 from cadence.worker import Worker
 
+from common.workflow_logger import WorkflowLoggerConfig, setup_worker_logging
+
 from .catalog import load_workflow_catalog, load_workflow_modules
 from .composition import build_worker_registry, compose_worker_specs
 from .runtime import run_worker_topology
 
 DEFAULT_CADENCE_TARGET = os.environ.get("CADENCE_TARGET", "localhost:7833")
 DEFAULT_CATALOG_PATH = Path(__file__).with_name("workflow_catalog.json")
+DEFAULT_LOGGING_CONFIG_PATH = Path(__file__).with_name("workflow_logging.config.json")
 
 
 def load_worker_specs(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CADENCE_TARGET):
@@ -57,6 +60,7 @@ async def _run_worker_specs(worker_specs):
 
 
 def start(catalog_path=DEFAULT_CATALOG_PATH, cadence_target=DEFAULT_CADENCE_TARGET):
+    setup_worker_logging(WorkflowLoggerConfig.load(DEFAULT_LOGGING_CONFIG_PATH))
     worker_specs = load_worker_specs(catalog_path, cadence_target)
     if not worker_specs:
         logging.getLogger(__name__).warning("zero configured Workers; exiting")

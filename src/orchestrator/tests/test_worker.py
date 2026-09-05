@@ -4,6 +4,7 @@ import signal
 
 import pytest
 
+import orchestrator.worker as worker_module
 from orchestrator.worker import inspect_catalog, install_shutdown_handlers, start
 
 
@@ -21,6 +22,25 @@ def test_orchestrator_cli_when_inspecting_catalog_reports_machine_readable_topol
     assert topology == {"worker_count": 0, "domains": [], "routes": []}
     assert result == 0
     assert "zero configured Workers" in caplog.text
+
+
+def test_worker_start_loads_and_applies_orchestrator_logging_config(
+    tmp_path, monkeypatch
+):
+    catalog_path = tmp_path / "workflow_catalog.json"
+    write_catalog(catalog_path, [])
+    config = object()
+    calls = []
+    monkeypatch.setattr(
+        worker_module.WorkflowLoggerConfig,
+        "load",
+        lambda path: config,
+    )
+    monkeypatch.setattr(worker_module, "setup_worker_logging", calls.append)
+
+    start(catalog_path, "target")
+
+    assert calls == [config]
 
 
 def test_worker_start_when_signalled_requests_coordinated_shutdown():
