@@ -1,0 +1,10 @@
+{
+  "log_root": ".process/logs",
+  "levels": {
+    "worker": "INFO",
+    "workflow": "INFO",
+    "client": "INFO",
+    "activity": "DEBUG",
+    "devin": "DEBUG"
+  }
+}

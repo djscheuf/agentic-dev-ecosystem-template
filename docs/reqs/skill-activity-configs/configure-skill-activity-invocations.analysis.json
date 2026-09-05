@@ -1,0 +1,358 @@
+{
+  "raw_request": "docs/reqs/skill-activity-configs/story.md",
+  "title": "Configure Core Skill Activity Invocation Profiles",
+  "story": {
+    "so_that": "I can run agentic workflow Activities with the capabilities and safeguards appropriate to each task, with 100% of automated resolution cases and representative configured Story Analysis invocations using the expected settings without permission-related artifact failures",
+    "as_a": "Software Engineer and AI Process Designer",
+    "i_want": "to configure default and per-skill Devin models and tool permissions for each Skill Activity invocation"
+  },
+  "target_persona": {
+    "role": "Software Engineer / AI Process Designer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Configures one global Devin model and permission mode, operates Story Analysis workflows, reviews Activity logs, and diagnoses subprocess or sentinel failures.",
+      "during": "Defines version-controlled defaults and canonical-skill overrides, starts a workflow, and observes each Activity resolve and validate its effective invocation profile from SkillActivityInput.skill_name.",
+      "after": "Confirms every tested resolution case and representative Story Analysis invocation used the expected model and least-privilege permission mode, including explicit accept-edits overrides for unattended artifact-producing skills."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Deliver the first vertical slice for validated default and per-skill Devin model and permission-mode resolution, command construction, backward-compatible loading, safe logging, tests, and documentation while preserving generic Harness and sentinel contracts.",
+    "inputs": [
+      "src/orchestrator/devin_harness.config.json using defaults and skills objects",
+      "Default model and permission_mode values, with auto as the secure default permission mode",
+      "Optional partial model and permission_mode override keyed by canonical SkillActivityInput.skill_name",
+      "Legacy flat model and permission_mode values, mapped to the new defaults",
+      "Supported permission modes: auto, accept-edits, dangerous, and bypass"
+    ],
+    "outputs": [
+      "One immutable effective model and permission mode resolved for the requested skill",
+      "Devin CLI subprocess arguments containing the effective --model and --permission-mode values",
+      "Pre-launch validation error naming the affected skill and invalid known setting",
+      "Activity log containing skill name, effective model, and effective permission mode without credentials or secrets",
+      "Backward-compatible interpretation of the legacy flat configuration",
+      "Automated tests and documentation for the first-slice behavior",
+      "100% pass rate for resolution tests and representative configured Story Analysis invocations"
+    ],
+    "state_changes": [
+      "The colocated Devin Harness configuration gains defaults and skills mappings",
+      "Legacy flat values continue to load as defaults",
+      "Each invocation receives an effective profile selected from structured skill metadata",
+      "Artifact-producing skills use explicit accept-edits overrides when unattended repository writes are required",
+      "No UI, database, skill-output, or sentinel-contract changes occur",
+      "Referenced Devin profiles and runtime retry snapshot transport remain deferred follow-up work"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "DevinHarness receives or resolves the canonical skill name without adding Devin CLI fields to the generic Harness protocol",
+        "SkillActivityInput.skill_name remains the structured configuration lookup key"
+      ],
+      "database": [],
+      "external_services": [
+        "Host-installed Devin CLI invoked as a subprocess",
+        "Cadence executes Skill Activities, while retry snapshot implementation is deferred"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "The first slice uses the existing colocated src/orchestrator/devin_harness.config.json file with defaults and skills objects.",
+      "gherkin": "Given the repository configuration is opened When its top-level structure is inspected Then it contains a defaults object and a skills object keyed by canonical skill name",
+      "type": "Constraint",
+      "jtbd": "Review invocation settings in version control",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": []
+    },
+    {
+      "criterion": "Defaults apply to any canonical skill with no explicit override.",
+      "gherkin": "Given defaults specify model SWE-1.7 and permission_mode auto and a skill has no override When its profile is resolved Then the effective model is SWE-1.7 and permission mode is auto",
+      "type": "Functional",
+      "jtbd": "Apply default settings to unconfigured skills",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Structured configuration loading"]
+    },
+    {
+      "criterion": "Overrides are keyed by canonical skill name, including extract-story-intent, analyze-story, grade-story-analysis, and repair-story-analysis.",
+      "gherkin": "Given each listed canonical skill has a distinct override When each profile is resolved from SkillActivityInput.skill_name Then each skill receives only its matching override",
+      "type": "Functional",
+      "jtbd": "Override settings for a named skill",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Defaults", "Structured skill metadata"]
+    },
+    {
+      "criterion": "Profiles independently select the Devin model and a supported permission mode.",
+      "gherkin": "Given a resolved profile selects model M and supported permission mode P When DevinHarness constructs the subprocess command Then --model is followed by M and --permission-mode is followed by P as separate arguments",
+      "type": "Functional",
+      "jtbd": "Select model and permissions for an invocation",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Profile resolution", "Supported permission-mode allowlist"]
+    },
+    {
+      "criterion": "A partial skill override replaces only specified fields and inherits all unspecified fields from defaults.",
+      "gherkin": "Given defaults specify model SWE-1.7 and permission_mode auto and analyze-story overrides only permission_mode with accept-edits When analyze-story is resolved Then its model is SWE-1.7 and permission mode is accept-edits",
+      "type": "Business rule",
+      "jtbd": "Customize one skill while inheriting defaults",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Defaults", "Per-skill overrides"]
+    },
+    {
+      "criterion": "The default permission mode is auto and unrestricted modes are used only through explicit configuration.",
+      "gherkin": "Given permission_mode is omitted from defaults When the default profile is created Then permission mode is auto and neither dangerous nor bypass is selected",
+      "type": "Permission/access",
+      "jtbd": "Avoid unrestricted permissions by default",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Secure default constants"]
+    },
+    {
+      "criterion": "An unattended artifact-producing skill must explicitly resolve to accept-edits or another explicitly selected mode that permits its required writes.",
+      "gherkin": "Given analyze-story has an explicit accept-edits override When it creates its analysis and sentinel files non-interactively Then both writes complete without an approval prompt",
+      "type": "Permission/access",
+      "jtbd": "Run authorized repository edits unattended",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Per-skill permission override", "Devin CLI accept-edits behavior"]
+    },
+    {
+      "criterion": "A restricted skill is never automatically promoted to a broader permission mode.",
+      "gherkin": "Given a skill resolves to auto When it attempts a write requiring confirmation Then the invocation remains auto and reports the harness or missing-artifact failure without retrying under accept-edits, dangerous, or bypass",
+      "type": "Permission/access",
+      "jtbd": "Keep skills within configured permissions",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Resolved profile immutability", "Skill Activity error handling"]
+    },
+    {
+      "criterion": "Invalid known settings fail before the Devin subprocess starts and identify the affected skill and setting.",
+      "gherkin": "Given analyze-story sets permission_mode to unsupported-mode When configuration is validated Then the subprocess runner is not called and the error identifies analyze-story and permission_mode",
+      "type": "Error handling",
+      "jtbd": "Correct invalid settings before invocation",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Semantic validation"]
+    },
+    {
+      "criterion": "Explicit null, empty, or wrong-typed known values are invalid rather than treated as inheritance.",
+      "gherkin": "Given a skill override explicitly sets model to an empty string When configuration is validated Then the subprocess runner is not called and the error identifies that skill and model",
+      "type": "Boundary condition",
+      "jtbd": "Detect malformed profile values",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Known-field validation"]
+    },
+    {
+      "criterion": "Unknown top-level and profile keys are ignored without changing known-field resolution.",
+      "gherkin": "Given valid defaults include an unknown future key and a skill override includes another unknown key When the profile is resolved Then known model and permission_mode values resolve normally and the unknown keys do not reach the Devin command",
+      "type": "Boundary condition",
+      "jtbd": "Remain forward-compatible with unknown settings",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Configuration parser"]
+    },
+    {
+      "criterion": "Configuration selection uses SkillActivityInput.skill_name and never natural-language prompt parsing.",
+      "gherkin": "Given SkillActivityInput.skill_name is analyze-story and its prompt mentions repair-story-analysis When configuration is resolved Then the analyze-story profile is selected",
+      "type": "Constraint",
+      "jtbd": "Resolve settings from reliable metadata",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["SkillActivityInput.skill_name"]
+    },
+    {
+      "criterion": "The generic Harness contract and existing skill output and sentinel contracts remain unchanged.",
+      "gherkin": "Given a fake alternate Harness implements run(prompt, cwd) and an existing skill writes its current sentinel When run_skill executes Then the alternate Harness requires no Devin fields and the sentinel is read through its existing verify_params key",
+      "type": "Constraint",
+      "jtbd": "Preserve harness and completion compatibility",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Harness protocol", "ADR-004 sentinel contract"]
+    },
+    {
+      "criterion": "Legacy flat model and permission_mode values map to the new defaults without changing effective behavior.",
+      "gherkin": "Given the existing flat configuration specifies model SWE-1.7 and permission_mode auto When it is loaded Then the effective defaults are model SWE-1.7 and permission mode auto and no migration error occurs",
+      "type": "Constraint",
+      "jtbd": "Upgrade without rewriting existing configuration",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Legacy configuration adapter"]
+    },
+    {
+      "criterion": "Activity logs record the canonical skill name, effective model, and effective permission mode without credentials, prompt contents, or configuration-file contents.",
+      "gherkin": "Given analyze-story resolves to model SWE-1.7 and permission mode accept-edits When the Activity logs its invocation Then those three identifiers are present and credential values, prompt text, and configuration contents are absent",
+      "type": "Non-functional",
+      "jtbd": "Audit resolved invocation settings safely",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Workflow logger", "Resolved profile"]
+    },
+    {
+      "criterion": "All resolution, validation, inheritance, legacy compatibility, command construction, alternate-Harness, permission, and logging tests pass.",
+      "gherkin": "Given the first-slice automated test suite When it runs Then 100% of the specified configuration behavior tests pass",
+      "type": "Non-functional",
+      "jtbd": "Verify invocation configuration automatically",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["All first-slice functional criteria"]
+    },
+    {
+      "criterion": "Representative unattended invocations of the four Story Analysis skills use expected profiles and produce their existing artifacts.",
+      "gherkin": "Given valid profiles for extract-story-intent, analyze-story, grade-story-analysis, and repair-story-analysis When each representative invocation runs Then 100% use the expected model and permission mode and complete without a permission-related missing-artifact failure",
+      "type": "Happy path",
+      "jtbd": "Run configured Story Analysis skills successfully",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Configured local Devin CLI", "Skill fixtures", "All first-slice behavior"]
+    },
+    {
+      "criterion": "First-slice documentation defines configuration shape, precedence, supported modes, legacy mapping, security implications, and local examples.",
+      "gherkin": "Given a new operator reads only the first-slice documentation When they configure defaults and an accept-edits override for an artifact-producing skill Then the documented example resolves to the expected profile",
+      "type": "Non-functional",
+      "jtbd": "Configure Skill Activities from documentation",
+      "persona_served": "Software Engineer / AI Process Designer",
+      "dependencies": ["Final first-slice contract"]
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Missing configuration file",
+      "gherkin": "Given devin_harness.config.json does not exist When a profile is resolved Then model SWE-1.7 and permission mode auto are used",
+      "type": "Input edge case",
+      "jtbd": "Start safely without a configuration file",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Malformed JSON",
+      "gherkin": "Given devin_harness.config.json is not valid JSON When it is loaded Then no Devin subprocess starts and the configuration path is reported",
+      "type": "Input edge case",
+      "jtbd": "Correct malformed configuration",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Wrong-typed defaults or skills container",
+      "gherkin": "Given defaults or skills is not an object When configuration is validated Then no subprocess starts and the invalid container is reported",
+      "type": "Input edge case",
+      "jtbd": "Correct invalid configuration structure",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Empty overrides map and previously unseen canonical skill",
+      "gherkin": "Given skills is empty and a new canonical skill is invoked When its profile resolves Then it receives the defaults without a missing-override error",
+      "type": "State edge case",
+      "jtbd": "Run new skills with defaults",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Concurrent invocations use immutable effective profiles",
+      "gherkin": "Given two skills resolve different overrides concurrently When commands are constructed Then each command contains only its own effective model and permission mode",
+      "type": "State edge case",
+      "jtbd": "Keep concurrent skill settings isolated",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Interrupted invocation leaves a stale sentinel",
+      "gherkin": "Given a previous attempt left a sentinel When run_skill begins a new invocation Then it removes the stale sentinel and accepts only a sentinel created by the current invocation",
+      "type": "State edge case",
+      "jtbd": "Avoid accepting stale output",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Worker cannot read the configuration file",
+      "gherkin": "Given the worker lacks read permission for devin_harness.config.json When configuration is loaded Then no subprocess starts and a sanitized configuration-read error is reported",
+      "type": "User edge case",
+      "jtbd": "Diagnose inaccessible configuration",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Default auto mode cannot authorize a required unattended write",
+      "gherkin": "Given an artifact-producing skill has no accept-edits override and resolves to auto When it attempts to write Then permissions are not broadened and the Activity reports failure rather than success",
+      "type": "User edge case",
+      "jtbd": "Detect a missing edit permission override",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Devin CLI authentication is invalid",
+      "gherkin": "Given the host Devin CLI is unauthenticated When an Activity invokes it Then the harness reports the authentication failure without logging credentials",
+      "type": "System edge case",
+      "jtbd": "Diagnose CLI authentication safely",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Devin subprocess exits nonzero or cannot be started",
+      "gherkin": "Given the configured Devin process exits nonzero or executable startup fails When the Activity invokes it Then the Activity reports failure and does not report a successful artifact",
+      "type": "System edge case",
+      "jtbd": "Detect failed Devin invocation",
+      "persona_served": "Software Engineer / AI Process Designer"
+    },
+    {
+      "criterion": "Repository write fails despite accept-edits",
+      "gherkin": "Given a skill resolves to accept-edits but the repository filesystem rejects a write When the skill runs Then the Activity fails through the harness or missing-sentinel path without reporting success",
+      "type": "System edge case",
+      "jtbd": "Detect failed artifact persistence",
+      "persona_served": "Software Engineer / AI Process Designer"
+    }
+  ],
+  "questions": [
+    {
+      "question": "For the follow-up referenced-profile slice, which Devin CLI option identifies a profile and which filesystem locations may be referenced?",
+      "impacts": ["Follow-up configuration schema", "Filesystem security", "CLI integration", "Logging"]
+    },
+    {
+      "question": "For the follow-up retry slice, where should the selected Activity-start configuration snapshot be serialized so every Cadence retry reuses it?",
+      "impacts": ["Activity payload", "Cadence retry implementation", "Auditability"]
+    },
+    {
+      "question": "Should backward-compatible flat configuration support have a future deprecation date?",
+      "impacts": ["Long-term migration", "Documentation", "Maintenance"]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/orchestrator/devin_harness.py: extend DevinHarnessConfig.load and per-skill command construction",
+        "src/orchestrator/devin_harness.config.json: colocated version-controlled configuration retained as the source",
+        "src/orchestrator/skill_activity.py: use SkillActivityInput.skill_name as structured lookup metadata and preserve sentinel handling",
+        "src/orchestrator/harness.py: preserve run(prompt, cwd) for alternate Harnesses",
+        "src/orchestrator/activities/harness_instance.py: adjust shared DevinHarness construction if needed",
+        "src/orchestrator/workflow_logger.py: record only safe effective-profile identifiers",
+        "src/orchestrator/tests/test_devin_harness.py and Skill Activity tests: extend existing assertions"
+      ],
+      "new_code": [
+        "Defaults and skills configuration dataclasses or equivalent parser",
+        "Deterministic partial-inheritance resolver keyed by canonical skill name",
+        "Known-field validation with unknown-key tolerance",
+        "Legacy flat-to-defaults adapter",
+        "Safe effective-profile log event",
+        "Unit tests and representative Story Analysis invocation tests",
+        "First-slice configuration and local-development documentation"
+      ],
+      "infrastructure": [
+        "Existing host-side worker, repository configuration, logs, and test environment",
+        "No new database, queue, UI, or service deployment"
+      ],
+      "external_services": [
+        "Host-installed and authenticated Devin CLI",
+        "Existing Cadence stack for representative workflow invocations"
+      ]
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [
+        "Referenced Devin configuration profile support and profile-reference logging",
+        "Activity-start configuration snapshot transport across Cadence retries"
+      ],
+      "related": [
+        "Story Analysis workflow orchestration",
+        "Workflow-aware Activity logging",
+        "Alternate Harness support",
+        "Skill output and sentinel verification contracts"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Canonical Skill names and which unattended skills require repository writes",
+        "Least-privilege rule: auto by default and explicit accept-edits for required unattended writes"
+      ],
+      "technical_knowledge": [
+        "Devin CLI modes documented in project knowledge: auto, accept-edits, dangerous, and bypass",
+        "Python JSON loading and immutable profile resolution",
+        "Harness protocol dependency injection",
+        "Safe structured logging",
+        "Existing Skill Activity sentinel lifecycle"
+      ],
+      "stakeholder_questions": []
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Low"
+  }
+}

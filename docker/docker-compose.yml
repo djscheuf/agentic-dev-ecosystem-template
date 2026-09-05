@@ -1,0 +1,43 @@
+services:
+  cadence:
+    image: ubercadence/server:master
+    container_name: cadence
+    user: root
+    ports:
+      - "7833:7833"
+    volumes:
+      - ./cadence-sqlite.yaml:/etc/cadence/config/cadence-sqlite.yaml:ro
+      - cadence-sqlite-data:/data
+    environment:
+      - "CADENCE_CONFIG_FILE=/etc/cadence/config/cadence-sqlite.yaml"
+      - "SERVICES=frontend,history,matching,worker"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mkdir -p /data
+        cp "$${CADENCE_CONFIG_FILE}" /etc/cadence/config/docker.yaml
+        cadence-server --root /etc/cadence --env docker update-schema
+        exec /start-cadence.sh
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7833 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  cadence-web:
+    image: ubercadence/web:latest
+    container_name: cadence-web
+    ports:
+      - "8088:8088"
+    environment:
+      - "CADENCE_GRPC_PEERS=cadence:7833"
+      - "CADENCE_HISTORY_PAGE_V2_ENABLED=OPT_OUT"
+    depends_on:
+      cadence:
+        condition: service_healthy
+
+volumes:
+  cadence-sqlite-data:

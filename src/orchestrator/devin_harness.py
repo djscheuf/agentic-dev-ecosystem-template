@@ -1,0 +1,222 @@
+"""`Harness` implementation that runs a prompt via the `devin` CLI.
+
+Same subprocess pattern as `evals/devin.js`. Configuration (which model to use,
+and permission mode -- more permission-related settings may follow) is
+file-based (`devin_harness.config.json` by default) rather than hardcoded, so it
+can be changed per-environment without editing code.
+"""
+
+import json
+import subprocess
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from types import MappingProxyType
+from typing import Callable, Mapping
+
+from .harness import HarnessResult
+from .invocation_context import get_current_skill_name
+from .workflow_logger import get_activity_logger, get_devin_log_path, get_devin_logger
+
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "devin_harness.config.json"
+DEFAULT_MODEL = "SWE-1.7"
+DEFAULT_PERMISSION_MODE = "auto"
+SUPPORTED_PERMISSION_MODES = frozenset({"auto", "accept-edits", "dangerous", "bypass"})
+_SUPPORTED_KEYS = frozenset({"model", "permission_mode"})
+
+
+def _validate_profile(data: dict, scope: str) -> None:
+    if "model" in data and (
+        not isinstance(data["model"], str) or not data["model"].strip()
+    ):
+        raise ValueError(f"invalid_value: {scope}.model")
+    if "permission_mode" in data and data["permission_mode"] not in SUPPORTED_PERMISSION_MODES:
+        raise ValueError(f"invalid_value: {scope}.permission_mode")
+
+
+@dataclass(frozen=True)
+class PartialDevinProfile:
+    model: str | None = None
+    permission_mode: str | None = None
+
+
+@dataclass(frozen=True)
+class EffectiveDevinProfile:
+    model: str
+    permission_mode: str
+
+
+@dataclass(frozen=True)
+class DevinHarnessConfig:
+    model: str = DEFAULT_MODEL
+    permission_mode: str = DEFAULT_PERMISSION_MODE
+    skills: Mapping[str, PartialDevinProfile] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+
+    def resolve(self, skill_name: str) -> EffectiveDevinProfile:
+        override = self.skills.get(skill_name, PartialDevinProfile())
+        return EffectiveDevinProfile(
+            model=override.model or self.model,
+            permission_mode=override.permission_mode or self.permission_mode,
+        )
+
+    @classmethod
+    def load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "DevinHarnessConfig":
+        try:
+            return cls._do_load(config_path)
+        except ValueError as exc:
+            get_activity_logger().error(
+                "RejectInvocationConfiguration: error_category=%s", exc
+            )
+            raise
+
+    @classmethod
+    def _do_load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "DevinHarnessConfig":
+        """Load config from `config_path`, falling back to defaults for any
+        missing file or missing/unrecognized keys."""
+        if not config_path.exists():
+            return cls()
+        try:
+            content = config_path.read_text()
+        except OSError as exc:
+            raise ValueError(f"unreadable_file: {config_path}") from exc
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"malformed_json: {config_path}") from exc
+        if not isinstance(data, dict):
+            raise ValueError("invalid_type: root")
+        defaults = data.get("defaults", {})
+        if not isinstance(defaults, dict):
+            raise ValueError("invalid_type: defaults")
+        _validate_profile(defaults, "defaults")
+        legacy = {key: data[key] for key in ("model", "permission_mode") if key in data}
+        _validate_profile(legacy, "legacy")
+        skill_data = data.get("skills", {})
+        if not isinstance(skill_data, dict):
+            raise ValueError("invalid_type: skills")
+        skills = {}
+        for name, profile in skill_data.items():
+            if not isinstance(profile, dict):
+                raise ValueError(f"invalid_type: skills.{name}")
+            _validate_profile(profile, f"skills.{name}")
+            skills[name] = PartialDevinProfile(
+                model=profile.get("model"),
+                permission_mode=profile.get("permission_mode"),
+            )
+        return cls(
+            model=defaults.get("model", data.get("model", DEFAULT_MODEL)),
+            permission_mode=defaults.get(
+                "permission_mode", data.get("permission_mode", DEFAULT_PERMISSION_MODE)
+            ),
+            skills=MappingProxyType(skills),
+        )
+
+
+class DevinHarness:
+    """`Harness` that shells out to the `devin` CLI."""
+
+    def __init__(
+        self,
+        config: "DevinHarnessConfig | None" = None,
+        *,
+        runner: Callable[..., "subprocess.CompletedProcess[str]"] = subprocess.run,
+    ) -> None:
+        self.config = config or DevinHarnessConfig.load()
+        self._runner = runner
+
+    def _profile(self, config: Mapping[str, object]) -> EffectiveDevinProfile:
+        namespace = config.get("devin", {})
+        if not isinstance(namespace, Mapping):
+            raise ValueError("invalid_namespace_type: devin")
+        unknown = set(namespace) - _SUPPORTED_KEYS
+        if unknown:
+            raise ValueError(f"unknown_key: devin.{sorted(unknown)[0]}")
+        model = namespace.get("model", DEFAULT_MODEL)
+        permission_mode = namespace.get("permission_mode", DEFAULT_PERMISSION_MODE)
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("invalid_value: devin.model")
+        if (
+            not isinstance(permission_mode, str)
+            or permission_mode not in SUPPORTED_PERMISSION_MODES
+        ):
+            raise ValueError("invalid_value: devin.permission_mode")
+        return EffectiveDevinProfile(model=model, permission_mode=permission_mode)
+
+    def run(
+        self,
+        prompt: str,
+        *,
+        cwd: Path,
+        config: Mapping[str, object] | None = None,
+    ) -> HarnessResult:
+        skill_name = get_current_skill_name() or ""
+        if config is None:
+            profile = self.config.resolve(skill_name)
+        else:
+            try:
+                profile = self._profile(config)
+            except ValueError as exc:
+                get_activity_logger().error(
+                    "RejectDevinConfiguration: skill_name=%s error_category=%s",
+                    skill_name,
+                    exc,
+                )
+                raise
+        command = [
+            "devin",
+            "-p",
+            "--permission-mode",
+            profile.permission_mode,
+            "--model",
+            profile.model,
+            "--",
+            prompt,
+        ]
+        activity_logger = get_activity_logger()
+        devin_logger = get_devin_logger()
+        activity_logger.info(
+            "ResolveInvocationProfile: skill_name=%s model=%s permission_mode=%s",
+            skill_name,
+            profile.model,
+            profile.permission_mode,
+        )
+        activity_logger.info(
+            "StartDevinInvocation: skill_name=%s model=%s permission_mode=%s",
+            skill_name,
+            profile.model,
+            profile.permission_mode,
+        )
+
+        start = time.monotonic()
+        try:
+            result = self._runner(command, cwd=str(cwd), capture_output=True, text=True)
+        except OSError as exc:
+            activity_logger.error(
+                "FailDevinInvocationLaunch: skill_name=%s error_category=devin_launch_failed",
+                skill_name,
+            )
+            raise RuntimeError("devin_launch_failed") from exc
+        duration_ms = int((time.monotonic() - start) * 1000)
+
+        activity_logger.info(
+            "CompleteDevinInvocation: skill_name=%s exit_code=%s duration_ms=%s devin_log_path=%s",
+            skill_name,
+            result.returncode,
+            duration_ms,
+            get_devin_log_path() or "unknown",
+        )
+        if result.stdout:
+            devin_logger.debug("--- stdout ---")
+            for line in result.stdout.splitlines():
+                devin_logger.debug("%s", line)
+        if result.stderr:
+            devin_logger.debug("--- stderr ---")
+            for line in result.stderr.splitlines():
+                devin_logger.debug("%s", line)
+        activity_logger.debug("Devin output log: %s", get_devin_log_path() or "unknown")
+
+        return HarnessResult(
+            exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr
+        )

@@ -49,3 +49,7 @@ When the session produced a decision, solved a non-obvious problem, or establish
 
 - `wiki-query` — called first, reads relevant vault pages for the current intent.
 - `wiki-update` — called last, writes new or updated pages before session ends.
+
+## Environment
+
+This repository runs in a NixOS environment (NixOS 25.11, `nix-shell` 2.31.3). `nix-shell` is installed and should be preferred for pulling in terminal/command-line dependencies instead of `apt`, `brew`, or global package installs. In this workspace `Exec(nix-shell)` is already allowed; use `nix-shell` when ad-hoc tools are missing.

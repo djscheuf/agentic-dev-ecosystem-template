@@ -1,0 +1,379 @@
+{
+  "raw_request": "docs/reqs/refactor-workflow-modules/fix-dead-dupes/gaps.md",
+  "title": "Refactor Workflow Modules and Close Common Gaps",
+  "story": {
+    "so_that": "the orchestrator/common refactor boundary is clean, the codebase is maintainable, and the workflow engine runs with correctly configured logging and verified behavior",
+    "as_a": "Workflow Orchestration Maintainer",
+    "i_want": "to clean up dead and duplicate orchestrator modules, restore common skill-activity extensibility, move workflow logging configuration into common, and complete common module test coverage"
+  },
+  "target_persona": {
+    "name": "Alex - Platform Maintainer",
+    "role": "Workflow Orchestration Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Maintains a partially-refactored codebase where orchestrator and common both contain harness, skill-activity, and logging implementations; several common tests do not exercise log paths, stdout/stderr capture, or SkillActivityOutput fields.",
+      "during": "Uses gaps.md to identify dead duplicates. Decides that file-based Devin harness overrides are not ported; every Activity .config.json must carry its own harness.devin settings. Bakes the prompt output-directory instruction into common/skill_activity.py build_prompt before the modify_prompt hook. Ports setup_worker_logging() to common and has the orchestrator construct and pass an orchestrator-owned WorkflowLoggingConfig at worker setup. Fully removes dead orchestrator files, tests, config, and stale docs, then expands common tests.",
+      "after": "Orchestrator contains only composition-root code and owns WorkflowLoggingConfig; common owns all generic infrastructure including the worker-logging setup API; no external callers exist so orchestrator copies are safely deleted; unit and end-to-end tests cover the behavior; live full-stack log-tree verification is documented as not available in CI for this component."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Complete the migration of generic workflow infrastructure from orchestrator to common and close the remaining behavior and test-coverage gaps, with orchestrator-owned logging config passed into common APIs",
+    "inputs": [
+      "gaps.md refactor requirements",
+      "existing orchestrator dead modules and tests",
+      "existing common implementations",
+      "orchestrator-owned workflow_logging.config.json",
+      "orchestrator-owned WorkflowLoggingConfig object",
+      "existing test suites and live workflow verification results"
+    ],
+    "outputs": [
+      "clean common module with migrated behavior",
+      "removed dead or duplicate orchestrator files, tests, config, and stale documentation",
+      "orchestrator-owned WorkflowLoggingConfig passed into common worker logging setup",
+      "common skill_activity.py default prompt format that appends the output-directory instruction before the modify_prompt hook",
+      "expanded common test coverage for logging, harness output, and skill-activity outputs",
+      "passing full pytest suite and documented verification scope"
+    ],
+    "state_changes": [
+      "Dead orchestrator modules and tests are deleted",
+      "Common skill_activity.py gains extensibility hooks, a run_skill helper, and an output-directory instruction in the default prompt",
+      "Common workflow_logger.py exposes a setup_worker_logging API that accepts an orchestrator-provided WorkflowLoggingConfig",
+      "Orchestrator worker setup constructs WorkflowLoggingConfig and passes it to common setup_worker_logging",
+      "Activity and devin log files are created and referenced in SkillActivityOutput"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "src/common/harness.py Harness protocol",
+        "src/common/devin_harness.py DevinHarness with per-Activity config",
+        "src/common/skill_activity.py SkillActivity lifecycle, run_skill helper, and default prompt formatting",
+        "src/common/workflow_logger.py worker logging setup API and log context managers",
+        "src/orchestrator/workflow_logging.config.json orchestrator-owned logging config source",
+        "src/orchestrator/worker.py worker setup and logging wiring",
+        "src/orchestrator/runtime.py runtime startup"
+      ],
+      "database": [],
+      "external_services": [
+        "Cadence workflow/activity execution and log routing",
+        "Devin CLI stdout/stderr capture and ATIF export"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Dead and duplicate orchestrator files, configuration, tests, and stale documentation are removed while the live common equivalents remain functional",
+      "gherkin": "Given the gaps.md refactor plan When the implementation is complete Then src/orchestrator/harness.py, devin_harness.py, skill_activity.py, workflow_logger.py, invocation_context.py, skill_activity_config.py, devin_harness.config.json, workflow_logging.config.json, stale orchestrator tests, README.md, and vault/services/orchestrator-harness.md are removed and common equivalents continue to pass tests",
+      "type": "Functional",
+      "jtbd": "Clean up dead code",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Common skill-activity extensibility restored",
+        "Orchestrator passes WorkflowLoggingConfig to common worker logging setup",
+        "Common test coverage expanded"
+      ]
+    },
+    {
+      "criterion": "Common skill_activity.py exposes extensibility hooks and a run_skill helper equivalent to the removed orchestrator version while preserving the fixed execute template",
+      "gherkin": "Given common/skill_activity.py currently omits modify hooks and a run_skill helper When the implementation is complete Then the common module provides equivalent extensibility hooks and a run_skill helper without breaking the SkillActivity.execute lifecycle",
+      "type": "Functional",
+      "jtbd": "Extend skill activity behavior",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": []
+    },
+    {
+      "criterion": "The default skill-activity prompt appends the output-directory instruction before the modify_prompt hook",
+      "gherkin": "Given common/skill_activity.py build_prompt currently omits the orchestrator's output-directory instruction When the implementation is complete Then the default prompt format includes the instruction before any modify_prompt hook is applied",
+      "type": "Functional",
+      "jtbd": "Preserve devin output directory instruction",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Common skill-activity extensibility restored"
+      ]
+    },
+    {
+      "criterion": "Orchestrator constructs WorkflowLoggingConfig and passes it to common's setup_worker_logging API during worker setup",
+      "gherkin": "Given common/workflow_logger.py provides setup_worker_logging(config) and the orchestrator owns WorkflowLoggingConfig When the worker starts Then the orchestrator loads its workflow_logging.config.json into WorkflowLoggingConfig and passes the resulting object to setup_worker_logging",
+      "type": "Functional",
+      "jtbd": "Configure worker logging from orchestrator",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Dead orchestrator files removed"
+      ]
+    },
+    {
+      "criterion": "Common module test coverage is expanded to exercise workflow and client log contexts, log path helpers, stdout/stderr capture to devin.log, and SkillActivityOutput log paths plus file creation",
+      "gherkin": "Given the common test suite currently omits several behaviors When the missing tests are added Then workflow_log_context, client_log_context, get_workflow_log_path, get_client_log_path, stdout/stderr capture to devin.log, and SkillActivityOutput activity_log_path/devin_log_path with file creation are all asserted",
+      "type": "Functional",
+      "jtbd": "Verify common module behavior",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Orchestrator passes WorkflowLoggingConfig to common worker logging setup",
+        "Common skill-activity extensibility restored"
+      ]
+    },
+    {
+      "criterion": "The full pytest suite passes after the refactor",
+      "gherkin": "Given all refactor and coverage changes are applied When the tests run Then nix-shell --run pytest passes for src/common/tests, src/orchestrator/tests, and src/story_analysis_workflow/tests",
+      "type": "Non-functional",
+      "jtbd": "Confirm refactor does not break tests",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Common test coverage expanded",
+        "Orchestrator passes WorkflowLoggingConfig to common worker logging setup"
+      ]
+    },
+    {
+      "criterion": "Unit and end-to-end tests verify the log file layout; live full-stack workflow log tree verification is documented as not available in CI for this component",
+      "gherkin": "Given the logging and harness changes are in place When unit and end-to-end tests run Then they assert the expected log paths and file creation; the analysis documents that live full-stack verification is out of CI scope for this component",
+      "type": "Non-functional",
+      "jtbd": "Verify log layout with available tests",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Full pytest suite passes",
+        "Orchestrator passes WorkflowLoggingConfig to common worker logging setup"
+      ]
+    },
+    {
+      "criterion": "Missing Activity harness.devin settings or missing orchestrator WorkflowLoggingConfig fall back to safe defaults",
+      "gherkin": "Given an Activity .config.json lacks harness.devin settings or the orchestrator does not pass a WorkflowLoggingConfig When the skill activity or logger is initialized Then the system uses secure hardcoded defaults and does not crash",
+      "type": "Error handling",
+      "jtbd": "Run safely with incomplete configuration",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Orchestrator passes WorkflowLoggingConfig to common worker logging setup",
+        "Common skill-activity extensibility restored"
+      ]
+    },
+    {
+      "criterion": "External workflow packages access common harness, skill-activity, and logging APIs without importing orchestrator modules",
+      "gherkin": "Given a new workflow package When it needs harness or skill-activity behavior Then it imports from src/common only and never imports src/orchestrator",
+      "type": "Functional",
+      "jtbd": "Use common workflow APIs",
+      "persona_served": "Alex - Platform Maintainer",
+      "dependencies": [
+        "Dead orchestrator files removed",
+        "Common skill-activity extensibility restored"
+      ]
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Orchestrator does not pass a WorkflowLoggingConfig to common setup_worker_logging",
+      "gherkin": "Given the orchestrator does not supply a WorkflowLoggingConfig When setup_worker_logging is called Then common falls back to safe hardcoded defaults and logs a warning",
+      "type": "Edge case",
+      "jtbd": "Start logger without an orchestrator config",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Activity .config.json omits harness.devin settings",
+      "gherkin": "Given an Activity config has no harness.devin key When DevinHarness runs the skill Then it resolves secure defaults because file-based overrides are not ported",
+      "type": "Edge case",
+      "jtbd": "Run skill activity without explicit harness config",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "No .process/logs directory exists before a workflow run",
+      "gherkin": "Given the log root directory is absent When a workflow or activity starts Then the logger creates the directory tree and writes the expected files",
+      "type": "Edge case",
+      "jtbd": "Create log directories on first run",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Concurrent activity invocations on the same workflow run",
+      "gherkin": "Given multiple activities execute in parallel for the same run When logs are written Then each invocation writes to a distinct activities/<activity_type>_<activity_id>_<attempt> directory without collisions",
+      "type": "Edge case",
+      "jtbd": "Isolate parallel activity logs",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Devin CLI exits non-zero but emits useful stdout/stderr",
+      "gherkin": "Given a Devin invocation returns a non-zero exit code When the harness captures output Then stdout and stderr are still written to devin.log for diagnosis",
+      "type": "Edge case",
+      "jtbd": "Diagnose failed devin runs",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "WorkflowLoggingConfig contains unknown keys",
+      "gherkin": "Given the orchestrator-provided logging config includes extra keys When common setup_worker_logging applies it Then it ignores unknown keys for forward compatibility",
+      "type": "Edge case",
+      "jtbd": "Tolerate extra logging config keys",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "A stale orchestrator import remains after dead files are deleted",
+      "gherkin": "Given any source file still imports a removed orchestrator module When static architecture tests run Then the test fails and points to the lingering reference",
+      "type": "Edge case",
+      "jtbd": "Detect leftover orchestrator imports",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Skill activity build_prompt receives no input paths",
+      "gherkin": "Given a skill activity invocation has no input file paths When build_prompt is called Then the output-directory instruction defaults to a sensible location without raising",
+      "type": "Edge case",
+      "jtbd": "Generate prompt without input paths",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Activity .config.json harness.devin contains an unsupported permission_mode",
+      "gherkin": "Given an Activity config sets harness.devin.permission_mode to an unsupported value When DevinHarnessConfig resolves it Then it raises a clear validation error instead of falling through",
+      "type": "Edge case",
+      "jtbd": "Reject unsafe harness configuration",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Live Cadence or Devin CLI is unavailable during local verification",
+      "gherkin": "Given the live external services are not running When the pytest suite runs Then unit and end-to-end tests still pass and live full-stack verification is documented as out of scope",
+      "type": "Edge case",
+      "jtbd": "Verify locally without live services",
+      "persona_served": "Alex - Platform Maintainer"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Should the file-based Devin harness overrides (defaults and per-skill skills) from orchestrator/devin_harness.config.json be ported into common, or should every Activity .config.json carry the needed harness.devin settings?",
+      "answer": "Do not port file-based overrides. Every Activity .config.json is responsible for its own harness.devin settings because the activity determines the necessary configuration.",
+      "status": "resolved",
+      "impacts": [
+        "src/common/devin_harness.py",
+        "Activity .config.json files",
+        "ADR-012 Skill Activity Invocation Configuration",
+        "ADR-014 Colocated Skill Activity Configuration"
+      ]
+    },
+    {
+      "question": "How should the prompt output-directory instruction from orchestrator/skill_activity.py be handled in common?",
+      "answer": "Bake the output-directory instruction into the default prompt format in common/skill_activity.py build_prompt, appending it before the modify_prompt hook is invoked.",
+      "status": "resolved",
+      "impacts": [
+        "src/common/skill_activity.py build_prompt",
+        "Devin CLI output file placement",
+        "story_analysis_workflow activity prompts"
+      ]
+    },
+    {
+      "question": "Is the setup_worker_logging() API still required, and if so, should it be ported to common and called from orchestrator/worker.py?",
+      "answer": "Yes, port setup_worker_logging() to common. The orchestrator calls it and passes an orchestrator-owned WorkflowLoggingConfig object.",
+      "status": "resolved",
+      "impacts": [
+        "src/common/workflow_logger.py",
+        "src/orchestrator/worker.py",
+        "worker startup logging behavior"
+      ]
+    },
+    {
+      "question": "Should workflow_logging.config.json be copied or moved from src/orchestrator to src/common?",
+      "answer": "WorkflowLoggingConfig belongs to the orchestrator. The orchestrator reads workflow_logging.config.json and constructs the config object, then passes it to common's setup_worker_logging. The file stays orchestrator-owned.",
+      "status": "resolved",
+      "impacts": [
+        "src/orchestrator/workflow_logging.config.json",
+        "src/common/workflow_logger.py setup_worker_logging signature",
+        "src/orchestrator/worker.py startup",
+        "WorkflowLoggingConfig ownership boundary"
+      ]
+    },
+    {
+      "question": "Are there external callers outside this repository that still import the orchestrator skill_activity, harness, or workflow_logger modules?",
+      "answer": "No external callers exist, so the orchestrator copies can be fully deleted.",
+      "status": "resolved",
+      "impacts": [
+        "src/orchestrator file removal safety",
+        "public API compatibility",
+        "release notes and migration guide"
+      ]
+    },
+    {
+      "question": "How should the live workflow log tree be verified in CI without a long-running Cadence stack?",
+      "answer": "Live full-stack workflow log tree verification is not available in CI. Rely on unit and end-to-end tests and document that live verification is out of scope for this component.",
+      "status": "resolved",
+      "impacts": [
+        "nix-shell verification command",
+        "CI pipeline",
+        "integration test strategy",
+        "acceptance criteria for log tree verification"
+      ]
+    }
+  ],
+  "open_questions": [],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/common/harness.py",
+        "src/common/devin_harness.py",
+        "src/common/skill_activity.py",
+        "src/common/workflow_logger.py",
+        "src/common/tests/test_workflow_logger.py",
+        "src/common/tests/test_devin_harness.py",
+        "src/common/tests/test_skill_activity.py",
+        "src/orchestrator/harness.py",
+        "src/orchestrator/devin_harness.py",
+        "src/orchestrator/skill_activity.py",
+        "src/orchestrator/workflow_logger.py",
+        "src/orchestrator/worker.py",
+        "src/orchestrator/runtime.py",
+        "src/orchestrator/workflow_logging.config.json",
+        "src/orchestrator/devin_harness.config.json",
+        "src/orchestrator/tests/test_devin_harness.py",
+        "src/orchestrator/tests/test_skill_activity.py",
+        "src/orchestrator/tests/test_workflow_logger.py",
+        "src/orchestrator/README.md",
+        "vault/services/orchestrator-harness.md"
+      ],
+      "new_code": [
+        "src/common/workflow_logger.py setup_worker_logging(config) API",
+        "src/common/skill_activity.py extensibility hooks, run_skill helper, and output-directory prompt instruction",
+        "src/common/tests/test_workflow_logger.py additions for contexts and log paths",
+        "src/common/tests/test_devin_harness.py stdout/stderr capture assertions",
+        "src/common/tests/test_skill_activity.py activity_log_path/devin_log_path assertions and prompt instruction behavior",
+        "src/orchestrator/worker.py passes orchestrator-owned WorkflowLoggingConfig to common setup_worker_logging"
+      ],
+      "infrastructure": [
+        "NixOS development shell",
+        "pytest test runner",
+        "Cadence local SQLite stack for local workflow verification",
+        ".process/logs directory for workflow log output"
+      ],
+      "external_services": [
+        "Cadence workflow/activity engine",
+        "Devin CLI for harness stdout/stderr capture and ATIF export"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "ADR-013 Three-Layer Workflow Module Architecture implementation",
+        "ADR-014 Colocated Skill Activity Configuration migration",
+        "ADR-011 Workflow-Aware File Logging implementation in common"
+      ],
+      "blocks": [
+        "Add new workflow packages that depend on common harness/skill-activity/logging",
+        "Generalized skill output resolution story"
+      ],
+      "related": [
+        "Refactor workflow modules: proposed architecture",
+        "Capture Devin cost metrics (touches harness and activity configuration)",
+        "story_analysis_workflow activity migration"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Per-Activity harness.devin settings now replace file-based overrides",
+        "Default prompt format must include output-directory instruction before modify_prompt hook",
+        "Orchestrator owns WorkflowLoggingConfig; common only consumes it"
+      ],
+      "technical_knowledge": [
+        "Cadence Python client worker setup and logging context lifecycle",
+        "Devin CLI ATIF export and stdout/stderr capture behavior",
+        "NixOS/pytest test conventions and the existing static architecture tests"
+      ],
+      "stakeholder_questions": [
+        "Confirm per-Activity .config.json harness.devin settings are complete before deleting orchestrator/devin_harness.config.json",
+        "Confirm the orchestrator-owned WorkflowLoggingConfig class/interface is stable for common to consume"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Low"
+  },
+  "recommendation": "Proceed in small workstreams: 1) remove dead orchestrator files, config, tests, and stale docs; 2) add the output-directory instruction to common/skill_activity.py build_prompt before modify_prompt and restore extensibility hooks/run_skill helper; 3) port setup_worker_logging(config) to common and update orchestrator/worker.py to construct an orchestrator-owned WorkflowLoggingConfig from orchestrator/workflow_logging.config.json and pass it in; 4) expand common tests to cover log contexts, log paths, stdout/stderr capture, SkillActivityOutput fields, and prompt instruction behavior; 5) run the full pytest suite and document that live full-stack log-tree verification is not available in CI for this component."
+}

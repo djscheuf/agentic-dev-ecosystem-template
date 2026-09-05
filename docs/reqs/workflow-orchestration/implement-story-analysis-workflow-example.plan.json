@@ -1,0 +1,72 @@
+{
+  "source_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "overall_design": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "acceptance_criteria": [
+    {"criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence", "status": "pending"},
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "pending"},
+    {"criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty", "status": "pending"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "pending"},
+    {"criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)", "status": "pending"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "pending"},
+    {"criterion": "Happy path: all SDLC skill Activities succeed on first attempt with no human escalation needed", "status": "pending"},
+    {"criterion": "Error handling: an Activity fails repeatedly and exhausts its RetryPolicy", "status": "pending"},
+    {"criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait", "status": "pending"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "pending"},
+    {"criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded", "status": "pending"},
+    {"criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts", "status": "pending"}
+  ],
+  "edge_cases": [
+    {"criterion": "Empty or null story document input", "status": "pending"},
+    {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
+    {"criterion": "Special characters/unicode in the story text", "status": "pending"},
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "pending"},
+    {"criterion": "Concurrent workflow executions for the same story", "status": "pending"},
+    {"criterion": "Worker crash mid-Activity and workflow resumption via replay", "status": "pending"},
+    {"criterion": "Cadence service temporarily unavailable", "status": "pending"},
+    {"criterion": "Duplicate/idempotent Activity execution due to retries", "status": "pending"}
+  ],
+  "impacted_layers": {
+    "ui": ["Cadence Web UI (optional, local dev) for observing WorkflowExecution history and status"],
+    "api": ["Cadence frontend gRPC API: StartWorkflowExecution, SignalWorkflowExecution, QueryWorkflowExecution, DescribeWorkflowExecution", "cadence CLI for starting, signaling, and inspecting workflow runs", "Workflow starter/client script", "human_response Signal and get_status Query"],
+    "database": ["Cadence service persistence store (embedded SQLite for local dev; Cassandra/MySQL/PostgreSQL for production)"],
+    "external_services": ["Cadence service (frontend/history/matching)", "Cadence Worker process(es) polling the Story Analysis Workflow task list"]
+  },
+  "steps": [
+    {"description": "Implement the repair-story-analysis skill (SKILL.md, schema, verify.sh) to close the grade/repair feedback loop", "layer": "external_services", "status": "pending"},
+    {"description": "Author the 4-step Cadence Workflow in Python: extract-story-intent -> analyze-story -> grade-story-analysis -> bounded repair/grade loop (max 3 attempts)", "layer": "external_services", "status": "pending"},
+    {"description": "Implement deterministic, replay-safe Activity wrappers for the four SDLC skills with repository file I/O and output validation", "layer": "external_services", "status": "pending"},
+    {"description": "Register the Worker, domain, and task list; start the Worker polling process", "layer": "external_services", "status": "pending"},
+    {"description": "Implement the human_response Signal and get_status Query with a timer-guarded Selector for human-in-the-loop escalation", "layer": "api", "status": "pending"},
+    {"description": "Create the workflow starter/client script and cadence CLI helper to register the domain and trigger a run from a story document", "layer": "api", "status": "pending"},
+    {"description": "Provision and document the local embedded-SQLite Cadence server and persistence store for development", "layer": "database", "status": "pending"},
+    {"description": "Write the README/runbook so another engineer can install, configure, and run the example independently", "layer": "external_services", "status": "pending"}
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {"description": "repair-story-analysis consumes the full analysis-grade JSON and produces a repaired analysis", "layer": "external_services"},
+      {"description": "Workflow attempt counter stops at 3 and escalates to a human Signal", "layer": "external_services"},
+      {"description": "Signal/Query payload parsing and timer guard raise the expected events", "layer": "api"}
+    ],
+    "integration_tests": [
+      {"description": "Full Story Analysis Workflow run against the local Cadence server creates repository files and completes", "layer": "external_services"},
+      {"description": "Grade-repair loop is exercised by a failing grade; repair runs and re-grades within 3 attempts", "layer": "external_services"},
+      {"description": "Activity retry exhausts and the Workflow surfaces a human escalation", "layer": "external_services"}
+    ],
+    "e2e_tests": [
+      {"description": "Trigger a run from a story document via the CLI starter, then inspect cadence workflow describe and the Cadence Web UI for the complete Event History", "layer": "api"}
+    ]
+  },
+  "risks_and_mitigations": [
+    {"risk": "Cadence Python SDK has feature gaps compared to the Go/Java clients (e.g., certain query/signal patterns)", "mitigation": "Check cadence-workflow-orchestration/03-python-client/feature-gaps.md before relying on advanced features; prefer supported patterns and add integration tests for each SDK feature used", "layer": "api"},
+    {"risk": "Workflow code contains non-deterministic or side-effecting logic that breaks Cadence replay", "mitigation": "Keep Workflow code pure; move all file I/O, LLM calls, and time/UUID generation to Activities; enforce deterministic Workflow with unit tests and a replay test", "layer": "external_services"},
+    {"risk": "Grade/repair loop could run unbounded or repeatedly invoke costly Activities", "mitigation": "Track attempt count in Workflow state and hard-cap at 3 before escalating to a human Signal; no activity-level re-invocation without an attempt increment", "layer": "external_services"},
+    {"risk": "Human escalation Signal is never answered, leaving the Workflow running indefinitely", "mitigation": "Wrap the Signal await in a Cadence Selector with a bounded timer; after timeout, record the timeout in Event History and fail/complete gracefully", "layer": "api"},
+    {"risk": "Repeated Activity retries produce duplicate or corrupted repository files", "mitigation": "Make each skill file write idempotent (overwrite-safe with stable names); validate final files with per-skill verify.sh after forced retries", "layer": "external_services"},
+    {"risk": "Worker crash or Cadence service outage loses in-flight work", "mitigation": "Rely on Cadence durable Event History for replay; keep Activities deterministic and idempotent; test Worker restart by killing and restarting the process mid-run", "layer": "database"}
+  ]
+}

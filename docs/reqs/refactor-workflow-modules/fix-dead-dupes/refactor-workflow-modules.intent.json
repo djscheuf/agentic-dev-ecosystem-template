@@ -1,0 +1,85 @@
+{
+  "raw_request": "docs/reqs/refactor-workflow-modules/fix-dead-dupes/gaps.md",
+  "title": "Refactor Workflow Modules and Close Common Gaps",
+  "story": {
+    "so_that": "the orchestrator/common refactor boundary is clean, the codebase is maintainable, and the workflow engine runs with correctly configured logging and verified behavior",
+    "as_a": "Workflow Orchestration Maintainer",
+    "i_want": "to clean up dead and duplicate orchestrator modules, restore common skill-activity extensibility, move workflow logging configuration into common, and complete common module test coverage"
+  },
+  "target_persona": {
+    "name": "Alex - Platform Maintainer",
+    "role": "Workflow Orchestration Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Maintains a partially-refactored codebase where orchestrator and common both contain harness, skill-activity, and logging implementations; several common tests do not exercise log paths, stdout/stderr capture, or SkillActivityOutput fields.",
+      "during": "Uses gaps.md to identify dead duplicates, ports remaining behavior (harness config overrides, prompt output-directory instruction, skill-activity extensibility hooks and run_skill helper, worker logging setup API) to common, relocates workflow_logging.config.json, removes stale orchestrator files/tests/docs, and adds missing tests.",
+      "after": "Orchestrator contains only composition-root code; common owns all generic workflow infrastructure; tests verify log file paths and contents; the full pytest suite passes; live workflow runs produce the expected log tree."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Complete the migration of generic workflow infrastructure from orchestrator to common and close the remaining behavior and test-coverage gaps",
+    "inputs": [
+      "gaps.md refactor requirements",
+      "existing orchestrator dead modules and tests",
+      "existing common implementations",
+      "existing orchestrator workflow_logging.config.json",
+      "existing test suites and live workflow verification results"
+    ],
+    "outputs": [
+      "clean common module with migrated behavior",
+      "removed dead or duplicate orchestrator files, tests, and stale documentation",
+      "common workflow logging configuration loaded from src/common/workflow_logging.config.json",
+      "expanded common test coverage for logging, harness output, and skill-activity outputs",
+      "passing full pytest suite and expected live log tree"
+    ],
+    "state_changes": [
+      "Dead orchestrator modules and tests are deleted",
+      "Common skill_activity.py gains extensibility hooks and a run_skill helper",
+      "Common workflow_logger.py uses src/common/workflow_logging.config.json as its configuration source",
+      "Orchestrator wiring passes logging configuration during worker setup"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [],
+      "database": [],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Dead and duplicate orchestrator files, configuration, tests, and stale documentation are removed and the live common equivalents remain functional",
+      "gherkin": "Given the gaps.md refactor plan When the implementation is complete Then src/orchestrator/harness.py, devin_harness.py, skill_activity.py, workflow_logger.py, invocation_context.py, skill_activity_config.py, devin_harness.config.json, workflow_logging.config.json, stale orchestrator tests, README.md, and vault/services/orchestrator-harness.md are removed while common equivalents continue to work",
+      "type": "Functional",
+      "jtbd": "Clean up dead code",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Common skill_activity.py exposes extensibility hooks and a run_skill helper equivalent to the removed orchestrator version while preserving the fixed execute template",
+      "gherkin": "Given common/skill_activity.py currently omits modify hooks and a run_skill helper When the implementation is complete Then the common module provides equivalent extensibility hooks and a run_skill helper without breaking the SkillActivity.execute lifecycle",
+      "type": "Functional",
+      "jtbd": "Extend skill activity behavior",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Workflow logging configuration is stored with common and passed through orchestrator setup so WorkflowLoggerConfig.load uses src/common/workflow_logging.config.json",
+      "gherkin": "Given common/workflow_logger.py looks for src/common/workflow_logging.config.json When the orchestrator sets up logging Then the configuration is loaded from the common file and wired into the orchestrator startup process",
+      "type": "Functional",
+      "jtbd": "Configure logging from common",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "Common module test coverage is expanded to exercise workflow and client log contexts, log path helpers, stdout/stderr capture to devin.log, and SkillActivityOutput log paths plus file creation",
+      "gherkin": "Given the common test suite currently omits several behaviors When the missing tests are added Then workflow_log_context, client_log_context, get_workflow_log_path, get_client_log_path, stdout/stderr capture to devin.log, and SkillActivityOutput activity_log_path/devin_log_path with file creation are all asserted",
+      "type": "Functional",
+      "jtbd": "Verify common module behavior",
+      "persona_served": "Alex - Platform Maintainer"
+    },
+    {
+      "criterion": "The full pytest suite passes and a live workflow run produces the expected log tree",
+      "gherkin": "Given all refactor and coverage changes are applied When the tests run and a live workflow executes Then nix-shell --run pytest passes and the log tree contains workflow.log, client.log, and activities/<activity_type>_<activity_id>_<attempt>/{activity.log,devin.log,devin-trajectory.json}",
+      "type": "Non-functional",
+      "jtbd": "Confirm refactor does not break tests",
+      "persona_served": "Alex - Platform Maintainer"
+    }
+  ]
+}

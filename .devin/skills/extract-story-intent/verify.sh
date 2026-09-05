@@ -275,7 +275,7 @@ main() {
   verify_consistency "$story_path"
   
   # Delete sentinel file after verification
-  rm -f "$sentinel_path"
+  # rm -f "$sentinel_path"
 
   # Exit if any failures
   exit_if_failed

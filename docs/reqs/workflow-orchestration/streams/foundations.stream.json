@@ -1,0 +1,81 @@
+{
+  "source_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "overall_design": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "related_acceptance_criteria": [
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "completed"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "completed"},
+    {"criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded", "status": "completed"},
+    {"criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts", "status": "completed"}
+  ],
+  "related_edge_cases": [
+    {"criterion": "Empty or null story document input", "status": "pending"},
+    {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"},
+    {"criterion": "Special characters/unicode in the story text", "status": "pending"},
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "completed"},
+    {"criterion": "Duplicate/idempotent Activity execution due to retries", "status": "completed"}
+  ],
+  "dependencies": [],
+  "steps": [
+    {
+      "description": "Define the Activity contracts (input/output schemas and file paths) for the four SDLC skills",
+      "layer": "api",
+      "status": "completed",
+      "depends_on": [],
+      "artifacts": ["docs/reqs/workflow-orchestration/streams/activity-contracts.md"]
+    },
+    {
+      "description": "Create the repair-story-analysis skill (SKILL.md, schema, verify.sh) to produce a repaired analysis JSON from grader feedback",
+      "layer": "external_services",
+      "status": "completed",
+      "depends_on": ["1"],
+      "artifacts": [
+        ".devin/skills/repair-story-analysis/SKILL.md",
+        ".devin/skills/repair-story-analysis/schema/analysis.schema.json",
+        ".devin/skills/repair-story-analysis/verify.sh"
+      ]
+    },
+    {
+      "description": "Define the domain, task list, retry policy, and human-in-the-loop Signal/Query contracts",
+      "layer": "api",
+      "status": "completed",
+      "depends_on": ["1"],
+      "artifacts": [
+        "docs/reqs/workflow-orchestration/streams/domain-task-list-retry-config.json",
+        "docs/reqs/workflow-orchestration/streams/signal-query-contract.md"
+      ]
+    },
+    {
+      "description": "Document the local-dev setup prerequisites and constraints (Python SDK, embedded SQLite)",
+      "layer": "external_services",
+      "status": "completed",
+      "depends_on": ["3"],
+      "artifacts": ["docs/reqs/workflow-orchestration/streams/local-dev-prerequisites.md"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+      "vault/decisions/ADR-004-skill-output-contracts.md",
+      "vault/decisions/ADR-005-analysis-separation.md",
+      "vault/decisions/ADR-006-grader-skill-pattern.md",
+      "vault/decisions/ADR-007-skill-input-independence.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/activities.md",
+      ".devin/skills/cadence-workflow-orchestration/01-concepts/workflows.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/workflows-and-activities.md",
+      ".devin/skills/cadence-workflow-orchestration/04-configuration/retry-policies-and-timeouts.md",
+      ".devin/skills/cadence-workflow-orchestration/03-python-client/feature-gaps.md"
+    ],
+    "code": [
+      ".devin/skills/extract-story-intent/SKILL.md",
+      ".devin/skills/analyze-story/SKILL.md",
+      ".devin/skills/grade-story-analysis/SKILL.md",
+      ".devin/skills/repair-story-analysis/SKILL.md"
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "target_story": "docs/reqs/capture-cost-metrics/capture-devin-cost-metrics.analysis.json",
+  "source_workstream": "docs/reqs/capture-cost-metrics/streams/devin-harness-integration.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Export invocation and usage capture",
+      "tests": [
+        {
+          "id": 1,
+          "name": "run_without_activity_context_exports_parses_and_cleans_temporary_trajectory",
+          "status": "passing",
+          "description": "Every out-of-context invocation exports ATIF, returns normalized usage, and leaves no durable trajectory",
+          "arrange": "Use a runner that records the command and writes valid ATIF to the requested export path",
+          "act": "Run DevinHarness without an Activity logging context",
+          "assert": "The command contains an absolute temporary --export path before existing options, usage is populated, process fields are preserved, and the temporary path is removed after return"
+        },
+        {
+          "id": 2,
+          "name": "run_with_activity_context_retains_trajectory_beside_activity_logs",
+          "status": "passing",
+          "description": "Activity invocations retain the raw trajectory in the attempt-scoped artifact directory",
+          "arrange": "Enter an Activity logging context and use a runner that writes valid ATIF",
+          "act": "Run DevinHarness inside the context",
+          "assert": "The export path is the Activity artifact directory's devin-trajectory.json and remains beside activity.log and devin.log"
+        },
+        {
+          "id": 3,
+          "name": "run_with_nonzero_exit_still_returns_available_usage",
+          "status": "passing",
+          "description": "Usage capture remains observational when Devin reports failure",
+          "arrange": "Use a runner that writes valid ATIF and returns a nonzero code with stdout and stderr",
+          "act": "Run DevinHarness",
+          "assert": "The original nonzero code and streams are unchanged and normalized usage is populated"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Telemetry failure and safe diagnostics",
+      "tests": [
+        {
+          "id": 4,
+          "name": "run_with_missing_or_malformed_export_preserves_process_result",
+          "status": "passing",
+          "description": "Missing and malformed telemetry never changes a successful or failed Devin result",
+          "arrange": "Use runners that omit the export or write malformed JSON while returning known process fields",
+          "act": "Run DevinHarness for each telemetry failure",
+          "assert": "Each result preserves its original code and streams and has usage set to None"
+        },
+        {
+          "id": 5,
+          "name": "run_logs_sanitized_export_and_usage_outcomes_without_trajectory_content",
+          "status": "passing",
+          "description": "Operational diagnostics expose storage and availability only, never raw trajectory data",
+          "arrange": "Capture Devin logger records while a runner writes ATIF containing a sensitive marker",
+          "act": "Run DevinHarness through successful and rejected telemetry outcomes",
+          "assert": "Logs include export path, storage mode, usage availability, and a sanitized rejection category but exclude the sensitive marker and raw ATIF"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+# Cadence
+
+Local Cadence stack runs SQLite persistence in Docker using `docker/docker-compose.yml`.
+
+## Files
+
+- `docker/docker-compose.yml` — `ubercadence/server:master` + `ubercadence/web:latest`
+- `docker/cadence-sqlite.yaml` — server config for SQLite
+- `docker/cadence-ping.py` — Python client smoke test
+- `docs/reqs/workflow-orchestration/streams/cadence-local-runbook.md` — operator runbook
+
+## Commands
+
+```bash
+cd docker
+docker compose up -d
+docker compose exec cadence \
+  cadence --ad 127.0.0.1:7833 -t grpc --do story-analysis domain register -rd 1
+```
+
+## Gotchas
+
+- `ubercadence/server:master` runs as the `cadence` (uid 1000) user by default. The compose file sets `user: root` so the container can write the SQLite files in the named Docker volume at `/data`.
+- `cadence-sql-tool` in the `ubercadence/server` image does not include the SQLite driver (`unknown driver "sqlite3"` error). Use `cadence-server --root /etc/cadence --env docker update-schema` instead; it applies the SQLite schema from the config file.
+- `start-cadence.sh` copies `CADENCE_CONFIG_FILE` to `/etc/cadence/config/docker.yaml` and then runs the configured services. Run the `update-schema` command first, then exec `start-cadence.sh`.
+- The Python client `cadence-python-client` on Nix/Linux may need `LD_LIBRARY_PATH` pointed at a `libstdc++.so.6` location because the `grpcio` wheel links it. Fixed in `shell.nix` (2026-08-28): add `stdenv.cc.cc.lib` to `buildInputs` and `export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"` in `shellHook`.
+- Querying a non-existent `WorkflowID` raises `cadence.error.EntityNotExistsError` with a `StatusCode.NOT_FOUND` gRPC error and the message `GetCurrentExecution failed. Error: sql: no rows in result set`. This is a normal "not found" path, not a database connectivity issue. Client CLIs should catch `EntityNotExistsError` and print a workflow-id-focused message rather than dumping the gRPC traceback.
+
+## Python client SDK gap: no `TestWorkflowEnvironment` on PyPI yet (2026-08-28)
+
+`.devin/skills/cadence-workflow-orchestration/03-python-client/testing.md` documents
+`cadence.testing.TestWorkflowEnvironment` as supported, but **the latest PyPI release
+(`cadence-python-client` 0.3.0, confirmed against the `v0.3.0` git tag) does not include
+the `cadence/testing/` package** — it only exists on the project's unreleased `main`
+branch. `import cadence.testing` raises `ModuleNotFoundError` on 0.3.0.
+
+Workaround used in `src/orchestrator/` (see `src/orchestrator/README.md`): keep all
+Workflow sequencing/decision logic in a plain-`asyncio` class
+(`story_analysis_engine.StoryAnalysisEngine`) that never imports `cadence` and takes
+its Activity calls / signal-wait as injected callables. Unit test that class directly
+with fakes. The real `@registry.workflow()` class is a thin adapter with no automated
+test coverage of its own (manual verification against a real server instead).
+
+Re-check this gap before assuming `TestWorkflowEnvironment` is usable — it may have
+shipped in a release newer than 0.3.0 by the time you read this.
+
+## Gotcha: bare `@workflow.query` / `@workflow.signal` silently don't register (2026-08-31)
+
+`cadence.workflow.query()` and `cadence.workflow.signal()` are decorator
+*factories* (`def query(name: str | None = None) -> Callable[[T], T]`), not
+decorators themselves. Used bare -- `@workflow.query` / `@workflow.signal`
+with no parens -- Python calls `query(fn)`, which binds `fn` itself to the
+`name` parameter and returns the inner `decorator` closure *unapplied*. The
+class ends up with that closure as the attribute instead of the original
+method, and `_workflow_query`/`_workflow_signal` metadata is never set --
+**no error at class-definition time**, but the method is simply never
+registered. Cadence then rejects the Signal/Query at runtime with e.g.
+`Unknown query type 'get_status'. Known types: ['__query_types']`.
+
+This was live in `src/orchestrator/workflow.py`'s `human_response` Signal and
+`get_status` Query (`StoryAnalysisWorkflow`) for some time, uncaught because
+neither is exercised against a real Cadence server in the automated test
+suite (`FakeClient`-based unit tests just record the call and never invoke
+the actual workflow's handler). Found while adding `get_result` to the new
+`SingleActivityWorkflow` probe workflow and testing it against a live
+server -- see `Testing a single Activity in isolation` below. Fixed by
+calling with parens and an explicit name, e.g. `@workflow.query(name="get_status")`.
+**Always use the parenthesized form**, even when relying on the default name.
+
+## Ports
+
+- `localhost:7833` — gRPC frontend (used by workers and clients)
+- `localhost:8088` — Cadence Web UI
+
+## Client API (2026-08-29)
+
+`src/story_analysis_workflow/` is the client-side counterpart to `src/orchestrator/`: starts runs,
+sends `human_response`, queries `get_status`, and registers the domain, without needing the
+`cadence` CLI binary installed. See `docs/reqs/workflow-orchestration/streams/client-api-usage.md`.
+
+- `config.py` — `CadenceConfig`/`load_config()` centralize domain/task-list/target/timeout config.
+  Precedence: explicit function argument > `domain-task-list-retry-config.json` > env var
+  (`CADENCE_DOMAIN`/`CADENCE_TASK_LIST`/`CADENCE_TARGET`) > hardcoded default. Both `cli.py` and
+  `starter.py` depend on this for consistency.
+  `domain-task-list-retry-config.json` is colocated in `src/story_analysis_workflow/` (moved there
+  2026-08-31; `DEFAULT_CONFIG_PATH` used to point at a `docs/reqs/.../streams/` path that never
+  actually existed, so `load_config()` silently always fell back to hardcoded/env defaults — see
+  `decisions/ADR-009-colocate-workflow-config.md`).
+- `starter.py` — derives a `WorkflowID` from the story document's name plus a "zettel id"
+  (`YYYYMMDDHHmm`, 24-hour local time at kickoff) when none is given, e.g. `example_story.md` ->
+  `story-analysis-example_story_202608311430` (2026-08-31, changed from an earlier slug +
+  content-hash scheme — see `decisions/ADR-010-workflow-id-zettel-timestamp.md`). `RejectDuplicate`
+  reuse policy now only guards same-story starts within the same minute; it no longer deduplicates
+  re-runs of identical story content across kickoffs (accepted tradeoff, not a regression).
+- `cli.py` — `story-analysis-cli` (argparse-based) is a from-scratch alternative to the `cadence`
+  CLI binary; it takes an injectable `client_factory`/`config` for unit testing entirely against
+  `tests/fake_client.FakeClient`, no live server needed. `register-domain` calls
+  `client.domain_stub.RegisterDomain` directly rather than shelling out.
+- `run_single_activity.py` (2026-08-31) — backs `scripts/run-single-activity`. A Cadence *client*
+  (not a direct/in-process call): starts `orchestrator.single_activity_workflow.SingleActivityWorkflow`,
+  a minimal probe workflow that schedules exactly one Activity, then polls its `get_result` Query
+  until it finishes. Requires `scripts/start-workflow-engine.sh` already running. Chosen over an
+  in-process direct call specifically so retries/timeouts/task-routing match a normal
+  `StoryAnalysisWorkflow` run, and so `scripts/.run/worker.log` / the Cadence Web UI actually show
+  the activity task on failure. `repair_story_analysis` isn't supported (needs two input files).
+- Same `cadence.testing.TestWorkflowEnvironment` gap noted above applies: none of this client code
+  needs it (it only talks to `Client`'s async methods, all faked in tests).
+
+## See also
+
+- [Workflow Engine implementation](../../src/orchestrator/README.md) — the Story
+  Analysis Workflow example (`StoryAnalysisWorkflow`, its four skill Activities, and
+  the pure `StoryAnalysisEngine` decision logic).
+- [Client API usage](../../docs/reqs/workflow-orchestration/streams/client-api-usage.md) — starter/
+  CLI/Signal/Query usage for `src/story_analysis_workflow/`.
+
+## Multi-workflow extension map (2026-09-03)
+
+The Story Analysis implementation is a reference pattern, not a reusable workflow base class.
+The generic `Harness` and `run_skill` boundary is reusable, but the current Cadence registry is
+owned by `orchestrator.workflow`, imports Story Analysis Activities directly, and is consumed by
+a Worker polling one task list. Adding independent workflows cleanly therefore requires a Worker
+composition root for workflow-owned registries rather than adding more business-workflow imports
+to the Story Analysis module.
+
+Workflow chaining has two supported design directions: a separate durable Cadence coordinator
+that invokes configured child workflow wire types, or an external coordinator that persists its
+own progress and starts each workflow through its public client API. Business workflows exchange
+stable input/result envelopes and do not import or name one another. See
+[Mapping Cadence Workflows and Devin Skill Activities](../../docs/mapping-workflows-and-skill-activities.md).
+
+## Python SDK registration and Worker context contracts (2026-09-04)
+
+Executable characterization tests for `cadence-python-client` 0.3.0 establish that:
+
+- `registry.workflow(name=...)(WorkflowClass)` returns the original class and stores a workflow definition under the explicit name.
+- `registry.register_activity(activity_definition)` returns `None` and stores the Activity under its decorated wire name.
+- `Worker.__aenter__` awaits `run()` and returns the Worker; `Worker.__aexit__` then awaits `close()`.
+
+These contracts are pinned in `tests/unit/test_cadence_sdk_contracts.py`.

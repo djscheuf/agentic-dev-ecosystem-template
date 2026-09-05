@@ -1,0 +1,8 @@
+# Runtime + test dependencies for the Story Analysis Cadence workflow example.
+#
+# Install with (see ../../shell.nix for the Nix dev shell that provides the
+# libstdc++ runtime library grpcio needs on NixOS):
+#   python3 -m venv .venv && .venv/bin/pip install -r src/orchestrator/requirements.txt
+cadence-python-client==0.3.0
+pytest==9.1.1
+pytest-asyncio==1.4.0

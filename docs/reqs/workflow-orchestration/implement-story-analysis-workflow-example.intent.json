@@ -1,0 +1,86 @@
+{
+  "raw_request": "docs/reqs/workflow-orchestration/story.md",
+  "title": "Working Example of the Story Analysis Workflow Using a Publicly Available Workflow Engine",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "target_persona": {
+    "name": "Alex - Software Engineer & AI Process Designer",
+    "role": "Software Engineer / AI Process Designer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Alex manually invokes each SDLC skill (extract-story-intent, analyze-story, draft-implementation-plan, etc.) one at a time, hand-tracking state, retries, and an audit trail across the multi-step Story Analysis Workflow.",
+      "during": "Alex defines the Story Analysis Workflow in a publicly available workflow engine, which durably orchestrates the SDLC skills end-to-end, persisting state, retrying failed steps, and pausing to escalate to a human whenever a step encounters ambiguity or uncertainty.",
+      "after": "Alex inspects the workflow engine's audit/trace log and the resulting repository changes (created/updated files) to confirm the workflow completed successfully, and reuses or shares the documented workflow definition with other engineers for future stories."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Orchestrate the multi-step Story Analysis Workflow (extract-story-intent, analyze-story, and subsequent SDLC skills) as a single durable workflow in a publicly available workflow engine, including state management, retry-loops, and human-in-the-loop escalation on ambiguity or uncertainty.",
+    "inputs": [
+      "Story document or verbatim story text to seed the workflow",
+      "Workflow definition/configuration for the chosen publicly available workflow engine",
+      "Human responses when a step escalates due to ambiguity or uncertainty"
+    ],
+    "outputs": [
+      "Completed workflow run with an auditable, traceable execution log covering every agentic action and tool call",
+      "Repository state changes produced by the workflow's agentic actions (e.g., extracted intent JSON, analysis JSON, updated documentation)",
+      "Documentation describing how the workflow is built, configured, and run so others can reuse it"
+    ],
+    "state_changes": [
+      "Repository files created or updated by each agentic action invoked during the workflow",
+      "Workflow execution state persisted by the workflow engine (e.g., running, retrying, waiting-for-human, completed, failed)"
+    ],
+    "affected_components": {
+      "ui": "None - no end-user UI; workflow engine's own dashboard/console (if any) is used for observability",
+      "api": "Workflow engine's orchestration API/webhooks used to invoke SDLC skill steps and report step results",
+      "database": "Workflow engine's durable execution/state store used to persist workflow run state, history, and retries",
+      "external_services": "Publicly available workflow engine (e.g., Temporal, Prefect, n8n, or similar) hosting and executing the workflow"
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "A working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine",
+      "gherkin": "Given the Story Analysis Workflow is defined in a publicly available workflow engine When the workflow is triggered with a story document Then the workflow runs the SDLC Story Analysis steps end-to-end and completes successfully",
+      "type": "Functional",
+      "jtbd": "Run story analysis workflow end-to-end",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The implemented workflow is documented and can be used by others",
+      "gherkin": "Given the workflow implementation exists When another engineer reads its documentation Then they can configure and run the workflow themselves without additional guidance",
+      "type": "Non-functional",
+      "jtbd": "Reuse documented workflow",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty",
+      "gherkin": "Given a workflow step fails or encounters ambiguous input When the workflow engine processes that step Then it retries the step according to the retry policy or pauses and escalates to a human for input before continuing",
+      "type": "Functional",
+      "jtbd": "Trace agentic workflow execution through retries and human escalation",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Workflow actions are auditable and traceable after workflow completion",
+      "gherkin": "Given a workflow run has completed When Alex reviews the workflow engine's execution history Then every agentic action and tool call taken during the run is visible and traceable",
+      "type": "Non-functional",
+      "jtbd": "Audit workflow actions after completion",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)",
+      "gherkin": "Given the workflow executes its agentic action steps When those steps complete Then corresponding files are created or updated in the repository",
+      "type": "Functional",
+      "jtbd": "Persist workflow outputs to repository",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Workflow is repeatable, producing similar results when given the same inputs",
+      "gherkin": "Given the same story document input is provided When the workflow is run multiple times Then each run produces similar results and repository state changes",
+      "type": "Non-functional",
+      "jtbd": "Get repeatable workflow results",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    }
+  ]
+}

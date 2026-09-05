@@ -1,0 +1,27 @@
+{
+  "design_reasoning": {
+    "score": 3,
+    "reason": "Every architectural decision is grounded in either an existing ADR (ADR-003 skills-based architecture, ADR-004 sentinel/verify.sh contract, ADR-005/ADR-006 grader pattern, ADR-007 skill input independence) or a concrete pattern already present in the repo (the `devin` CLI subprocess pattern in evals/devin.js, the cadence-workflow-orchestration skill's documented local-quickstart and messaging/timer docs). The design is minimal: it does not reimplement skill logic, reuses the existing four SDLC skills unchanged, keeps the sentinel-file contract instead of inventing a parallel completion mechanism, and explicitly rejects unscoped additions (e.g., Slack/email notification) as out of scope. Where two layers touch the same concern (e.g., attempt counting), the design explicitly differentiates intent (Workflow owns durable in-process state vs. Repository owns persisted artifacts).",
+    "recommendation": "No changes required. Optionally add one line calling out why a generic `run_skill_activity(skill_name, ...)` Activity was preferred (or not) over four separate Activity functions, to remove the last bit of ambiguity between the two variants mentioned in the decision's impact field."
+  },
+  "workflow_changes": {
+    "score": 2,
+    "reason": "The happy path is fully specified as 9 sequential domain events, each naming the layers involved and the data flowing across handshake points (contract_used + data_shape), and it maps to the story's core acceptance criteria (end-to-end run, retry, escalation, auditability). The grade-repair loop and human-escalation-with-timeout are both modeled as explicit steps with recovery behavior (step 8 covers the timeout re-escalate-then-fail path). However, only 2 edge cases are modeled directly as workflow steps (loop exhaustion at step 5\u21927, and Signal timeout at step 8); the rubric's other story edge cases (Activity RetryPolicy exhaustion routing to escalation, oversized/empty/unicode input handling, duplicate concurrent WorkflowID rejection, worker-crash replay) are addressed only in architectural_decisions/questions_addressed rather than as explicit branches in workflow_sequence, so the happy-path model itself has fewer than the 4+ edge-case divergences the top score requires.",
+    "recommendation": "Add explicit workflow_sequence steps (or sub-branches on existing steps) for: (a) an Activity exhausting its own RetryPolicy and routing into HumanEscalationRaised with escalation_reason='activity_failure_exhausted_retries', and (b) the empty/oversized/duplicate-WorkflowID input validation that happens before step 2. This will make all of the story's edge cases traceable directly in the workflow model rather than only in the architectural decisions."
+  },
+  "interface_contracts": {
+    "score": 3,
+    "reason": "Five contracts are fully specified (WorkflowInput, GradeRepairLoopState, SkillActivityInterface, HumanEscalationSignal, CadenceClientInteraction), each with complete added/modified/removed shape definitions appropriate to a Cadence system (Signal/Query payload shapes and Activity input/output shapes in place of REST endpoints/status codes, which is the correct substitution for this domain). Every workflow_sequence handshake_point references one of these named contracts and a concrete data_shape, giving a clean 1:1 mapping between the workflow model and the contracts section.",
+    "recommendation": "No changes required. Consider adding the Activity-level error/failure shape (e.g., what fields an ActivityFailure carries back to the Workflow) to SkillActivityInterface to fully cover 'error handling' the way HTTP contracts would specify status codes."
+  },
+  "layer_responsibilities": {
+    "score": 3,
+    "reason": "All five layers (Client, Workflow, Activity, Cadence Service, Repository) have explicit new_responsibilities, each paired with an intent that ties back to the 'where is the information available to act' heuristic and to ADR-003's workflow/skill split. Responsibilities are consistent with existing architecture (skills keep authoring their own outputs; the Workflow only orchestrates; the Repository keeps the same file/sentinel shape) and no responsibility contradicts the audited current reality.",
+    "recommendation": "No changes required."
+  },
+  "instrumentation": {
+    "score": 3,
+    "reason": "Seven instrumentation events are defined (StartStoryAnalysisWorkflow, InvokeSkillActivity, CompleteSkillActivity, EvaluateGradeRepairLoop, RaiseHumanEscalationSignal, ReceiveHumanResponseSignal, CompleteStoryAnalysisWorkflow), each in VerbObject/VerbObjectContext form with 2-4 contextual data points, covering every major workflow branch (start, per-skill invocation/completion, loop decision, escalation raise/resolve, terminal completion) including error/timeout paths.",
+    "recommendation": "No changes required. Consider adding a dedicated `RetryActivityAttempt` event distinct from CompleteSkillActivity so Cadence-managed Activity retries are visible in metrics/logs independent of the outer grade-repair attempt_count."
+  }
+}

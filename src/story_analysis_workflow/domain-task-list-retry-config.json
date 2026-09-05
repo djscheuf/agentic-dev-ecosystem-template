@@ -1,0 +1,28 @@
+{
+  "domain": "story-analysis",
+  "task_list": "story-analysis",
+  "cadence_target": "localhost:7833",
+  "workflow_defaults": {
+    "execution_start_to_close_timeout_seconds": 3600,
+    "task_start_to_close_timeout_seconds": 10,
+    "workflow_id_reuse_policy": "RejectDuplicate"
+  },
+  "activity_defaults": {
+    "start_to_close_timeout_seconds": 300,
+    "schedule_to_close_timeout_seconds": 900,
+    "heartbeat_timeout_seconds": 60,
+    "retry_policy": {
+      "initial_interval_seconds": 1,
+      "backoff_coefficient": 2.0,
+      "maximum_interval_seconds": 30,
+      "maximum_attempts": 3,
+      "non_retryable_error_reasons": []
+    }
+  },
+  "human_escalation": {
+    "signal_name": "human_response",
+    "timeout_seconds": 300,
+    "re_notification_count": 1
+  },
+  "scoping_note": "Only Workers and clients configured for domain 'story-analysis' and task list 'story-analysis' can start, signal, or execute this workflow. Cadence enforces domain and task-list isolation at the server."
+}
