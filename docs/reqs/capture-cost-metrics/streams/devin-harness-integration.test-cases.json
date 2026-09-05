@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "run_with_missing_or_malformed_export_preserves_process_result",
-          "status": "pending",
+          "status": "passing",
           "description": "Missing and malformed telemetry never changes a successful or failed Devin result",
           "arrange": "Use runners that omit the export or write malformed JSON while returning known process fields",
           "act": "Run DevinHarness for each telemetry failure",

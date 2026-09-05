@@ -92,3 +92,25 @@ def test_run_with_nonzero_exit_still_returns_available_usage() -> None:
     assert result.stdout == "partial"
     assert result.stderr == "failed"
     assert result.usage == HarnessUsage(cached_tokens=8)
+
+
+def test_run_with_missing_or_malformed_export_preserves_process_result() -> None:
+    def missing_runner(command, **kwargs):
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    def malformed_runner(command, **kwargs):
+        Path(command[command.index("--export") + 1]).write_text("not json")
+        return subprocess.CompletedProcess(command, 9, "partial", "failed")
+
+    results = [
+        DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+        for runner in (missing_runner, malformed_runner)
+    ]
+
+    assert results[0].exit_code == 0
+    assert results[0].stdout == "done"
+    assert results[0].usage is None
+    assert results[1].exit_code == 9
+    assert results[1].stdout == "partial"
+    assert results[1].stderr == "failed"
+    assert results[1].usage is None
