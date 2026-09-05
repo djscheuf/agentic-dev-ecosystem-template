@@ -4,9 +4,13 @@ from types import SimpleNamespace
 from common.workflow_logger import (
     WorkflowLoggerConfig,
     activity_log_context,
+    client_log_context,
     get_activity_artifact_dir,
+    get_client_log_path,
+    get_workflow_log_path,
     setup_worker_logging,
     worker_log_context,
+    workflow_log_context,
 )
 
 
@@ -39,6 +43,21 @@ def test_worker_logging_includes_generic_route_identity(caplog) -> None:
     assert record.domain == "payments"
     assert record.task_list == "payment-tasks"
     assert "story" not in record.name.lower()
+
+
+def test_workflow_and_client_contexts_expose_created_log_paths(tmp_path) -> None:
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    info = SimpleNamespace(workflow_id="wf-1", workflow_run_id="run-1")
+
+    with workflow_log_context(workflow_info=info, config=config):
+        workflow_path = get_workflow_log_path()
+    with client_log_context("wf-1", "run-1", config=config):
+        client_path = get_client_log_path()
+
+    assert workflow_path == str(config.log_root / "wf-1" / "run-1" / "workflow.log")
+    assert client_path == str(config.log_root / "wf-1" / "run-1" / "client.log")
+    assert (config.log_root / "wf-1" / "run-1" / "workflow.log").exists()
+    assert (config.log_root / "wf-1" / "run-1" / "client.log").exists()
 
 
 def test_activity_log_context_exposes_attempt_scoped_artifact_directory(tmp_path) -> None:
