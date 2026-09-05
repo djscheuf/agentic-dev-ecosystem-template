@@ -3,9 +3,10 @@
 import json
 import time
 from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
@@ -57,6 +58,25 @@ class SkillActivity(ABC):
     def modify_prompt(self, prompt: str) -> str:
         return prompt
 
+    def modify_sentinel_path(self, sentinel_path: Path) -> Path:
+        return sentinel_path
+
+    def modify_harness_config(
+        self, config: Mapping[str, object]
+    ) -> Mapping[str, object]:
+        return config
+
+    def modify_invocation_context(
+        self, context: AbstractContextManager[None]
+    ) -> AbstractContextManager[None]:
+        return context
+
+    def modify_output_path(self, output_path: Path) -> Path:
+        return output_path
+
+    def modify_result(self, result: SkillActivityOutput) -> SkillActivityOutput:
+        return result
+
     def build_prompt(self, skill_input: SkillActivityInput) -> str:
         lines = [f"Invoke the '{self.skill_name}' skill."]
         if skill_input.input_paths:
@@ -71,18 +91,22 @@ class SkillActivity(ABC):
         return self.modify_prompt("\n".join(lines))
 
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
-        sentinel = self.repo_root / ".process" / f"{self.skill_name}.done.json"
+        sentinel = self.modify_sentinel_path(
+            self.repo_root / ".process" / f"{self.skill_name}.done.json"
+        )
         if sentinel.exists():
             sentinel.unlink()
         with activity_log_context():
             logger = get_activity_logger()
             logger.info("RunSkill: skill_name=%s", self.skill_name)
             start = time.monotonic()
-            with skill_invocation_context(self.skill_name):
+            with self.modify_invocation_context(
+                skill_invocation_context(self.skill_name)
+            ):
                 result = self.harness.run(
                     self.build_prompt(skill_input),
                     cwd=self.repo_root,
-                    config=self.harness_config,
+                    config=self.modify_harness_config(self.harness_config),
                 )
             duration_ms = int((time.monotonic() - start) * 1000)
             if not isinstance(result, HarnessResult) and not all(
@@ -118,14 +142,15 @@ class SkillActivity(ABC):
                         f"Sentinel for skill '{self.skill_name}' is missing verify_params.{self.output_path_key}"
                     )
                 output_path = Path(value)
-            return SkillActivityOutput(
+            output = SkillActivityOutput(
                 status="success",
-                output_path=str(output_path),
+                output_path=str(self.modify_output_path(output_path)),
                 sentinel_path=str(sentinel.relative_to(self.repo_root)),
                 duration_ms=duration_ms,
                 activity_log_path=get_activity_log_path() or "",
                 devin_log_path=get_devin_log_path() or "",
             )
+        return self.modify_result(output)
 
 
 def run_skill(
