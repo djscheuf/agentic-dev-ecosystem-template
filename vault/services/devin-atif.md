@@ -24,3 +24,12 @@ The reproducible characterization is in `docs/reqs/capture-cost-metrics/streams/
 ## Related decision
 
 See [[decisions/ADR-015-devin-cost-metric-scope]].
+
+## Harness integration status (2026-09-04)
+
+- `common.DevinHarness` requests `--export <absolute-path>` for every invocation.
+- Activity-context exports remain as `devin-trajectory.json` beside `activity.log` and `devin.log`; out-of-context exports use temporary storage that survives parsing and is then removed.
+- Zero and nonzero Devin exits both preserve their original process fields and include normalized usage when available.
+- Telemetry diagnostics report storage mode, export path, usage availability, and sanitized rejection categories without logging trajectory content.
+- `read_atif_usage_result()` distinguishes missing, unreadable, malformed, invalid-document, and invalid-`final_metrics` failures while `read_atif_usage()` retains its optional-usage API.
+- The NixOS unit entry point passes 195 tests after the harness integration increment.
