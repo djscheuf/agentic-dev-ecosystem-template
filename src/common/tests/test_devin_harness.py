@@ -76,3 +76,19 @@ def test_run_with_activity_context_retains_trajectory_beside_activity_logs(tmp_p
     assert export_paths[0].exists()
     assert (export_paths[0].parent / "activity.log").exists()
     assert (export_paths[0].parent / "devin.log").exists()
+
+
+def test_run_with_nonzero_exit_still_returns_available_usage() -> None:
+    def runner(command, **kwargs):
+        export_path = Path(command[command.index("--export") + 1])
+        export_path.write_text(
+            json.dumps({"final_metrics": {"total_cached_tokens": 8}})
+        )
+        return subprocess.CompletedProcess(command, 7, "partial", "failed")
+
+    result = DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    assert result.exit_code == 7
+    assert result.stdout == "partial"
+    assert result.stderr == "failed"
+    assert result.usage == HarnessUsage(cached_tokens=8)

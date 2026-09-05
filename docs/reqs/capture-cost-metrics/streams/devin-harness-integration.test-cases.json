@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "run_with_nonzero_exit_still_returns_available_usage",
-          "status": "pending",
+          "status": "passing",
           "description": "Usage capture remains observational when Devin reports failure",
           "arrange": "Use a runner that writes valid ATIF and returns a nonzero code with stdout and stderr",
           "act": "Run DevinHarness",
