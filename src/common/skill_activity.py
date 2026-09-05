@@ -52,13 +52,21 @@ class SkillActivity(ABC):
     def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
         """Resolve an output when the successful harness consumed its sentinel."""
 
+    def modify_prompt(self, prompt: str) -> str:
+        return prompt
+
     def build_prompt(self, skill_input: SkillActivityInput) -> str:
         lines = [f"Invoke the '{self.skill_name}' skill."]
         if skill_input.input_paths:
             lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
+            lines.append(
+                f"Write the skill's output file in the same directory as the first "
+                f"input path ({skill_input.input_paths[0]}), following the skill's "
+                f"naming convention."
+            )
         if skill_input.context:
             lines.append(skill_input.context)
-        return "\n".join(lines)
+        return self.modify_prompt("\n".join(lines))
 
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
         sentinel = self.repo_root / ".process" / f"{self.skill_name}.done.json"
