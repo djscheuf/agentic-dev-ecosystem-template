@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "run_logs_sanitized_export_and_usage_outcomes_without_trajectory_content",
-          "status": "pending",
+          "status": "passing",
           "description": "Operational diagnostics expose storage and availability only, never raw trajectory data",
           "arrange": "Capture Devin logger records while a runner writes ATIF containing a sensitive marker",
           "act": "Run DevinHarness through successful and rejected telemetry outcomes",

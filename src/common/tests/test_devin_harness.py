@@ -114,3 +114,32 @@ def test_run_with_missing_or_malformed_export_preserves_process_result() -> None
     assert results[1].stdout == "partial"
     assert results[1].stderr == "failed"
     assert results[1].usage is None
+
+
+def test_run_logs_sanitized_export_and_usage_outcomes_without_trajectory_content(caplog) -> None:
+    caplog.set_level("INFO", logger="workflow.devin")
+    marker = "sensitive-trajectory-content"
+
+    def valid_runner(command, **kwargs):
+        Path(command[command.index("--export") + 1]).write_text(
+            json.dumps(
+                {
+                    "steps": [{"observation": marker}],
+                    "final_metrics": {"total_prompt_tokens": 12},
+                }
+            )
+        )
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    def malformed_runner(command, **kwargs):
+        Path(command[command.index("--export") + 1]).write_text(f"not-json-{marker}")
+        return subprocess.CompletedProcess(command, 0, "done", "")
+
+    for runner in (valid_runner, malformed_runner):
+        DevinHarness(runner=runner).run("review this", cwd=Path("/repo"), config={})
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("SelectDevinExportPath" in message and "storage_mode=temporary" in message for message in messages)
+    assert any("CompleteDevinInvocation" in message and "usage_available=True" in message for message in messages)
+    assert any("RejectAtifTelemetry" in message and "error_category=malformed_json" in message for message in messages)
+    assert marker not in caplog.text
