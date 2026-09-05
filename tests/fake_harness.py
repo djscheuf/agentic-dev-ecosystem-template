@@ -17,7 +17,7 @@ import os
 import re
 from pathlib import Path
 
-from orchestrator.harness import HarnessResult
+from common.harness import HarnessResult
 
 
 def _dim(score):

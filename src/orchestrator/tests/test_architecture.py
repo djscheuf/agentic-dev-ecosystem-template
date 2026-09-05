@@ -3,6 +3,15 @@ from pathlib import Path
 
 
 ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
+REMOVED_MODULES = (
+    "devin_harness.py",
+    "harness.py",
+    "invocation_context.py",
+    "skill_activity.py",
+    "skill_activity_config.py",
+    "workflow_logger.py",
+)
+
 FORBIDDEN_DOMAIN_TERMS = (
     "Story Analysis",
     "StoryAnalysis",
@@ -16,6 +25,12 @@ FORBIDDEN_DOMAIN_TERMS = (
     "grade-story-analysis",
     "repair-story-analysis",
 )
+
+
+def test_removed_common_infrastructure_has_no_orchestrator_duplicates():
+    remaining = [name for name in REMOVED_MODULES if (ORCHESTRATOR_ROOT / name).exists()]
+
+    assert remaining == []
 
 
 def test_orchestrator_package_when_imports_analyzed_contains_only_generic_concerns():
