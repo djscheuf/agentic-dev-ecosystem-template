@@ -9,7 +9,12 @@ from pathlib import Path
 from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
 from .skill_activity_config import SkillActivityConfig
-from .workflow_logger import get_activity_logger
+from .workflow_logger import (
+    activity_log_context,
+    get_activity_log_path,
+    get_activity_logger,
+    get_devin_log_path,
+)
 
 
 class SkillActivityError(RuntimeError):
@@ -28,6 +33,8 @@ class SkillActivityOutput:
     output_path: str
     sentinel_path: str
     duration_ms: int
+    activity_log_path: str = ""
+    devin_log_path: str = ""
 
 
 class SkillActivity(ABC):
@@ -57,45 +64,55 @@ class SkillActivity(ABC):
         sentinel = self.repo_root / ".process" / f"{self.skill_name}.done.json"
         if sentinel.exists():
             sentinel.unlink()
-        start = time.monotonic()
-        with skill_invocation_context(self.skill_name):
-            result = self.harness.run(
-                self.build_prompt(skill_input),
-                cwd=self.repo_root,
-                config=self.harness_config,
-            )
-        duration_ms = int((time.monotonic() - start) * 1000)
-        if not isinstance(result, HarnessResult) and not all(
-            hasattr(result, field) for field in ("exit_code", "stdout", "stderr")
-        ):
-            raise SkillActivityError("invalid_harness_result")
-        if result.exit_code:
-            raise SkillActivityError(
-                f"Harness exited {result.exit_code} while running skill '{self.skill_name}'"
-            )
-        try:
-            payload = json.loads(sentinel.read_text())
-        except FileNotFoundError:
-            output_path = self.expected_output_path(skill_input)
-            get_activity_logger().warning(
-                "WarnSkillArtifactVerification: skill_name=%s failure_reason=missing_sentinel output_path=%s",
-                self.skill_name,
-                output_path,
-            )
-        except json.JSONDecodeError as exc:
-            raise SkillActivityError(f"Malformed sentinel for skill '{self.skill_name}'") from exc
-        else:
-            if payload.get("task") != self.skill_name:
-                raise SkillActivityError(f"Sentinel task mismatch for skill '{self.skill_name}'")
-            value = payload.get("verify_params", {}).get(self.output_path_key)
-            if not value:
-                raise SkillActivityError(
-                    f"Sentinel for skill '{self.skill_name}' is missing verify_params.{self.output_path_key}"
+        with activity_log_context():
+            logger = get_activity_logger()
+            logger.info("RunSkill: skill_name=%s", self.skill_name)
+            start = time.monotonic()
+            with skill_invocation_context(self.skill_name):
+                result = self.harness.run(
+                    self.build_prompt(skill_input),
+                    cwd=self.repo_root,
+                    config=self.harness_config,
                 )
-            output_path = Path(value)
-        return SkillActivityOutput(
-            status="success",
-            output_path=str(output_path),
-            sentinel_path=str(sentinel.relative_to(self.repo_root)),
-            duration_ms=duration_ms,
-        )
+            duration_ms = int((time.monotonic() - start) * 1000)
+            if not isinstance(result, HarnessResult) and not all(
+                hasattr(result, field) for field in ("exit_code", "stdout", "stderr")
+            ):
+                raise SkillActivityError("invalid_harness_result")
+            if result.exit_code:
+                logger.error(
+                    "FailSkillHarnessInvocation: skill_name=%s exit_code=%s",
+                    self.skill_name,
+                    result.exit_code,
+                )
+                raise SkillActivityError(
+                    f"Harness exited {result.exit_code} while running skill '{self.skill_name}'"
+                )
+            try:
+                payload = json.loads(sentinel.read_text())
+            except FileNotFoundError:
+                output_path = self.expected_output_path(skill_input)
+                logger.warning(
+                    "WarnSkillArtifactVerification: skill_name=%s failure_reason=missing_sentinel output_path=%s",
+                    self.skill_name,
+                    output_path,
+                )
+            except json.JSONDecodeError as exc:
+                raise SkillActivityError(f"Malformed sentinel for skill '{self.skill_name}'") from exc
+            else:
+                if payload.get("task") != self.skill_name:
+                    raise SkillActivityError(f"Sentinel task mismatch for skill '{self.skill_name}'")
+                value = payload.get("verify_params", {}).get(self.output_path_key)
+                if not value:
+                    raise SkillActivityError(
+                        f"Sentinel for skill '{self.skill_name}' is missing verify_params.{self.output_path_key}"
+                    )
+                output_path = Path(value)
+            return SkillActivityOutput(
+                status="success",
+                output_path=str(output_path),
+                sentinel_path=str(sentinel.relative_to(self.repo_root)),
+                duration_ms=duration_ms,
+                activity_log_path=get_activity_log_path() or "",
+                devin_log_path=get_devin_log_path() or "",
+            )

@@ -8,12 +8,17 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 try:
     from cadence import activity
 except ImportError:
     activity = None
+
+try:
+    from cadence.workflow import WorkflowContext
+except ImportError:
+    WorkflowContext = None
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "workflow_logging.config.json"
@@ -65,7 +70,13 @@ class WorkflowLoggerConfig:
 class _LogBundle:
     activity: logging.Logger
     devin: logging.Logger
-    artifact_dir: Path | None = None
+    workflow: logging.Logger
+    client: logging.Logger
+    artifact_dir: Optional[Path] = None
+    activity_path: Optional[Path] = None
+    devin_path: Optional[Path] = None
+    workflow_path: Optional[Path] = None
+    client_path: Optional[Path] = None
 
 
 _CURRENT_BUNDLE: ContextVar[_LogBundle | None] = ContextVar(
@@ -124,11 +135,25 @@ def _resolve_activity_info(activity_info: Any = None) -> Any:
     return None
 
 
+def _resolve_workflow_info(workflow_info: Any = None) -> Any:
+    if workflow_info is not None:
+        return workflow_info
+    if WorkflowContext is not None and WorkflowContext.is_set():
+        return WorkflowContext.get().info()
+    return None
+
+
+def _relative_or_absolute(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 @contextmanager
 def worker_log_context(
     *, domain: str, task_list: str
 ) -> Iterator[logging.LoggerAdapter]:
-    """Attach a workflow module route to worker records."""
     token = _route.set((domain, task_list))
     try:
         yield _RouteAdapter(logging.getLogger("workflow.worker"), {})
@@ -140,17 +165,24 @@ def get_worker_logger() -> logging.LoggerAdapter:
     return _RouteAdapter(logging.getLogger("workflow.worker"), {})
 
 
+def _fallback_bundle() -> _LogBundle:
+    return _LogBundle(
+        activity=logging.getLogger("workflow.activity"),
+        devin=logging.getLogger("workflow.devin"),
+        workflow=logging.getLogger("workflow.execution"),
+        client=logging.getLogger("workflow.client"),
+    )
+
+
 @contextmanager
 def activity_log_context(
     activity_info: Any = None,
     config: WorkflowLoggerConfig | None = None,
 ) -> Iterator[_LogBundle]:
     info = _resolve_activity_info(activity_info)
+    cfg = config or WorkflowLoggerConfig.load()
     if info is None:
-        bundle = _LogBundle(
-            activity=logging.getLogger("workflow.activity"),
-            devin=logging.getLogger("workflow.devin"),
-        )
+        bundle = _fallback_bundle()
         token = _CURRENT_BUNDLE.set(bundle)
         try:
             yield bundle
@@ -158,25 +190,38 @@ def activity_log_context(
             _CURRENT_BUNDLE.reset(token)
         return
 
-    cfg = config or WorkflowLoggerConfig.load()
-    artifact_dir = (
+    workflow_id = _sanitize_component(getattr(info, "workflow_id", ""))
+    run_id = _sanitize_component(getattr(info, "workflow_run_id", ""))
+    activity_type = _sanitize_component(getattr(info, "activity_type", "activity"))
+    activity_id = _sanitize_component(getattr(info, "activity_id", ""))
+    attempt = getattr(info, "attempt", 0)
+
+    base_dir = (
         cfg.log_root
-        / _sanitize_component(getattr(info, "workflow_id", ""))
-        / _sanitize_component(getattr(info, "workflow_run_id", ""))
+        / workflow_id
+        / run_id
         / "activities"
-        / (
-            f"{_sanitize_component(getattr(info, 'activity_type', 'activity'))}_"
-            f"{_sanitize_component(getattr(info, 'activity_id', ''))}_"
-            f"{getattr(info, 'attempt', 0)}"
-        )
+        / f"{activity_type}_{activity_id}_{attempt}"
     )
+    activity_path = base_dir / "activity.log"
+    devin_path = base_dir / "devin.log"
+
     activity_logger = _create_file_logger(
-        "workflow.activity", artifact_dir / "activity.log", _parse_level(cfg.activity_level)
+        "workflow.activity", activity_path, _parse_level(cfg.activity_level)
     )
     devin_logger = _create_file_logger(
-        "workflow.devin", artifact_dir / "devin.log", _parse_level(cfg.devin_level)
+        "workflow.devin", devin_path, _parse_level(cfg.devin_level)
     )
-    bundle = _LogBundle(activity_logger, devin_logger, artifact_dir)
+
+    bundle = _LogBundle(
+        activity=activity_logger,
+        devin=devin_logger,
+        workflow=logging.getLogger("workflow.execution"),
+        client=logging.getLogger("workflow.client"),
+        artifact_dir=base_dir,
+        activity_path=activity_path,
+        devin_path=devin_path,
+    )
     token = _CURRENT_BUNDLE.set(bundle)
     try:
         yield bundle
@@ -186,38 +231,137 @@ def activity_log_context(
         _close_logger(devin_logger)
 
 
-def get_activity_artifact_dir() -> Path | None:
+def get_activity_artifact_dir() -> Optional[Path]:
     bundle = _CURRENT_BUNDLE.get()
     return bundle.artifact_dir if bundle is not None else None
 
 
-@contextmanager
-def workflow_log_context(*args, **kwargs) -> Iterator[logging.Logger]:
-    yield logging.getLogger("workflow.execution")
+def get_activity_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.activity_path is None:
+        return None
+    return _relative_or_absolute(bundle.activity_path)
+
+
+def get_devin_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.devin_path is None:
+        return None
+    return _relative_or_absolute(bundle.devin_path)
 
 
 @contextmanager
-def client_log_context(*args, **kwargs) -> Iterator[logging.Logger]:
-    yield logging.getLogger("workflow.client")
+def workflow_log_context(
+    workflow_info: Any = None,
+    config: WorkflowLoggerConfig | None = None,
+) -> Iterator[logging.Logger]:
+    info = _resolve_workflow_info(workflow_info)
+    cfg = config or WorkflowLoggerConfig.load()
+    if info is None:
+        bundle = _fallback_bundle()
+        token = _CURRENT_BUNDLE.set(bundle)
+        try:
+            yield bundle.workflow
+        finally:
+            _CURRENT_BUNDLE.reset(token)
+        return
+
+    workflow_id = _sanitize_component(getattr(info, "workflow_id", ""))
+    run_id = _sanitize_component(getattr(info, "workflow_run_id", ""))
+    base_dir = cfg.log_root / workflow_id / run_id
+    workflow_path = base_dir / "workflow.log"
+
+    workflow_logger = _create_file_logger(
+        "workflow.execution", workflow_path, _parse_level(cfg.workflow_level)
+    )
+
+    bundle = _LogBundle(
+        activity=logging.getLogger("workflow.activity"),
+        devin=logging.getLogger("workflow.devin"),
+        workflow=workflow_logger,
+        client=logging.getLogger("workflow.client"),
+        workflow_path=workflow_path,
+    )
+    token = _CURRENT_BUNDLE.set(bundle)
+    try:
+        yield workflow_logger
+    finally:
+        _CURRENT_BUNDLE.reset(token)
+        _close_logger(workflow_logger)
 
 
 def get_workflow_logger() -> logging.Logger:
-    return logging.getLogger("workflow.execution")
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return logging.getLogger("workflow.execution")
+    return bundle.workflow
+
+
+@contextmanager
+def client_log_context(
+    workflow_id: str,
+    run_id: str = "",
+    config: WorkflowLoggerConfig | None = None,
+) -> Iterator[logging.Logger]:
+    cfg = config or WorkflowLoggerConfig.load()
+    sanitized_workflow_id = _sanitize_component(workflow_id)
+    sanitized_run_id = _sanitize_component(run_id) if run_id else ""
+
+    if sanitized_run_id:
+        base_dir = cfg.log_root / sanitized_workflow_id / sanitized_run_id
+    else:
+        base_dir = cfg.log_root / sanitized_workflow_id
+    client_path = base_dir / "client.log"
+
+    client_logger = _create_file_logger(
+        "workflow.client", client_path, _parse_level(cfg.client_level)
+    )
+
+    bundle = _LogBundle(
+        activity=logging.getLogger("workflow.activity"),
+        devin=logging.getLogger("workflow.devin"),
+        workflow=logging.getLogger("workflow.execution"),
+        client=client_logger,
+        client_path=client_path,
+    )
+    token = _CURRENT_BUNDLE.set(bundle)
+    try:
+        yield client_logger
+    finally:
+        _CURRENT_BUNDLE.reset(token)
+        _close_logger(client_logger)
 
 
 def get_client_logger() -> logging.Logger:
-    return logging.getLogger("workflow.client")
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return logging.getLogger("workflow.client")
+    return bundle.client
+
+
+def get_workflow_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.workflow_path is None:
+        return None
+    return _relative_or_absolute(bundle.workflow_path)
+
+
+def get_client_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.client_path is None:
+        return None
+    return _relative_or_absolute(bundle.client_path)
 
 
 def get_activity_logger() -> logging.Logger:
     bundle = _CURRENT_BUNDLE.get()
-    return bundle.activity if bundle is not None else logging.getLogger("workflow.activity")
+    if bundle is None:
+        return logging.getLogger("workflow.activity")
+    return bundle.activity
 
 
 def get_devin_logger() -> logging.Logger:
     bundle = _CURRENT_BUNDLE.get()
-    return bundle.devin if bundle is not None else logging.getLogger("workflow.devin")
-
-
-def get_workflow_log_path() -> None:
-    return None
+    if bundle is None:
+        return logging.getLogger("workflow.devin")
+    return bundle.devin
