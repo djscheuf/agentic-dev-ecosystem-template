@@ -50,6 +50,28 @@ def test_run_without_activity_context_exports_parses_and_cleans_temporary_trajec
     assert not export_paths[0].exists()
 
 
+def test_nonzero_run_captures_stdout_and_stderr_in_devin_log(tmp_path) -> None:
+    def runner(command, **kwargs):
+        return subprocess.CompletedProcess(command, 7, "useful stdout", "useful stderr")
+
+    info = SimpleNamespace(
+        workflow_id="workflow",
+        workflow_run_id="run",
+        activity_type="Analyze",
+        activity_id="activity",
+        attempt=1,
+    )
+    with activity_log_context(info, WorkflowLoggerConfig(log_root=tmp_path)):
+        result = DevinHarness(runner=runner).run(
+            "review this", cwd=Path("/repo"), config={}
+        )
+
+    devin_log = tmp_path / "workflow" / "run" / "activities" / "Analyze_activity_1" / "devin.log"
+    assert result.exit_code == 7
+    assert "useful stdout" in devin_log.read_text()
+    assert "useful stderr" in devin_log.read_text()
+
+
 def test_run_with_activity_context_retains_trajectory_beside_activity_logs(tmp_path) -> None:
     export_paths = []
 
