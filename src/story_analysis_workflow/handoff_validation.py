@@ -28,6 +28,28 @@ class HandoffValidationRequest:
 
 
 @dataclass(frozen=True)
+class FinalArtifactCheck:
+    activity_name: str
+    output_path: str
+    schema_path: str
+
+
+@dataclass(frozen=True)
+class FinalArtifactValidationRequest:
+    artifact_checks: tuple[FinalArtifactCheck, ...]
+    workflow_id: str
+    run_id: str
+    attempt: int
+
+
+@dataclass(frozen=True)
+class FinalArtifactValidationResult:
+    valid: bool
+    checked_artifacts: tuple[FinalArtifactCheck, ...]
+    failed_artifacts: tuple[FinalArtifactCheck, ...]
+
+
+@dataclass(frozen=True)
 class HandoffValidationResult:
     valid: bool
     ambiguity: bool
@@ -71,3 +93,25 @@ def validate_handoff(request: HandoffValidationRequest) -> HandoffValidationResu
     except jsonschema.ValidationError:
         return _result(request, GuardrailRule.SCHEMA_VIOLATION)
     return _result(request, GuardrailRule.PASSED)
+
+
+def validate_final_artifacts(
+    request: FinalArtifactValidationRequest,
+) -> FinalArtifactValidationResult:
+    failed = []
+    for check in request.artifact_checks:
+        result = validate_handoff(HandoffValidationRequest(
+            output_path=check.output_path,
+            previous_activity_name=check.activity_name,
+            workflow_id=request.workflow_id,
+            run_id=request.run_id,
+            attempt=request.attempt,
+            schema_path=check.schema_path,
+        ))
+        if not result.valid:
+            failed.append(check)
+    return FinalArtifactValidationResult(
+        valid=not failed,
+        checked_artifacts=request.artifact_checks,
+        failed_artifacts=tuple(failed),
+    )

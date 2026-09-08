@@ -4,7 +4,10 @@ import pytest
 
 from story_analysis_workflow.handoff_validation import (
     GuardrailRule,
+    FinalArtifactCheck,
+    FinalArtifactValidationRequest,
     HandoffValidationRequest,
+    validate_final_artifacts,
     validate_handoff,
 )
 
@@ -78,3 +81,22 @@ def test_validate_handoff_returns_stable_rule_for_deterministic_failure(
     assert result.valid is False
     assert result.ambiguity is False
     assert result.rule == expected_rule
+
+
+def test_validate_final_artifacts_checks_every_required_artifact(tmp_path):
+    checks = []
+    for name in ("intent", "analysis", "analysis_grade"):
+        artifact_path = tmp_path / f"{name}.json"
+        artifact_path.write_text(json.dumps({"name": name}))
+        schema_path = tmp_path / f"{name}.schema.json"
+        schema_path.write_text(json.dumps({"type": "object", "required": ["name"]}))
+        checks.append(FinalArtifactCheck(name, str(artifact_path), str(schema_path)))
+    request = FinalArtifactValidationRequest(
+        artifact_checks=tuple(checks), workflow_id="workflow-1", run_id="run-1", attempt=1
+    )
+
+    result = validate_final_artifacts(request)
+
+    assert result.valid is True
+    assert result.failed_artifacts == ()
+    assert result.checked_artifacts == tuple(checks)
