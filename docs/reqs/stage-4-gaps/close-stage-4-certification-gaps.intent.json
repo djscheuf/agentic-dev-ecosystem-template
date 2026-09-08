@@ -1,0 +1,80 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/gap-analysis.md",
+  "title": "Close Story Analysis Workflow Stage 4 Certification Gaps",
+  "story": {
+    "so_that": "the Story Analysis Workflow can demonstrate auditable, safe, reliable end-to-end operation and qualify for Stage 4 certification",
+    "as_a": "Stage 4 certification owner for the Story Analysis Workflow",
+    "i_want": "to close the identified agent-quality, guardrail, punch-out, success-reporting, and audit-trail gaps"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Certification Owner",
+    "role": "Engineering owner responsible for certification readiness and evidence",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Reviews the workflow implementation, tests, logs, EDD results, and certification criteria to identify missing evidence and controls.",
+      "during": "Adds or coordinates certification evidence, explicit guardrails, human-escalation tests, workflow reporting, and structured usage telemetry.",
+      "after": "Runs representative workflows, audits the resulting artifacts and metrics, and presents a consolidated certification package to the examiner. Other affected users include workflow operators responding to escalations, skill maintainers improving Stage 3 quality, and certification examiners reviewing evidence."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Close Story Analysis Workflow Stage 4 certification gaps",
+    "inputs": [
+      "Stage 4 certification criteria",
+      "Current Story Analysis Workflow implementation and design artifacts",
+      "Per-skill EDD evaluation results",
+      "Workflow execution logs and Devin ATIF usage exports",
+      "Human escalation decisions and representative benchmark scenarios"
+    ],
+    "outputs": [
+      "Stage 3 certification evidence showing each of the four agents at or above the required quality bar",
+      "Explicit startup, between-step, adversarial, and post-grader guardrails",
+      "Exercised and auditable human punch-out evidence",
+      "A defined and consolidated end-to-end workflow success rate",
+      "A per-run workflow report containing metadata, step outcomes, retries, model configuration, duration, token usage, cost, and output paths"
+    ],
+    "state_changes": [
+      "Certification status can change from not certified to eligible for Stage 4 review",
+      "Workflow execution state gains explicit artifact-validation and ambiguity-escalation decisions",
+      "Workflow audit state gains consolidated run reports and structured usage data",
+      "Repository evidence gains representative success, repair, escalation, accept, and abort runs"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Add a `docs/edd/stage-3-certification.md` or similar artifact that links the latest eval runs and demonstrates each of the four agents passing its Stage 3 bar (95%+) on real work.",
+      "gherkin": "Given current real-work evaluations for all four Story Analysis agents, when the certification owner reviews the Stage 3 certification artifact, then it links the latest runs and demonstrates that every agent passes the 95% quality bar without regular manual correction.",
+      "type": "constraint",
+      "jtbd": "Verify agent quality before Stage 4 certification",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Add a startup guardrail activity (or workflow decision) before `extract_story_intent` that asserts the input is a Markdown file and fails fast if it is not.",
+      "gherkin": "Given a workflow kickoff document, when the Story Analysis Workflow starts, then it accepts Markdown input and fails safely before extraction for invalid input; and before each subsequent activity it verifies the prior artifact exists and matches its schema; and after grading it verifies the expected intent, analysis, and grade artifacts exist.",
+      "type": "functional",
+      "jtbd": "Run story analysis only with valid artifacts",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Add an integration/e2e test that attempts to bypass the human-escalation wait (e.g., by sending an invalid `human_response` decision or by skipping the Signal entirely) and asserts the workflow remains in an `awaiting_signal` state or fails safely.",
+      "gherkin": "Given a workflow awaiting a human decision, when a caller sends an invalid decision or attempts to bypass the signal, then the workflow remains safely awaiting a valid signal or fails safely; and when an activity flags ambiguity, then the workflow punches out to a human and records the resulting decision.",
+      "type": "functional",
+      "jtbd": "Resolve ambiguous workflow outcomes safely",
+      "persona_served": "Workflow Operator"
+    },
+    {
+      "criterion": "Define the end-to-end success metric explicitly (e.g., percentage of runs with `final_status != \"failed\"` over a representative sample).",
+      "gherkin": "Given representative happy-path, repair, human-accept, and human-abort workflow runs, when certification results are aggregated, then a single explicitly defined end-to-end success rate is available from visible and auditable run evidence.",
+      "type": "business rule",
+      "jtbd": "Assess workflow success across representative runs",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Write a `{workflow}.report.json` at workflow completion that includes run metadata (`workflow_id`, `run_id`, `story_document`, `final_status`, `attempt_count`) and a per-step summary (`step`, `activity_type`, `model`, `permission_mode`, `prompt_tokens`, `completion_tokens`, `cached_tokens`, `cost_usd`, `duration_ms`, `output_path`).",
+      "gherkin": "Given a completed workflow run, when the certification owner opens its consolidated report and structured logs, then they can inspect the run status, attempts, each step outcome, model and permission settings, duration, output path, token usage, and cost without opening individual trajectory files.",
+      "type": "non-functional",
+      "jtbd": "Audit workflow execution from one report",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    }
+  ]
+}
