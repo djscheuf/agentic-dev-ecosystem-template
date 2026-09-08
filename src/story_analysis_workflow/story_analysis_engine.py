@@ -21,6 +21,7 @@ from typing import Awaitable, Callable, Optional
 
 from .escalation import EscalationReason, HumanDecision, HumanResponse
 from .grade_repair import DEFAULT_MAX_ATTEMPTS, GradeRepairDecision, GradeRepairState, evaluate_grade_repair
+from .source_document_validation import SourceDocumentValidationResult, SourceDocumentValidationRule
 
 _module_logger = logging.getLogger(__name__)
 if not _module_logger.handlers:
@@ -39,10 +40,15 @@ class WorkflowResult:
     passed: bool
     attempt_count: int
     escalated: bool
-    final_status: str  # "passed" | "human_resolved" | "failed"
+    final_status: str  # "passed" | "human_resolved" | "failed" | "validation_failed"
+    validation_rule: Optional[SourceDocumentValidationRule] = None
 
 
 AwaitHumanResponse = Callable[[timedelta], Awaitable[Optional[HumanResponse]]]
+
+
+async def _valid_source_document(_story_document: Optional[str]) -> SourceDocumentValidationResult:
+    return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
 
 
 class StoryAnalysisEngine:
@@ -54,10 +60,14 @@ class StoryAnalysisEngine:
         execute_grade_story_analysis: Callable[[str], Awaitable[dict]],
         execute_repair_story_analysis: Callable[..., Awaitable[dict]],
         await_human_response: AwaitHumanResponse,
+        validate_source_document: Optional[
+            Callable[[Optional[str]], Awaitable[SourceDocumentValidationResult]]
+        ] = None,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         escalation_timeout: timedelta = DEFAULT_ESCALATION_TIMEOUT,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        self._validate_source_document = validate_source_document or _valid_source_document
         self._execute_extract_story_intent = execute_extract_story_intent
         self._execute_analyze_story = execute_analyze_story
         self._execute_grade_story_analysis = execute_grade_story_analysis
@@ -140,8 +150,23 @@ class StoryAnalysisEngine:
                     return None, self._terminal(None, final_status)
                 # decision == RETRY: loop and retry the same activity call.
 
-    async def run(self, story_document: str) -> WorkflowResult:
-        self._logger.info("Starting story analysis for %s", story_document)
+    async def run(self, story_document: Optional[str]) -> WorkflowResult:
+        self.status = "validating_source"
+        self._logger.info("RequestSourceDocumentValidation validation_stage=startup")
+        validation = await self._validate_source_document(story_document)
+        if not validation.valid:
+            self.status = "validation_failed"
+            self._logger.info("RejectSourceDocumentStartup validation_rule=%s", validation.rule.value)
+            return WorkflowResult(
+                final_analysis_path=None,
+                passed=False,
+                attempt_count=0,
+                escalated=False,
+                final_status="validation_failed",
+                validation_rule=validation.rule,
+            )
+        self.status = "running"
+        self._logger.info("ScheduleStoryIntentExtraction validation_rule=VALID schedule_count=1")
 
         intent, failure_result = await self._run_activity_with_escalation(
             self._execute_extract_story_intent, story_document

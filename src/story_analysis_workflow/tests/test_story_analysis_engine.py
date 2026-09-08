@@ -1,6 +1,10 @@
 import pytest
 
 from story_analysis_workflow.escalation import EscalationReason, HumanDecision, HumanResponse
+from story_analysis_workflow.source_document_validation import (
+    SourceDocumentValidationResult,
+    SourceDocumentValidationRule,
+)
 from story_analysis_workflow.story_analysis_engine import ActivityFailure, StoryAnalysisEngine
 
 
@@ -37,8 +41,14 @@ class FakeActivities:
         return self.repair_result
 
 
-def make_engine(activities, *, human_responses=None, max_attempts=3):
+def make_engine(activities, *, validation_result=None, human_responses=None, max_attempts=3):
     human_responses = list(human_responses or [])
+    validation_result = validation_result or SourceDocumentValidationResult(
+        True, SourceDocumentValidationRule.VALID
+    )
+
+    async def validate_source_document(_story_document):
+        return validation_result
 
     async def await_human_response(timeout):
         if human_responses:
@@ -46,6 +56,7 @@ def make_engine(activities, *, human_responses=None, max_attempts=3):
         return None
 
     return StoryAnalysisEngine(
+        validate_source_document=validate_source_document,
         execute_extract_story_intent=activities.extract_story_intent,
         execute_analyze_story=activities.analyze_story,
         execute_grade_story_analysis=activities.grade_story_analysis,
@@ -53,6 +64,26 @@ def make_engine(activities, *, human_responses=None, max_attempts=3):
         await_human_response=await_human_response,
         max_attempts=max_attempts,
     )
+
+
+@pytest.mark.asyncio
+async def test_run_rejected_source_terminates_before_skill_activities():
+    activities = FakeActivities()
+    engine = make_engine(
+        activities,
+        validation_result=SourceDocumentValidationResult(
+            False, SourceDocumentValidationRule.NON_MARKDOWN_EXTENSION
+        ),
+    )
+
+    result = await engine.run("/sensitive/story.txt")
+
+    assert result.final_status == "validation_failed"
+    assert result.validation_rule == SourceDocumentValidationRule.NON_MARKDOWN_EXTENSION
+    assert result.final_analysis_path is None
+    assert result.attempt_count == 0
+    assert result.escalated is False
+    assert activities.calls == []
 
 
 @pytest.mark.asyncio
