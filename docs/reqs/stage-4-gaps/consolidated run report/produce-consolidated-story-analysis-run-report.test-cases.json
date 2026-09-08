@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "BuildRunReport_WithInvalidMetadata_RejectsInvalidDocument",
-          "status": "pending",
+          "status": "passing",
           "description": "Required metadata, identity isolation, enums, and schema versions are validated while an empty attempt ledger remains valid.",
           "arrange": "Create valid and invalid report inputs including missing metadata, mismatched attempt identity, and empty attempts.",
           "act": "Construct V1 reports.",

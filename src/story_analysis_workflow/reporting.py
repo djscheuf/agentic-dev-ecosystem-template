@@ -93,7 +93,20 @@ def build_run_report(
     attempts: Iterable[ActivityAttemptObservation],
     generated_at: datetime | None = None,
 ) -> StoryAnalysisRunReportV1:
+    required = {
+        "workflow_id": workflow_id,
+        "run_id": run_id,
+        "story_document": story_document,
+    }
+    for name, value in required.items():
+        if not value:
+            raise ValueError(f"{name} is required")
     ordered_attempts = tuple(sorted(attempts, key=lambda item: item.sequence))
+    if any(
+        attempt.workflow_id != workflow_id or attempt.run_id != run_id
+        for attempt in ordered_attempts
+    ):
+        raise ValueError("attempt identity does not match report")
     generated_at = generated_at or datetime.now(timezone.utc)
     return StoryAnalysisRunReportV1(
         schema_version=REPORT_SCHEMA_VERSION,

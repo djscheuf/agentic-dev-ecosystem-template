@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from story_analysis_workflow.reporting import (
     ActivityAttemptObservation,
     TerminalWorkflowOutcome,
@@ -77,3 +79,57 @@ def test_build_run_report_with_retries_preserves_ordered_attempts_and_usage():
         "attempt-1/trajectory.json",
         "attempt-2/trajectory.json",
     ]
+
+
+def test_build_run_report_validates_metadata_and_attempt_identity():
+    outcome = TerminalWorkflowOutcome(
+        final_status="failed",
+        outcome_origin=OutcomeOrigin.AUTOMATED_FAILURE,
+        final_analysis_path=None,
+        repair_attempt_count=0,
+    )
+    report = build_run_report(
+        workflow_id="workflow-1",
+        run_id="run-1",
+        story_document="story.md",
+        terminal_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
+        outcome=outcome,
+        attempts=[],
+    )
+    mismatched_attempt = ActivityAttemptObservation(
+        workflow_id="workflow-2",
+        run_id="run-1",
+        sequence=1,
+        step_name="extract",
+        activity_type="extract_story_intent",
+        activity_id="extract-1",
+        attempt=1,
+        started_at="2026-09-08T00:00:00Z",
+        duration_ms=1,
+        outcome="failed",
+        model="model-a",
+        permission_mode="safe",
+        output_path="",
+        activity_log_path="activity.log",
+        devin_log_path="devin.log",
+    )
+
+    assert report.attempts == ()
+    with pytest.raises(ValueError, match="workflow_id is required"):
+        build_run_report(
+            workflow_id="",
+            run_id="run-1",
+            story_document="story.md",
+            terminal_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
+            outcome=outcome,
+            attempts=[],
+        )
+    with pytest.raises(ValueError, match="attempt identity does not match report"):
+        build_run_report(
+            workflow_id="workflow-1",
+            run_id="run-1",
+            story_document="story.md",
+            terminal_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
+            outcome=outcome,
+            attempts=[mismatched_attempt],
+        )
