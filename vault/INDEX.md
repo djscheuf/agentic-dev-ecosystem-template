@@ -18,6 +18,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-013: Three-Layer Workflow Module Architecture](decisions/ADR-013-three-layer-workflow-module-architecture.md)
 - [ADR-014: Colocated Skill Activity Configuration and Template Method](decisions/ADR-014-colocated-skill-activity-template-method.md)
 - [ADR-015: Devin Cost Metric Capture Scope](decisions/ADR-015-devin-cost-metric-scope.md)
+- [ADR-016: Consolidated Story Analysis Run Reporting](decisions/ADR-016-consolidated-run-reporting.md)
 
  
 ## Services
