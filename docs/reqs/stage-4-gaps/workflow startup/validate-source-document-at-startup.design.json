@@ -1,0 +1,310 @@
+{
+  "story_path": "docs/reqs/stage-4-gaps/workflow startup/validate-source-document-at-startup.analysis.json",
+  "repo_state_before_design": "docs/reqs/workflow-orchestration/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "WorkflowRequested: the operator starts StoryAnalysisWorkflow with the existing story_document string contract; the workflow enters validating_source before any Skill Activity is eligible to run.",
+      "layers_involved": ["Client", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Workflow",
+          "contract_used": "StoryAnalysisWorkflowInput",
+          "data_shape": "story_document: string|null; config?: object"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "SourceDocumentValidationRequested: deterministic orchestration schedules a dedicated filesystem validation Activity and waits for its structured result.",
+      "layers_involved": ["Workflow", "Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "ValidateSourceDocumentRequest",
+          "data_shape": "story_document: string|null"
+        }
+      ]
+    },
+    {
+      "step": "3a",
+      "description": "SourceDocumentValidated: the Activity confirms the unchanged path is nonblank, has a case-insensitive .md extension, and resolves to a readable regular file; the workflow transitions validating_source -> running and schedules extract_story_intent exactly once using the original path.",
+      "layers_involved": ["Filesystem", "Activity", "Workflow", "Skill Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Filesystem",
+          "to_layer": "Activity",
+          "contract_used": "FilesystemMetadata",
+          "data_shape": "exists/readable/is_regular_file checks for the supplied path"
+        },
+        {
+          "from_layer": "Activity",
+          "to_layer": "Workflow",
+          "contract_used": "SourceDocumentValidationResult",
+          "data_shape": "valid: true; rule: VALID"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Skill Activity",
+          "contract_used": "ExtractStoryIntentInput",
+          "data_shape": "args: [original story_document]; notes: empty string"
+        }
+      ]
+    },
+    {
+      "step": "3b",
+      "description": "SourceDocumentRejected: the Activity returns a sanitized failure rule; the workflow transitions validating_source -> validation_failed, records a terminal result, and schedules no extract, analysis, grading, repair, or Devin harness work.",
+      "layers_involved": ["Filesystem", "Activity", "Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Activity",
+          "to_layer": "Workflow",
+          "contract_used": "SourceDocumentValidationResult",
+          "data_shape": "valid: false; rule: EMPTY_OR_MISSING|INACCESSIBLE_SOURCE|NON_MARKDOWN_EXTENSION"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Client",
+          "contract_used": "WorkflowResult",
+          "data_shape": "final_analysis_path: null; passed: false; attempt_count: 0; escalated: false; final_status: validation_failed; validation_rule: enum"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "StoryAnalysisContinued: after SourceDocumentValidated only, the existing extract -> analyze -> grade/repair workflow proceeds unchanged; a later filesystem race is handled as the existing Skill Activity failure path rather than rewriting the completed startup result.",
+      "layers_involved": ["Workflow", "Skill Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Skill Activity",
+          "contract_used": "ExistingSkillActivityContracts",
+          "data_shape": "existing path-based inputs and output_path results"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "RequestSourceDocumentValidation",
+      "description": "Records entry into the startup guardrail before any Skill Activity is scheduled.",
+      "layers_involved": ["Workflow", "Activity"],
+      "data_points": [
+        {"point": "workflow_id/run_id", "description": "Cadence correlation identifiers."},
+        {"point": "validation_stage", "description": "Constant startup; no source path is emitted."}
+      ]
+    },
+    {
+      "event_name": "ValidateSourceDocumentStartup",
+      "description": "Records the completed startup-validation outcome.",
+      "layers_involved": ["Activity", "Workflow", "Observability"],
+      "data_points": [
+        {"point": "outcome", "description": "passed or failed."},
+        {"point": "rule", "description": "VALID or the sanitized failed-rule enum."},
+        {"point": "duration_ms", "description": "Validation Activity duration for operational monitoring."}
+      ]
+    },
+    {
+      "event_name": "RejectSourceDocumentStartup",
+      "description": "Records terminal rejection while deliberately excluding the input path and low-level filesystem exception text.",
+      "layers_involved": ["Workflow", "Observability"],
+      "data_points": [
+        {"point": "validation_rule", "description": "Sanitized category suitable for logs, status queries, and metrics."},
+        {"point": "skill_activities_scheduled", "description": "Must equal zero for rejected startup requests."}
+      ]
+    },
+    {
+      "event_name": "ScheduleStoryIntentExtraction",
+      "description": "Records the single transition from successful startup validation to the existing first Skill Activity.",
+      "layers_involved": ["Workflow", "Skill Activity"],
+      "data_points": [
+        {"point": "validation_rule", "description": "Must be VALID."},
+        {"point": "activity_name", "description": "extract_story_intent."},
+        {"point": "schedule_count", "description": "Must equal one per valid workflow run."}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Client/Frontend",
+      "new_responsibilities": [
+        {"responsibility": "Render validation_failed and its sanitized rule from WorkflowResult/get_status without interpreting filesystem details.", "intent": "Presentation belongs at the operator boundary; enforcement remains server-side."}
+      ]
+    },
+    {
+      "layer": "Workflow Backend",
+      "new_responsibilities": [
+        {"responsibility": "Place startup validation before extract_story_intent and gate all Skill Activity scheduling on a valid result.", "intent": "The workflow owns sequencing and is the only layer with enough information to guarantee no downstream work is scheduled."},
+        {"responsibility": "Expose validating_source and validation_failed states and a sanitized rule through result/query contracts.", "intent": "Cadence orchestration owns durable workflow state and operator-visible transitions."},
+        {"responsibility": "Preserve the original story_document value when validation passes.", "intent": "The workflow must avoid lossy normalization and maintain the existing downstream contract."}
+      ]
+    },
+    {
+      "layer": "Validation Activity Backend",
+      "new_responsibilities": [
+        {"responsibility": "Check missing/blank input, extension policy, existence, readability, and regular-file status and map all expected filesystem errors to a small rule enum.", "intent": "Real filesystem information is available in Activity execution, while workflow code must remain deterministic."},
+        {"responsibility": "Return and log only sanitized categories.", "intent": "The validation boundary sees sensitive path/error details and can prevent their propagation."}
+      ]
+    },
+    {
+      "layer": "Data/Filesystem",
+      "new_responsibilities": [
+        {"responsibility": "Provide current file metadata and readability to the validation Activity; persist no new application record.", "intent": "The filesystem remains the source of truth, while Cadence history and existing workflow logs persist the durable decision."}
+      ]
+    },
+    {
+      "layer": "Automated Tests",
+      "new_responsibilities": [
+        {"responsibility": "Verify each accepted/rejected category, Unicode and spaced paths, exact-once extraction scheduling, and zero harness calls on rejection.", "intent": "The non-functional acceptance criterion requires observable proof at pure-engine and Activity boundaries."}
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "SourceDocumentValidationResult",
+      "description": "A frozen/value-style result returned by the validation Activity; it stores no path and is independently mockable by engine tests.",
+      "changes": {
+        "added": "valid: boolean; rule: VALID|EMPTY_OR_MISSING|INACCESSIBLE_SOURCE|NON_MARKDOWN_EXTENSION",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "StoryAnalysisWorkflowInput",
+      "description": "The public start contract remains path-based for wire compatibility; runtime handling accepts null so malformed external requests fail through the guardrail rather than starting agent work.",
+      "changes": {
+        "added": "Documented startup validation semantics",
+        "modified": "story_document is interpreted exactly as supplied; blank padding is not trimmed into a different path",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "WorkflowResultAndStatus",
+      "description": "Extends existing result/query observability with startup states while retaining existing fields for current clients.",
+      "changes": {
+        "added": "status validating_source|validation_failed; final_status validation_failed; validation_rule optional enum",
+        "modified": "WorkflowResult supports terminal validation failure with final_analysis_path null and passed false",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "ValidateBeforeSkillScheduling",
+      "description": "Workflow invokes one filesystem validation Activity and branches on its result before invoking any harness-backed Skill Activity.",
+      "changes": {
+        "added": "validate_source_document Activity immediately before extract_story_intent",
+        "modified": "StoryAnalysisEngine.run begins with a validation transition and returns directly on rejection",
+        "removed": "Unconditional extract_story_intent scheduling at workflow startup"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "PersistenceStrategy",
+      "description": "No repository schema or validation artifact is added; the small derivable result is persisted by Cadence history and represented in the existing per-run workflow log.",
+      "changes": {
+        "added": "Cadence Activity result/history fields and sanitized workflow log event",
+        "modified": "Existing workflow log includes startup outcome and rule",
+        "removed": "Need for a separate validation JSON file"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Perform filesystem checks in a dedicated workflow-package Activity and keep branching/sequencing in StoryAnalysisEngine.",
+      "justification": "Filesystem state is nondeterministic and belongs outside replayed workflow logic; the pure engine can consume an injected validation callable and remain directly unit-testable.",
+      "basis": "ADR-013 three-layer workflow module architecture; current split between src/story_analysis_workflow/workflow.py and story_analysis_engine.py",
+      "impact": "Adds a colocated validation Activity, registration, engine dependency, and focused tests; no cross-package dependency inversion.",
+      "answers_open_question": "Should startup validation run inside a Cadence Activity or inside deterministic workflow code?"
+    },
+    {
+      "decision": "Accept only .md, case-insensitively, and do not trim nonblank path input.",
+      "justification": "The repository story sources and supplied input use .md; a narrow allow-list minimizes scope. Preserving nonblank input avoids silently changing Unicode, spaces, or shell-special characters; whitespace-only remains EMPTY_OR_MISSING.",
+      "basis": "Pattern seen in docs/**/*.md and the analysis requirement for no lossy normalization",
+      "impact": "Validation uses Path.suffix.lower() == '.md'; padded otherwise-valid paths deterministically fail as inaccessible.",
+      "answers_open_question": "What extensions are supported, how is case handled, and is surrounding whitespace stripped?"
+    },
+    {
+      "decision": "Resolve relative paths using the worker process current working directory, matching existing Skill Activity path behavior.",
+      "justification": "Changing to a second implicit root would make validation and downstream extraction disagree; startup scripts already run the worker from repository context.",
+      "basis": "Existing path-based Skill Activity contracts in src/story_analysis_workflow and scripts/start-workflow-engine.sh operational pattern",
+      "impact": "No new root configuration; tests set an explicit working directory or use absolute temporary paths.",
+      "answers_open_question": "What is the source of truth for relative story_document paths?"
+    },
+    {
+      "decision": "Represent startup failure in WorkflowResult/get_status and workflow.log, not a new repository validation artifact.",
+      "justification": "Cadence already durably stores Activity results and workflow state, and ADR-011 defines the per-run workflow log. A new file would duplicate derivable state and create cleanup/consistency concerns.",
+      "basis": "ADR-011 workflow-aware logging and Functional Alchemy derive-don't-store heuristic",
+      "impact": "Extends in-memory/wire result fields and logging only; no data schema migration.",
+      "answers_open_question": "Is validation a dedicated JSON file or embedded in workflow result and log?"
+    },
+    {
+      "decision": "Expose only the failed rule, never a path fragment or raw filesystem exception, in terminal results and workflow logs.",
+      "justification": "The rule is sufficient for remediation while absolute paths, parent directories, and OS error text can disclose sensitive deployment information.",
+      "basis": "Story security acceptance criterion and ADR-011 logging boundary",
+      "impact": "Validation catches expected OSError categories and emits a stable enum; detailed path data stays out of structured observability.",
+      "answers_open_question": "Should failure include only the failed rule or a sanitized input path?"
+    },
+    {
+      "decision": "Treat validation rejection as an expected terminal business outcome with no Cadence Activity retry and no human escalation.",
+      "justification": "Retries cannot repair a malformed request and escalation would violate fail-fast/no-agent-work semantics; transient post-validation races continue through existing Activity failure handling.",
+      "basis": "Story acceptance criteria plus existing StoryAnalysisEngine ActivityFailure escalation behavior",
+      "impact": "The validation Activity returns invalid results for expected checks; only infrastructure-level unexpected failures follow Cadence failure policy.",
+      "answers_open_question": "How should rejected startup requests interact with retries and escalation?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the canonical list of supported Markdown extensions?",
+      "answer": ".md only, matched case-insensitively.",
+      "justification": "This is the smallest policy satisfying current repository usage and the explicit Markdown requirement.",
+      "basis": "Pattern seen in repository story sources under docs/ and current supplied story.md"
+    },
+    {
+      "question": "Should startup validation perform filesystem I/O in workflow code?",
+      "answer": "No. A dedicated Cadence Activity performs I/O; the engine owns the branch.",
+      "justification": "This preserves replay determinism and allows independent mocks.",
+      "basis": "ADR-013 and the existing thin-workflow/pure-engine split"
+    },
+    {
+      "question": "Where is the validation result stored?",
+      "answer": "In the Activity result/Cadence history, WorkflowResult/get_status, and sanitized workflow.log; no new artifact file.",
+      "justification": "The state is small, derivable, and already durably captured by existing infrastructure.",
+      "basis": "ADR-011 and existing WorkflowResult/query patterns"
+    },
+    {
+      "question": "Should leading/trailing whitespace be stripped?",
+      "answer": "No. Whitespace-only is EMPTY_OR_MISSING; otherwise the exact string is validated as the path.",
+      "justification": "Exact preservation is deterministic and avoids rewriting valid spaces, Unicode, or shell-special characters.",
+      "basis": "Analysis requirement to avoid lossy normalization"
+    },
+    {
+      "question": "What root resolves a relative path?",
+      "answer": "The worker process current working directory, matching downstream Activity behavior.",
+      "justification": "Validation and extraction must resolve the same input identically.",
+      "basis": "Pattern seen in existing path-based story_analysis_workflow Activities and startup script execution"
+    },
+    {
+      "question": "What failure detail is safe to expose?",
+      "answer": "Only startup origin and the stable failed-rule enum; no path or raw exception.",
+      "justification": "It supports remediation without leaking filesystem topology.",
+      "basis": "Explicit security acceptance criterion and ADR-011 logging conventions"
+    },
+    {
+      "question": "Are symlinks accepted and are empty Markdown files rejected?",
+      "answer": "A symlink resolving to a readable regular .md file is accepted; empty content is accepted because content quality belongs to extraction/analysis.",
+      "justification": "Startup validates accessibility and type, not story semantics, preserving current downstream responsibility.",
+      "basis": "Edge-case requirements in the story analysis and current extract_story_intent boundary"
+    },
+    {
+      "question": "Does this design depart from current architecture?",
+      "answer": "No architectural departure. It adds one workflow-owned Activity and one engine guard within the ADR-013 package boundary.",
+      "justification": "The change follows the established common/workflow/orchestrator dependency direction and thin Cadence adapter pattern.",
+      "basis": "ADR-013 implementation status and src/story_analysis_workflow structure"
+    }
+  ]
+}

@@ -1,0 +1,458 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/ambiguitiy punchout/story.md",
+  "title": "Punch Out on Ambiguous or Invalid Workflow Handoffs",
+  "story": {
+    "so_that": "uncertain or invalid intermediate results never advance silently through story analysis",
+    "as_a": "Story Analysis Workflow operator",
+    "i_want": "every activity handoff validated and ambiguous failures routed to a controlled human decision"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Operator",
+    "role": "Workflow Operator",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Configures and starts a story analysis workflow, monitors activity outputs, and expects guardrails to catch invalid or ambiguous intermediate artifacts before they propagate.",
+      "during": "Reviews handoff validation outcomes, receives ambiguity escalations, and issues retry, accept, or abort decisions through the trusted operator path when the workflow enters an awaiting_signal state.",
+      "after": "Confirms that downstream activities never consume invalid artifacts, that valid bounded decisions resolve punch-outs, and that every guardrail and human decision is recorded for audit."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Validate every inter-activity handoff in the Story Analysis Workflow and route ambiguous or invalid outcomes to a durable human decision. The engine runs an explicit guardrail after each skill activity (and a post-grader guardrail after a passing grade) that checks the previous activity's output artifact for existence, readability, and JSON Schema conformance before scheduling the dependent activity. Deterministic missing, unreadable, and schema-invalid artifacts are recorded as automated guardrail failures. Explicit ambiguous outcomes from an activity or guardrail transition the workflow to awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY, where only supported retry, accept, or abort decisions from the trusted operator path are accepted and logged.",
+    "inputs": [
+      "Previous activity output file path",
+      "Expected JSON Schema for the artifact",
+      "Workflow run identifier",
+      "Activity attempt identifier",
+      "Explicit ambiguity result from an activity or guardrail",
+      "Human decision signal (retry, accept, or abort) through the trusted operator path",
+      "Configured timeout policy for unresolved punch-outs"
+    ],
+    "outputs": [
+      "Dependent activity scheduled exactly once for valid handoffs",
+      "Automated guardrail failure record naming the step and failed rule",
+      "awaiting_signal workflow state with reason ACTIVITY_FLAGGED_AMBIGUITY",
+      "Bounded retry, human-resolved, or human-aborted terminal path",
+      "Guardrail outcome, escalation reason, decision, decision origin, and terminal path logged"
+    ],
+    "state_changes": [
+      "Workflow advances to the dependent activity when a handoff guardrail passes",
+      "Workflow records an automated guardrail failure and does not advance when an artifact is missing, unreadable, or schema-invalid",
+      "Workflow enters awaiting_signal when an activity or guardrail reports an explicit ambiguous outcome",
+      "Workflow transitions to a bounded retry, human-resolved, or human-aborted terminal path after a valid decision",
+      "Workflow applies the documented bounded timeout policy and logs the outcome when no valid decision arrives in time",
+      "Concurrent runs and retries remain isolated so only the current run and attempt artifact is accepted"
+    ],
+    "affected_components": {
+      "ui": [
+        "Cadence Web UI and get_status query output to report handoff validation, awaiting_signal, and terminal path",
+        "CLI status output from run_single_activity.py and starter.py to surface guardrail failures and human decisions"
+      ],
+      "api": [
+        "Cadence StoryAnalysisWorkflow internal sequencing between skill activities",
+        "New or modified handoff guardrail activities invoked by the workflow",
+        "Post-grader guardrail after grade_story_analysis passes",
+        "human_response Signal contract for retry, accept, and abort decisions",
+        "get_status query result contract to expose escalation reason and terminal path",
+        "SkillActivityOutput and guardrail failure record schemas"
+      ],
+      "database": [
+        "Cadence persistence of workflow event history and signal events",
+        "Filesystem workflow log in .process/logs/ (see ADR-011)",
+        "Guardrail failure records and recorded certification-run artifacts"
+      ],
+      "external_services": [
+        "Cadence service for workflow execution, signals, and event persistence",
+        "Devin CLI harness for skill activity execution"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a completed activity points to an existing readable artifact that matches the expected schema, when the handoff guardrail runs, then the dependent activity is scheduled exactly once.",
+      "gherkin": "Given a completed activity points to an existing readable artifact that matches the expected schema When the handoff guardrail runs Then the dependent activity is scheduled exactly once",
+      "type": "Functional",
+      "jtbd": "Schedule valid activity handoffs",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given an activity output path is missing, nonexistent, a directory, or unreadable, when the handoff guardrail runs, then the dependent activity is not scheduled and the workflow records an automated guardrail failure naming the step and failed rule.",
+      "gherkin": "Given an activity output path is missing, nonexistent, a directory, or unreadable When the handoff guardrail runs Then the dependent activity is not scheduled and the workflow records an automated guardrail failure naming the step and failed rule",
+      "type": "Error handling",
+      "jtbd": "Block missing or unreadable handoffs",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given an activity artifact is malformed JSON or violates its expected schema, when the handoff guardrail runs, then the dependent activity is not scheduled and the workflow records an automated guardrail failure.",
+      "gherkin": "Given an activity artifact is malformed JSON or violates its expected schema When the handoff guardrail runs Then the dependent activity is not scheduled and the workflow records an automated guardrail failure",
+      "type": "Error handling",
+      "jtbd": "Block malformed or invalid artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given the grader passes, when the post-grader guardrail runs, then it confirms the intent, analysis, and analysis-grade artifacts all exist and match their schemas before the workflow can complete successfully.",
+      "gherkin": "Given the grader passes When the post-grader guardrail runs Then it confirms the intent, analysis, and analysis-grade artifacts all exist and match their schemas before the workflow completes successfully",
+      "type": "Functional",
+      "jtbd": "Verify final analysis artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given concurrent workflows or retries produce similarly named artifacts, when a handoff is validated, then only the artifact associated with the current workflow run and activity attempt is accepted.",
+      "gherkin": "Given concurrent workflows or retries produce similarly named artifacts When a handoff is validated Then only the artifact associated with the current workflow run and activity attempt is accepted",
+      "type": "Business rule",
+      "jtbd": "Accept only the current attempt's artifact",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given an activity or guardrail explicitly reports an ambiguous outcome, when the engine evaluates it, then the workflow enters awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY and does not schedule the next activity.",
+      "gherkin": "Given an activity or guardrail explicitly reports an ambiguous outcome When the engine evaluates it Then the workflow enters awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY and does not schedule the next activity",
+      "type": "Functional",
+      "jtbd": "Pause workflow on ambiguous outcomes",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given a workflow awaits an ambiguity decision, when a supported retry decision is received through the trusted operator path, then the bounded retry transition occurs once and is logged.",
+      "gherkin": "Given a workflow awaits an ambiguity decision When a supported retry decision is received through the trusted operator path Then the bounded retry transition occurs once and is logged",
+      "type": "Functional",
+      "jtbd": "Retry flagged activities via trusted signal",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given a workflow awaits an ambiguity decision, when a supported accept or abort decision is received through the trusted operator path, then the corresponding human-resolved or human-aborted terminal path occurs once and is logged distinctly from automated failure.",
+      "gherkin": "Given a workflow awaits an ambiguity decision When a supported accept or abort decision is received through the trusted operator path Then the corresponding human-resolved or human-aborted terminal path occurs once and is logged distinctly from automated failure",
+      "type": "Functional",
+      "jtbd": "Resolve ambiguity with accept or abort",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given a workflow awaits a decision, when an unsupported, stale, duplicate, or out-of-state decision is sent, then it does not advance or overwrite the workflow's valid state.",
+      "gherkin": "Given a workflow awaits a decision When an unsupported, stale, duplicate, or out-of-state decision is sent Then the workflow does not advance or overwrite its valid state",
+      "type": "Error handling",
+      "jtbd": "Ignore invalid human decisions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given no valid decision arrives before the configured timeout, when timeout handling completes, then the documented bounded timeout policy is applied once and the outcome is logged.",
+      "gherkin": "Given no valid decision arrives before the configured timeout When timeout handling completes Then the documented bounded timeout policy is applied once and the outcome is logged",
+      "type": "Business rule",
+      "jtbd": "Apply timeout policy to unresolved punch-outs",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "An integration or end-to-end test sends an invalid decision to a live awaiting workflow and proves that the wait cannot be bypassed.",
+      "gherkin": "Given an integration or end-to-end test sends an invalid decision to a live awaiting workflow Then the test proves the wait cannot be bypassed",
+      "type": "Non-functional",
+      "jtbd": "Certify ambiguity wait cannot be bypassed",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "At least one recorded workflow run demonstrates the full ambiguity path from flagged result through a valid human decision.",
+      "gherkin": "Given a recorded workflow run demonstrates the full ambiguity path When it is inspected Then it shows the path from flagged result through a valid human decision",
+      "type": "Non-functional",
+      "jtbd": "Certify end-to-end ambiguity handling",
+      "persona_served": "Story Analysis Workflow Operator"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Activity output path is missing or empty",
+      "gherkin": "Given a completed activity returns no output_path or an empty string When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule MISSING_OUTPUT_PATH and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block handoffs with missing output path",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity output path is a directory or nonexistent",
+      "gherkin": "Given an activity output_path identifies a directory or a file that does not exist When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule INACCESSIBLE_ARTIFACT and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block handoffs pointing to directories or missing files",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity output file exists but is not readable",
+      "gherkin": "Given an activity output_path identifies a file that exists but cannot be read due to permissions or locks When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule UNREADABLE_ARTIFACT and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block unreadable handoff artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity artifact is malformed JSON",
+      "gherkin": "Given an activity output_path points to a file that is not valid JSON When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule MALFORMED_JSON and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block malformed JSON artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity artifact is valid JSON but violates its expected schema",
+      "gherkin": "Given an activity output_path points to a JSON file that is missing required fields or contains invalid types When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule SCHEMA_VIOLATION and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block schema-invalid artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity artifact is empty or contains only whitespace",
+      "gherkin": "Given an activity output_path points to an empty or whitespace-only file When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule EMPTY_ARTIFACT and does not schedule the dependent activity",
+      "type": "Input edge case",
+      "jtbd": "Block empty handoff artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity artifact contains extra fields beyond the expected schema",
+      "gherkin": "Given an activity output JSON contains additional properties not in the expected schema When the handoff guardrail runs Then the workflow either rejects it as a schema violation or accepts it according to the configured additionalProperties rule and logs the decision",
+      "type": "Input edge case",
+      "jtbd": "Handle schema extension consistently",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Expected schema file is missing or unreadable",
+      "gherkin": "Given the expected JSON Schema file for an artifact is missing or unreadable When the handoff guardrail runs Then the workflow records an automated guardrail failure with rule SCHEMA_UNAVAILABLE and does not schedule the dependent activity",
+      "type": "System edge case",
+      "jtbd": "Survive missing schema definitions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Concurrent workflow run writes an artifact with the same relative path",
+      "gherkin": "Given two concurrent workflow runs write artifacts with the same relative filename When a handoff is validated Then the guardrail accepts only the artifact associated with the current workflow run and attempt identifier",
+      "type": "State edge case",
+      "jtbd": "Isolate handoff artifacts across concurrent runs",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Retry of the same activity produces a new attempt artifact",
+      "gherkin": "Given an activity is retried and produces a new artifact for the same workflow run When the handoff guardrail runs after the retry Then it validates the latest attempt artifact and not a stale previous attempt",
+      "type": "State edge case",
+      "jtbd": "Validate the current attempt's artifact",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity returns an explicit ambiguity result with no output path",
+      "gherkin": "Given an activity returns an explicit ambiguity result with no output_path When the engine evaluates it Then the workflow enters awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY and does not schedule the next activity",
+      "type": "State edge case",
+      "jtbd": "Punch out on explicit ambiguity without an artifact",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Activity returns both an output path and an explicit ambiguity flag",
+      "gherkin": "Given an activity returns an output_path and also sets an explicit ambiguity flag When the engine evaluates it Then the workflow enters awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY and does not schedule the next activity",
+      "type": "State edge case",
+      "jtbd": "Prefer ambiguity punch-out over artifact handoff",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Guardrail itself reports an ambiguous outcome rather than pass or deterministic failure",
+      "gherkin": "Given a handoff guardrail cannot determine whether an artifact is valid or invalid and reports ambiguity When the engine evaluates it Then the workflow enters awaiting_signal with reason ACTIVITY_FLAGGED_AMBIGUITY",
+      "type": "State edge case",
+      "jtbd": "Punch out on guardrail ambiguity",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Human sends an unsupported decision value",
+      "gherkin": "Given a workflow is awaiting a human decision When a signal with an unsupported decision value is received Then the workflow rejects it without advancing and records the invalid decision attempt",
+      "type": "User edge case",
+      "jtbd": "Reject unsupported human decisions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Human sends a valid decision before the workflow is awaiting one",
+      "gherkin": "Given a human sends a valid retry, accept, or abort decision while the workflow is not in awaiting_signal When the signal is evaluated Then it is ignored or rejected without changing workflow state",
+      "type": "User edge case",
+      "jtbd": "Ignore out-of-state human decisions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Duplicate human decision signals arrive for the same awaiting state",
+      "gherkin": "Given a workflow is awaiting a human decision and receives two identical valid signals When the first signal is processed Then the workflow transitions once; the duplicate is ignored or recorded as a duplicate without changing state",
+      "type": "User edge case",
+      "jtbd": "Handle duplicate human decisions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Stale human decision signal from a previous run or attempt arrives",
+      "gherkin": "Given a stale human decision signal intended for a previous workflow run or attempt arrives When the workflow evaluates it Then it is rejected or ignored and does not overwrite the current state",
+      "type": "User edge case",
+      "jtbd": "Reject stale human decisions",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "No valid decision arrives before the first timeout",
+      "gherkin": "Given a workflow is awaiting a human decision and the first timeout expires without a signal When timeout handling runs Then the workflow re-escalates once according to the bounded timeout policy",
+      "type": "System edge case",
+      "jtbd": "Re-escalate on first timeout",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "No valid decision arrives before the second timeout",
+      "gherkin": "Given a workflow re-escalates after the first timeout and the second timeout also expires When timeout handling completes Then the workflow applies the documented terminal timeout policy and logs the outcome",
+      "type": "System edge case",
+      "jtbd": "Terminate after bounded timeout",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Post-grader guardrail finds one or more final artifacts missing or invalid",
+      "gherkin": "Given the grader passes but the post-grader guardrail finds the intent, analysis, or analysis-grade artifact missing or schema-invalid When the guardrail runs Then the workflow records an automated guardrail failure and does not complete successfully",
+      "type": "Error handling",
+      "jtbd": "Block completion on missing final artifacts",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Workflow is replayed or continued from an awaiting_signal state",
+      "gherkin": "Given a workflow is replayed or continued from an awaiting_signal state with reason ACTIVITY_FLAGGED_AMBIGUITY When the engine replays its history Then it restores the awaiting state and preserves the original escalation reason and pending valid decision",
+      "type": "System edge case",
+      "jtbd": "Preserve awaiting state across Cadence replay",
+      "persona_served": "Story Analysis Workflow Operator"
+    }
+  ],
+  "questions": [
+    {
+      "question": "How does an activity or guardrail structurally report an explicit ambiguous outcome (dedicated result field, exception type, or sentinel payload shape)?",
+      "impacts": [
+        "activity return contract",
+        "guardrail implementation",
+        "engine escalation logic",
+        "schema definitions"
+      ]
+    },
+    {
+      "question": "Where is the expected JSON Schema for each skill artifact stored and how is it associated with a specific activity step?",
+      "impacts": [
+        "guardrail configuration",
+        "schema discovery",
+        "test fixtures",
+        "deployment packaging"
+      ]
+    },
+    {
+      "question": "What is the exact bounded timeout policy (one re-escalation, multiple re-escalations, or single timeout to terminal) and what terminal path does it produce?",
+      "impacts": [
+        "engine timeout logic",
+        "operator experience",
+        "certification evidence",
+        "workflow configuration"
+      ]
+    },
+    {
+      "question": "What constitutes the trusted operator boundary for sending human_response signals (local CLI authorization, network ACL, mTLS, or signal validation only)?",
+      "impacts": [
+        "security",
+        "signal handling",
+        "CLI implementation",
+        "operator documentation"
+      ]
+    },
+    {
+      "question": "How are artifacts associated with the current workflow run and activity attempt (path convention, filename prefix, or content hash) so concurrent runs do not collide?",
+      "impacts": [
+        "artifact path generation",
+        "guardrail validation",
+        "retry behavior",
+        "concurrency safety"
+      ]
+    },
+    {
+      "question": "Should guardrail failures and human decisions be recorded as standalone JSON files, workflow log entries, or both, and what is the schema for a guardrail failure record?",
+      "impacts": [
+        "audit trail",
+        "reporting",
+        "schema definitions",
+        "consolidated run report"
+      ]
+    },
+    {
+      "question": "Does a retry decision re-run the failing activity from scratch, re-run only the guardrail, or accept the ambiguous artifact and continue?",
+      "impacts": [
+        "retry semantics",
+        "engine state machine",
+        "operator expectations",
+        "certification evidence"
+      ]
+    },
+    {
+      "question": "How should the post-grader guardrail be integrated with the existing grade_repair loop so it does not duplicate or conflict with the grader's own validation?",
+      "impacts": [
+        "workflow sequencing",
+        "grade repair logic",
+        "test coverage",
+        "certification evidence"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/story_analysis_workflow/story_analysis_engine.py (sequencing, escalation, and _escalate await_human_response logic)",
+        "src/story_analysis_workflow/workflow.py (Cadence workflow, human_response Signal, get_status Query)",
+        "src/story_analysis_workflow/escalation.py (EscalationReason, HumanDecision, HumanResponse)",
+        "src/story_analysis_workflow/signals.py (client-side human_response validation and sending)",
+        "src/story_analysis_workflow/activities/*.py (skill activity wrappers and expected_output_path conventions)",
+        "src/common/skill_activity.py (SkillActivity, SkillActivityInput, SkillActivityOutput)",
+        "src/story_analysis_workflow/workflow_logger.py (per-run workflow logging, ADR-011)",
+        "src/story_analysis_workflow/config.py (CadenceConfig and escalation timeout)",
+        "src/story_analysis_workflow/queries.py (get_status query helpers)",
+        "tests/integration/test_happy_path.py",
+        "tests/integration/test_grade_repair_loop.py",
+        "src/story_analysis_workflow/tests/test_story_analysis_engine.py",
+        "src/story_analysis_workflow/tests/test_signals.py",
+        ".devin/skills/analyze-story/schema/analysis.schema.json and related skill schemas"
+      ],
+      "new_code": [
+        "handoff guardrail module/activity in story_analysis_workflow",
+        "post-grader guardrail invoked after grade_story_analysis passes",
+        "guardrail failure record schema and logging",
+        "schema-to-activity mapping configuration",
+        "ACTIVITY_FLAGGED_AMBIGUITY wiring in engine and workflow",
+        "integration/e2e tests that attempt to bypass the human wait",
+        "recorded certification run exercising the full ambiguity punch-out path"
+      ],
+      "infrastructure": [
+        "Cadence local SQLite-backed stack",
+        "writable filesystem for artifact validation and workflow logs",
+        "JSON Schema validator (e.g., jsonschema or fastjsonschema)"
+      ],
+      "external_services": [
+        "Cadence service for workflow execution, signals, and event persistence",
+        "Devin CLI harness for skill activity execution"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example (existing StoryAnalysisWorkflow implementation)",
+        "docs/reqs/stage-4-gaps/workflow startup/validate-source-document-at-startup (startup guardrail pattern and validation conventions)"
+      ],
+      "blocks": [
+        "docs/reqs/stage-4-gaps/consolidated run report/produce-consolidated-story-analysis-run-report (run report needs guardrail and human-decision outcomes)",
+        "docs/reqs/stage-4-gaps/close-stage-4-certification-gaps (certification requires punch-out evidence and bypass tests)"
+      ],
+      "related": [
+        "docs/reqs/stage-4-gaps/close-stage-4-certification-gaps",
+        "src/common/skill_activity.py and SkillActivityInput contracts",
+        "docs/reqs/stage-4-gaps/workflow startup/validate-source-document-at-startup",
+        "docs/reqs/workflow-logging (workflow log format and evidence retention)"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Definition of 'explicit ambiguity' and how activities/guardrails report it",
+        "Trusted operator boundary and signal authorization rules",
+        "Bounded timeout policy for unresolved punch-outs",
+        "Schema association per activity and acceptable additionalProperties behavior"
+      ],
+      "technical_knowledge": [
+        "Cadence workflow determinism and Signal handling in the Python client",
+        "JSON Schema validation in Python",
+        "Python pathlib and os.stat for filesystem checks",
+        "Testing Cadence workflows without invoking the Devin harness"
+      ],
+      "stakeholder_questions": [
+        "How should activities and guardrails structurally report ambiguous outcomes?",
+        "Where are expected schemas stored and how are they mapped to activities?",
+        "What is the exact bounded timeout policy and terminal path?",
+        "What mechanism enforces the trusted operator boundary for human_response signals?",
+        "Should guardrail failures and human decisions be recorded as files, log entries, or both?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "High",
+    "uncertainty": "Medium"
+  }
+}

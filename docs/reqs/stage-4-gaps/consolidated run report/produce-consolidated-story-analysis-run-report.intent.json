@@ -1,0 +1,115 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/consolidated run report/story.md",
+  "title": "Produce a Consolidated Story Analysis Run Report",
+  "story": {
+    "so_that": "certification evidence and workflow reliability can be reviewed without reconstructing runs from scattered logs",
+    "as_a": "Story Analysis Workflow certification owner",
+    "i_want": "each terminal workflow run summarized in one structured report and included in an auditable success-rate aggregate"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Certification Owner",
+    "role": "Certification owner responsible for workflow evidence and reliability metrics",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Reviews terminal workflow runs, activity logs, ATIF usage exports, and outcome annotations to understand how each run completed.",
+      "during": "Inspects a consolidated per-run report and an aggregate success-rate metric that includes status counts, formula, sample window, and manual-intervention count.",
+      "after": "Presents auditable run evidence and reproducible success metrics to certification examiners without reconstructing runs from scattered logs."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Produce one schema-versioned report for each terminal workflow run and aggregate visible reports into auditable success-rate metrics",
+    "inputs": [
+      "Terminal workflow run metadata (workflow_id, run_id, story_document, final_status, attempt_count, terminal outcome origin)",
+      "Executed activity attempt records (step name, activity type, attempt, model, permission mode, duration, output path)",
+      "ATIF usage data (prompt_tokens, completion_tokens, cached_tokens)",
+      "cost_usd when supplied by the supported usage source",
+      "Raw ATIF evidence artifact paths",
+      "Collection of visible terminal-run reports for aggregation",
+      "Certification-owner decision on sample window, success formula, and threshold"
+    ],
+    "outputs": [
+      "One {workflow}.report.json per terminal workflow run",
+      "Success-rate aggregate with status counts, formula, numerator, denominator, sample window, and manual-intervention count",
+      "Traceable observation-to-report mapping for auditing",
+      "Explicit unavailable cost representation when cost_usd is absent"
+    ],
+    "state_changes": [
+      "A terminal run becomes auditable from a single report file",
+      "A collection of reports yields a reproducible end-to-end success metric",
+      "Cost fields are marked unavailable rather than estimated when absent"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a workflow reaches a terminal state, when completion processing finishes, then exactly one schema-valid report exists for its workflow_id and run_id.",
+      "gherkin": "Given a workflow reaches a terminal state When completion processing finishes Then exactly one schema-valid {workflow}.report.json exists for its workflow_id and run_id",
+      "type": "Functional",
+      "jtbd": "Obtain one auditable report per workflow run",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given a run contains retries, when the report is read, then every activity attempt appears once in execution order and retry attempts are not collapsed or double-counted.",
+      "gherkin": "Given a run contains activity retries When the report is read Then every activity attempt appears once in execution order and retries are not collapsed or double-counted",
+      "type": "Functional",
+      "jtbd": "Inspect every activity attempt in execution order",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given usage metrics are available in ATIF, when the report is written, then prompt, completion, and cached token totals match the source data and the raw ATIF artifact remains available.",
+      "gherkin": "Given usage metrics are available in ATIF When the report is written Then prompt, completion, and cached token totals match the source data and the raw ATIF artifact remains available",
+      "type": "Functional",
+      "jtbd": "Trust token usage totals from the raw ATIF artifact",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given cost_usd is absent from ATIF, when the report is written, then cost is explicitly unavailable and no estimated value is invented.",
+      "gherkin": "Given cost_usd is absent from ATIF When the report is written Then cost is explicitly unavailable and no estimated value is invented",
+      "type": "Business rule",
+      "jtbd": "Avoid inventing missing cost data",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given the run ends through automated failure, human accept, or human abort, when the report is read, then the final status and outcome origin distinguish those paths.",
+      "gherkin": "Given the run ends through automated failure, human accept, or human abort When the report is read Then the final status and outcome origin distinguish those terminal paths",
+      "type": "Functional",
+      "jtbd": "Distinguish how each run was resolved",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given report generation is interrupted, when evidence is inspected, then no truncated report is accepted as complete and rerunning completion for the same run produces one valid result.",
+      "gherkin": "Given report generation is interrupted When evidence is inspected Then no truncated report is accepted as complete and rerunning completion for the same run produces one valid result",
+      "type": "Error handling",
+      "jtbd": "Recover from interrupted report generation",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given concurrent workflows and activity retries, when their reports are generated, then records remain isolated by workflow, run, activity, and attempt.",
+      "gherkin": "Given concurrent workflows and activity retries When their reports are generated Then records remain isolated by workflow, run, activity, and attempt",
+      "type": "Functional",
+      "jtbd": "Keep concurrent run records isolated",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given a set of visible reports, when aggregation runs, then it publishes status counts, the defined success formula, numerator, denominator, sample window, and manual-intervention count, with each observation traceable to one report.",
+      "gherkin": "Given a set of visible reports When aggregation runs Then it publishes status counts, the defined success formula, numerator, denominator, sample window, and manual-intervention count with each observation traceable to one report",
+      "type": "Business rule",
+      "jtbd": "Compute auditable end-to-end success metrics",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given retries occur within a run, when the success rate is calculated, then the run contributes at most one observation to the denominator.",
+      "gherkin": "Given retries occur within a run When the success rate is calculated Then the run contributes at most one observation to the denominator",
+      "type": "Business rule",
+      "jtbd": "Count each run once in success-rate denominator",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Automated tests cover passed, repaired, human-accepted, human-aborted, and automated-failure reports, missing usage fields, partial writes, retries, and concurrent runs.",
+      "gherkin": "Given the consolidated report implementation is complete When the automated test suite runs Then it covers passed, repaired, human-accepted, human-aborted, and automated-failure reports, missing usage fields, partial writes, retries, and concurrent runs",
+      "type": "Non-functional",
+      "jtbd": "Verify consolidated report behavior with automated tests",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    }
+  ]
+}

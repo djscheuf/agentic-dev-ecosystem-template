@@ -1,0 +1,301 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/workflow startup/story.md",
+  "title": "Validate Story Analysis Workflow Startup",
+  "story": {
+    "so_that": "invalid workflow requests fail before any agent work or incomplete evidence is produced",
+    "as_a": "Story Analysis Workflow operator",
+    "i_want": "the workflow to validate its source document at startup"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Operator",
+    "role": "Workflow Operator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Receives a workflow request containing a story_document path and initiates the Story Analysis Workflow.",
+      "during": "Observes a startup guardrail that validates the source document; a valid Markdown path leads to extract_story_intent being scheduled, while an invalid request fails fast with a sanitized validation result.",
+      "after": "Continues with the story analysis for valid input, or addresses the source document problem and resubmits for invalid input."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Run a startup guardrail inside the Story Analysis Workflow before scheduling extract_story_intent. Validate that story_document is non-null, non-empty, points to an existing readable regular file, and has a Markdown extension. Valid input schedules extract_story_intent exactly once; invalid input reaches a terminal validation-failed state and schedules no Skill Activity.",
+    "inputs": [
+      "story_document path (string, workflow input)",
+      "filesystem for existence, readability, regular-file, and Markdown extension checks",
+      "configured set of accepted Markdown extensions"
+    ],
+    "outputs": [
+      "sanitized startup validation result identifying the failed rule (on invalid input)",
+      "scheduled extract_story_intent activity (on valid input)",
+      "terminal validation-failed workflow state or result (on invalid input)",
+      "workflow log entry recording the startup validation outcome and failed rule"
+    ],
+    "state_changes": [
+      "workflow advances to extract_story_intent for valid input",
+      "workflow reaches terminal validation-failed state for invalid input",
+      "workflow log records the startup validation outcome and the failed rule",
+      "no Devin harness or agent invocation occurs for invalid input"
+    ],
+    "affected_components": {
+      "ui": [
+        "Cadence Web UI and get_status query output to report startup validation status",
+        "CLI status output from run_single_activity.py and starter.py"
+      ],
+      "api": [
+        "Cadence StoryAnalysisWorkflow input contract (story_document string)",
+        "StoryAnalysisEngine.run input handling",
+        "get_status query result contract for validation-failed origin"
+      ],
+      "database": [
+        "Cadence persistence of workflow event history",
+        "filesystem workflow log in .process/logs/ (see ADR-011)"
+      ],
+      "external_services": [
+        "Cadence service for workflow execution and event persistence"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given an existing readable Markdown file, when the workflow starts, then startup validation passes and extract_story_intent is scheduled exactly once.",
+      "gherkin": "Given a story_document that refers to an existing, readable Markdown file When the Story Analysis Workflow starts Then startup validation passes and extract_story_intent is scheduled exactly once",
+      "type": "Functional",
+      "jtbd": "Start workflow with a valid Markdown source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document is null, empty, or whitespace-only, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document is null, empty, or whitespace-only When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "Business rule",
+      "jtbd": "Reject empty source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document does not exist, identifies a directory, or is not readable, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document does not exist, identifies a directory, or is not a readable regular file When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "Business rule",
+      "jtbd": "Reject inaccessible source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document has a non-Markdown extension, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document has a non-Markdown file extension When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "Business rule",
+      "jtbd": "Reject non-Markdown source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given a valid Markdown path contains spaces or Unicode characters, when the workflow starts, then the path is validated without lossy normalization and extraction is scheduled.",
+      "gherkin": "Given a story_document path with spaces or Unicode characters that points to an existing, readable Markdown file When the workflow starts Then the path is validated without lossy normalization and extract_story_intent is scheduled",
+      "type": "Functional",
+      "jtbd": "Validate Markdown paths with spaces or Unicode characters",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given startup validation fails, when the workflow reaches its terminal state, then its observable result or workflow log identifies startup validation as the failure origin without exposing sensitive filesystem details.",
+      "gherkin": "Given startup validation fails for a story_document When the workflow reaches its terminal state Then the result or log identifies startup validation as the failure origin and does not expose sensitive filesystem details",
+      "type": "Business rule",
+      "jtbd": "Report validation failure origin safely",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Automated tests cover valid input and every rejected input category without invoking the Devin harness for rejected requests.",
+      "gherkin": "Given the startup validation implementation is complete When the automated test suite runs Then it covers the valid input case and each rejected input category without invoking the Devin harness for rejected requests",
+      "type": "Non-functional",
+      "jtbd": "Verify startup validation with automated tests",
+      "persona_served": "Story Analysis Workflow Operator"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "story_document is null, empty, or whitespace-only",
+      "gherkin": "Given story_document is null, empty, or contains only whitespace When the workflow starts Then startup validation fails with rule EMPTY_OR_MISSING and no Skill Activity is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Reject empty source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "story_document points to a nonexistent, directory, or unreadable path",
+      "gherkin": "Given story_document is a nonexistent path, a directory, or a file that is not readable When the workflow starts Then startup validation fails with rule INACCESSIBLE_SOURCE and no Skill Activity is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Reject inaccessible source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "story_document has a non-Markdown or missing extension",
+      "gherkin": "Given story_document has an extension such as .txt, .json, or has no extension When the workflow starts Then startup validation fails with rule NON_MARKDOWN_EXTENSION and no Skill Activity is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Reject non-Markdown source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Valid Markdown path contains spaces, Unicode, or shell-special characters",
+      "gherkin": "Given a story_document path with spaces, Unicode characters, or shell-special characters that identifies an existing readable Markdown file When the workflow starts Then the path is validated without lossy normalization and extract_story_intent is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Validate safely named Markdown paths",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Valid Markdown file is empty or contains only whitespace",
+      "gherkin": "Given a story_document points to an existing readable but empty Markdown file When the workflow starts Then startup validation passes and extract_story_intent is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Allow empty Markdown files through startup validation",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "story_document has leading or trailing whitespace",
+      "gherkin": "Given story_document contains leading or trailing whitespace around a valid path When the workflow starts Then either the path is treated as invalid or the whitespace is preserved without lossy normalization and the result is deterministic",
+      "type": "Input edge case",
+      "jtbd": "Handle padded source document paths",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "story_document uses a symlink that resolves to a readable Markdown file",
+      "gherkin": "Given a story_document path is a symbolic link to an existing readable regular Markdown file When the workflow starts Then startup validation passes and extract_story_intent is scheduled",
+      "type": "Input edge case",
+      "jtbd": "Accept symlinked Markdown source documents",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "story_document path exceeds operating system filename or path limits",
+      "gherkin": "Given a story_document path is extremely long or contains components beyond the filesystem limit When the workflow starts Then startup validation fails with an explicit INACCESSIBLE_SOURCE or size-limit result and no Skill Activity is scheduled",
+      "type": "Input boundary",
+      "jtbd": "Reject path-length boundary cases safely",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Markdown extension has mixed or uppercase casing",
+      "gherkin": "Given a story_document has a Markdown extension with mixed or uppercase letters such as .MD or .Md When the workflow starts Then startup validation passes for valid .md files and rejects non-Markdown extensions according to the configured casing rule",
+      "type": "Input edge case",
+      "jtbd": "Handle extension casing consistently",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "File becomes unreadable or is removed between validation and extract_story_intent scheduling",
+      "gherkin": "Given a story_document passes startup validation but the file is removed before extract_story_intent reads it When the activity attempts to read it Then the failure is recorded as an activity failure without corrupting the validation result",
+      "type": "Concurrency/race condition",
+      "jtbd": "Survive filesystem races after validation",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Startup validation fails and the workflow log must not expose absolute or sensitive paths",
+      "gherkin": "Given startup validation fails for a story_document under /home/secret/project/story.md When the workflow logs the failure Then the log identifies the failed rule but does not reveal the absolute path or parent directory",
+      "type": "Security edge case",
+      "jtbd": "Protect filesystem privacy on validation failure",
+      "persona_served": "Story Analysis Workflow Operator"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the canonical list of supported Markdown extensions (e.g., .md only, or also .markdown, .mdown, .mkd)?",
+      "impacts": [
+        "validation rule implementation",
+        "test fixtures",
+        "operator documentation"
+      ]
+    },
+    {
+      "question": "Should startup validation run inside a Cadence Activity so it can perform real filesystem I/O, or inside deterministic workflow code that delegates file checks to an Activity?",
+      "impacts": [
+        "workflow determinism",
+        "testability",
+        "retry behavior",
+        "event history"
+      ]
+    },
+    {
+      "question": "Is the validation result a dedicated schema-valid JSON file (like a .validation.json sentinel) or a field embedded in the workflow result and log?",
+      "impacts": [
+        "output contracts",
+        "reporting",
+        "schema definitions"
+      ]
+    },
+    {
+      "question": "Should leading/trailing whitespace around story_document be stripped or treated as a validation failure?",
+      "impacts": [
+        "input normalization",
+        "deterministic behavior",
+        "operator experience"
+      ]
+    },
+    {
+      "question": "What is the source of truth for the repository root when story_document is a relative path?",
+      "impacts": [
+        "path resolution",
+        "Cadence worker working directory",
+        "test setup"
+      ]
+    },
+    {
+      "question": "Should the terminal validation-failed result include the failed rule only, or also a sanitized version of the input path?",
+      "impacts": [
+        "security",
+        "debuggability",
+        "workflow result schema"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/story_analysis_workflow/workflow.py (StoryAnalysisWorkflow.run and _extract_story_intent)",
+        "src/story_analysis_workflow/story_analysis_engine.py (StoryAnalysisEngine.run and sequencing logic)",
+        "src/story_analysis_workflow/activities/extract_story_intent.py",
+        "src/story_analysis_workflow/workflow_logger.py",
+        "src/story_analysis_workflow/module.py",
+        "tests/integration/test_happy_path.py",
+        "tests/integration/test_grade_repair_loop.py",
+        "src/story_analysis_workflow/tests/test_story_analysis_engine.py"
+      ],
+      "new_code": [
+        "startup validation function/module in story_analysis_workflow",
+        "validation rule constants and extension list",
+        "unit/integration tests covering every rejected input category",
+        "test fixtures for null, empty, directory, non-Markdown, and unreadable paths"
+      ],
+      "infrastructure": [
+        "Cadence local SQLite-backed stack",
+        "writable filesystem for validation checks and workflow logs"
+      ],
+      "external_services": [
+        "Cadence service for workflow execution"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example (existing StoryAnalysisWorkflow implementation)"
+      ],
+      "blocks": [
+        "Between-step artifact guardrails",
+        "Post-grader guardrail",
+        "docs/reqs/stage-4-gaps/close-stage-4-certification-gaps"
+      ],
+      "related": [
+        "docs/reqs/stage-4-gaps/close-stage-4-certification-gaps",
+        "src/common/skill_activity.py and SkillActivityInput contracts",
+        "docs/reqs/workflow-logging"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Agreed definition of supported Markdown extensions and readable-path behavior in the deployment environment",
+        "Definition of 'sanitized' validation result and what filesystem details must not be exposed"
+      ],
+      "technical_knowledge": [
+        "Python pathlib and os.stat for filesystem validation",
+        "Cadence workflow determinism and activity separation",
+        "How to test workflow code without invoking the Devin harness"
+      ],
+      "stakeholder_questions": [
+        "What exact Markdown extensions are accepted?",
+        "Should leading/trailing whitespace be stripped or rejected?",
+        "Should validation run as a separate Cadence Activity or inside workflow code?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 3,
+    "risk_level": "Low",
+    "uncertainty": "Low"
+  }
+}
