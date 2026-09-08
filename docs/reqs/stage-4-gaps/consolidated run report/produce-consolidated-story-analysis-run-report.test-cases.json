@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "BuildRunReport_WithRetries_PreservesOrderedAttemptsAndUsage",
-          "status": "pending",
+          "status": "passing",
           "description": "A report contains each retry once in sequence and sums independently available ATIF metrics without estimating cost.",
           "arrange": "Create terminal metadata and out-of-order attempt observations with partial usage and ATIF references.",
           "act": "Build a V1 run report.",
