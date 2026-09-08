@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "grade-story-design",
+    "output_path_key": "design_grade_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

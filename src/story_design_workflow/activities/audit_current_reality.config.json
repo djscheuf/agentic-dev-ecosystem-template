@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "audit-current-reality",
+    "output_path_key": "audit_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

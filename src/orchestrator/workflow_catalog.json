@@ -1,6 +1,7 @@
 {
   "version": 1,
   "workflow_modules": [
-    "story_analysis_workflow.module"
+    "story_analysis_workflow.module",
+    "story_design_workflow.module"
   ]
 }
