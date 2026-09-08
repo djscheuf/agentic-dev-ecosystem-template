@@ -2,6 +2,7 @@ import json
 import os
 import re
 import tempfile
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -79,6 +80,34 @@ class StoryAnalysisRunReportV1:
     repair_attempt_count: int
     attempts: tuple[ActivityAttemptObservation, ...]
     usage: UsageTotals
+
+
+@dataclass(frozen=True)
+class AggregateObservation:
+    workflow_id: str
+    run_id: str
+    report_path: str
+    final_status: str
+    outcome_origin: str
+
+
+@dataclass(frozen=True)
+class StoryAnalysisRunAggregateV1:
+    schema_version: str
+    generated_at: str
+    formula_id: str
+    formula_text: str
+    window_start: str
+    window_end: str
+    numerator: int
+    denominator: int
+    success_rate: float | None
+    status_counts: dict[str, int]
+    outcome_origin_counts: dict[str, int]
+    manual_intervention_count: int
+    included_count: int
+    exclusion_counts: dict[str, int]
+    observations: tuple[AggregateObservation, ...]
 
 
 def _total(attempts: tuple[ActivityAttemptObservation, ...], field: str) -> UsageValue:
@@ -174,3 +203,93 @@ def publish_run_report(
             temporary_path.unlink(missing_ok=True)
         raise
     return destination
+
+
+def _parse_timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("timestamp must include timezone")
+    return parsed.astimezone(timezone.utc)
+
+
+def aggregate_run_reports(
+    report_root: Path,
+    window_start: datetime,
+    window_end: datetime,
+    *,
+    generated_at: datetime | None = None,
+) -> StoryAnalysisRunAggregateV1:
+    if window_start.tzinfo is None or window_end.tzinfo is None or window_start >= window_end:
+        raise ValueError("a valid timezone-aware sample window is required")
+    exclusions: Counter[str] = Counter()
+    observations = []
+    seen = set()
+    for path in sorted(report_root.rglob(REPORT_FILENAME)):
+        try:
+            document = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            exclusions["malformed"] += 1
+            continue
+        if document.get("schema_version") != REPORT_SCHEMA_VERSION:
+            exclusions["incompatible_schema"] += 1
+            continue
+        try:
+            terminal_at = _parse_timestamp(document["terminal_at"])
+            workflow_id = document["workflow_id"]
+            run_id = document["run_id"]
+            final_status = document["final_status"]
+            outcome_origin = OutcomeOrigin(document["outcome_origin"]).value
+        except (KeyError, TypeError, ValueError):
+            exclusions["malformed"] += 1
+            continue
+        if not window_start <= terminal_at < window_end:
+            exclusions["out_of_window"] += 1
+            continue
+        identity = (workflow_id, run_id)
+        if identity in seen:
+            exclusions["duplicate"] += 1
+            continue
+        seen.add(identity)
+        observations.append(
+            AggregateObservation(
+                workflow_id=workflow_id,
+                run_id=run_id,
+                report_path=str(path),
+                final_status=final_status,
+                outcome_origin=outcome_origin,
+            )
+        )
+    origin_counts = Counter(item.outcome_origin for item in observations)
+    status_counts = Counter(item.final_status for item in observations)
+    numerator = sum(
+        origin_counts[origin]
+        for origin in (
+            OutcomeOrigin.AUTOMATED_PASS.value,
+            OutcomeOrigin.REPAIRED_PASS.value,
+        )
+    )
+    denominator = len(observations)
+    generated_at = generated_at or datetime.now(timezone.utc)
+    return StoryAnalysisRunAggregateV1(
+        schema_version=REPORT_SCHEMA_VERSION,
+        generated_at=generated_at.isoformat().replace("+00:00", "Z"),
+        formula_id="automated_pass_rate_v1",
+        formula_text="count(automated_pass or repaired_pass) / count(all terminal runs)",
+        window_start=window_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        window_end=window_end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        numerator=numerator,
+        denominator=denominator,
+        success_rate=numerator / denominator if denominator else None,
+        status_counts=dict(status_counts),
+        outcome_origin_counts=dict(origin_counts),
+        manual_intervention_count=sum(
+            origin_counts[origin]
+            for origin in (
+                OutcomeOrigin.HUMAN_ACCEPT.value,
+                OutcomeOrigin.HUMAN_ABORT.value,
+            )
+        ),
+        included_count=denominator,
+        exclusion_counts=dict(sorted(exclusions.items())),
+        observations=tuple(observations),
+    )

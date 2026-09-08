@@ -7,6 +7,7 @@ from story_analysis_workflow.reporting import (
     ActivityAttemptObservation,
     TerminalWorkflowOutcome,
     UsageMetrics,
+    aggregate_run_reports,
     build_run_report,
     publish_run_report,
 )
@@ -171,3 +172,68 @@ def test_publish_run_report_repeated_or_interrupted_is_atomic_and_idempotent(tmp
 
     assert list(interrupted_root.rglob("story-analysis.report.json")) == []
     assert list(interrupted_root.rglob("*.tmp")) == []
+
+
+def test_aggregate_run_reports_with_mixed_candidates_publishes_auditable_operands(tmp_path):
+    window_start = datetime(2026, 9, 8, tzinfo=timezone.utc)
+    window_end = datetime(2026, 9, 9, tzinfo=timezone.utc)
+    origins = [
+        OutcomeOrigin.AUTOMATED_PASS,
+        OutcomeOrigin.REPAIRED_PASS,
+        OutcomeOrigin.HUMAN_ACCEPT,
+        OutcomeOrigin.HUMAN_ABORT,
+        OutcomeOrigin.AUTOMATED_FAILURE,
+    ]
+    paths = []
+    for index, origin in enumerate(origins):
+        status = "passed" if index < 2 else "human_resolved" if index < 4 else "failed"
+        report = build_run_report(
+            workflow_id=f"workflow-{index}",
+            run_id=f"run-{index}",
+            story_document="story.md",
+            terminal_at=window_start,
+            outcome=TerminalWorkflowOutcome(status, origin, "analysis.json", 0),
+            attempts=[],
+        )
+        paths.append(publish_run_report(report, tmp_path))
+
+    duplicate_path = tmp_path / "duplicate" / "story-analysis.report.json"
+    duplicate_path.parent.mkdir()
+    duplicate_path.write_text(paths[0].read_text())
+    malformed_path = tmp_path / "malformed" / "story-analysis.report.json"
+    malformed_path.parent.mkdir()
+    malformed_path.write_text("{")
+    incompatible_path = tmp_path / "incompatible" / "story-analysis.report.json"
+    incompatible_path.parent.mkdir()
+    incompatible = json.loads(paths[1].read_text())
+    incompatible["schema_version"] = "2.0"
+    incompatible_path.write_text(json.dumps(incompatible))
+    outside_report = build_run_report(
+        workflow_id="outside",
+        run_id="outside",
+        story_document="story.md",
+        terminal_at=window_end,
+        outcome=TerminalWorkflowOutcome(
+            "passed", OutcomeOrigin.AUTOMATED_PASS, "analysis.json", 0
+        ),
+        attempts=[],
+    )
+    publish_run_report(outside_report, tmp_path)
+
+    aggregate = aggregate_run_reports(tmp_path, window_start, window_end)
+
+    assert aggregate.formula_id == "automated_pass_rate_v1"
+    assert aggregate.numerator == 2
+    assert aggregate.denominator == 5
+    assert aggregate.success_rate == 0.4
+    assert aggregate.manual_intervention_count == 2
+    assert aggregate.outcome_origin_counts == {
+        origin.value: 1 for origin in origins
+    }
+    assert len(aggregate.observations) == 5
+    assert aggregate.exclusion_counts == {
+        "duplicate": 1,
+        "incompatible_schema": 1,
+        "malformed": 1,
+        "out_of_window": 1,
+    }

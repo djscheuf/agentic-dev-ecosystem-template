@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "AggregateRunReports_WithMixedCandidates_PublishesAuditableOperands",
-          "status": "pending",
+          "status": "passing",
           "description": "Aggregation filters an explicit UTC window, validates compatibility, deduplicates run identity, and publishes formula operands and traceability.",
           "arrange": "Create final reports spanning all origins plus malformed, incompatible, duplicate, temporary, and out-of-window candidates.",
           "act": "Aggregate the explicit root and inclusive-start/exclusive-end UTC window.",
