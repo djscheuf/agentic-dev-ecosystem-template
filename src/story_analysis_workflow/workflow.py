@@ -25,12 +25,15 @@ from .activities.analyze_story import analyze_story
 from .activities.extract_story_intent import extract_story_intent
 from .activities.grade_story_analysis import grade_story_analysis
 from .activities.repair_story_analysis import repair_story_analysis
+from .activities.validate_source_document import validate_source_document_activity
 from .escalation import HumanResponse, parse_human_response
 from .grade_repair import DEFAULT_MAX_ATTEMPTS
+from .source_document_validation import SourceDocumentValidationResult, SourceDocumentValidationRule
 from .story_analysis_engine import ActivityFailure, DEFAULT_ESCALATION_TIMEOUT, StoryAnalysisEngine
 from .workflow_logger import get_workflow_log_path, get_workflow_logger, workflow_log_context
 
 registry = Registry()
+registry.register_activity(validate_source_document_activity)
 registry.register_activity(extract_story_intent)
 registry.register_activity(analyze_story)
 registry.register_activity(grade_story_analysis)
@@ -64,6 +67,22 @@ class StoryAnalysisWorkflow:
             )
         except CadenceActivityFailure as exc:
             raise ActivityFailure(str(exc)) from exc
+
+    async def _execute_validation_activity(self, name: str, *args: Any) -> dict:
+        return await execute_activity(
+            name,
+            dict,
+            *args,
+            start_to_close_timeout=ACTIVITY_START_TO_CLOSE_TIMEOUT,
+            retry_policy=ACTIVITY_RETRY_POLICY,
+        )
+
+    async def _validate_source_document(self, story_document: Optional[str]) -> SourceDocumentValidationResult:
+        result = await self._execute_validation_activity("validate_source_document", story_document)
+        return SourceDocumentValidationResult(
+            valid=result["valid"],
+            rule=SourceDocumentValidationRule(result["rule"]),
+        )
 
     async def _extract_story_intent(self, story_document: str) -> dict:
         return await self._execute_skill_activity("extract_story_intent", [story_document], "")
@@ -100,8 +119,9 @@ class StoryAnalysisWorkflow:
         config = config or {}
         with workflow_log_context():
             workflow_logger = get_workflow_logger()
-            workflow_logger.info("Starting StoryAnalysisWorkflow for %s", story_document)
+            workflow_logger.info("Starting StoryAnalysisWorkflow")
             engine = StoryAnalysisEngine(
+                validate_source_document=self._validate_source_document,
                 execute_extract_story_intent=self._extract_story_intent,
                 execute_analyze_story=self._analyze_story,
                 execute_grade_story_analysis=self._grade_story_analysis,
@@ -135,6 +155,7 @@ class StoryAnalysisWorkflow:
                 "attempt_count": engine.attempt_count,
                 "escalated": engine.escalated,
                 "escalation_reason": engine.escalation_reason.value if engine.escalation_reason else None,
+                "validation_rule": engine.validation_rule.value if engine.validation_rule else None,
             }
         workflow_log_path = get_workflow_log_path()
         if workflow_log_path:

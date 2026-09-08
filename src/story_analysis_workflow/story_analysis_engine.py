@@ -81,6 +81,7 @@ class StoryAnalysisEngine:
         self.attempt_count = 0
         self.escalated = False
         self.escalation_reason: Optional[EscalationReason] = None
+        self.validation_rule: Optional[SourceDocumentValidationRule] = None
 
     def _terminal(self, analysis_path: Optional[str], final_status: str) -> WorkflowResult:
         self.status = final_status
@@ -156,6 +157,7 @@ class StoryAnalysisEngine:
         validation = await self._validate_source_document(story_document)
         if not validation.valid:
             self.status = "validation_failed"
+            self.validation_rule = validation.rule
             self._logger.info("RejectSourceDocumentStartup validation_rule=%s", validation.rule.value)
             return WorkflowResult(
                 final_analysis_path=None,

@@ -10,6 +10,7 @@ from story_analysis_workflow.source_document_validation import (
     SourceDocumentValidationRule,
     validate_source_document,
 )
+from story_analysis_workflow.workflow import StoryAnalysisWorkflow
 
 
 def test_validation_result_is_frozen_and_exposes_stable_rules_without_path():
@@ -77,3 +78,22 @@ async def test_validation_activity_returns_serializable_result_for_special_markd
     result = await validate_source_document_activity(str(source))
 
     assert result == {"valid": True, "rule": SourceDocumentValidationRule.VALID}
+
+
+@pytest.mark.asyncio
+async def test_workflow_validation_adapter_schedules_registered_activity():
+    workflow = StoryAnalysisWorkflow()
+    calls = []
+
+    async def execute(name, *args):
+        calls.append((name, args))
+        return {"valid": False, "rule": "EMPTY_OR_MISSING"}
+
+    workflow._execute_validation_activity = execute
+
+    result = await workflow._validate_source_document(None)
+
+    assert calls == [("validate_source_document", (None,))]
+    assert result == SourceDocumentValidationResult(
+        False, SourceDocumentValidationRule.EMPTY_OR_MISSING
+    )
