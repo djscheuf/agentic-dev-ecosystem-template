@@ -1,4 +1,5 @@
 import dataclasses
+from pathlib import Path
 
 import pytest
 
@@ -40,4 +41,16 @@ def test_validate_source_document_maps_rejected_inputs_to_sanitized_rules(story_
     assert validate_source_document(story_document) == SourceDocumentValidationResult(
         valid=False,
         rule=expected_rule,
+    )
+
+
+def test_validate_source_document_sanitizes_filesystem_errors(monkeypatch):
+    def fail_is_file(_self):
+        raise OSError("sensitive filesystem detail")
+
+    monkeypatch.setattr(Path, "is_file", fail_is_file)
+
+    assert validate_source_document("secret.md") == SourceDocumentValidationResult(
+        valid=False,
+        rule=SourceDocumentValidationRule.INACCESSIBLE_SOURCE,
     )

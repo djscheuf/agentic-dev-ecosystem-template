@@ -22,6 +22,10 @@ def validate_source_document(story_document: str | None) -> SourceDocumentValida
     path = Path(story_document)
     if path.suffix.lower() != ".md":
         return SourceDocumentValidationResult(False, SourceDocumentValidationRule.NON_MARKDOWN_EXTENSION)
-    if not path.is_file():
+    try:
+        is_file = path.is_file()
+    except OSError:
+        is_file = False
+    if not is_file:
         return SourceDocumentValidationResult(False, SourceDocumentValidationRule.INACCESSIBLE_SOURCE)
     return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
