@@ -111,3 +111,12 @@ The implementation design resolves the open topology choices for the first incre
 - The orchestrator remains the logging composition root: it loads `workflow_logging.config.json` and passes a `WorkflowLoggerConfig` to common worker logging setup.
 - Static architecture verification rejects reintroduction of the removed orchestrator infrastructure modules, and source code contains no imports of those legacy paths.
 - The NixOS unit entry point passes 140 tests after duplicate test suites and implementations are removed and common coverage is expanded.
+
+## Source document startup validation status (2026-09-08)
+
+- Story Analysis schedules a workflow-owned `validate_source_document` Activity before any harness-backed Skill Activity.
+- Validation accepts readable regular `.md` files case-insensitively without rewriting the supplied path and follows valid symlinks.
+- Missing, blank, non-Markdown, inaccessible, unreadable, and filesystem-error inputs produce stable sanitized rules without exposing paths or raw exceptions.
+- Rejection terminates as `validation_failed` with no escalation or downstream Skill Activity; successful validation schedules extraction with the original path.
+- `WorkflowResult` and `get_status` expose the optional failed validation rule, and startup logs omit source paths.
+- The NixOS unit entry point passes 157 tests after startup validation implementation.
