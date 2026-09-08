@@ -9,6 +9,7 @@ from story_analysis_workflow.reporting import (
     UsageMetrics,
     aggregate_run_reports,
     build_run_report,
+    publish_run_aggregate,
     publish_run_report,
 )
 from story_analysis_workflow.story_analysis_engine import OutcomeOrigin
@@ -237,3 +238,19 @@ def test_aggregate_run_reports_with_mixed_candidates_publishes_auditable_operand
         "malformed": 1,
         "out_of_window": 1,
     }
+
+
+def test_aggregate_run_reports_with_empty_sample_returns_null_rate(tmp_path):
+    window_start = datetime(2026, 9, 8, tzinfo=timezone.utc)
+    window_end = datetime(2026, 9, 9, tzinfo=timezone.utc)
+
+    aggregate = aggregate_run_reports(tmp_path, window_start, window_end)
+    output_path = publish_run_aggregate(aggregate, tmp_path)
+
+    assert aggregate.numerator == 0
+    assert aggregate.denominator == 0
+    assert aggregate.success_rate is None
+    assert aggregate.status_counts == {}
+    assert aggregate.outcome_origin_counts == {}
+    assert aggregate.observations == ()
+    assert json.loads(output_path.read_text())["success_rate"] is None

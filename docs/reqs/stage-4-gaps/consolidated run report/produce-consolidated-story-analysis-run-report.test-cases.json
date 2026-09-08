@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "AggregateRunReports_WithEmptySample_ReturnsNullRate",
-          "status": "pending",
+          "status": "passing",
           "description": "An empty compatible sample still publishes the formula and zero operands without dividing by zero.",
           "arrange": "Use a report root with no compatible in-window final reports.",
           "act": "Aggregate the explicit UTC window and atomically publish the snapshot.",

@@ -12,6 +12,7 @@ from .story_analysis_engine import OutcomeOrigin
 
 REPORT_SCHEMA_VERSION = "1.0"
 REPORT_FILENAME = "story-analysis.report.json"
+AGGREGATE_FILENAME = "story-analysis.aggregate.json"
 _SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
@@ -169,6 +170,35 @@ def _safe_component(value: str) -> str:
     return _SAFE_COMPONENT_RE.sub("_", value).strip("_") or "unknown"
 
 
+def _atomic_write_json(
+    document: object,
+    destination: Path,
+    replace_file: Callable[[str, str], None],
+) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            json.dump(asdict(document), temporary, indent=2)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        replace_file(str(temporary_path), str(destination))
+    except BaseException:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+    return destination
+
+
 def publish_run_report(
     report: StoryAnalysisRunReportV1,
     report_root: Path,
@@ -181,28 +211,18 @@ def publish_run_report(
         / _safe_component(report.run_id)
         / REPORT_FILENAME
     )
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=destination.parent,
-            prefix=f".{REPORT_FILENAME}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            temporary_path = Path(temporary.name)
-            json.dump(asdict(report), temporary, indent=2)
-            temporary.write("\n")
-            temporary.flush()
-            os.fsync(temporary.fileno())
-        replace_file(str(temporary_path), str(destination))
-    except BaseException:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-        raise
-    return destination
+    return _atomic_write_json(report, destination, replace_file)
+
+
+def publish_run_aggregate(
+    aggregate: StoryAnalysisRunAggregateV1,
+    report_root: Path,
+    *,
+    replace_file: Callable[[str, str], None] = os.replace,
+) -> Path:
+    return _atomic_write_json(
+        aggregate, report_root / AGGREGATE_FILENAME, replace_file
+    )
 
 
 def _parse_timestamp(value: str) -> datetime:
