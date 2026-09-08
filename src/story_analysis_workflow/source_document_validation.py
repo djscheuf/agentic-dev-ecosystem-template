@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 
 class SourceDocumentValidationRule(str, Enum):
@@ -13,3 +14,14 @@ class SourceDocumentValidationRule(str, Enum):
 class SourceDocumentValidationResult:
     valid: bool
     rule: SourceDocumentValidationRule
+
+
+def validate_source_document(story_document: str | None) -> SourceDocumentValidationResult:
+    if story_document is None or not story_document.strip():
+        return SourceDocumentValidationResult(False, SourceDocumentValidationRule.EMPTY_OR_MISSING)
+    path = Path(story_document)
+    if path.suffix.lower() != ".md":
+        return SourceDocumentValidationResult(False, SourceDocumentValidationRule.NON_MARKDOWN_EXTENSION)
+    if not path.is_file():
+        return SourceDocumentValidationResult(False, SourceDocumentValidationRule.INACCESSIBLE_SOURCE)
+    return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
