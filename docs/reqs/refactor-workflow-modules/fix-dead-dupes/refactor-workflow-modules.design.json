@@ -1,0 +1,511 @@
+{
+  "story_path": "docs/reqs/refactor-workflow-modules/fix-dead-dupes/refactor-workflow-modules.analysis.json",
+  "repo_state_before_design": "docs/reqs/refactor-workflow-modules/fix-dead-dupes/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "RefactorPlanLoaded — the maintainer reads gaps.md and the current-reality audit, identifying dead orchestrator modules, missing common hooks, the omitted output-directory instruction, and logging-config wiring gaps.",
+      "layers_involved": ["Platform Maintainer", "Repository Configuration"],
+      "handshake_points": [
+        {
+          "from_layer": "Repository Configuration",
+          "to_layer": "Platform Maintainer",
+          "contract_used": "RefactorGapsDocument",
+          "data_shape": "{dead_modules: [repo-relative path, ...], missing_common_behaviors: [string, ...], stale_documentation: [repo-relative path, ...]}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "DeadModuleSafetyValidated — static import and architecture scans confirm no external callers import the targeted orchestrator modules, tests, or config files, and that common equivalents cover the live surface.",
+      "layers_involved": ["Verification", "Orchestrator Composition", "Common Infrastructure"],
+      "handshake_points": [
+        {
+          "from_layer": "Verification",
+          "to_layer": "Orchestrator Composition",
+          "contract_used": "DeadModuleSafetyCheck",
+          "data_shape": "{candidate_paths: [string, ...], external_callers_found: boolean, common_coverage_status: [string, ...]}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "CommonSkillActivityExtended — common/skill_activity.py gains typed no-op hooks, a compatibility run_skill helper, and a build_prompt that appends the output-directory instruction before any modify_prompt hook.",
+      "layers_involved": ["Common Infrastructure", "Workflow Module"],
+      "handshake_points": [
+        {
+          "from_layer": "Common Infrastructure",
+          "to_layer": "Workflow Module",
+          "contract_used": "SkillActivityLifecycle",
+          "data_shape": "{execute_hooks: [modify_sentinel_path, modify_prompt (output-dir instruction baked in), modify_harness_config, modify_invocation_context, modify_output_path, modify_result], run_skill: Callable[[SkillActivityInput, *, output_path_key: str, harness: Harness, repo_root: Path, expected_output_path: Callable | None], SkillActivityOutput]}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "CommonLoggingSetupPorted — common/workflow_logger.py exposes setup_worker_logging(config) and all log contexts accept an optional WorkflowLoggerConfig; missing or unknown-key configs fall back to safe hardcoded defaults.",
+      "layers_involved": ["Common Infrastructure", "Orchestrator Composition"],
+      "handshake_points": [
+        {
+          "from_layer": "Common Infrastructure",
+          "to_layer": "Orchestrator Composition",
+          "contract_used": "WorkerLoggingSetup",
+          "data_shape": "setup_worker_logging(config: WorkflowLoggerConfig | None) -> None; activity_log_context, workflow_log_context, client_log_context accept optional WorkflowLoggerConfig"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "OrchestratorLoggingConfigWired — orchestrator/worker.py loads src/orchestrator/workflow_logging.config.json into a WorkflowLoggerConfig and passes it to common.setup_worker_logging before the Cadence Worker topology starts.",
+      "layers_involved": ["Orchestrator Composition", "Orchestrator Runtime", "Common Infrastructure"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Common Infrastructure",
+          "contract_used": "OrchestratorLoggingConfig",
+          "data_shape": "WorkflowLoggerConfig {log_root: Path, worker_level: str, workflow_level: str, client_level: str, activity_level: str, devin_level: str}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "OrchestratorDuplicatesRemoved — the dead orchestrator modules, tests, config files, and stale documentation identified in gaps.md are deleted after common replacements pass tests; a static architecture test rejects any lingering imports.",
+      "layers_involved": ["Orchestrator Composition", "Repository Configuration", "Verification"],
+      "handshake_points": [
+        {
+          "from_layer": "Orchestrator Composition",
+          "to_layer": "Repository Configuration",
+          "contract_used": "DeadModuleRemoval",
+          "data_shape": "{removed_paths: [repo-relative path, ...], static_test: 'test_architecture asserts no stale orchestrator imports'}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "CommonTestCoverageExpanded — common tests are added for workflow/client contexts, log path helpers, stdout/stderr capture to devin.log, SkillActivityOutput log-path fields, prompt instruction ordering, hook validation, and safe defaults.",
+      "layers_involved": ["Verification", "Common Infrastructure"],
+      "handshake_points": [
+        {
+          "from_layer": "Verification",
+          "to_layer": "Common Infrastructure",
+          "contract_used": "ExpandedCommonTestCoverage",
+          "data_shape": "{test_files: [test_workflow_logger.py, test_devin_harness.py, test_skill_activity.py], new_assertions: [workflow_log_context_file_creation, client_log_context_file_creation, get_workflow_log_path, get_client_log_path, stdout_stderr_in_devin_log, activity_log_path/devin_log_path_in_output, output_directory_instruction_before_modify_prompt, safe_defaults_for_missing_config]}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "FullRegressionVerified — nix-shell pytest passes for the common, orchestrator, and story_analysis_workflow test suites; unit and end-to-end tests assert the expected log layout, and live full-stack workflow log-tree verification is documented as not available in CI.",
+      "layers_involved": ["Verification", "Operations", "Repository Configuration"],
+      "handshake_points": [
+        {
+          "from_layer": "Verification",
+          "to_layer": "Operations",
+          "contract_used": "RegressionVerification",
+          "data_shape": "{pytest_scope: [src/common/tests, src/orchestrator/tests, src/story_analysis_workflow/tests], live_full_stack_log_tree: 'out of CI scope'}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "ConfigureWorkerLogging",
+      "description": "Records the orchestrator loading workflow_logging.config.json and calling common.setup_worker_logging.",
+      "layers_involved": ["Orchestrator Composition", "Common Infrastructure"],
+      "data_points": [
+        {"point": "config_path", "description": "Repository-relative path to the orchestrator-owned logging config."},
+        {"point": "log_root", "description": "Resolved log root path."},
+        {"point": "levels", "description": "Per-category level map."},
+        {"point": "fallback_used", "description": "True when the orchestrator did not supply a config object."}
+      ]
+    },
+    {
+      "event_name": "ExtendSkillActivityTemplate",
+      "description": "Records the common SkillActivity gaining extension hooks and a run_skill helper.",
+      "layers_involved": ["Common Infrastructure"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name being executed."},
+        {"point": "hooks_present", "description": "List of hook names available on SkillActivity."},
+        {"point": "run_skill_present", "description": "True when the compatibility helper is exposed."}
+      ]
+    },
+    {
+      "event_name": "BuildSkillPrompt",
+      "description": "Records the default prompt construction, including the output-directory instruction before modify_prompt.",
+      "layers_involved": ["Common Infrastructure", "Workflow Module"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name."},
+        {"point": "output_directory_instruction_present", "description": "True when the instruction is included before the hook."},
+        {"point": "prompt_length", "description": "Character count of the final prompt."}
+      ]
+    },
+    {
+      "event_name": "InvokeSkillHarness",
+      "description": "Records a Harness.run call with the resolved prompt, cwd, and namespaced harness config.",
+      "layers_involved": ["Common Infrastructure", "DevinHarness"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name from invocation context."},
+        {"point": "permission_mode", "description": "Resolved Devin permission mode."},
+        {"point": "model", "description": "Resolved Devin model."},
+        {"point": "harness_namespace", "description": "Namespace used from the Activity config, e.g. 'devin'."}
+      ]
+    },
+    {
+      "event_name": "CaptureDevinOutput",
+      "description": "Records DevinHarness writing stdout and stderr to devin.log regardless of exit code.",
+      "layers_involved": ["Common Infrastructure"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name."},
+        {"point": "exit_code", "description": "Process exit code."},
+        {"point": "stdout_bytes", "description": "Bytes captured from stdout."},
+        {"point": "stderr_bytes", "description": "Bytes captured from stderr."},
+        {"point": "devin_log_path", "description": "Repository-relative or absolute path to devin.log."}
+      ]
+    },
+    {
+      "event_name": "WriteActivityLog",
+      "description": "Records activity.log creation and key lifecycle events for a skill invocation.",
+      "layers_involved": ["Common Infrastructure"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name."},
+        {"point": "activity_log_path", "description": "Repository-relative or absolute path to activity.log."},
+        {"point": "duration_ms", "description": "Harness invocation duration in milliseconds."},
+        {"point": "exit_code", "description": "Harness exit code."}
+      ]
+    },
+    {
+      "event_name": "ResolveSkillOutput",
+      "description": "Records how the SkillActivity output path is resolved from sentinel or workflow fallback.",
+      "layers_involved": ["Common Infrastructure", "Workflow Module"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill name."},
+        {"point": "resolution_source", "description": "sentinel, expected_output_path fallback, or missing_sentinel warning."},
+        {"point": "output_path", "description": "Resolved output path."}
+      ]
+    },
+    {
+      "event_name": "RemoveDeadModule",
+      "description": "Records the deletion of a legacy orchestrator module, test, config, or doc.",
+      "layers_involved": ["Orchestrator Composition", "Repository Configuration"],
+      "data_points": [
+        {"point": "removed_path", "description": "Repository-relative path of the deleted artifact."},
+        {"point": "remaining_orchestrator_modules", "description": "Count of generic modules left in src/orchestrator after removal."}
+      ]
+    },
+    {
+      "event_name": "DetectStaleImport",
+      "description": "Records a static architecture test finding an import of a removed orchestrator module.",
+      "layers_involved": ["Verification"],
+      "data_points": [
+        {"point": "source_file", "description": "File containing the stale import."},
+        {"point": "import_path", "description": "Forbidden import path."},
+        {"point": "error_category", "description": "stale_orchestrator_import."}
+      ]
+    },
+    {
+      "event_name": "CompleteCommonTestCoverage",
+      "description": "Records execution of the expanded common tests for logging, harness output, and skill activity behavior.",
+      "layers_involved": ["Verification", "Common Infrastructure"],
+      "data_points": [
+        {"point": "tests_added", "description": "Number of new test cases."},
+        {"point": "assertion_categories", "description": "List of behavior categories asserted."},
+        {"point": "passing", "description": "True when all expanded common tests pass."}
+      ]
+    },
+    {
+      "event_name": "CompleteWorkerTopologyStartup",
+      "description": "Records successful startup of the worker topology after setup_worker_logging has been configured.",
+      "layers_involved": ["Orchestrator Runtime", "Common Infrastructure"],
+      "data_points": [
+        {"point": "worker_count", "description": "Number of started Workers."},
+        {"point": "routes", "description": "Sorted domain/task-list pairs."},
+        {"point": "logging_configured", "description": "True when setup_worker_logging was called with an orchestrator config."}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Common Infrastructure (Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Own the generic SkillActivity lifecycle with typed no-op transformation hooks and a run_skill compatibility helper.",
+          "intent": "Workflow-agnostic activity execution belongs in common per ADR-013 and ADR-014; hooks let workflow packages customize behavior without forking the template."
+        },
+        {
+          "responsibility": "Append the output-directory instruction to the default prompt before any modify_prompt hook is applied.",
+          "intent": "The instruction is a generic harness hint, not a workflow-specific convention, and must be visible to the hook."
+        },
+        {
+          "responsibility": "Provide setup_worker_logging and per-execution log contexts that accept an orchestrator-supplied WorkflowLoggerConfig or safe defaults.",
+          "intent": "Common owns the logging mechanism; the orchestrator owns the configuration object and file, and tests may pass explicit configs."
+        },
+        {
+          "responsibility": "Capture Devin CLI stdout/stderr to devin.log and expose activity/client/workflow/devin log path helpers.",
+          "intent": "Observability of harness execution is generic and needed by all workflow packages."
+        },
+        {
+          "responsibility": "Validate per-Activity harness.devin settings with secure defaults and reject unsupported permission modes.",
+          "intent": "DevinHarness is the generic CLI adapter; least-privilege defaults and strict validation belong with the harness."
+        }
+      ]
+    },
+    {
+      "layer": "Orchestrator (Composition and Runtime) (Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Load src/orchestrator/workflow_logging.config.json and construct a WorkflowLoggerConfig to pass to common.setup_worker_logging during worker startup.",
+          "intent": "The orchestrator is the composition root and owns process-level deployment configuration; it has the config file path and runtime context."
+        },
+        {
+          "responsibility": "Start the Cadence Worker topology only after logging is configured.",
+          "intent": "Runtime sequencing belongs to the composition root."
+        },
+        {
+          "responsibility": "Remove dead duplicate orchestrator modules, tests, config files, and stale docs once static tests confirm no external callers.",
+          "intent": "The orchestrator layer must not retain workflow-agnostic code once it has moved to common."
+        },
+        {
+          "responsibility": "Retain only composition, catalog, and Worker lifecycle logic.",
+          "intent": "ADR-013 restricts the orchestrator to composition-root responsibilities."
+        }
+      ]
+    },
+    {
+      "layer": "Workflow Module (Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Keep per-Activity harness.devin settings in colocated .config.json files.",
+          "intent": "Activity-specific configuration belongs with the Activity; central overrides are not ported."
+        },
+        {
+          "responsibility": "Import common harness, skill-activity, and logging APIs and never import orchestrator modules.",
+          "intent": "ADR-013 enforces the common <- workflow package <- orchestrator dependency boundary."
+        },
+        {
+          "responsibility": "Implement concrete expected_output_path for domain-specific fallback when a sentinel is missing.",
+          "intent": "Domain output-path rules live in the workflow package, not common."
+        }
+      ]
+    },
+    {
+      "layer": "Verification (Test Layer)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Expand common tests to cover logging contexts, path helpers, stdout/stderr capture, SkillActivityOutput fields, and prompt instruction ordering.",
+          "intent": "Behavior gaps must be filled before the dead orchestrator test suites are removed."
+        },
+        {
+          "responsibility": "Add a static test that fails if any source file imports a removed orchestrator module.",
+          "intent": "Detects stale imports after deletion (analysis edge case)."
+        },
+        {
+          "responsibility": "Run the full pytest suite for common, orchestrator, and story_analysis_workflow.",
+          "intent": "Confirms the refactor does not break existing behavior."
+        }
+      ]
+    },
+    {
+      "layer": "Repository Configuration (Data Layer)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Store the gaps.md refactor plan and orchestrator-owned workflow_logging.config.json.",
+          "intent": "Configuration and planning artifacts are persisted and version-controlled."
+        },
+        {
+          "responsibility": "Track removed paths and maintain .gitignore for .process/logs.",
+          "intent": "Log files are generated artifacts and must not be committed; dead files are removed from the tree."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "WorkflowLoggerConfig",
+      "description": "Immutable orchestrator-owned configuration for log root and per-category levels. The orchestrator constructs it from src/orchestrator/workflow_logging.config.json and passes it to common logging setup and contexts.",
+      "changes": {
+        "added": "Optional config parameter on common.setup_worker_logging and on activity/workflow/client log contexts; module-level default config used when no explicit config is supplied",
+        "modified": "Config file ownership remains in src/orchestrator/workflow_logging.config.json; common no longer depends on a missing common/workflow_logging.config.json by default",
+        "removed": "Duplicate orchestrator WorkflowLoggerConfig class (the common class becomes canonical)"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SkillActivityTemplateMethod",
+      "description": "Fixed SkillActivity.execute lifecycle with typed no-op transformation hooks and a standalone run_skill helper. Workflows subclass SkillActivity or call run_skill to invoke a skill through a Harness.",
+      "changes": {
+        "added": "modify_sentinel_path, modify_prompt, modify_harness_config, modify_invocation_context, modify_output_path, modify_result hooks; run_skill(skill_input, *, output_path_key, harness, repo_root, expected_output_path=None) helper returning SkillActivityOutput",
+        "modified": "build_prompt appends the output-directory instruction before modify_prompt is invoked",
+        "removed": "Orchestrator-only SkillActivity duplicate"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "WorkerLoggingSetup",
+      "description": "Common API that receives an orchestrator-constructed WorkflowLoggerConfig and configures the worker process and all log contexts. Missing config or unknown top-level keys fall back to safe defaults.",
+      "changes": {
+        "added": "common.workflow_logger.setup_worker_logging(config: WorkflowLoggerConfig | None) -> None; module-level default config shared with log contexts",
+        "modified": "orchestrator/worker.py calls setup_worker_logging before run_worker_topology; orchestrator/workflow_logging.config.json is loaded by the orchestrator, not common",
+        "removed": "Legacy orchestrator.workflow_logger.setup_worker_logging duplicate"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "DevinHarnessConfig",
+      "description": "Per-Activity Devin CLI profile resolved from the harness.devin namespace of the colocated Activity .config.json. File-based per-skill overrides from orchestrator/devin_harness.config.json are not ported.",
+      "changes": {
+        "added": "Validation of model and supported permission_mode (auto, accept-edits, dangerous, bypass); secure hardcoded defaults when harness.devin is missing",
+        "modified": "permission_mode defaults to auto; accept-edits must be explicitly declared per Activity config",
+        "removed": "orchestrator/devin_harness.config.json defaults and per-skill skills map"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivityOutputLogPaths",
+      "description": "SkillActivityOutput already includes activity_log_path and devin_log_path; the implementation ensures these fields are populated and the underlying files are created inside activity_log_context.",
+      "changes": {
+        "added": "Tests assert activity_log_path and devin_log_path are non-empty and that activity.log and devin.log exist after execute",
+        "modified": "DevinHarness writes stdout/stderr to devin.log regardless of exit code",
+        "removed": "No changes to dataclass fields"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "DeadModuleRemoval",
+      "description": "Process for deleting legacy orchestrator modules, tests, config, and documentation after confirming common equivalents pass and no external callers remain.",
+      "changes": {
+        "added": "Static architecture test that fails on any import of removed orchestrator paths; explicit deletion target list in gaps.md",
+        "modified": "Common test suites absorb behavior coverage before orchestrator tests are deleted",
+        "removed": "src/orchestrator/harness.py, devin_harness.py, skill_activity.py, workflow_logger.py, invocation_context.py, skill_activity_config.py, devin_harness.config.json, workflow_logging.config.json, orchestrator tests, README.md, vault/services/orchestrator-harness.md"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Do not port file-based Devin harness overrides from orchestrator/devin_harness.config.json; require every Activity .config.json to declare its own harness.devin settings.",
+      "justification": "Central per-skill maps put workflow-specific knowledge in common and violate ADR-014 colocation. The four Story Analysis Activities already declare harness.devin.permission_mode=accept-edits, so the central file is redundant.",
+      "basis": "ADR-012 and ADR-014; analysis question 1; story_analysis_workflow/activities/*.config.json all contain harness.devin.permission_mode",
+      "impact": "Removes orchestrator/devin_harness.config.json; common DevinHarnessConfig validates the per-Activity namespace.",
+      "answers_open_question": "Should the file-based Devin harness overrides from orchestrator/devin_harness.config.json be ported into common, or should every Activity .config.json carry the needed harness.devin settings?"
+    },
+    {
+      "decision": "Move setup_worker_logging and the log context implementation to common while keeping WorkflowLoggerConfig construction and the config file in the orchestrator.",
+      "justification": "Common owns generic logging mechanisms per ADR-013; the orchestrator owns process-level deployment configuration. Passing a config object decouples common from the config file location.",
+      "basis": "ADR-011 and ADR-013; analysis questions 3 and 4",
+      "impact": "Adds common.setup_worker_logging(config); orchestrator/worker.py loads workflow_logging.config.json and passes the object to common.",
+      "answers_open_question": "Is the setup_worker_logging() API still required, and if so, should it be ported to common and called from orchestrator/worker.py?"
+    },
+    {
+      "decision": "Bake the output-directory instruction into common/skill_activity.py build_prompt before the modify_prompt hook is applied.",
+      "justification": "The instruction is a safe default for harness output placement and must be present before any hook can alter the prompt.",
+      "basis": "ADR-014 template method and analysis question 2",
+      "impact": "Common build_prompt appends the instruction; modify_prompt receives the enriched prompt.",
+      "answers_open_question": "How should the prompt output-directory instruction from orchestrator/skill_activity.py be handled in common?"
+    },
+    {
+      "decision": "Add typed no-op transformation hooks and a run_skill compatibility helper to common SkillActivity equivalent to the legacy orchestrator version.",
+      "justification": "External callers may depend on the hook surface and run_skill helper; keeping them in common preserves the public API while the fixed execute lifecycle remains unchanged.",
+      "basis": "ADR-014 and the existing orchestrator/skill_activity.py implementation",
+      "impact": "Common SkillActivity gains modify_* hooks and run_skill; the orchestrator copy is deleted.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "Delete the legacy orchestrator harness, devin_harness, skill_activity, workflow_logger, invocation_context, and skill_activity_config modules and their tests/config/docs once common replacements and static tests pass.",
+      "justification": "No external callers exist (analysis question 5), and retaining duplicates violates the three-layer target architecture.",
+      "basis": "ADR-013 target architecture; gaps.md dead-duplicate list; analysis question 5",
+      "impact": "src/orchestrator shrinks to composition-root code; common becomes the canonical generic infrastructure.",
+      "answers_open_question": "Are there external callers outside this repository that still import the orchestrator skill_activity, harness, or workflow_logger modules?"
+    },
+    {
+      "decision": "Use the common WorkflowLoggerConfig dataclass as the canonical configuration object and have the orchestrator import and construct it.",
+      "justification": "Renaming to WorkflowLoggingConfig would create a duplicate concept; a single class in common with an optional orchestrator alias avoids divergence.",
+      "basis": "common/workflow_logger.py WorkflowLoggerConfig definition and the analysis naming note",
+      "impact": "No new WorkflowLoggingConfig class; orchestrator constructs common.WorkflowLoggerConfig from its config file.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "When no orchestrator WorkflowLoggerConfig is supplied, common.setup_worker_logging and log contexts fall back to safe hardcoded defaults and emit a warning.",
+      "justification": "Defensive behavior for tests, misconfigured workers, and standalone usage; defaults match current DEFAULT_LEVELS and DEFAULT_LOG_ROOT.",
+      "basis": "Analysis edge case 'Orchestrator does not pass a WorkflowLoggingConfig' and current common/workflow_logger.py defaults",
+      "impact": "setup_worker_logging(config=None) and context managers with config=None use safe defaults and log a warning.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "setup_worker_logging stores a module-level default WorkflowLoggerConfig for use by log contexts when no explicit config is passed.",
+      "justification": "Runtime worker_log_context is called inside orchestrator/runtime.py without a config argument; a default set at startup lets contexts use the orchestrator config without plumbing it through every call site.",
+      "basis": "Current orchestrator/runtime.py calls common.worker_log_context with only domain and task_list",
+      "impact": "common.workflow_logger keeps a module-level default config; log contexts fall back to it when no explicit config is supplied.",
+      "answers_open_question": "How does common setup_worker_logging share the orchestrator config with runtime contexts?"
+    },
+    {
+      "decision": "Document live full-stack workflow log-tree verification as out of CI scope for this component and rely on unit and end-to-end tests for log-path and file-creation assertions.",
+      "justification": "A long-running Cadence stack is not available in CI; unit tests cover context creation and file layout deterministically.",
+      "basis": "Analysis question 6 and gaps.md verification section",
+      "impact": "Acceptance criteria note; no CI pipeline change for live logs.",
+      "answers_open_question": "How should the live workflow log tree be verified in CI without a long-running Cadence stack?"
+    },
+    {
+      "decision": "Add a static architecture test that fails if any source file imports a removed orchestrator module after deletion.",
+      "justification": "Runtime tests cannot catch conditional or transitive stale imports; static source scanning fails deterministically before deployment.",
+      "basis": "Analysis edge case 'A stale orchestrator import remains after dead files are deleted' and ADR-013 dependency rules",
+      "impact": "New or updated test in src/orchestrator/tests/test_architecture.py or src/common/tests/test_dependencies.py; list of forbidden import prefixes updated.",
+      "answers_open_question": "n/a"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should the file-based Devin harness overrides (defaults and per-skill skills) from orchestrator/devin_harness.config.json be ported into common, or should every Activity .config.json carry the needed harness.devin settings?",
+      "answer": "Do not port file-based overrides. Every Activity .config.json is responsible for its own harness.devin settings because the activity determines the necessary configuration.",
+      "justification": "Colocating harness settings with the Activity preserves the ADR-014 boundary and removes a central skill-name map from common.",
+      "basis": "ADR-012, ADR-014, and analysis question 1; story_analysis_workflow/activities/*.config.json already contain harness.devin settings"
+    },
+    {
+      "question": "How should the prompt output-directory instruction from orchestrator/skill_activity.py be handled in common?",
+      "answer": "Bake the output-directory instruction into the default prompt format in common/skill_activity.py build_prompt, appending it before the modify_prompt hook is invoked.",
+      "justification": "The instruction is a generic harness hint and must be present before any hook can alter the prompt.",
+      "basis": "ADR-014 template method and analysis question 2"
+    },
+    {
+      "question": "Is the setup_worker_logging() API still required, and if so, should it be ported to common and called from orchestrator/worker.py?",
+      "answer": "Yes, port setup_worker_logging() to common. The orchestrator calls it and passes an orchestrator-owned WorkflowLoggerConfig object.",
+      "justification": "Common owns generic logging mechanisms; the orchestrator owns deployment configuration. Passing the config object decouples the mechanism from the config file location.",
+      "basis": "ADR-011, ADR-013, and analysis question 3"
+    },
+    {
+      "question": "Should workflow_logging.config.json be copied or moved from src/orchestrator to src/common?",
+      "answer": "WorkflowLoggerConfig belongs to the orchestrator. The orchestrator reads workflow_logging.config.json and constructs the config object, then passes it to common's setup_worker_logging. The file stays orchestrator-owned.",
+      "justification": "The orchestrator is the composition root with deployment context; common should not depend on a specific config file path.",
+      "basis": "Analysis question 4 and current orchestrator/worker.py startup flow"
+    },
+    {
+      "question": "Are there external callers outside this repository that still import the orchestrator skill_activity, harness, or workflow_logger modules?",
+      "answer": "No external callers exist, so the orchestrator copies can be fully deleted.",
+      "justification": "Static scans and the current repository structure show all consumers are inside this repo and have common-layer replacements.",
+      "basis": "Analysis question 5 and gaps.md dead-duplicate list"
+    },
+    {
+      "question": "How should the live workflow log tree be verified in CI without a long-running Cadence stack?",
+      "answer": "Live full-stack workflow log tree verification is not available in CI. Rely on unit and end-to-end tests and document that live verification is out of scope for this component.",
+      "justification": "CI cannot run a long-running Cadence stack; unit tests can deterministically assert log context creation and file layout.",
+      "basis": "Analysis question 6 and gaps.md verification section"
+    },
+    {
+      "question": "How does common setup_worker_logging share the orchestrator config with runtime log contexts?",
+      "answer": "setup_worker_logging stores the supplied WorkflowLoggerConfig as a module-level default; log contexts use this default when no explicit config is passed.",
+      "justification": "This avoids changing every runtime call site while still letting tests and standalone callers pass explicit configs.",
+      "basis": "Current orchestrator/runtime.py calls common.worker_log_context with only domain and task_list"
+    },
+    {
+      "question": "What happens when an Activity .config.json omits harness.devin settings or the orchestrator omits WorkflowLoggerConfig?",
+      "answer": "DevinHarnessConfig uses secure hardcoded defaults (SWE-1.7 model, auto permission mode), and common.setup_worker_logging uses safe default levels and log root. Both cases log a warning but do not crash.",
+      "justification": "Defensive defaults preserve least privilege and keep the worker operational when configuration is incomplete.",
+      "basis": "Analysis edge cases and current common/devin_harness.py DEFAULT_MODEL/DEFAULT_PERMISSION_MODE and common/workflow_logger.py DEFAULT_LEVELS"
+    },
+    {
+      "question": "How should unknown keys in an orchestrator-provided logging config be handled?",
+      "answer": "Ignore unknown top-level keys for forward compatibility, while validating known keys and falling back to safe defaults for missing or invalid values.",
+      "justification": "Forward compatibility lets the orchestrator add new log categories without breaking common; invalid known values must not silently produce unsafe behavior.",
+      "basis": "Analysis edge case 'WorkflowLoggingConfig contains unknown keys' and existing forward-compatible parsing pattern in common/devin_harness.py for harness namespace"
+    }
+  ]
+}
