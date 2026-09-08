@@ -30,7 +30,9 @@ def test_story_design_module_declares_and_registers_accurate_spec():
     )
     assert SPEC.workflow_types == ("StoryDesignWorkflow",)
     assert SPEC.activity_types == (
+        "validate_source_document",
         "audit_current_reality",
+        "validate_handoff",
         "design_story_implementation",
         "grade_story_design",
     )
