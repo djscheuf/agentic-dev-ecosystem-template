@@ -18,3 +18,16 @@ def test_loads_and_deeply_freezes_colocated_configuration(tmp_path) -> None:
     assert config.output_path_key == "report_path"
     with pytest.raises(TypeError):
         config.harness["devin"]["model"] = "model-b"  # type: ignore[index]
+
+
+def test_loads_artifact_schema_path_from_activity_namespace(tmp_path) -> None:
+    path = tmp_path / "review.config.json"
+    path.write_text(json.dumps({
+        "activity": {"skill_name": "review", "output_path_key": "report_path"},
+        "schema": {"artifact_schema_path": "schema/review.schema.json"},
+        "harness": {},
+    }))
+
+    config = SkillActivityConfig.load(path)
+
+    assert config.artifact_schema_path == "schema/review.schema.json"

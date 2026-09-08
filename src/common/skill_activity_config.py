@@ -20,6 +20,7 @@ class SkillActivityConfig:
     skill_name: str
     output_path_key: str
     harness: Mapping[str, object]
+    artifact_schema_path: str = ""
 
     @classmethod
     def load(cls, config_path: Path) -> "SkillActivityConfig":
@@ -47,8 +48,15 @@ class SkillActivityConfig:
         harness = data.get("harness")
         if not isinstance(harness, dict):
             raise ValueError("invalid_type: harness")
+        schema = data.get("schema", {})
+        if not isinstance(schema, dict):
+            raise ValueError("invalid_type: schema")
+        artifact_schema_path = schema.get("artifact_schema_path", "")
+        if not isinstance(artifact_schema_path, str):
+            raise ValueError("invalid_value: schema.artifact_schema_path")
         return cls(
             skill_name=activity["skill_name"],
             output_path_key=activity["output_path_key"],
             harness=_freeze(harness),
+            artifact_schema_path=artifact_schema_path,
         )
