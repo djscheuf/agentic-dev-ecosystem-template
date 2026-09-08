@@ -52,3 +52,15 @@ The detailed design is in `docs/reqs/stage-4-gaps/consolidated run report/produc
 - **Store report state in a new database** — rejected because current evidence is filesystem-based and the story does not require a new service.
 - **Estimate cost from token counts** — rejected because estimates are not authoritative ATIF evidence.
 - **Count Activity attempts in the success denominator** — rejected because end-to-end reliability is measured per workflow execution.
+
+## Implementation status — 2026-09-08
+
+The initial unit-level reporting domain is implemented in `story_analysis_workflow.reporting`:
+
+- terminal engine results distinguish automated pass, repaired pass, timeout, human accept, and human abort origins;
+- run-report construction orders attempt observations and totals independently available usage fields;
+- report publication uses sanitized run paths and atomic replacement;
+- aggregation filters an explicit UTC window, rejects incompatible or malformed reports, deduplicates workflow/run identity, and publishes auditable operands;
+- report and aggregate publication share the same atomic JSON writer.
+
+Workflow Activity plumbing, Cadence completion publication, CLI exposure, and standalone JSON Schema files remain follow-up integration work.
