@@ -31,6 +31,7 @@ def test_story_analysis_module_declares_and_registers_accurate_spec():
     )
     assert SPEC.workflow_types == ("StoryAnalysisWorkflow",)
     assert SPEC.activity_types == (
+        "validate_source_document",
         "extract_story_intent",
         "analyze_story",
         "grade_story_analysis",
