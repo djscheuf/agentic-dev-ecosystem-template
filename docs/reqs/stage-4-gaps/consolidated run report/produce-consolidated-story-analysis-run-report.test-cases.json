@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "PublishRunReport_RepeatedOrInterrupted_IsAtomicAndIdempotent",
-          "status": "pending",
+          "status": "passing",
           "description": "Validated reports publish to a deterministic safe path via atomic replacement and interrupted publication exposes no partial final file.",
           "arrange": "Use unsafe workflow/run identifiers, repeat publication, and inject replacement failure in a temporary report root.",
           "act": "Publish the report.",

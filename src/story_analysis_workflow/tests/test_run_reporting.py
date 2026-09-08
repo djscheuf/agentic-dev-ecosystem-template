@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -7,6 +8,7 @@ from story_analysis_workflow.reporting import (
     TerminalWorkflowOutcome,
     UsageMetrics,
     build_run_report,
+    publish_run_report,
 )
 from story_analysis_workflow.story_analysis_engine import OutcomeOrigin
 
@@ -133,3 +135,39 @@ def test_build_run_report_validates_metadata_and_attempt_identity():
             outcome=outcome,
             attempts=[mismatched_attempt],
         )
+
+
+def test_publish_run_report_repeated_or_interrupted_is_atomic_and_idempotent(tmp_path):
+    report = build_run_report(
+        workflow_id="../workflow/文",
+        run_id=".run/../id",
+        story_document="story.md",
+        terminal_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
+        outcome=TerminalWorkflowOutcome(
+            final_status="passed",
+            outcome_origin=OutcomeOrigin.AUTOMATED_PASS,
+            final_analysis_path="analysis.json",
+            repair_attempt_count=0,
+        ),
+        attempts=[],
+    )
+
+    first_path = publish_run_report(report, tmp_path)
+    second_path = publish_run_report(report, tmp_path)
+
+    assert first_path == second_path
+    assert first_path.name == "story-analysis.report.json"
+    assert first_path.resolve().is_relative_to(tmp_path.resolve())
+    assert json.loads(first_path.read_text())["schema_version"] == "1.0"
+    assert list(tmp_path.rglob("story-analysis.report.json")) == [first_path]
+
+    interrupted_root = tmp_path / "interrupted"
+
+    def interrupt(_source, _destination):
+        raise OSError("replace interrupted")
+
+    with pytest.raises(OSError, match="replace interrupted"):
+        publish_run_report(report, interrupted_root, replace_file=interrupt)
+
+    assert list(interrupted_root.rglob("story-analysis.report.json")) == []
+    assert list(interrupted_root.rglob("*.tmp")) == []

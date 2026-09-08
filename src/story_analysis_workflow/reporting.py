@@ -1,10 +1,17 @@
-from dataclasses import dataclass
+import json
+import os
+import re
+import tempfile
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Iterable
+from pathlib import Path
+from typing import Callable, Iterable
 
 from .story_analysis_engine import OutcomeOrigin
 
 REPORT_SCHEMA_VERSION = "1.0"
+REPORT_FILENAME = "story-analysis.report.json"
+_SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
 @dataclass(frozen=True)
@@ -127,3 +134,43 @@ def build_run_report(
             cost_usd=_total(ordered_attempts, "cost_usd"),
         ),
     )
+
+
+def _safe_component(value: str) -> str:
+    return _SAFE_COMPONENT_RE.sub("_", value).strip("_") or "unknown"
+
+
+def publish_run_report(
+    report: StoryAnalysisRunReportV1,
+    report_root: Path,
+    *,
+    replace_file: Callable[[str, str], None] = os.replace,
+) -> Path:
+    destination = (
+        report_root
+        / _safe_component(report.workflow_id)
+        / _safe_component(report.run_id)
+        / REPORT_FILENAME
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=destination.parent,
+            prefix=f".{REPORT_FILENAME}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            json.dump(asdict(report), temporary, indent=2)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        replace_file(str(temporary_path), str(destination))
+    except BaseException:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+    return destination
