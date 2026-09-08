@@ -38,6 +38,7 @@ class SkillActivityOutput:
     duration_ms: int
     activity_log_path: str = ""
     devin_log_path: str = ""
+    ambiguity_reason: str = ""
 
 
 class SkillActivity(ABC):
@@ -122,6 +123,8 @@ class SkillActivity(ABC):
                 raise SkillActivityError(
                     f"Harness exited {result.exit_code} while running skill '{self.skill_name}'"
                 )
+            status = "success"
+            ambiguity_reason = ""
             try:
                 payload = json.loads(sentinel.read_text())
             except FileNotFoundError:
@@ -136,19 +139,25 @@ class SkillActivity(ABC):
             else:
                 if payload.get("task") != self.skill_name:
                     raise SkillActivityError(f"Sentinel task mismatch for skill '{self.skill_name}'")
-                value = payload.get("verify_params", {}).get(self.output_path_key)
-                if not value:
-                    raise SkillActivityError(
-                        f"Sentinel for skill '{self.skill_name}' is missing verify_params.{self.output_path_key}"
-                    )
-                output_path = Path(value)
+                status = payload.get("status", "success")
+                ambiguity_reason = payload.get("ambiguity_reason", "")
+                if status == "ambiguity":
+                    output_path = Path("")
+                else:
+                    value = payload.get("verify_params", {}).get(self.output_path_key)
+                    if not value:
+                        raise SkillActivityError(
+                            f"Sentinel for skill '{self.skill_name}' is missing verify_params.{self.output_path_key}"
+                        )
+                    output_path = Path(value)
             output = SkillActivityOutput(
-                status="success",
-                output_path=str(self.modify_output_path(output_path)),
+                status=status,
+                output_path="" if status == "ambiguity" else str(self.modify_output_path(output_path)),
                 sentinel_path=str(sentinel.relative_to(self.repo_root)),
                 duration_ms=duration_ms,
                 activity_log_path=get_activity_log_path() or "",
                 devin_log_path=get_devin_log_path() or "",
+                ambiguity_reason=ambiguity_reason,
             )
         return self.modify_result(output)
 

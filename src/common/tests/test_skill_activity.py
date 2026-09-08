@@ -139,3 +139,34 @@ def test_execute_applies_lifecycle_extension_hooks(tmp_path) -> None:
     assert (output.status, output.output_path, calls) == (
         "modified", "changed.json", [{"changed": True}]
     )
+
+
+def test_execute_maps_explicit_ambiguity_sentinel(tmp_path) -> None:
+    config_path = tmp_path / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {},
+    }))
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            (tmp_path / ".process").mkdir(exist_ok=True)
+            (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
+                "task": "custom",
+                "status": "ambiguity",
+                "ambiguity_reason": "requirements conflict",
+                "verify_params": {},
+            }))
+            return HarnessResult(0, "", "")
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("unused.json")
+
+    output = CustomActivity(
+        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+    ).execute(SkillActivityInput())
+
+    assert output.status == "ambiguity"
+    assert output.ambiguity_reason == "requirements conflict"
+    assert output.output_path == ""
