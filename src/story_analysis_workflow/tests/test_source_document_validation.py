@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from story_analysis_workflow.activities.validate_source_document import validate_source_document_activity
 from story_analysis_workflow.source_document_validation import (
     SourceDocumentValidationResult,
     SourceDocumentValidationRule,
@@ -66,3 +67,13 @@ def test_validate_source_document_rejects_unreadable_regular_file(tmp_path, monk
         valid=False,
         rule=SourceDocumentValidationRule.INACCESSIBLE_SOURCE,
     )
+
+
+@pytest.mark.asyncio
+async def test_validation_activity_returns_serializable_result_for_special_markdown_path(tmp_path):
+    source = tmp_path / "story ü; name.MD"
+    source.write_text("")
+
+    result = await validate_source_document_activity(str(source))
+
+    assert result == {"valid": True, "rule": SourceDocumentValidationRule.VALID}
