@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,17 @@ def test_validate_source_document_sanitizes_filesystem_errors(monkeypatch):
     monkeypatch.setattr(Path, "is_file", fail_is_file)
 
     assert validate_source_document("secret.md") == SourceDocumentValidationResult(
+        valid=False,
+        rule=SourceDocumentValidationRule.INACCESSIBLE_SOURCE,
+    )
+
+
+def test_validate_source_document_rejects_unreadable_regular_file(tmp_path, monkeypatch):
+    source = tmp_path / "story.md"
+    source.write_text("story")
+    monkeypatch.setattr(os, "access", lambda _path, _mode: False)
+
+    assert validate_source_document(str(source)) == SourceDocumentValidationResult(
         valid=False,
         rule=SourceDocumentValidationRule.INACCESSIBLE_SOURCE,
     )

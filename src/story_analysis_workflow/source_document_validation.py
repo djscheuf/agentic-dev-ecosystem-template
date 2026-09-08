@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -24,8 +25,10 @@ def validate_source_document(story_document: str | None) -> SourceDocumentValida
         return SourceDocumentValidationResult(False, SourceDocumentValidationRule.NON_MARKDOWN_EXTENSION)
     try:
         is_file = path.is_file()
+        is_readable = os.access(path, os.R_OK)
     except OSError:
         is_file = False
-    if not is_file:
+        is_readable = False
+    if not is_file or not is_readable:
         return SourceDocumentValidationResult(False, SourceDocumentValidationRule.INACCESSIBLE_SOURCE)
     return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
