@@ -1,0 +1,70 @@
+{
+  "target_story": "docs/reqs/stage-4-gaps/consolidated run report/produce-consolidated-story-analysis-run-report.analysis.json",
+  "source_workstream": "docs/reqs/stage-4-gaps/consolidated run report/produce-consolidated-story-analysis-run-report.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Run evidence contracts",
+      "tests": [
+        {
+          "id": 1,
+          "name": "WorkflowResult_TerminalPaths_ExposeOutcomeOrigin",
+          "status": "passing",
+          "description": "Every modeled terminal engine path distinguishes automated, repaired, timeout, and human resolution origins without changing final-status semantics.",
+          "arrange": "Script engine activities and human responses for each modeled terminal path.",
+          "act": "Run the StoryAnalysisEngine to termination.",
+          "assert": "WorkflowResult contains the expected final_status and outcome_origin pair."
+        },
+        {
+          "id": 2,
+          "name": "BuildRunReport_WithRetries_PreservesOrderedAttemptsAndUsage",
+          "status": "pending",
+          "description": "A report contains each retry once in sequence and sums independently available ATIF metrics without estimating cost.",
+          "arrange": "Create terminal metadata and out-of-order attempt observations with partial usage and ATIF references.",
+          "act": "Build a V1 run report.",
+          "assert": "Attempts are ordered exactly once, valid metric totals are summed, unavailable cost stays unavailable, and ATIF paths remain referenced."
+        },
+        {
+          "id": 3,
+          "name": "BuildRunReport_WithInvalidMetadata_RejectsInvalidDocument",
+          "status": "pending",
+          "description": "Required metadata, identity isolation, enums, and schema versions are validated while an empty attempt ledger remains valid.",
+          "arrange": "Create valid and invalid report inputs including missing metadata, mismatched attempt identity, and empty attempts.",
+          "act": "Construct V1 reports.",
+          "assert": "Valid empty-ledger input succeeds and each invalid contract fails before publication."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Durable publication and aggregation",
+      "tests": [
+        {
+          "id": 4,
+          "name": "PublishRunReport_RepeatedOrInterrupted_IsAtomicAndIdempotent",
+          "status": "pending",
+          "description": "Validated reports publish to a deterministic safe path via atomic replacement and interrupted publication exposes no partial final file.",
+          "arrange": "Use unsafe workflow/run identifiers, repeat publication, and inject replacement failure in a temporary report root.",
+          "act": "Publish the report.",
+          "assert": "One schema-valid final report exists per run, traversal is impossible, and failed temporary publication leaves no partial final or temporary file."
+        },
+        {
+          "id": 5,
+          "name": "AggregateRunReports_WithMixedCandidates_PublishesAuditableOperands",
+          "status": "pending",
+          "description": "Aggregation filters an explicit UTC window, validates compatibility, deduplicates run identity, and publishes formula operands and traceability.",
+          "arrange": "Create final reports spanning all origins plus malformed, incompatible, duplicate, temporary, and out-of-window candidates.",
+          "act": "Aggregate the explicit root and inclusive-start/exclusive-end UTC window.",
+          "assert": "Counts, exclusions, observations, manual interventions, numerator, denominator, and automated_pass_rate_v1 are reproducible and retries do not inflate the denominator."
+        },
+        {
+          "id": 6,
+          "name": "AggregateRunReports_WithEmptySample_ReturnsNullRate",
+          "status": "pending",
+          "description": "An empty compatible sample still publishes the formula and zero operands without dividing by zero.",
+          "arrange": "Use a report root with no compatible in-window final reports.",
+          "act": "Aggregate the explicit UTC window and atomically publish the snapshot.",
+          "assert": "Numerator and denominator are zero, success_rate is null, counts are empty, and the aggregate is schema-valid."
+        }
+      ]
+    }
+  ]
+}

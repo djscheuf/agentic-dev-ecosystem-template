@@ -5,7 +5,7 @@ from story_analysis_workflow.source_document_validation import (
     SourceDocumentValidationResult,
     SourceDocumentValidationRule,
 )
-from story_analysis_workflow.story_analysis_engine import ActivityFailure, StoryAnalysisEngine
+from story_analysis_workflow.story_analysis_engine import ActivityFailure, OutcomeOrigin, StoryAnalysisEngine
 
 
 class FakeActivities:
@@ -234,3 +234,48 @@ async def test_run_when_escalation_times_out_twice_fails_gracefully():
 
     assert result.final_status == "failed"
     assert result.escalated is True
+
+
+@pytest.mark.asyncio
+async def test_run_terminal_paths_expose_outcome_origin():
+    automated = FakeActivities()
+    automated_result = await make_engine(automated).run("story text")
+
+    repaired = FakeActivities()
+    repaired.grade_results = [
+        {"output_path": "g1.json", "passed": False},
+        {"output_path": "g2.json", "passed": True},
+    ]
+    repaired_result = await make_engine(repaired).run("story text")
+
+    accepted = FakeActivities()
+    accepted.grade_results = [{"output_path": "g.json", "passed": False}]
+    accepted_result = await make_engine(
+        accepted, human_responses=[HumanResponse(HumanDecision.ACCEPT)], max_attempts=0
+    ).run("story text")
+
+    aborted = FakeActivities()
+    aborted.grade_results = [{"output_path": "g.json", "passed": False}]
+    aborted_result = await make_engine(
+        aborted, human_responses=[HumanResponse(HumanDecision.ABORT)], max_attempts=0
+    ).run("story text")
+
+    timed_out = FakeActivities()
+    timed_out.grade_results = [{"output_path": "g.json", "passed": False}]
+    timed_out_result = await make_engine(
+        timed_out, human_responses=[None, None], max_attempts=0
+    ).run("story text")
+
+    assert [
+        automated_result.outcome_origin,
+        repaired_result.outcome_origin,
+        accepted_result.outcome_origin,
+        aborted_result.outcome_origin,
+        timed_out_result.outcome_origin,
+    ] == [
+        OutcomeOrigin.AUTOMATED_PASS,
+        OutcomeOrigin.REPAIRED_PASS,
+        OutcomeOrigin.HUMAN_ACCEPT,
+        OutcomeOrigin.HUMAN_ABORT,
+        OutcomeOrigin.AUTOMATED_TIMEOUT,
+    ]

@@ -17,6 +17,7 @@ async fakes (see `tests/test_story_analysis_engine.py`) -- as of
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from typing import Awaitable, Callable, Optional
 
 from .escalation import EscalationReason, HumanDecision, HumanResponse
@@ -34,6 +35,15 @@ class ActivityFailure(RuntimeError):
     """Raised when a skill Activity exhausts its RetryPolicy."""
 
 
+class OutcomeOrigin(str, Enum):
+    AUTOMATED_PASS = "automated_pass"
+    REPAIRED_PASS = "repaired_pass"
+    AUTOMATED_FAILURE = "automated_failure"
+    AUTOMATED_TIMEOUT = "automated_timeout"
+    HUMAN_ACCEPT = "human_accept"
+    HUMAN_ABORT = "human_abort"
+
+
 @dataclass(frozen=True)
 class WorkflowResult:
     final_analysis_path: Optional[str]
@@ -42,6 +52,7 @@ class WorkflowResult:
     escalated: bool
     final_status: str  # "passed" | "human_resolved" | "failed" | "validation_failed"
     validation_rule: Optional[SourceDocumentValidationRule] = None
+    outcome_origin: Optional[OutcomeOrigin] = None
 
 
 AwaitHumanResponse = Callable[[timedelta], Awaitable[Optional[HumanResponse]]]
@@ -83,7 +94,9 @@ class StoryAnalysisEngine:
         self.escalation_reason: Optional[EscalationReason] = None
         self.validation_rule: Optional[SourceDocumentValidationRule] = None
 
-    def _terminal(self, analysis_path: Optional[str], final_status: str) -> WorkflowResult:
+    def _terminal(
+        self, analysis_path: Optional[str], final_status: str, outcome_origin: OutcomeOrigin
+    ) -> WorkflowResult:
         self.status = final_status
         self._logger.info(
             "Workflow terminal status=%s analysis_path=%s attempt_count=%s escalated=%s",
@@ -98,6 +111,7 @@ class StoryAnalysisEngine:
             attempt_count=self.attempt_count,
             escalated=self.escalated,
             final_status=final_status,
+            outcome_origin=outcome_origin,
         )
 
     async def _escalate(self, reason: EscalationReason) -> Optional[HumanResponse]:
@@ -146,9 +160,17 @@ class StoryAnalysisEngine:
                 self._logger.warning("Activity failed: %s error=%s", activity_name, exc)
                 response = await self._escalate(EscalationReason.ACTIVITY_FAILURE_EXHAUSTED_RETRIES)
                 if response is None or response.decision != HumanDecision.RETRY:
-                    is_abort = response is None or response.decision == HumanDecision.ABORT
+                    timed_out = response is None
+                    is_abort = timed_out or response.decision == HumanDecision.ABORT
                     final_status = "failed" if is_abort else "human_resolved"
-                    return None, self._terminal(None, final_status)
+                    outcome_origin = (
+                        OutcomeOrigin.AUTOMATED_TIMEOUT
+                        if timed_out
+                        else OutcomeOrigin.HUMAN_ABORT
+                        if is_abort
+                        else OutcomeOrigin.HUMAN_ACCEPT
+                    )
+                    return None, self._terminal(None, final_status, outcome_origin)
                 # decision == RETRY: loop and retry the same activity call.
 
     async def run(self, story_document: Optional[str]) -> WorkflowResult:
@@ -204,7 +226,12 @@ class StoryAnalysisEngine:
             )
 
             if decision == GradeRepairDecision.PROCEED:
-                return self._terminal(analysis_path, "passed")
+                outcome_origin = (
+                    OutcomeOrigin.REPAIRED_PASS
+                    if self.attempt_count
+                    else OutcomeOrigin.AUTOMATED_PASS
+                )
+                return self._terminal(analysis_path, "passed", outcome_origin)
 
             if decision == GradeRepairDecision.REPAIR:
                 self.attempt_count += 1
@@ -223,10 +250,17 @@ class StoryAnalysisEngine:
 
             if response is None or response.decision == HumanDecision.ABORT:
                 self.status = "failed"
-                return self._terminal(analysis_path, "failed")
+                outcome_origin = (
+                    OutcomeOrigin.AUTOMATED_TIMEOUT
+                    if response is None
+                    else OutcomeOrigin.HUMAN_ABORT
+                )
+                return self._terminal(analysis_path, "failed", outcome_origin)
 
             if response.decision == HumanDecision.ACCEPT:
-                return self._terminal(analysis_path, "human_resolved")
+                return self._terminal(
+                    analysis_path, "human_resolved", OutcomeOrigin.HUMAN_ACCEPT
+                )
 
             # RETRY: immediately repair using the human's guidance, then give
             # the loop a fresh attempt budget for the re-graded result.
