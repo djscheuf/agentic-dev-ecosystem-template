@@ -114,10 +114,5 @@
       "technical_knowledge": ["Technologies to understand"],
       "stakeholder_questions": ["Clarifications needed"]
     }
-  },
-  "complexity": {
-    "story_points": 5,
-    "risk_level": "Medium",
-    "uncertainty": "Low"
   }
 }
