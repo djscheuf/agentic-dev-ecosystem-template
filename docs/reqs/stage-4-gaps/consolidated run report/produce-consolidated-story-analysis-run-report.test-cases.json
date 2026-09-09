@@ -90,7 +90,7 @@
         {
           "id": 9,
           "name": "StoryAnalysisWorkflow_WhenPublicationFails_DoesNotClaimReportedCompletion",
-          "status": "pending",
+          "status": "passing",
           "description": "A publication failure fails completion rather than returning a terminal result containing an unpublished report path.",
           "arrange": "Complete domain processing and make the report publication Activity fail.",
           "act": "Run StoryAnalysisWorkflow.",

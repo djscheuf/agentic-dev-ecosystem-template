@@ -327,3 +327,36 @@ async def test_story_analysis_workflow_on_terminal_result_publishes_before_compl
     assert publication_calls[0][3] == "/reports"
     assert result["report_path"] == "/reports/workflow-1/run-1/story-analysis.report.json"
     assert workflow.get_status()["report_path"] == result["report_path"]
+
+
+@pytest.mark.asyncio
+async def test_story_analysis_workflow_when_publication_fails_does_not_claim_reported_completion():
+    workflow = StoryAnalysisWorkflow()
+
+    async def validate(_story_document):
+        from story_analysis_workflow.source_document_validation import (
+            SourceDocumentValidationResult,
+            SourceDocumentValidationRule,
+        )
+
+        return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
+
+    async def output(*_args):
+        return {"output_path": "artifact.json"}
+
+    async def grade(*_args):
+        return {"output_path": "grade.json", "passed": True}
+
+    async def fail_publication(*_args):
+        raise OSError("publication failed")
+
+    workflow._validate_source_document = validate
+    workflow._extract_story_intent = output
+    workflow._analyze_story = output
+    workflow._grade_story_analysis = grade
+    workflow._execute_reporting_activity = fail_publication
+
+    with pytest.raises(OSError, match="publication failed"):
+        await workflow.run("story.md", {"report_root": "/reports"})
+
+    assert workflow.get_status()["report_path"] is None
