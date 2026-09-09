@@ -211,7 +211,12 @@ def run_skill(
     repo_root: Path,
     expected_output_path: Callable[[SkillActivityInput], Path] | None = None,
 ) -> SkillActivityOutput:
-    sentinel = repo_root / ".process" / f"{skill_input.skill_name}.done.json"
+    sentinel_parent = (
+        repo_root / Path(skill_input.input_paths[0]).parent
+        if skill_input.input_paths
+        else repo_root
+    )
+    sentinel = sentinel_parent / ".process" / f"{skill_input.skill_name}.done.json"
     if sentinel.exists():
         sentinel.unlink()
     lines = [f"Invoke the '{skill_input.skill_name}' skill."]

@@ -8,6 +8,16 @@ from common.skill_activity import SkillActivityInput, run_skill
 from tests.fake_harness import FakeHarness
 
 
+def test_fake_harness_with_first_input_writes_colocated_sentinel(tmp_path):
+    harness = FakeHarness()
+    prompt = """Invoke the 'analyze-story' skill.
+Input document path(s): docs/story.intent.json"""
+
+    harness.run(prompt, cwd=tmp_path)
+
+    assert (tmp_path / "docs" / ".process" / "analyze-story.done.json").exists()
+
+
 def test_run_skill_repair_story_analysis_writes_repaired_analysis(tmp_path):
     harness = FakeHarness()
     skill_input = SkillActivityInput(
@@ -25,8 +35,10 @@ def test_run_skill_repair_story_analysis_writes_repaired_analysis(tmp_path):
 
     assert output.status == "success"
     assert output.output_path == ".process/analysis.json"
-    assert output.sentinel_path == ".process/repair-story-analysis.done.json"
-    sentinel = json.loads((tmp_path / ".process" / "repair-story-analysis.done.json").read_text())
+    assert output.sentinel_path == ".process/.process/repair-story-analysis.done.json"
+    sentinel = json.loads(
+        (tmp_path / ".process" / ".process" / "repair-story-analysis.done.json").read_text()
+    )
     assert sentinel["task"] == "repair-story-analysis"
     assert sentinel["verify_params"]["analysis_path"] == ".process/analysis.json"
 

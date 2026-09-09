@@ -22,7 +22,7 @@
         {
           "id": 2,
           "name": "FakeHarness_WithFirstInput_WritesColocatedPersistentSentinel",
-          "status": "pending",
+          "status": "passing",
           "description": "The integration fake follows the same co-location and fallback rules as production.",
           "arrange": "Prompts with a first input, no input, and different skills sharing one source parent.",
           "act": "Run FakeHarness.",

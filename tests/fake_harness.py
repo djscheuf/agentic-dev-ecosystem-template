@@ -144,7 +144,8 @@ class FakeHarness:
             "task": skill_name,
             "verify_params": {self._output_path_key(skill_name): output_file},
         }
-        sentinel_path = Path(cwd) / ".process" / f"{skill_name}.done.json"
+        sentinel_parent = Path(first_input).parent if first_input else Path()
+        sentinel_path = Path(cwd) / sentinel_parent / ".process" / f"{skill_name}.done.json"
         sentinel_path.parent.mkdir(parents=True, exist_ok=True)
         sentinel_path.write_text(json.dumps(sentinel))
 
