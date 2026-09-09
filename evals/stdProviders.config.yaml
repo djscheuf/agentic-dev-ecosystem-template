@@ -4,6 +4,6 @@
     model: 'SWE-1.7'
 
 - id: 'exec: node ./devin.js'
-  label: 'Kimi'
+  label: 'Kimi K3'
   config:
     model: 'Kimi-K3'
