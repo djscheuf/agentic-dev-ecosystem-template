@@ -43,6 +43,7 @@ class WorkflowResult:
     validation_rule: Optional[SourceDocumentValidationRule] = None
     handoff_rule: Optional[GuardrailRule] = None
     plan_path: Optional[str] = None
+    report_path: Optional[str] = None
 
 
 ValidateSourceDocument = Callable[[Optional[str]], Awaitable[SourceDocumentValidationResult]]
@@ -51,6 +52,7 @@ ExecuteAuditCurrentReality = Callable[[str], Awaitable[dict]]
 ExecuteDesignStoryImplementation = Callable[[str, str], Awaitable[dict]]
 ExecuteGradeStoryDesign = Callable[[str], Awaitable[dict]]
 ExecuteDraftImplementationPlan = Callable[[str], Awaitable[dict]]
+ExecutePublishStoryDesignReport = Callable[[str, Optional[str]], Awaitable[dict]]
 
 
 async def _valid_source_document(_analysis_path: Optional[str]) -> SourceDocumentValidationResult:
@@ -77,6 +79,7 @@ class StoryDesignEngine:
         execute_design_story_implementation: ExecuteDesignStoryImplementation,
         execute_grade_story_design: ExecuteGradeStoryDesign,
         execute_draft_implementation_plan: Optional[ExecuteDraftImplementationPlan] = None,
+        execute_publish_story_design_report: Optional[ExecutePublishStoryDesignReport] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self._validate_source_document = validate_source_document or _valid_source_document
@@ -85,6 +88,7 @@ class StoryDesignEngine:
         self._execute_design_story_implementation = execute_design_story_implementation
         self._execute_grade_story_design = execute_grade_story_design
         self._execute_draft_implementation_plan = execute_draft_implementation_plan
+        self._execute_publish_story_design_report = execute_publish_story_design_report
         self._logger = logger or _module_logger
 
     async def _run_audit_current_reality(self, analysis_path: str) -> str:
@@ -175,9 +179,16 @@ class StoryDesignEngine:
                 else:
                     plan_path = None
                 self._logger.info("Implementation plan complete: %s", plan_path)
+                if self._execute_publish_story_design_report is not None:
+                    publish = await self._execute_publish_story_design_report(design_path, plan_path)
+                    report_path = publish["output_path"]
+                else:
+                    report_path = None
+                self._logger.info("Story design report complete: %s", report_path)
                 return WorkflowResult(
                     design_path=design_path,
                     plan_path=plan_path,
+                    report_path=report_path,
                     passed=True,
                     final_status="passed",
                     score=grade.get("score"),

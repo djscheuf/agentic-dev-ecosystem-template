@@ -15,6 +15,7 @@ class FakeActivities:
         self.design_result = {"output_path": "docs/foo.design.json"}
         self.grade_result = {"output_path": "docs/foo.design-grade.json", "passed": True, "score": 0.95}
         self.draft_result = {"output_path": "docs/foo.plan.json"}
+        self.publish_result = {"output_path": "docs/foo.story-design.report.json"}
         self.audit_exception = None
         self.draft_exception = None
         self.validate_result = SourceDocumentValidationResult(
@@ -55,6 +56,10 @@ class FakeActivities:
         if self.draft_exception is not None:
             raise self.draft_exception
         return self.draft_result
+
+    async def publish_story_design_report(self, design_path, plan_path):
+        self.calls.append(("publish_story_design_report", design_path, plan_path))
+        return self.publish_result
 
 
 def make_engine(activities):
@@ -280,4 +285,37 @@ async def test_run_preserves_design_path_when_planning_fails():
         "validate_handoff",
         "grade_story_design",
         "draft_implementation_plan",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_publishes_report_after_validated_planning():
+    activities = FakeActivities()
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+        execute_publish_story_design_report=activities.publish_story_design_report,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is True
+    assert result.final_status == "passed"
+    assert result.design_path == "docs/foo.design.json"
+    assert result.plan_path == "docs/foo.plan.json"
+    assert result.report_path == "docs/foo.story-design.report.json"
+    assert [c[0] for c in activities.calls] == [
+        "validate_source_document",
+        "audit_current_reality",
+        "validate_handoff",
+        "design_story_implementation",
+        "validate_handoff",
+        "grade_story_design",
+        "draft_implementation_plan",
+        "validate_handoff",
+        "publish_story_design_report",
     ]
