@@ -1,0 +1,122 @@
+{
+  "raw_request": "docs/reqs/leave-the-sentinel/requirement.md",
+  "title": "Leave the Sentinel and Co-locate `.process`",
+  "story": {
+    "so_that": "workflow artifacts are grouped by source document, the race between post-edit verification and SkillActivity is eliminated, and a missing sentinel after a successful harness run can be treated as a real failure again",
+    "as_a": "Skill and Workflow Engineer maintaining the agentic software factory",
+    "i_want": "skill sentinel files to remain on disk after verification and be written to a `.process` directory under the same parent as the skill's first input document, falling back to the repository root `.process` directory only when no input path is supplied"
+  },
+  "target_persona": {
+    "name": "Sam - Skill & Workflow Engineer",
+    "role": "Engineer / Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Sam observes that SkillActivity sometimes falls back to an expected output path and emits a warning because the post-edit verification hook consumes the sentinel before the Activity can read it, and the repository root `.process` directory is cluttered with sentinel files from every skill run",
+      "during": "Sam updates the skill instructions, verification scripts, SkillActivity sentinel derivation, tests, and the post-edit hook so that sentinels are written next to their source document and are never deleted after verification",
+      "after": "Sam can trust a missing sentinel as a real failure, review co-located workflow artifacts grouped by source document, and remove the warning fallback path from SkillActivity once the new contract is adopted"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Change the skill sentinel contract so that every skill writes its `{skill-name}.done.json` sentinel into a `.process` directory co-located with the first input document, leaves the sentinel on disk after verification, and derives the sentinel path from the input path in SkillActivity and the fake harness",
+    "inputs": [
+      "skill input document path(s)",
+      "skill name",
+      "repository root path",
+      "existing `.devin/skills/<skill>/SKILL.md` instructions",
+      "existing `.devin/skills/<skill>/verify.sh` scripts",
+      "`src/common/skill_activity.py` and `run_skill` helper",
+      "`tests/fake_harness.py`",
+      "`.devin/scripts/post-edit-verify-skill.sh`"
+    ],
+    "outputs": [
+      "co-located `{skill-name}.done.json` sentinel file next to the first input document",
+      "updated skill SKILL.md files with the co-located sentinel instruction",
+      "updated `verify.sh` scripts that no longer delete sentinels",
+      "updated `skill_activity.py` deriving the sentinel path from `input_paths[0]` with repo-root fallback",
+      "updated `tests/fake_harness.py` writing the sentinel next to the first input",
+      "updated unit tests asserting co-located sentinel paths",
+      "updated post-edit hook comments and path assumptions"
+    ],
+    "state_changes": [
+      "sentinel files persist on disk after successful verification",
+      "sentinel files move from repo root `.process/` to `<first_input_parent>/.process/`",
+      "`verify.sh` scripts remove `rm -f \"$sentinel_path\"` or equivalent delete logic",
+      "`SkillActivity.execute` and `run_skill` derive the default sentinel path from the first input path",
+      "`SkillActivity.execute` only deletes a stale sentinel before invocation, not after",
+      "workflow artifacts are grouped by source document"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Every skill SKILL.md instructs the agent to write the sentinel into a `.process` folder under the same parent as the input document and not to delete it after verification",
+      "gherkin": "Given a skill's SKILL.md When the instructions are read Then they state that the `{skill-name}.done.json` sentinel must be created in `<input_parent>/.process/` and must not be removed after verification",
+      "type": "Functional",
+      "jtbd": "Document the co-located, persistent sentinel contract",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "Every `verify.sh` reads the sentinel, validates the artifact, and leaves the sentinel in place",
+      "gherkin": "Given a `verify.sh` script for any skill When the script is inspected Then it does not contain `rm -f \"$sentinel_path\"` or any equivalent sentinel-deletion logic",
+      "type": "Functional",
+      "jtbd": "Keep sentinels on disk after verification",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`SkillActivity.execute` derives the default sentinel path from the first input path and falls back to the repo root only when `input_paths` is empty",
+      "gherkin": "Given a SkillActivity invocation with one or more input paths When the harness completes and writes a sentinel Then `SkillActivity` looks for it at `Path(input_paths[0]).parent / '.process' / f'{skill_name}.done.json'`, and only uses `repo_root / '.process'` when `input_paths` is empty",
+      "type": "Functional",
+      "jtbd": "Locate sentinels next to their source document",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`SkillActivity.execute` deletes only a stale sentinel before invocation, not after",
+      "gherkin": "Given a previous run left a sentinel in the co-located `.process` directory When `SkillActivity.execute` starts Then it removes the stale sentinel before invoking the harness and does not delete any sentinel after the harness returns",
+      "type": "Functional",
+      "jtbd": "Avoid sentinel deletion race conditions",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`SkillActivity.execute` prompt instructs the agent to write the sentinel into the co-located `.process` directory",
+      "gherkin": "Given `SkillActivity.build_prompt` is called with input paths When the prompt is built Then it includes an instruction to create the sentinel in the `.process` directory under the first input's parent",
+      "type": "Functional",
+      "jtbd": "Guide agents to write co-located sentinels",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`run_skill` helper applies the same co-located sentinel fallback logic",
+      "gherkin": "Given `run_skill` is called with input paths When the harness completes Then the sentinel is expected at `Path(input_paths[0]).parent / '.process' / f'{skill_name}.done.json'`, falling back to `repo_root / '.process'` when no input paths are supplied",
+      "type": "Functional",
+      "jtbd": "Apply co-located sentinel logic to standalone skill helper",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`tests/fake_harness.py` writes the sentinel next to the first input",
+      "gherkin": "Given the fake harness runs a skill with an input path When it writes the sentinel Then the sentinel is created in `<first_input_parent>/.process/<skill-name>.done.json` instead of the repository root `.process`",
+      "type": "Functional",
+      "jtbd": "Simulate co-located sentinels in tests",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "Unit tests that assert root `.process` sentinel paths are updated to co-located paths or use empty `input_paths` to trigger the fallback",
+      "gherkin": "Given the existing `test_skill_activity.py` suite When the tests are updated Then assertions that previously expected `repo_root / '.process' / 'custom.done.json'` are changed to the co-located path, or the test input is empty to exercise the fallback",
+      "type": "Functional",
+      "jtbd": "Verify co-located sentinel behavior with unit tests",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "`.devin/scripts/post-edit-verify-skill.sh` comments and path assumptions are updated to clarify that sentinels are co-located and not consumed",
+      "gherkin": "Given the post-edit hook script When it is inspected Then its comments describe co-located, persistent sentinels and its glob or path assumptions match `*/.process/*.done.json` without implying the root `.process` is the only location",
+      "type": "Functional",
+      "jtbd": "Align post-edit hook with co-located sentinels",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    },
+    {
+      "criterion": "A missing sentinel after a successful harness run is treated as a real failure instead of a warning fallback",
+      "gherkin": "Given the harness exits successfully but no sentinel is found in the expected co-located path When `SkillActivity.execute` processes the result Then it raises a `SkillActivityError` for the missing sentinel rather than warning and falling back to the expected output path",
+      "type": "Functional",
+      "jtbd": "Treat missing sentinels as real failures",
+      "persona_served": "Sam - Skill & Workflow Engineer"
+    }
+  ]
+}

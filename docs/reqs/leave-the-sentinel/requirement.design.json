@@ -1,0 +1,563 @@
+{
+  "story_path": "docs/reqs/leave-the-sentinel/requirement.analysis.json",
+  "repo_state_before_design": "docs/reqs/leave-the-sentinel/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "SkillInputReceived — a Cadence workflow or standalone caller invokes SkillActivity with a skill name, an optional list of input paths, and optional context. The first input path becomes the anchor for sentinel placement; an empty list falls back to the repository root `.process` directory.",
+      "layers_involved": [
+        "Workflow Orchestration",
+        "Common Skill Runtime"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Orchestration",
+          "to_layer": "Common Skill Runtime",
+          "contract_used": "SkillActivityInput",
+          "data_shape": "{skill_name: string, input_paths: [string, ...], context: string}"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "CoLocatedSentinelPathDerived — SkillActivity derives the canonical sentinel path from the first input's parent directory, applies the modify_sentinel_path hook, and removes only a stale sentinel before the harness runs. No sentinel is deleted after the harness returns.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Filesystem Data Layer"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Skill Runtime",
+          "to_layer": "Filesystem Data Layer",
+          "contract_used": "SentinelPathDerivation",
+          "data_shape": "Path(input_paths[0]).parent / '.process' / f'{skill_name}.done.json'; repo_root / '.process' / f'{skill_name}.done.json' when input_paths is empty"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "SkillPromptBuilt — build_prompt emits the skill invocation, the output-directory instruction, and a new instruction telling the agent to write the `{skill-name}.done.json` sentinel into the co-located `.process` directory and to leave it in place after verification.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Skill Agent"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Skill Runtime",
+          "to_layer": "Skill Agent",
+          "contract_used": "SkillPrompt",
+          "data_shape": "prompt string containing: output file in first input's directory; sentinel file in first input's parent `.process` directory, persistent"
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "SkillHarnessInvoked — the Harness (real Devin CLI or FakeHarness) runs with the prompt and creates the co-located `.process` directory if needed. It writes the output artifact next to the first input and the `{skill-name}.done.json` sentinel into the co-located `.process` directory.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Harness",
+        "Skill Agent",
+        "Filesystem Data Layer"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Skill Runtime",
+          "to_layer": "Harness",
+          "contract_used": "Harness.run",
+          "data_shape": "{prompt: string, cwd: Path, config: Mapping[str, object]}"
+        },
+        {
+          "from_layer": "Harness",
+          "to_layer": "Filesystem Data Layer",
+          "contract_used": "CoLocatedArtifactWrite",
+          "data_shape": "output artifact at first input's directory; sentinel at first input's parent / '.process' / f'{skill_name}.done.json'"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "PostEditVerificationTriggered — the post-edit hook observes any `*/.process/*.done.json` sentinel (co-located or root fallback), extracts the task name, and dispatches to the corresponding skill verify.sh. The verify script validates the artifact and now leaves the sentinel in place.",
+      "layers_involved": [
+        "Filesystem Data Layer",
+        "Post-Edit Verification Hook",
+        "Skill Library"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Filesystem Data Layer",
+          "to_layer": "Post-Edit Verification Hook",
+          "contract_used": "FileSystemWatch",
+          "data_shape": "path matching */.process/*.done.json"
+        },
+        {
+          "from_layer": "Post-Edit Verification Hook",
+          "to_layer": "Skill Library",
+          "contract_used": "SkillVerifyInvocation",
+          "data_shape": "bash <skill>/verify.sh <sentinel_path>"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "description": "SkillActivityValidatesSentinel — after a successful harness exit code, SkillActivity reads the expected co-located sentinel. A missing or malformed sentinel now raises SkillActivityError. A valid sentinel supplies verify_params.{output_path_key}, which is returned as the Activity output.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Filesystem Data Layer",
+        "Workflow Orchestration"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Filesystem Data Layer",
+          "to_layer": "Common Skill Runtime",
+          "contract_used": "SentinelRead",
+          "data_shape": "{task: string, status: string, verify_params: {output_path_key: string, ...}}"
+        },
+        {
+          "from_layer": "Common Skill Runtime",
+          "to_layer": "Workflow Orchestration",
+          "contract_used": "SkillActivityOutput",
+          "data_shape": "{status: string, output_path: string, sentinel_path: string, duration_ms: int, ...}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "DeriveCoLocatedSentinelPath",
+      "description": "Records the sentinel path chosen for a skill invocation, including whether the repo-root fallback was used.",
+      "layers_involved": [
+        "Common Skill Runtime"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity from SkillActivityInput."
+        },
+        {
+          "point": "input_paths_count",
+          "description": "Number of input paths; zero indicates repo-root fallback."
+        },
+        {
+          "point": "sentinel_parent",
+          "description": "The source-document parent directory where the .process directory is located."
+        },
+        {
+          "point": "fallback_used",
+          "description": "True when input_paths was empty and the repo root .process directory was used."
+        }
+      ]
+    },
+    {
+      "event_name": "RemoveStaleSentinel",
+      "description": "Records that a pre-existing sentinel was removed before the harness invocation.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Filesystem Data Layer"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "sentinel_path",
+          "description": "Repository-relative or absolute path of the removed stale sentinel."
+        }
+      ]
+    },
+    {
+      "event_name": "BuildSkillPrompt",
+      "description": "Records the default prompt construction, including the new co-located sentinel instruction.",
+      "layers_involved": [
+        "Common Skill Runtime"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "output_directory_instruction_present",
+          "description": "True when the output-directory instruction is present."
+        },
+        {
+          "point": "sentinel_instruction_present",
+          "description": "True when the co-located persistent sentinel instruction is present."
+        },
+        {
+          "point": "prompt_length",
+          "description": "Character count of the final prompt after modify_prompt."
+        }
+      ]
+    },
+    {
+      "event_name": "WriteCoLocatedSentinel",
+      "description": "Records that the agent or FakeHarness wrote a sentinel to a co-located .process directory.",
+      "layers_involved": [
+        "Harness",
+        "Skill Agent",
+        "Filesystem Data Layer"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "sentinel_path",
+          "description": "Path where the sentinel was written."
+        },
+        {
+          "point": "output_path",
+          "description": "Path of the artifact referenced by the sentinel verify_params."
+        }
+      ]
+    },
+    {
+      "event_name": "RunSkillVerification",
+      "description": "Records the post-edit hook dispatching to a skill verify.sh and the verify script leaving the sentinel in place.",
+      "layers_involved": [
+        "Post-Edit Verification Hook",
+        "Skill Library"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity extracted from the sentinel task field."
+        },
+        {
+          "point": "sentinel_path",
+          "description": "Path of the sentinel being verified."
+        },
+        {
+          "point": "verify_exit_code",
+          "description": "Exit code from the skill verify.sh script."
+        }
+      ]
+    },
+    {
+      "event_name": "ReadSkillSentinel",
+      "description": "Records whether SkillActivity found the expected sentinel after a successful harness run and how it was resolved.",
+      "layers_involved": [
+        "Common Skill Runtime",
+        "Filesystem Data Layer"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "sentinel_present",
+          "description": "True when the expected sentinel file exists and is valid JSON."
+        },
+        {
+          "point": "resolution_source",
+          "description": "sentinel or missing_sentinel_error; expected_output_path fallback is removed."
+        }
+      ]
+    },
+    {
+      "event_name": "FailMissingSentinel",
+      "description": "Records that a successful harness run did not produce the expected sentinel and SkillActivity raised an error.",
+      "layers_involved": [
+        "Common Skill Runtime"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "expected_sentinel_path",
+          "description": "Path where the sentinel was expected."
+        },
+        {
+          "point": "error",
+          "description": "SkillActivityError message with no raw path or secret data."
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Common Skill Runtime (Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Derive the canonical sentinel path from the first input path, falling back to repo_root / '.process' only when input_paths is empty.",
+          "intent": "SkillActivity owns the invocation lifecycle and has the input paths and repo root; the sentinel is a backend completion signal."
+        },
+        {
+          "responsibility": "Delete only a stale sentinel before harness invocation; never delete or consume a sentinel after the harness returns.",
+          "intent": "Removing stale state before the run prevents false positives; post-run deletion caused the race with verification."
+        },
+        {
+          "responsibility": "Build a prompt that instructs the agent to write the sentinel into the co-located `.process` directory and to leave it in place after verification.",
+          "intent": "The prompt is the only channel that tells an external agent where to persist the sentinel."
+        },
+        {
+          "responsibility": "Treat a missing sentinel after a successful harness run as a real SkillActivityError; remove the expected_output_path fallback.",
+          "intent": "A successful harness without a sentinel means the agent did not finish the contract; falling back masks real failures."
+        },
+        {
+          "responsibility": "Apply the same co-located sentinel derivation to the standalone run_skill helper.",
+          "intent": "run_skill is a public common API and must follow the same contract as the class-based execute path."
+        }
+      ]
+    },
+    {
+      "layer": "Harness / Skill Agent (Backend / External Service)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Create the co-located `.process` directory on demand and write the `{skill-name}.done.json` sentinel into it.",
+          "intent": "The agent is the layer that physically writes the sentinel; it has the filesystem access and must follow the prompt contract."
+        },
+        {
+          "responsibility": "Continue writing the output artifact in the same directory as the first input path.",
+          "intent": "The existing output-location contract is unchanged; only the sentinel location changes."
+        }
+      ]
+    },
+    {
+      "layer": "Filesystem Data Layer",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist co-located sentinel files and output artifacts under source document parents.",
+          "intent": "No database or API change is needed; the filesystem is the durable store for workflow artifacts."
+        },
+        {
+          "responsibility": "Allow multiple `{skill-name}.done.json` files to coexist in the same `.process` directory.",
+          "intent": "Different skills can be invoked against the same source document and must not overwrite each other."
+        }
+      ]
+    },
+    {
+      "layer": "Post-Edit Verification Hook (Operations / Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Match any `*/.process/*.done.json` sentinel and dispatch to the correct skill verify.sh.",
+          "intent": "The glob already matches co-located sentinels; the hook must continue to dispatch correctly."
+        },
+        {
+          "responsibility": "Update comments to describe co-located, persistent sentinels and clarify that the hook does not consume them.",
+          "intent": "The script is the consumer of the sentinel file; the new contract requires it to be read-only."
+        }
+      ]
+    },
+    {
+      "layer": "Skill Library (Documentation & Verification Scripts)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Update every skill SKILL.md to instruct the agent to write a co-located, persistent sentinel.",
+          "intent": "Skill instructions are the contract between the agent and the factory; they must reflect the new path and lifecycle."
+        },
+        {
+          "responsibility": "Update every skill verify.sh to remove `rm -f \"$sentinel_path\"` or any equivalent deletion logic.",
+          "intent": "Verify scripts validate the artifact; deleting the sentinel is the race being fixed."
+        }
+      ]
+    },
+    {
+      "layer": "Verification (Test Layer)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Update tests/fake_harness.py to write the sentinel next to the first input.",
+          "intent": "The fake harness simulates the real agent and must follow the new sentinel contract."
+        },
+        {
+          "responsibility": "Update src/common/tests/test_skill_activity.py and tests/unit/test_repair_story_analysis.py to assert co-located sentinel paths, empty-input fallback, stale-sentinel removal, and missing-sentinel failure.",
+          "intent": "Tests must enforce the new contract and cover the edge cases identified in the story analysis."
+        }
+      ]
+    },
+    {
+      "layer": "Workflow Orchestration (Backend)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Pass input_paths to SkillActivity unchanged; no workflow logic change is required.",
+          "intent": "The sentinel path derivation is encapsulated in common; workflows already pass the first input path."
+        },
+        {
+          "responsibility": "Trust a missing sentinel after success as a real Activity failure.",
+          "intent": "With the race removed, a missing sentinel is a genuine signal that the agent did not complete the skill."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivitySentinelPath",
+      "description": "Canonical location of a skill sentinel. When input_paths is non-empty the sentinel is derived from the first input's parent directory and placed in a `.process` subdirectory; when input_paths is empty the sentinel falls back to the repository root `.process` directory.",
+      "changes": {
+        "added": "Co-located sentinel path derivation from Path(input_paths[0]).parent / '.process' / f'{skill_name}.done.json' with repo-root fallback for empty input_paths; stale-sentinel deletion before harness invocation.",
+        "modified": "sentinel_path in SkillActivityOutput may now be a repository-relative subpath under a source-document parent, not only .process/{skill}.done.json.",
+        "removed": "Hard-coded repo-root .process/ sentinel path for all invocations; missing-sentinel fallback to expected_output_path."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SkillActivityPrompt",
+      "description": "Default prompt produced by SkillActivity.build_prompt. It now tells the agent exactly where to write the sentinel and that the sentinel must not be deleted after verification.",
+      "changes": {
+        "added": "A sentinel instruction appended after the output-directory instruction: write the sentinel to `<first_input_parent>/.process/<skill-name>.done.json` and do not delete it after verification.",
+        "modified": "build_prompt still appends the output-directory instruction and passes the combined prompt through modify_prompt.",
+        "removed": "No prompt language implying that the sentinel lives only at the repository root or that it should be deleted."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SkillActivityExecution",
+      "description": "SkillActivity.execute and the standalone run_skill helper now derive the sentinel path from the first input, fail on a missing sentinel after a successful harness, and no longer use expected_output_path as a fallback.",
+      "changes": {
+        "added": "A private helper for sentinel-path derivation shared by execute and run_skill; explicit SkillActivityError on missing or malformed sentinel after success.",
+        "modified": "execute reads the sentinel from the co-located .process path; run_skill applies the same derivation and empty-input fallback.",
+        "removed": "Warning fallback to expected_output_path when the sentinel is missing; post-harness sentinel deletion (the existing code already did not delete after, but the verify scripts did)."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PostEditVerification",
+      "description": "The post-edit hook dispatches to skill verify.sh scripts when it sees any `*/.process/*.done.json` file. It does not create, move, or delete the sentinel.",
+      "changes": {
+        "added": "Comments describing co-located, persistent sentinels and the fact that the hook only triggers verification.",
+        "modified": "No code change to the glob or dispatch logic; the existing `*/.process/*.done.json` match already covers co-located sentinels.",
+        "removed": "n/a"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "FakeHarnessSentinelWrite",
+      "description": "The test harness simulates the agent by writing the output artifact and sentinel next to the first input path.",
+      "changes": {
+        "added": "A helper that derives the sentinel parent from the first input path and creates the `.process` directory before writing the sentinel.",
+        "modified": "Sentinel write location moves from cwd / '.process' / f'{skill}.done.json' to the co-located `.process` path derived from the first input.",
+        "removed": "n/a"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SkillLibrarySentinelContract",
+      "description": "Every skill's SKILL.md and verify.sh must express the new co-located, persistent sentinel contract.",
+      "changes": {
+        "added": "SKILL.md instructions to write the sentinel to `<input_parent>/.process/<skill-name>.done.json` and to leave it after verification.",
+        "modified": "verify.sh scripts validate the artifact and remove any `rm -f \"$sentinel_path\"` or equivalent deletion logic.",
+        "removed": "Old instructions that place the sentinel only in the repo-root `.process` directory or tell the agent to delete it."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Derive the canonical sentinel path from the first input path and fall back to the repository root `.process` directory only when no input path is supplied.",
+      "justification": "This keeps workflow artifacts grouped by source document, eliminates clutter in the repository root .process directory, and preserves a deterministic location for skills that run without an input document.",
+      "basis": "ADR-007 Skill Input Independence; ADR-014 colocated SkillActivity template method; Acceptance Criterion 3 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Decision.",
+      "impact": "src/common/skill_activity.py SkillActivity.execute and run_skill; tests/fake_harness.py; unit tests.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "Only delete a stale sentinel before harness invocation; never delete or consume a sentinel after the harness returns.",
+      "justification": "This removes the race between post-edit verification and SkillActivity. A missing sentinel after a successful run can now be treated as a real failure.",
+      "basis": "ADR-004 Skill Output Contracts & Sentinel Files (runtime consumption update 2026-09-02 documents the race); Acceptance Criterion 4 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Rationale.",
+      "impact": "src/common/skill_activity.py execute lifecycle; every .devin/skills/<skill>/verify.sh.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "Treat a missing sentinel after a successful harness run as a real SkillActivityError and remove the expected_output_path fallback.",
+      "justification": "The sentinel is the authoritative success signal. A successful harness without a sentinel means the agent did not complete the contract; falling back to expected_output_path masks failures and breaks downstream dependencies.",
+      "basis": "ADR-004; Acceptance Criterion 10 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirements.",
+      "impact": "src/common/skill_activity.py missing-sentinel branch; src/common/tests/test_skill_activity.py test_missing_sentinel_uses_concrete_output_resolver must be removed or changed.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "Keep the expected_output_path abstract method on SkillActivity but stop calling it as a missing-sentinel fallback.",
+      "justification": "Removing the method would force every concrete Activity to change. Preserving the hook lets workflow packages continue to use it for domain output naming while the common template no longer treats it as a recovery path for a missing sentinel.",
+      "basis": "ADR-014 colocated SkillActivity template method; src/story_analysis_workflow/activities/*.py and src/story_design_workflow/activities/*.py expected_output_path implementations.",
+      "impact": "src/common/skill_activity.py execute branch; no changes to Activity subclasses.",
+      "answers_open_question": "n/a"
+    },
+    {
+      "decision": "Update every existing skill SKILL.md and verify.sh under .devin/skills/ as part of this story.",
+      "justification": "The sentinel contract is a cross-cutting factory convention. Leaving any skill with the old root .process or delete instruction would reintroduce the race and root-directory clutter.",
+      "basis": "ADR-003 Skills-Based Architecture; Acceptance Criteria 1 and 2 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirements 1 and 2.",
+      "impact": ".devin/skills/*/{SKILL.md, verify.sh}, including design-story-implementation itself.",
+      "answers_open_question": "Should all existing skill SKILL.md and verify.sh files be updated in this story, or should a separate cleanup story handle the remaining skills?"
+    },
+    {
+      "decision": "The agent (and FakeHarness) is responsible for creating the co-located `.process` directory on demand when writing the sentinel.",
+      "justification": "The writer of the sentinel is the only layer with the path at the moment of creation; `Path.mkdir(parents=True, exist_ok=True)` is a one-line guard. SkillActivity removes stale sentinels but does not need to pre-create the directory.",
+      "basis": "Acceptance Criterion 11 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirement 1; pattern seen in tests/fake_harness.py which already uses mkdir(parents=True, exist_ok=True) for output paths.",
+      "impact": "tests/fake_harness.py; skill SKILL.md instructions; real Devin agent behavior.",
+      "answers_open_question": "Should the agent create the co-located `.process` directory explicitly or rely on the harness/fake harness to create it?"
+    },
+    {
+      "decision": "Provide no backward-compatibility shim for skills that still write to the repository root `.process` directory beyond the empty-input fallback.",
+      "justification": "The story updates all skills atomically; a co-located sentinel is the new contract. A missing sentinel after success is an error, so there is no silent fallback to the root. This keeps the contract simple and the failure mode explicit.",
+      "basis": "ADR-004; Acceptance Criterion 3 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Decision.",
+      "impact": "src/common/skill_activity.py; all skill SKILL.md/verify.sh updates.",
+      "answers_open_question": "How should SkillActivity handle the transition period while some skills still write to the repository root `.process` directory?"
+    },
+    {
+      "decision": "The post-edit hook requires only comment and documentation updates; its glob already matches co-located sentinels.",
+      "justification": "post-edit-verify-skill.sh already matches `*/.process/*.done.json`, so it will trigger on co-located sentinels. The change is to clarify in comments that the sentinel is not consumed and may be under any source-document parent.",
+      "basis": "Acceptance Criterion 9 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirement 5; current .devin/scripts/post-edit-verify-skill.sh glob at line 16.",
+      "impact": ".devin/scripts/post-edit-verify-skill.sh comments.",
+      "answers_open_question": "n/a"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should the agent create the co-located `.process` directory explicitly or rely on the harness/fake harness to create it?",
+      "answer": "The agent (real Devin) and FakeHarness must create the directory with `mkdir -p` before writing the sentinel. SkillActivity removes stale sentinels before the run but does not need to pre-create the directory.",
+      "justification": "The writer of the sentinel owns the path; `Path.mkdir(parents=True, exist_ok=True)` is already used by FakeHarness for output artifacts.",
+      "basis": "tests/fake_harness.py output path creation; Acceptance Criterion 11 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirement 1."
+    },
+    {
+      "question": "How should SkillActivity handle the transition period while some skills still write to the repository root `.process` directory?",
+      "answer": "There is no transition period in this story. All skill SKILL.md and verify.sh files are updated in the same change. SkillActivity looks only at the co-located path (or the empty-input fallback root path) and raises SkillActivityError if the sentinel is missing after a successful harness run.",
+      "justification": "Splitting the contract would reintroduce the race and warning fallback. The story scope explicitly includes updating all skills.",
+      "basis": "docs/reqs/leave-the-sentinel/requirement.md Requirements 1-3; ADR-004; Acceptance Criterion 10 in docs/reqs/leave-the-sentinel/requirement.analysis.json."
+    },
+    {
+      "question": "Should all existing skill SKILL.md and verify.sh files be updated in this story, or should a separate cleanup story handle the remaining skills?",
+      "answer": "All existing skill SKILL.md and verify.sh files are updated in this story.",
+      "justification": "The sentinel contract is cross-cutting; leaving any skill with old instructions would reintroduce the race and root .process clutter. The change is mechanical and bounded to the .devin/skills/ tree.",
+      "basis": "docs/reqs/leave-the-sentinel/requirement.md Requirements 1 and 2; ADR-003; Acceptance Criteria 1 and 2 in docs/reqs/leave-the-sentinel/requirement.analysis.json."
+    },
+    {
+      "question": "What is the exact prompt instruction for the co-located sentinel?",
+      "answer": "Append a sentence after the output-directory instruction: `Write the skill's sentinel file in the `.process` directory under the same parent as the first input path ({input_paths[0]}), named `{skill_name}.done.json`, and do not delete it after verification.`",
+      "justification": "It mirrors the existing output-directory instruction pattern in src/common/skill_activity.py build_prompt and is explicit enough for the Devin agent and FakeHarness to follow.",
+      "basis": "src/common/skill_activity.py build_prompt; Acceptance Criterion 5 in docs/reqs/leave-the-sentinel/requirement.analysis.json; docs/reqs/leave-the-sentinel/requirement.md Requirement 3."
+    },
+    {
+      "question": "How should `run_skill` handle the `expected_output_path` parameter once the missing-sentinel fallback is removed?",
+      "answer": "Keep `expected_output_path` as an optional parameter but stop using it as a fallback. It may be deprecated later or used for a different purpose; removing it now would break existing test and caller signatures unnecessarily.",
+      "justification": "Preserving the public API surface while changing semantics aligns with ADR-014's typed hooks and avoids a broad signature migration.",
+      "basis": "src/common/skill_activity.py run_skill signature; ADR-014 colocated SkillActivity template method."
+    },
+    {
+      "question": "What happens when the first input path is already inside a `.process` directory, such as the repair-story-analysis test input `.process/analysis.json`?",
+      "answer": "The co-located `.process` directory is nested under the input's parent (e.g., `.process/.process/repair-story-analysis.done.json`). Tests should be updated to either expect that path or use a source document outside `.process` to exercise co-location more naturally.",
+      "justification": "The rule is mechanically `Path(input_paths[0]).parent / '.process' / ...`; the parent is `.process`, so the co-located `.process` is `.process/.process`. This is an edge case of the mechanical rule, not a special exception.",
+      "basis": "tests/unit/test_repair_story_analysis.py current input; Acceptance Criterion 3 in docs/reqs/leave-the-sentinel/requirement.analysis.json."
+    },
+    {
+      "question": "What should FakeHarness do when the skill is unknown or first_input is None?",
+      "answer": "Use the repository root `.process` fallback and the existing _FALLBACK_OUTPUTS mapping. This matches SkillActivity's empty-input fallback and preserves existing test cases with no input paths.",
+      "justification": "The fallback is the only deterministic location when no first input is available; keeping _FALLBACK_OUTPUTS avoids changing the test contract for unknown skills.",
+      "basis": "tests/fake_harness.py _FALLBACK_OUTPUTS; Acceptance Criterion 7 in docs/reqs/leave-the-sentinel/requirement.analysis.json."
+    },
+    {
+      "question": "Should the post-edit hook be modified to create `.process` directories or perform any filesystem setup?",
+      "answer": "No. The hook only observes and dispatches; it does not write. The agent/harness creates the `.process` directory when writing the sentinel.",
+      "justification": "The hook's responsibility is verification dispatch, not filesystem setup; creating directories there would blur layer responsibilities.",
+      "basis": ".devin/scripts/post-edit-verify-skill.sh current behavior; docs/reqs/leave-the-sentinel/requirement.md Requirement 5."
+    },
+    {
+      "question": "What should the unit tests assert after the missing-sentinel fallback is removed?",
+      "answer": "Add tests that assert: the sentinel is written to the co-located `.process` path; an empty input_paths uses the repo-root fallback; a stale sentinel is removed before the harness runs; a successful harness without a sentinel raises SkillActivityError; multiple skills can write distinct sentinels to the same source-document `.process`.",
+      "justification": "These assertions cover the new contract, the edge cases, and the acceptance criteria for both the class-based execute path and the run_skill helper.",
+      "basis": "Acceptance Criteria 3, 6, 7, 8, and 10 in docs/reqs/leave-the-sentinel/requirement.analysis.json; src/common/tests/test_skill_activity.py and tests/unit/test_repair_story_analysis.py current assertions."
+    }
+  ]
+}
