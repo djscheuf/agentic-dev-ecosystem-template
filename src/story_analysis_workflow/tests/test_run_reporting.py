@@ -1,10 +1,14 @@
 import json
+from dataclasses import asdict
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from jsonschema import ValidationError, validate
 
 from story_analysis_workflow.reporting import (
+    AGGREGATE_SCHEMA_PATH,
+    REPORT_SCHEMA_PATH,
     ActivityAttemptObservation,
     TerminalWorkflowOutcome,
     UsageMetrics,
@@ -360,3 +364,35 @@ async def test_story_analysis_workflow_when_publication_fails_does_not_claim_rep
         await workflow.run("story.md", {"report_root": "/reports"})
 
     assert workflow.get_status()["report_path"] is None
+
+
+def test_report_schemas_validate_complete_documents_and_reject_invalid_values(tmp_path):
+    window_start = datetime(2026, 9, 8, tzinfo=timezone.utc)
+    window_end = datetime(2026, 9, 9, tzinfo=timezone.utc)
+    report = build_run_report(
+        workflow_id="workflow-1",
+        run_id="run-1",
+        story_document="story.md",
+        terminal_at=window_start,
+        outcome=TerminalWorkflowOutcome(
+            "passed", OutcomeOrigin.AUTOMATED_PASS, "analysis.json", 0
+        ),
+        attempts=[],
+    )
+    report_document = json.loads(json.dumps(asdict(report)))
+    aggregate_document = json.loads(json.dumps(asdict(
+        aggregate_run_reports(tmp_path, window_start, window_end)
+    )))
+    report_schema = json.loads(REPORT_SCHEMA_PATH.read_text())
+    aggregate_schema = json.loads(AGGREGATE_SCHEMA_PATH.read_text())
+
+    validate(report_document, report_schema)
+    validate(aggregate_document, aggregate_schema)
+
+    report_document["outcome_origin"] = "unknown"
+    with pytest.raises(ValidationError):
+        validate(report_document, report_schema)
+
+    aggregate_document["denominator"] = -1
+    with pytest.raises(ValidationError):
+        validate(aggregate_document, aggregate_schema)

@@ -8,11 +8,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable
 
+from jsonschema import validate
+
 from .story_analysis_engine import OutcomeOrigin
 
 REPORT_SCHEMA_VERSION = "1.0"
 REPORT_FILENAME = "story-analysis.report.json"
 AGGREGATE_FILENAME = "story-analysis.aggregate.json"
+_SCHEMA_ROOT = Path(__file__).with_name("schemas")
+REPORT_SCHEMA_PATH = _SCHEMA_ROOT / "story-analysis-report-v1.schema.json"
+AGGREGATE_SCHEMA_PATH = _SCHEMA_ROOT / "story-analysis-aggregate-v1.schema.json"
 _SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
@@ -170,6 +175,14 @@ def _safe_component(value: str) -> str:
     return _SAFE_COMPONENT_RE.sub("_", value).strip("_") or "unknown"
 
 
+def _as_json_document(document: object) -> dict:
+    return json.loads(json.dumps(asdict(document)))
+
+
+def _validate_document(document: object, schema_path: Path) -> None:
+    validate(instance=_as_json_document(document), schema=json.loads(schema_path.read_text()))
+
+
 def _atomic_write_json(
     document: object,
     destination: Path,
@@ -187,7 +200,7 @@ def _atomic_write_json(
             delete=False,
         ) as temporary:
             temporary_path = Path(temporary.name)
-            json.dump(asdict(document), temporary, indent=2)
+            json.dump(_as_json_document(document), temporary, indent=2)
             temporary.write("\n")
             temporary.flush()
             os.fsync(temporary.fileno())
@@ -211,6 +224,7 @@ def publish_run_report(
         / _safe_component(report.run_id)
         / REPORT_FILENAME
     )
+    _validate_document(report, REPORT_SCHEMA_PATH)
     return _atomic_write_json(report, destination, replace_file)
 
 
@@ -220,6 +234,7 @@ def publish_run_aggregate(
     *,
     replace_file: Callable[[str, str], None] = os.replace,
 ) -> Path:
+    _validate_document(aggregate, AGGREGATE_SCHEMA_PATH)
     return _atomic_write_json(
         aggregate, report_root / AGGREGATE_FILENAME, replace_file
     )

@@ -113,7 +113,7 @@
         {
           "id": 11,
           "name": "ReportSchemas_CompleteDocumentsValidateAndInvalidDocumentsFail",
-          "status": "pending",
+          "status": "passing",
           "description": "Standalone V1 report and aggregate JSON Schemas enforce required fields, enums, versions, numeric bounds, and nested observations.",
           "arrange": "Prepare complete and structurally invalid report and aggregate documents.",
           "act": "Validate each document against its workflow-owned schema.",
