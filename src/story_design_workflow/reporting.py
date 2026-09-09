@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class StoryDesignReport:
     design_path: str
     final_status: str
+    analysis_path: Optional[str] = None
     plan_path: Optional[str] = None
     score: Optional[float] = None
 

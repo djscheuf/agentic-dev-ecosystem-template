@@ -11,6 +11,7 @@ async def publish_story_design_report(
     design_path: str,
     plan_path: Optional[str] = None,
     score: Optional[float] = None,
+    analysis_path: Optional[str] = None,
     report_root: Optional[str] = None,
 ) -> dict:
     report = StoryDesignReport(
@@ -18,6 +19,7 @@ async def publish_story_design_report(
         plan_path=plan_path,
         final_status="passed" if plan_path else "failed",
         score=score,
+        analysis_path=analysis_path,
     )
     output_path = write_story_design_report(
         report,
