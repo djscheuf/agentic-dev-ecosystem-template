@@ -82,6 +82,7 @@ class FakeHarness:
         "analyze-story": ".process/analysis.json",
         "grade-story-analysis": ".process/analysis-grade.json",
         "repair-story-analysis": ".process/analysis.json",
+        "draft-implementation-plan": ".process/plan.json",
     }
 
     @staticmethod
@@ -109,6 +110,12 @@ class FakeHarness:
         elif skill_name == "repair-story-analysis":
             # Repair overwrites the analysis file it is given.
             new_name = name
+        elif skill_name == "draft-implementation-plan":
+            if name.endswith(".design.json"):
+                base = name[: -len(".design.json")]
+                new_name = f"{base}.plan.json" if base else "plan.json"
+            else:
+                new_name = "plan.json"
         else:
             raise ValueError(f"Unknown skill: {skill_name}")
         return str(parent / new_name)
@@ -120,10 +127,11 @@ class FakeHarness:
             "analyze-story": "analysis_path",
             "grade-story-analysis": "analysis_grade_path",
             "repair-story-analysis": "analysis_path",
+            "draft-implementation-plan": "plan_path",
         }
         return mapping[skill_name]
 
-    def run(self, prompt: str, *, cwd: Path) -> HarnessResult:
+    def run(self, prompt: str, *, cwd: Path, config: dict | None = None) -> HarnessResult:
         skill_name = self._parse_skill_name(prompt)
 
         if skill_name in self.fail_skills:
