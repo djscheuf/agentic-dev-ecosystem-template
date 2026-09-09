@@ -140,6 +140,33 @@ async def test_cli_register_domain_subcommand_registers_the_domain():
 
 
 @pytest.mark.asyncio
+async def test_cli_aggregate_with_explicit_window_renders_published_snapshot(tmp_path, capsys):
+    client = FakeClient()
+
+    exit_code = await cli.cli_main_async(
+        [
+            "aggregate",
+            "--report-root",
+            str(tmp_path),
+            "--window-start",
+            "2026-09-08T00:00:00Z",
+            "--window-end",
+            "2026-09-09T00:00:00Z",
+        ],
+        client_factory=make_client_factory(client),
+        config=make_config(),
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["formula_id"] == "automated_pass_rate_v1"
+    assert output["numerator"] == 0
+    assert output["denominator"] == 0
+    assert output["success_rate"] is None
+    assert output["aggregate_path"] == str(tmp_path / "story-analysis.aggregate.json")
+
+
+@pytest.mark.asyncio
 async def test_cli_exits_with_error_on_unknown_subcommand():
     client = FakeClient()
 

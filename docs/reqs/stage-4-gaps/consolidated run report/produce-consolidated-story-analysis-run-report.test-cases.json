@@ -122,7 +122,7 @@
         {
           "id": 12,
           "name": "AggregationCLI_WithExplicitWindow_RendersPublishedSnapshot",
-          "status": "pending",
+          "status": "passing",
           "description": "The operator boundary accepts an explicit report root and UTC window and publishes aggregation output without recomputing presentation-only values.",
           "arrange": "Create visible reports and invoke the aggregation CLI with explicit arguments.",
           "act": "Run the aggregation command.",

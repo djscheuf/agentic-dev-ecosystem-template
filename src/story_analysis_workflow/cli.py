@@ -6,9 +6,11 @@ See `docs/reqs/workflow-orchestration/client-api-usage.md` for usage.
 
 import argparse
 import asyncio
+import dataclasses
 import json
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 from cadence.client import Client
@@ -18,6 +20,7 @@ from .workflow_logger import client_log_context, get_client_logger
 
 from .config import CadenceConfig, load_config
 from .queries import get_status
+from .reporting import aggregate_run_reports, publish_run_aggregate
 from .signals import send_human_response
 from .starter import start_story_analysis_workflow
 
@@ -53,6 +56,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     register_domain = subparsers.add_parser("register-domain", help="Register the workflow's Cadence domain")
     register_domain.add_argument("--retention-days", type=int, default=1)
+
+    aggregate = subparsers.add_parser("aggregate", help="Aggregate visible run reports")
+    aggregate.add_argument("--report-root", required=True)
+    aggregate.add_argument("--window-start", required=True)
+    aggregate.add_argument("--window-end", required=True)
 
     return parser
 
@@ -128,11 +136,33 @@ async def _run_register_domain(client, args: argparse.Namespace, config: Cadence
     return 0
 
 
+def _utc_timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("timestamps must include a UTC offset")
+    return parsed
+
+
+async def _run_aggregate(client, args: argparse.Namespace, config: CadenceConfig) -> int:
+    report_root = Path(args.report_root)
+    aggregate = aggregate_run_reports(
+        report_root,
+        _utc_timestamp(args.window_start),
+        _utc_timestamp(args.window_end),
+    )
+    aggregate_path = publish_run_aggregate(aggregate, report_root)
+    output = dataclasses.asdict(aggregate)
+    output["aggregate_path"] = str(aggregate_path)
+    print(json.dumps(output))
+    return 0
+
+
 _COMMAND_HANDLERS = {
     "start": _run_start,
     "signal": _run_signal,
     "query": _run_query,
     "register-domain": _run_register_domain,
+    "aggregate": _run_aggregate,
 }
 
 
