@@ -65,6 +65,70 @@
           "assert": "Numerator and denominator are zero, success_rate is null, counts are empty, and the aggregate is schema-valid."
         }
       ]
+    },
+    {
+      "description": "Priority 3: Workflow completion integration",
+      "tests": [
+        {
+          "id": 7,
+          "name": "PublishRunReportActivity_WithTerminalResult_WritesRunScopedReport",
+          "status": "passing",
+          "description": "A side-effecting Activity derives Cadence workflow/run identity and publishes the terminal report beneath the configured report root.",
+          "arrange": "Provide Activity runtime identity, a terminal workflow result, story path, and temporary report root.",
+          "act": "Execute the report publication Activity.",
+          "assert": "The Activity returns the final run-scoped report path and the schema-versioned report exists there."
+        },
+        {
+          "id": 8,
+          "name": "StoryAnalysisWorkflow_OnTerminalResult_PublishesBeforeCompletion",
+          "status": "pending",
+          "description": "The workflow schedules report publication after its engine reaches a modeled terminal state and exposes report_path only after publication succeeds.",
+          "arrange": "Stub skill Activities and the publication Activity for an automated-pass workflow.",
+          "act": "Run StoryAnalysisWorkflow with an explicit report root.",
+          "assert": "Publication receives terminal evidence and the returned result and status query expose its report_path."
+        },
+        {
+          "id": 9,
+          "name": "StoryAnalysisWorkflow_WhenPublicationFails_DoesNotClaimReportedCompletion",
+          "status": "pending",
+          "description": "A publication failure fails completion rather than returning a terminal result containing an unpublished report path.",
+          "arrange": "Complete domain processing and make the report publication Activity fail.",
+          "act": "Run StoryAnalysisWorkflow.",
+          "assert": "The workflow raises the publication failure and get_status has no report_path."
+        }
+      ]
+    },
+    {
+      "description": "Priority 4: Remaining certification boundaries",
+      "tests": [
+        {
+          "id": 10,
+          "name": "SkillActivityOutput_EachAttempt_CarriesTelemetryObservation",
+          "status": "pending",
+          "description": "Each common Skill Activity execution returns retry-safe identity, artifacts, invocation profile, outcome, duration, and normalized ATIF usage.",
+          "arrange": "Execute successful and failed harness attempts with Cadence Activity identity and partial ATIF metrics.",
+          "act": "Read the Activity output observation.",
+          "assert": "Every executed attempt has one isolated immutable observation without raw trajectory content."
+        },
+        {
+          "id": 11,
+          "name": "ReportSchemas_CompleteDocumentsValidateAndInvalidDocumentsFail",
+          "status": "pending",
+          "description": "Standalone V1 report and aggregate JSON Schemas enforce required fields, enums, versions, numeric bounds, and nested observations.",
+          "arrange": "Prepare complete and structurally invalid report and aggregate documents.",
+          "act": "Validate each document against its workflow-owned schema.",
+          "assert": "Complete documents pass and invalid documents fail before publication."
+        },
+        {
+          "id": 12,
+          "name": "AggregationCLI_WithExplicitWindow_RendersPublishedSnapshot",
+          "status": "pending",
+          "description": "The operator boundary accepts an explicit report root and UTC window and publishes aggregation output without recomputing presentation-only values.",
+          "arrange": "Create visible reports and invoke the aggregation CLI with explicit arguments.",
+          "act": "Run the aggregation command.",
+          "assert": "Output includes formula operands, counts, exclusions, observations, and aggregate path."
+        }
+      ]
     }
   ]
 }

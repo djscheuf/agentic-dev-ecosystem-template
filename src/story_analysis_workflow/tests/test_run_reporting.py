@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -12,6 +13,7 @@ from story_analysis_workflow.reporting import (
     publish_run_aggregate,
     publish_run_report,
 )
+from story_analysis_workflow.activities.publish_run_report import publish_story_analysis_run_report
 from story_analysis_workflow.story_analysis_engine import OutcomeOrigin
 
 
@@ -254,3 +256,33 @@ def test_aggregate_run_reports_with_empty_sample_returns_null_rate(tmp_path):
     assert aggregate.outcome_origin_counts == {}
     assert aggregate.observations == ()
     assert json.loads(output_path.read_text())["success_rate"] is None
+
+
+@pytest.mark.asyncio
+async def test_publish_run_report_activity_with_terminal_result_writes_run_scoped_report(
+    monkeypatch, tmp_path
+):
+    from story_analysis_workflow.activities import publish_run_report as activity_module
+
+    monkeypatch.setattr(
+        activity_module.activity,
+        "info",
+        lambda: SimpleNamespace(workflow_id="workflow-1", workflow_run_id="run-1"),
+    )
+    terminal_result = {
+        "final_analysis_path": "analysis.json",
+        "passed": True,
+        "attempt_count": 0,
+        "escalated": False,
+        "final_status": "passed",
+        "validation_rule": None,
+        "outcome_origin": "automated_pass",
+    }
+
+    result = await publish_story_analysis_run_report(
+        "story.md", terminal_result, [], str(tmp_path)
+    )
+
+    report_path = tmp_path / "workflow-1" / "run-1" / "story-analysis.report.json"
+    assert result == {"report_path": str(report_path)}
+    assert json.loads(report_path.read_text())["workflow_id"] == "workflow-1"
