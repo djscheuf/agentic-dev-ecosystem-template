@@ -199,7 +199,7 @@ class StoryDesignEngine:
                 design_path=design_path,
                 passed=False,
                 final_status="failed",
-                score=None,
+                score=grade.get("score") if "grade" in locals() and grade is not None else None,
             )
 
         self._logger.info("Design grade did not pass; publishing failed report")

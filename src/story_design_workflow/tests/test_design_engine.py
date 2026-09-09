@@ -18,6 +18,7 @@ class FakeActivities:
         self.publish_result = {"output_path": "docs/foo.story-design.report.json"}
         self.audit_exception = None
         self.draft_exception = None
+        self.plan_handoff_exception = None
         self.validate_result = SourceDocumentValidationResult(
             True, SourceDocumentValidationRule.VALID
         )
@@ -43,6 +44,8 @@ class FakeActivities:
     async def validate_handoff(self, output_path, schema_path):
         self.calls.append(("validate_handoff", output_path, schema_path))
         if output_path == "docs/foo.plan.json":
+            if self.plan_handoff_exception is not None:
+                raise self.plan_handoff_exception
             return self.plan_handoff_result
         return self.handoff_result
 
@@ -404,4 +407,28 @@ async def test_run_invalid_plan_preserves_design_path_and_score():
     assert result.plan_path is None
     assert result.score == 0.95
     assert result.handoff_rule == GuardrailRule.SCHEMA_VIOLATION
+    assert not any(c[0] == "publish_story_design_report" for c in activities.calls)
+
+
+@pytest.mark.asyncio
+async def test_run_plan_handoff_retry_exhaustion_preserves_design_and_score():
+    activities = FakeActivities()
+    activities.plan_handoff_exception = ActivityFailure("plan handoff exhausted")
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+        execute_publish_story_design_report=activities.publish_story_design_report,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is False
+    assert result.final_status == "failed"
+    assert result.design_path == "docs/foo.design.json"
+    assert result.plan_path is None
+    assert result.score == 0.95
     assert not any(c[0] == "publish_story_design_report" for c in activities.calls)
