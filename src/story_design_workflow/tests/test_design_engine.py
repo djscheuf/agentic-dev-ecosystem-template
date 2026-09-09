@@ -57,8 +57,8 @@ class FakeActivities:
             raise self.draft_exception
         return self.draft_result
 
-    async def publish_story_design_report(self, design_path, plan_path):
-        self.calls.append(("publish_story_design_report", design_path, plan_path))
+    async def publish_story_design_report(self, design_path, plan_path, score=None):
+        self.calls.append(("publish_story_design_report", design_path, plan_path, score))
         return self.publish_result
 
 
@@ -342,5 +342,26 @@ async def test_run_publishes_failed_report_without_plan():
     assert result.design_path == "docs/foo.design.json"
     assert result.plan_path is None
     assert result.report_path == "docs/foo.story-design.report.json"
-    assert ("publish_story_design_report", "docs/foo.design.json", None) in activities.calls
+    assert ("publish_story_design_report", "docs/foo.design.json", None, 0.45) in activities.calls
     assert not any(c[0] == "draft_implementation_plan" for c in activities.calls)
+
+
+@pytest.mark.asyncio
+async def test_run_publishes_report_with_score():
+    activities = FakeActivities()
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+        execute_publish_story_design_report=activities.publish_story_design_report,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is True
+    assert result.final_status == "passed"
+    assert result.score == 0.95
+    assert ("publish_story_design_report", "docs/foo.design.json", "docs/foo.plan.json", 0.95) in activities.calls

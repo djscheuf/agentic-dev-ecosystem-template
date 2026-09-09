@@ -52,7 +52,7 @@ ExecuteAuditCurrentReality = Callable[[str], Awaitable[dict]]
 ExecuteDesignStoryImplementation = Callable[[str, str], Awaitable[dict]]
 ExecuteGradeStoryDesign = Callable[[str], Awaitable[dict]]
 ExecuteDraftImplementationPlan = Callable[[str], Awaitable[dict]]
-ExecutePublishStoryDesignReport = Callable[[str, Optional[str]], Awaitable[dict]]
+ExecutePublishStoryDesignReport = Callable[[str, Optional[str], Optional[float]], Awaitable[dict]]
 
 
 async def _valid_source_document(_analysis_path: Optional[str]) -> SourceDocumentValidationResult:
@@ -180,7 +180,7 @@ class StoryDesignEngine:
                     plan_path = None
                 self._logger.info("Implementation plan complete: %s", plan_path)
                 if self._execute_publish_story_design_report is not None:
-                    publish = await self._execute_publish_story_design_report(design_path, plan_path)
+                    publish = await self._execute_publish_story_design_report(design_path, plan_path, grade.get("score"))
                     report_path = publish["output_path"]
                 else:
                     report_path = None
@@ -204,7 +204,7 @@ class StoryDesignEngine:
 
         self._logger.info("Design grade did not pass; publishing failed report")
         if self._execute_publish_story_design_report is not None:
-            publish = await self._execute_publish_story_design_report(design_path, None)
+            publish = await self._execute_publish_story_design_report(design_path, None, grade.get("score"))
             report_path = publish["output_path"]
         else:
             report_path = None

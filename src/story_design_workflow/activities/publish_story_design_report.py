@@ -10,12 +10,14 @@ from ..reporting import StoryDesignReport, write_story_design_report
 async def publish_story_design_report(
     design_path: str,
     plan_path: Optional[str] = None,
+    score: Optional[float] = None,
     report_root: Optional[str] = None,
 ) -> dict:
     report = StoryDesignReport(
         design_path=design_path,
         plan_path=plan_path,
         final_status="passed" if plan_path else "failed",
+        score=score,
     )
     output_path = write_story_design_report(
         report,
