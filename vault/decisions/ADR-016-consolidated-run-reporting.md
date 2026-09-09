@@ -64,3 +64,11 @@ The initial unit-level reporting domain is implemented in `story_analysis_workfl
 - report and aggregate publication share the same atomic JSON writer.
 
 Workflow Activity plumbing, Cadence completion publication, CLI exposure, and standalone JSON Schema files remain follow-up integration work.
+
+## Integration status — 2026-09-08
+
+The workflow now publishes through a registered Cadence Activity after reaching a modeled terminal outcome. Successful publication adds `report_path` to the workflow result and status query; publication failure prevents reported completion. If no root is supplied, the Activity uses the configured workflow artifact/log root.
+
+Skill Activity successes carry structured attempt identity, invocation profile, artifact references, duration, and independently available ATIF usage into the workflow ledger. V1 report and aggregate JSON Schemas validate documents before atomic publication. The CLI exposes explicit-root, explicit-UTC-window aggregation.
+
+Capturing observations from every Cadence-managed failed retry remains follow-up work because failed Activity return values are not delivered to workflow code; it requires a durable attempt-side evidence handoff rather than reconstructing facts from text logs.
