@@ -29,9 +29,11 @@ async def publish_story_analysis_run_report(
         usage = values.get("usage")
         values["usage"] = UsageMetrics(**usage) if usage is not None else None
         attempts.append(ActivityAttemptObservation(**values))
+    report_workflow_id = attempts[0].workflow_id if attempts else info.workflow_id
+    report_run_id = attempts[0].run_id if attempts else info.workflow_run_id
     report = build_run_report(
-        workflow_id=info.workflow_id,
-        run_id=info.workflow_run_id,
+        workflow_id=report_workflow_id,
+        run_id=report_run_id,
         story_document=story_document,
         terminal_at=datetime.now(timezone.utc),
         outcome=TerminalWorkflowOutcome(

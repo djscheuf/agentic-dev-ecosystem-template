@@ -328,6 +328,59 @@ async def test_publish_run_report_activity_with_terminal_result_writes_run_scope
 
 
 @pytest.mark.asyncio
+async def test_publish_activity_preserves_original_identity_when_rerun_from_another_workflow(
+    monkeypatch, tmp_path
+):
+    from story_analysis_workflow.activities import publish_run_report as activity_module
+
+    monkeypatch.setattr(
+        activity_module.activity,
+        "info",
+        lambda: SimpleNamespace(
+            workflow_id="republish-helper", workflow_run_id="helper-run"
+        ),
+    )
+    attempt = {
+        "workflow_id": "original-workflow",
+        "run_id": "original-run",
+        "sequence": 1,
+        "step_name": "extract-story-intent",
+        "activity_type": "extract_story_intent",
+        "activity_id": "activity-1",
+        "attempt": 0,
+        "started_at": "2026-09-08T12:00:00Z",
+        "duration_ms": 10,
+        "outcome": "success",
+        "model": "SWE-1.7",
+        "permission_mode": "accept-edits",
+        "output_path": "intent.json",
+        "activity_log_path": "activity.log",
+        "devin_log_path": "devin.log",
+        "atif_path": None,
+        "usage": None,
+    }
+    terminal_result = {
+        "final_analysis_path": "analysis.json",
+        "attempt_count": 0,
+        "final_status": "passed",
+        "outcome_origin": "automated_pass",
+    }
+
+    result = await publish_story_analysis_run_report(
+        "story.md", terminal_result, [attempt], str(tmp_path)
+    )
+
+    expected = (
+        tmp_path
+        / "original-workflow"
+        / "original-run"
+        / "story-analysis.report.json"
+    )
+    assert result == {"report_path": str(expected)}
+    assert json.loads(expected.read_text())["run_id"] == "original-run"
+
+
+@pytest.mark.asyncio
 async def test_story_analysis_workflow_on_terminal_result_publishes_before_completion():
     workflow = StoryAnalysisWorkflow()
 
