@@ -92,6 +92,40 @@ def test_build_run_report_with_retries_preserves_ordered_attempts_and_usage():
     ]
 
 
+def test_publish_run_report_accepts_cadence_first_attempt_zero(tmp_path):
+    attempt = ActivityAttemptObservation(
+        workflow_id="workflow-1",
+        run_id="run-1",
+        sequence=1,
+        step_name="extract-story-intent",
+        activity_type="extract_story_intent",
+        activity_id="activity-1",
+        attempt=0,
+        started_at="2026-09-08T12:00:00Z",
+        duration_ms=10,
+        outcome="success",
+        model="SWE-1.7",
+        permission_mode="accept-edits",
+        output_path="intent.json",
+        activity_log_path="activity.log",
+        devin_log_path="devin.log",
+    )
+    report = build_run_report(
+        workflow_id="workflow-1",
+        run_id="run-1",
+        story_document="story.md",
+        terminal_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
+        outcome=TerminalWorkflowOutcome(
+            "passed", OutcomeOrigin.AUTOMATED_PASS, "analysis.json", 0
+        ),
+        attempts=[attempt],
+    )
+
+    report_path = publish_run_report(report, tmp_path)
+
+    assert json.loads(report_path.read_text())["attempts"][0]["attempt"] == 0
+
+
 def test_build_run_report_validates_metadata_and_attempt_identity():
     outcome = TerminalWorkflowOutcome(
         final_status="failed",

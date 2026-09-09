@@ -63,7 +63,7 @@
         "step_name": {"type": "string", "minLength": 1},
         "activity_type": {"type": "string", "minLength": 1},
         "activity_id": {"type": "string", "minLength": 1},
-        "attempt": {"type": "integer", "minimum": 1},
+        "attempt": {"type": "integer", "minimum": 0},
         "started_at": {"type": "string", "format": "date-time"},
         "duration_ms": {"type": "integer", "minimum": 0},
         "outcome": {"enum": ["success", "failed", "ambiguity"]},
