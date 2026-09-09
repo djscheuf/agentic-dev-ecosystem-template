@@ -35,6 +35,8 @@ def test_story_design_module_declares_and_registers_accurate_spec():
         "validate_handoff",
         "design_story_implementation",
         "grade_story_design",
+        "draft_implementation_plan",
+        "publish_story_design_report",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)
     assert [activity.name for activity in registry.activities] == list(SPEC.activity_types)

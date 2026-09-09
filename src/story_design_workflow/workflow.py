@@ -15,7 +15,9 @@ from cadence.workflow import RetryPolicy, execute_activity
 
 from .activities.audit_current_reality import audit_current_reality
 from .activities.design_story_implementation import design_story_implementation
+from .activities.draft_implementation_plan import draft_implementation_plan
 from .activities.grade_story_design import grade_story_design
+from .activities.publish_story_design_report import publish_story_design_report
 from .activities.validate_handoff import validate_handoff_activity
 from .activities.validate_source_document import validate_source_document_activity
 from .design_engine import ActivityFailure, StoryDesignEngine
@@ -29,6 +31,8 @@ registry.register_activity(audit_current_reality)
 registry.register_activity(validate_handoff_activity)
 registry.register_activity(design_story_implementation)
 registry.register_activity(grade_story_design)
+registry.register_activity(draft_implementation_plan)
+registry.register_activity(publish_story_design_report)
 
 # Cadence-managed retries per Activity attempt.
 ACTIVITY_RETRY_POLICY = RetryPolicy(
@@ -93,6 +97,12 @@ class StoryDesignWorkflow:
     async def _grade_story_design(self, design_path: str) -> dict:
         return await self._execute_skill_activity("grade_story_design", design_path)
 
+    async def _draft_implementation_plan(self, design_path: str) -> dict:
+        return await self._execute_skill_activity("draft_implementation_plan", design_path)
+
+    async def _publish_story_design_report(self, design_path: str, plan_path: Optional[str]) -> dict:
+        return await self._execute_skill_activity("publish_story_design_report", design_path, plan_path)
+
     @workflow.run
     async def run(self, analysis_path: str, config: Optional[dict] = None) -> dict:
         config = config or {}
@@ -105,6 +115,8 @@ class StoryDesignWorkflow:
                 execute_audit_current_reality=self._audit_current_reality,
                 execute_design_story_implementation=self._design_story_implementation,
                 execute_grade_story_design=self._grade_story_design,
+                execute_draft_implementation_plan=self._draft_implementation_plan,
+                execute_publish_story_design_report=self._publish_story_design_report,
                 logger=workflow_logger,
             )
             result = await engine.run(analysis_path)
