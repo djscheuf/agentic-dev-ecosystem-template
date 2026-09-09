@@ -10,6 +10,34 @@ from common.skill_activity import SkillActivity, SkillActivityInput
 from common.workflow_logger import WorkflowLoggerConfig
 
 
+def test_sentinel_path_with_relative_input_uses_first_input_parent(tmp_path) -> None:
+    config_path = tmp_path / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {},
+    }))
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            sentinel = tmp_path / "inputs" / ".process" / "custom.done.json"
+            sentinel.parent.mkdir(parents=True)
+            sentinel.write_text(json.dumps({
+                "task": "custom", "verify_params": {"artifact": "artifact.json"}
+            }))
+            return HarnessResult(0, "", "")
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("unused.json")
+
+    output = CustomActivity(
+        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+    ).execute(SkillActivityInput(input_paths=["inputs/story.json"]))
+
+    assert output.sentinel_path == "inputs/.process/custom.done.json"
+    assert (tmp_path / output.sentinel_path).exists()
+
+
 def test_missing_sentinel_uses_concrete_output_resolver(tmp_path) -> None:
     config_path = tmp_path / "custom.config.json"
     config_path.write_text(json.dumps({

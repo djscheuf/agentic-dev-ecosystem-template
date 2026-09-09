@@ -1,0 +1,48 @@
+{
+  "target_story": "docs/reqs/leave-the-sentinel/requirement.design.json",
+  "source_workstream": "docs/reqs/leave-the-sentinel/requirement.design.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Common runtime sentinel contract",
+      "tests": [
+        {
+          "id": 1,
+          "name": "SentinelPath_WithInputPaths_UsesFirstInputParent",
+          "status": "passing",
+          "description": "Class and standalone execution derive a persistent sentinel beside the first input, including relative and nested .process inputs, while empty inputs use the repository root.",
+          "arrange": "Activities with absolute, relative, nested .process, multiple, and empty input path lists.",
+          "act": "Build prompts and execute class-based and standalone skill invocations.",
+          "assert": "The expected sentinel is read, stale state is removed before invocation, the replacement remains, returned paths match, and a missing sentinel raises SkillActivityError."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Test harness parity",
+      "tests": [
+        {
+          "id": 2,
+          "name": "FakeHarness_WithFirstInput_WritesColocatedPersistentSentinel",
+          "status": "pending",
+          "description": "The integration fake follows the same co-location and fallback rules as production.",
+          "arrange": "Prompts with a first input, no input, and different skills sharing one source parent.",
+          "act": "Run FakeHarness.",
+          "assert": "It creates missing .process directories, writes co-located sentinels, retains root fallback, and distinct skill sentinels coexist."
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Repository-wide skill contract",
+      "tests": [
+        {
+          "id": 3,
+          "name": "SkillContracts_AllSkillsRetainColocatedSentinels",
+          "status": "pending",
+          "description": "All skill instructions and verification scripts adopt the persistent co-located sentinel contract.",
+          "arrange": "All repository SKILL.md and verify.sh files plus the post-edit hook.",
+          "act": "Inspect the files with static contract tests and exercise representative verification dispatch.",
+          "assert": "Instructions require parent/.process creation and retention, verify scripts contain no deletion logic, and the hook accepts nested sentinel paths without consuming them."
+        }
+      ]
+    }
+  ]
+}

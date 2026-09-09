@@ -96,8 +96,13 @@ class SkillActivity(ABC):
         return self.modify_prompt("\n".join(lines))
 
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
+        sentinel_parent = (
+            self.repo_root / Path(skill_input.input_paths[0]).parent
+            if skill_input.input_paths
+            else self.repo_root
+        )
         sentinel = self.modify_sentinel_path(
-            self.repo_root / ".process" / f"{self.skill_name}.done.json"
+            sentinel_parent / ".process" / f"{self.skill_name}.done.json"
         )
         if sentinel.exists():
             sentinel.unlink()
