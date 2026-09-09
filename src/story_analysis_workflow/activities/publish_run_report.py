@@ -3,6 +3,8 @@ from pathlib import Path
 
 from cadence import activity
 
+from common.workflow_logger import WorkflowLoggerConfig
+
 from ..reporting import (
     ActivityAttemptObservation,
     TerminalWorkflowOutcome,
@@ -40,5 +42,6 @@ async def publish_story_analysis_run_report(
         ),
         attempts=attempts,
     )
-    report_path = publish_run_report(report, Path(report_root))
+    resolved_root = Path(report_root) if report_root else WorkflowLoggerConfig.load().log_root
+    report_path = publish_run_report(report, resolved_root)
     return {"report_path": str(report_path)}
