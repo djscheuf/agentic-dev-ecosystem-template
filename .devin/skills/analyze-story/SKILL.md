@@ -101,7 +101,7 @@ KNOWLEDGE DEPENDENCIES:
 Capture the dependencies in the appropriate section of the JSON.
 ```
 
-### 8. Identify Open Questions
+### 8. Identify Questions
 When implementation or approach questions are identified, capture them in the appropriate section of the JSON. Capture the areas or aspects impacted by the question. For example a question about authentication flow might impact security, user experience, and integration points.
 
 ### 8. Write the Sentinel File
