@@ -31,6 +31,7 @@ class ActivityFailure(RuntimeError):
 
 AUDIT_SCHEMA_PATH = ".devin/skills/audit-current-reality/schema/audit.schema.json"
 DESIGN_SCHEMA_PATH = ".devin/skills/design-story-implementation/schema/design.schema.json"
+PLAN_SCHEMA_PATH = ".devin/skills/draft-implementation-plan/schema/plan.schema.json"
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,16 @@ class StoryDesignEngine:
             if self._execute_draft_implementation_plan is not None:
                 plan = await self._execute_draft_implementation_plan(design_path)
                 plan_path = plan["output_path"]
+                plan_handoff = await self._validate_artifact(plan_path, PLAN_SCHEMA_PATH)
+                if not plan_handoff.valid:
+                    return WorkflowResult(
+                        design_path=design_path,
+                        plan_path=None,
+                        passed=False,
+                        final_status="handoff_failed",
+                        score=grade.get("score"),
+                        handoff_rule=plan_handoff.rule,
+                    )
             else:
                 plan_path = None
             self._logger.info("Implementation plan complete: %s", plan_path)

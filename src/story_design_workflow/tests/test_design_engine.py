@@ -225,4 +225,26 @@ async def test_run_plans_when_grade_passes():
         "validate_handoff",
         "grade_story_design",
         "draft_implementation_plan",
+        "validate_handoff",
     ]
+
+
+@pytest.mark.asyncio
+async def test_run_validates_plan_after_drafting():
+    activities = FakeActivities()
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is True
+    assert result.final_status == "passed"
+    assert result.plan_path == "docs/foo.plan.json"
+    assert result.design_path == "docs/foo.design.json"
+    assert ("validate_handoff", "docs/foo.plan.json", ".devin/skills/draft-implementation-plan/schema/plan.schema.json") in activities.calls
