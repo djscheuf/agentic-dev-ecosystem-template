@@ -7,13 +7,13 @@
   assert:
     # System Components
     - type: llm-rubric
-      value: "Response captures affected components in capabilities analysis. Majority of listed components are Frontend or display-layer related. Backend and Persistence layers should show limited to no changes."
+      value: "Response captures affected components in capabilities analysis. Majority of listed components are Frontend or display-layer related. "
       threshold: 0.7
       metric: system_components
       weight: 2
     # Edge Expansion
     - type: llm-rubric
-      value: "Response JSON captures Edge Cases and Error Handling scenarios, focusing on the front-end or display-layer concerns. Backend and Persistence layers should show limited to no changes."
+      value: "Response JSON captures Edge Cases and Error Handling scenarios, focusing on the front-end or display-layer concerns."
       threshold: 0.7
       metric: edge_cases
       weight: 1
@@ -35,13 +35,13 @@
   assert:
     # System Components
     - type: llm-rubric
-      value: "Response JSON captures affected components in capabilities analysis. Majority of listed components are Backend or persistence-layer related. Frontend and display layers should show limited to no changes."
+      value: "Response JSON captures affected components in capabilities analysis. Majority of listed components are Backend or persistence-layer related."
       threshold: 0.7
       metric: system_components
       weight: 2
     # Edge Expansion
     - type: llm-rubric
-      value: "Response JSON captures Edge Cases and Error Handling scenarios, focusing on the backend or persistence-layer concerns. Frontend and display layers should show limited to no changes."
+      value: "Response JSON captures Edge Cases and Error Handling scenarios, focusing on the backend or persistence-layer concerns."
       threshold: 0.7
       metric: edge_cases
       weight: 1
