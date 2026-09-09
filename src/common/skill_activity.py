@@ -63,7 +63,7 @@ class SkillActivity(ABC):
 
     @abstractmethod
     def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
-        """Resolve an output when the successful harness consumed its sentinel."""
+        """Retained for concrete Activity API compatibility."""
 
     def modify_prompt(self, prompt: str) -> str:
         return prompt
