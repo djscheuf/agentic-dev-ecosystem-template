@@ -131,6 +131,7 @@ class StoryDesignEngine:
                 validation_rule=validation.rule,
             )
 
+        design_path = None
         try:
             audit_path = await self._run_audit_current_reality(analysis_path)
             audit_handoff = await self._validate_artifact(audit_path, AUDIT_SCHEMA_PATH)
@@ -155,39 +156,39 @@ class StoryDesignEngine:
                 )
 
             grade = await self._run_grade_story_design(design_path)
+
+            if grade["passed"]:
+                self._logger.info("Design grade passed; drafting implementation plan")
+                if self._execute_draft_implementation_plan is not None:
+                    plan = await self._execute_draft_implementation_plan(design_path)
+                    plan_path = plan["output_path"]
+                    plan_handoff = await self._validate_artifact(plan_path, PLAN_SCHEMA_PATH)
+                    if not plan_handoff.valid:
+                        return WorkflowResult(
+                            design_path=design_path,
+                            plan_path=None,
+                            passed=False,
+                            final_status="handoff_failed",
+                            score=grade.get("score"),
+                            handoff_rule=plan_handoff.rule,
+                        )
+                else:
+                    plan_path = None
+                self._logger.info("Implementation plan complete: %s", plan_path)
+                return WorkflowResult(
+                    design_path=design_path,
+                    plan_path=plan_path,
+                    passed=True,
+                    final_status="passed",
+                    score=grade.get("score"),
+                )
         except ActivityFailure:
             self._logger.error("Activity failed after exhausting retries")
             return WorkflowResult(
-                design_path=None,
+                design_path=design_path,
                 passed=False,
                 final_status="failed",
                 score=None,
-            )
-
-        if grade["passed"]:
-            self._logger.info("Design grade passed; drafting implementation plan")
-            if self._execute_draft_implementation_plan is not None:
-                plan = await self._execute_draft_implementation_plan(design_path)
-                plan_path = plan["output_path"]
-                plan_handoff = await self._validate_artifact(plan_path, PLAN_SCHEMA_PATH)
-                if not plan_handoff.valid:
-                    return WorkflowResult(
-                        design_path=design_path,
-                        plan_path=None,
-                        passed=False,
-                        final_status="handoff_failed",
-                        score=grade.get("score"),
-                        handoff_rule=plan_handoff.rule,
-                    )
-            else:
-                plan_path = None
-            self._logger.info("Implementation plan complete: %s", plan_path)
-            return WorkflowResult(
-                design_path=design_path,
-                plan_path=plan_path,
-                passed=True,
-                final_status="passed",
-                score=grade.get("score"),
             )
 
         self._logger.info("Design grade did not pass; failing workflow")
