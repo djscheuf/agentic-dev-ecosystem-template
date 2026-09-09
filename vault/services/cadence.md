@@ -25,6 +25,7 @@ docker compose exec cadence \
 - `start-cadence.sh` copies `CADENCE_CONFIG_FILE` to `/etc/cadence/config/docker.yaml` and then runs the configured services. Run the `update-schema` command first, then exec `start-cadence.sh`.
 - The Python client `cadence-python-client` on Nix/Linux may need `LD_LIBRARY_PATH` pointed at a `libstdc++.so.6` location because the `grpcio` wheel links it. Fixed in `shell.nix` (2026-08-28): add `stdenv.cc.cc.lib` to `buildInputs` and `export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"` in `shellHook`.
 - Querying a non-existent `WorkflowID` raises `cadence.error.EntityNotExistsError` with a `StatusCode.NOT_FOUND` gRPC error and the message `GetCurrentExecution failed. Error: sql: no rows in result set`. This is a normal "not found" path, not a database connectivity issue. Client CLIs should catch `EntityNotExistsError` and print a workflow-id-focused message rather than dumping the gRPC traceback.
+- `cadence-python-client` 0.3.0 reports the first Activity execution as `activity.info().attempt == 0`. Report schemas and retry-safe identities must accept non-negative attempt numbers rather than assuming one-based indexing. Confirmed against a live Story Analysis run on 2026-09-08.
 
 ## Python client SDK gap: no `TestWorkflowEnvironment` on PyPI yet (2026-08-28)
 
