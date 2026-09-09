@@ -12,7 +12,8 @@ description: Analyzes the extracted story document, capturing capability, accept
 
 ### 2. Create Analysis JSON File
 - create a new json file in the same directory as the extracted intent json document, using the same filename but with the suffix `.analysis.json`. e.g. "create-object-with-validation.analysis.json"
-- The json will follow `/schema/analysis.schema.json`. 
+  - if unable to write, send analysis json in chat
+- The json MUST follow `/schema/analysis.schema.json`. 
 - set the raw_request to the file path, relative to repo root, of the provided document, or to the verbatim text provided if no document was sent.
 
 ### 3. Analyze the Capability
