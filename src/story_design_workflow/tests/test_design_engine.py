@@ -411,6 +411,29 @@ async def test_run_invalid_plan_preserves_design_path_and_score():
 
 
 @pytest.mark.asyncio
+async def test_run_grade_just_below_threshold_skips_planning():
+    activities = FakeActivities()
+    activities.grade_result = {"output_path": "docs/foo.design-grade.json", "passed": False, "score": 0.49}
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+        execute_publish_story_design_report=activities.publish_story_design_report,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is False
+    assert result.final_status == "failed"
+    assert result.score == 0.49
+    assert ("publish_story_design_report", "docs/foo.design.json", None, 0.49, "docs/foo.analysis.json") in activities.calls
+    assert not any(c[0] == "draft_implementation_plan" for c in activities.calls)
+
+
+@pytest.mark.asyncio
 async def test_run_plan_handoff_retry_exhaustion_preserves_design_and_score():
     activities = FakeActivities()
     activities.plan_handoff_exception = ActivityFailure("plan handoff exhausted")
