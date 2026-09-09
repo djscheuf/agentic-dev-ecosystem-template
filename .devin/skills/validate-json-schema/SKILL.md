@@ -5,6 +5,6 @@ description: Use this skill to validate that a JSON document complies with a JSO
 
 # Validate JSON Schema
 
-Use `scripts/validate-json-schema.sh <schema.json> <document.json>` to validate a JSON document against a schema.
+Use `{SKILL Directory}/scripts/validate-json-schema.sh <schema.json> <document.json>` to validate a JSON document against a schema.
 
 Report the script output and treat a nonzero exit status as validation failure.
