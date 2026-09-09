@@ -24,6 +24,7 @@ from cadence.workflow import RetryPolicy, execute_activity, sleep, wait_conditio
 from .activities.analyze_story import analyze_story
 from .activities.extract_story_intent import extract_story_intent
 from .activities.grade_story_analysis import grade_story_analysis
+from .activities.publish_run_report import publish_story_analysis_run_report
 from .activities.repair_story_analysis import repair_story_analysis
 from .activities.validate_source_document import validate_source_document_activity
 from .escalation import HumanResponse, parse_human_response
@@ -38,6 +39,7 @@ registry.register_activity(extract_story_intent)
 registry.register_activity(analyze_story)
 registry.register_activity(grade_story_analysis)
 registry.register_activity(repair_story_analysis)
+registry.register_activity(publish_story_analysis_run_report)
 
 # Cadence-managed retries per Activity attempt, distinct from the workflow's own
 # grade-repair attempt_count (see instrumentation_events.InvokeSkillActivity).
@@ -55,6 +57,8 @@ class StoryAnalysisWorkflow:
     def __init__(self) -> None:
         self._pending_human_response: Optional[HumanResponse] = None
         self._engine: Optional[StoryAnalysisEngine] = None
+        self._report_path: Optional[str] = None
+        self._attempt_observations: list[dict] = []
 
     async def _execute_skill_activity(self, name: str, *args: Any) -> dict:
         try:
@@ -73,6 +77,24 @@ class StoryAnalysisWorkflow:
             name,
             dict,
             *args,
+            start_to_close_timeout=ACTIVITY_START_TO_CLOSE_TIMEOUT,
+            retry_policy=ACTIVITY_RETRY_POLICY,
+        )
+
+    async def _execute_reporting_activity(
+        self,
+        story_document: str,
+        terminal_result: dict,
+        attempts: list[dict],
+        report_root: str,
+    ) -> dict:
+        return await execute_activity(
+            "publish_story_analysis_run_report",
+            dict,
+            story_document,
+            terminal_result,
+            attempts,
+            report_root,
             start_to_close_timeout=ACTIVITY_START_TO_CLOSE_TIMEOUT,
             retry_policy=ACTIVITY_RETRY_POLICY,
         )
@@ -135,6 +157,15 @@ class StoryAnalysisWorkflow:
             )
             self._engine = engine
             result = await engine.run(story_document)
+            if result.outcome_origin is not None:
+                publication = await self._execute_reporting_activity(
+                    story_document,
+                    dataclasses.asdict(result),
+                    self._attempt_observations,
+                    config.get("report_root", ""),
+                )
+                self._report_path = publication["report_path"]
+                result = dataclasses.replace(result, report_path=self._report_path)
             workflow_logger.info(
                 "StoryAnalysisWorkflow completed with status=%s", result.final_status
             )
@@ -156,6 +187,7 @@ class StoryAnalysisWorkflow:
                 "escalated": engine.escalated,
                 "escalation_reason": engine.escalation_reason.value if engine.escalation_reason else None,
                 "validation_rule": engine.validation_rule.value if engine.validation_rule else None,
+                "report_path": self._report_path,
             }
         workflow_log_path = get_workflow_log_path()
         if workflow_log_path:

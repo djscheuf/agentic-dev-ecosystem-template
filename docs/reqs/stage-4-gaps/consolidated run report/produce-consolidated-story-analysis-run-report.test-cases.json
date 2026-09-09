@@ -81,7 +81,7 @@
         {
           "id": 8,
           "name": "StoryAnalysisWorkflow_OnTerminalResult_PublishesBeforeCompletion",
-          "status": "pending",
+          "status": "passing",
           "description": "The workflow schedules report publication after its engine reaches a modeled terminal state and exposes report_path only after publication succeeds.",
           "arrange": "Stub skill Activities and the publication Activity for an automated-pass workflow.",
           "act": "Run StoryAnalysisWorkflow with an explicit report root.",

@@ -3,6 +3,7 @@ from common import WorkflowModuleSpec
 from .activities.analyze_story import analyze_story
 from .activities.extract_story_intent import extract_story_intent
 from .activities.grade_story_analysis import grade_story_analysis
+from .activities.publish_run_report import publish_story_analysis_run_report
 from .activities.repair_story_analysis import repair_story_analysis
 from .activities.validate_source_document import validate_source_document_activity
 from .workflow import StoryAnalysisWorkflow
@@ -14,6 +15,7 @@ ACTIVITY_TYPES = (
     "analyze_story",
     "grade_story_analysis",
     "repair_story_analysis",
+    "publish_story_analysis_run_report",
 )
 ACTIVITIES = (
     validate_source_document_activity,
@@ -21,6 +23,7 @@ ACTIVITIES = (
     analyze_story,
     grade_story_analysis,
     repair_story_analysis,
+    publish_story_analysis_run_report,
 )
 
 

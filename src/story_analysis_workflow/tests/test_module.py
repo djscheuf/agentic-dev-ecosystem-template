@@ -36,6 +36,7 @@ def test_story_analysis_module_declares_and_registers_accurate_spec():
         "analyze_story",
         "grade_story_analysis",
         "repair_story_analysis",
+        "publish_story_analysis_run_report",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)
     assert [activity.name for activity in registry.activities] == list(SPEC.activity_types)

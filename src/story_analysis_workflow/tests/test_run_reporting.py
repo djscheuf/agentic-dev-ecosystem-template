@@ -15,6 +15,7 @@ from story_analysis_workflow.reporting import (
 )
 from story_analysis_workflow.activities.publish_run_report import publish_story_analysis_run_report
 from story_analysis_workflow.story_analysis_engine import OutcomeOrigin
+from story_analysis_workflow.workflow import StoryAnalysisWorkflow
 
 
 def test_build_run_report_with_retries_preserves_ordered_attempts_and_usage():
@@ -286,3 +287,43 @@ async def test_publish_run_report_activity_with_terminal_result_writes_run_scope
     report_path = tmp_path / "workflow-1" / "run-1" / "story-analysis.report.json"
     assert result == {"report_path": str(report_path)}
     assert json.loads(report_path.read_text())["workflow_id"] == "workflow-1"
+
+
+@pytest.mark.asyncio
+async def test_story_analysis_workflow_on_terminal_result_publishes_before_completion():
+    workflow = StoryAnalysisWorkflow()
+
+    async def validate(_story_document):
+        from story_analysis_workflow.source_document_validation import (
+            SourceDocumentValidationResult,
+            SourceDocumentValidationRule,
+        )
+
+        return SourceDocumentValidationResult(True, SourceDocumentValidationRule.VALID)
+
+    async def output(*_args):
+        return {"output_path": "artifact.json"}
+
+    async def grade(*_args):
+        return {"output_path": "grade.json", "passed": True}
+
+    publication_calls = []
+
+    async def publish(story_document, terminal_result, attempts, report_root):
+        publication_calls.append((story_document, terminal_result, attempts, report_root))
+        return {"report_path": "/reports/workflow-1/run-1/story-analysis.report.json"}
+
+    workflow._validate_source_document = validate
+    workflow._extract_story_intent = output
+    workflow._analyze_story = output
+    workflow._grade_story_analysis = grade
+    workflow._execute_reporting_activity = publish
+
+    result = await workflow.run("story.md", {"report_root": "/reports"})
+
+    assert publication_calls[0][0] == "story.md"
+    assert publication_calls[0][1]["outcome_origin"] == OutcomeOrigin.AUTOMATED_PASS
+    assert publication_calls[0][2] == []
+    assert publication_calls[0][3] == "/reports"
+    assert result["report_path"] == "/reports/workflow-1/run-1/story-analysis.report.json"
+    assert workflow.get_status()["report_path"] == result["report_path"]

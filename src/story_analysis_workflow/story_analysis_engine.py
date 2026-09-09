@@ -53,6 +53,7 @@ class WorkflowResult:
     final_status: str  # "passed" | "human_resolved" | "failed" | "validation_failed"
     validation_rule: Optional[SourceDocumentValidationRule] = None
     outcome_origin: Optional[OutcomeOrigin] = None
+    report_path: Optional[str] = None
 
 
 AwaitHumanResponse = Callable[[timedelta], Awaitable[Optional[HumanResponse]]]
