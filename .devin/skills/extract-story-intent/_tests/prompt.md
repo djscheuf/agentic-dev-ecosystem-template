@@ -1,1 +1,4 @@
-@../SKILL.md Use the provided skill to extract intent from the following story: {{request}}. Give me the extracted intent in JSON format.
+Use the /extract-story-intent skill to extract intent from the following story: {{request}}.
+
+WARNING: You are unable to write files.
+RESOLUTION: YOu MUST Put the extracted intent JSON in the Chat. 
