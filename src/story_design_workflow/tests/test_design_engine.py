@@ -57,8 +57,8 @@ class FakeActivities:
             raise self.draft_exception
         return self.draft_result
 
-    async def publish_story_design_report(self, design_path, plan_path, score=None):
-        self.calls.append(("publish_story_design_report", design_path, plan_path, score))
+    async def publish_story_design_report(self, design_path, plan_path, score=None, analysis_path=None):
+        self.calls.append(("publish_story_design_report", design_path, plan_path, score, analysis_path))
         return self.publish_result
 
 
@@ -342,7 +342,7 @@ async def test_run_publishes_failed_report_without_plan():
     assert result.design_path == "docs/foo.design.json"
     assert result.plan_path is None
     assert result.report_path == "docs/foo.story-design.report.json"
-    assert ("publish_story_design_report", "docs/foo.design.json", None, 0.45) in activities.calls
+    assert ("publish_story_design_report", "docs/foo.design.json", None, 0.45, "docs/foo.analysis.json") in activities.calls
     assert not any(c[0] == "draft_implementation_plan" for c in activities.calls)
 
 
@@ -364,4 +364,4 @@ async def test_run_publishes_report_with_score():
     assert result.passed is True
     assert result.final_status == "passed"
     assert result.score == 0.95
-    assert ("publish_story_design_report", "docs/foo.design.json", "docs/foo.plan.json", 0.95) in activities.calls
+    assert ("publish_story_design_report", "docs/foo.design.json", "docs/foo.plan.json", 0.95, "docs/foo.analysis.json") in activities.calls

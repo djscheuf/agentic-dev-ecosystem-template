@@ -100,8 +100,8 @@ class StoryDesignWorkflow:
     async def _draft_implementation_plan(self, design_path: str) -> dict:
         return await self._execute_skill_activity("draft_implementation_plan", design_path)
 
-    async def _publish_story_design_report(self, design_path: str, plan_path: Optional[str], score: Optional[float]) -> dict:
-        return await self._execute_skill_activity("publish_story_design_report", design_path, plan_path, score)
+    async def _publish_story_design_report(self, design_path: str, plan_path: Optional[str], score: Optional[float], analysis_path: str) -> dict:
+        return await self._execute_skill_activity("publish_story_design_report", design_path, plan_path, score, analysis_path)
 
     @workflow.run
     async def run(self, analysis_path: str, config: Optional[dict] = None) -> dict:
