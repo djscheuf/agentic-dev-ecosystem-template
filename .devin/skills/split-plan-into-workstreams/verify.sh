@@ -240,9 +240,6 @@ main() {
     verify_workstream "$ws_path"
   done
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

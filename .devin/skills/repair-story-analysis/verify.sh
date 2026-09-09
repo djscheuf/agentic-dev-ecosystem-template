@@ -299,9 +299,6 @@ main() {
   verify_completeness "$analysis_path"
   verify_consistency "$analysis_path"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   exit_if_failed
   
   echo -e "${GREEN}Analysis verification passed${NC}" >&2

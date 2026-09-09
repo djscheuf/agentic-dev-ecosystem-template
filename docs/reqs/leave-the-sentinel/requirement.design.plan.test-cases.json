@@ -36,7 +36,7 @@
         {
           "id": 3,
           "name": "SkillContracts_AllSkillsRetainColocatedSentinels",
-          "status": "pending",
+          "status": "passing",
           "description": "All skill instructions and verification scripts adopt the persistent co-located sentinel contract.",
           "arrange": "All repository SKILL.md and verify.sh files plus the post-edit hook.",
           "act": "Inspect the files with static contract tests and exercise representative verification dispatch.",

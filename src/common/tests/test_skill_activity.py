@@ -5,8 +5,10 @@ from pathlib import Path
 
 from types import SimpleNamespace
 
+import pytest
+
 from common.harness import HarnessResult, HarnessUsage
-from common.skill_activity import SkillActivity, SkillActivityInput
+from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 from common.workflow_logger import WorkflowLoggerConfig
 
 
@@ -38,7 +40,7 @@ def test_sentinel_path_with_relative_input_uses_first_input_parent(tmp_path) -> 
     assert (tmp_path / output.sentinel_path).exists()
 
 
-def test_missing_sentinel_uses_concrete_output_resolver(tmp_path) -> None:
+def test_missing_sentinel_raises_after_successful_harness_run(tmp_path) -> None:
     config_path = tmp_path / "custom.config.json"
     config_path.write_text(json.dumps({
         "activity": {"skill_name": "custom", "output_path_key": "artifact"},
@@ -55,11 +57,11 @@ def test_missing_sentinel_uses_concrete_output_resolver(tmp_path) -> None:
         def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
             return Path("artifacts/custom.json")
 
-    output = CustomActivity(
-        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
-    ).execute(SkillActivityInput(input_paths=["input.txt"]))
+    with pytest.raises(SkillActivityError, match="Missing sentinel"):
+        CustomActivity(
+            config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+        ).execute(SkillActivityInput(input_paths=["input.txt"]))
 
-    assert output.output_path == "artifacts/custom.json"
     assert calls == [{"fake": {"mode": "safe"}}]
 
 
@@ -80,13 +82,16 @@ def test_build_prompt_applies_hook_after_output_directory_instruction(tmp_path) 
 
         def modify_prompt(self, prompt: str) -> str:
             assert "Write the skill's output file in the same directory" in prompt
+            assert "inputs/.process/custom.done.json" in prompt
+            assert "Create the .process directory if needed" in prompt
+            assert "Do not remove the sentinel after verification" in prompt
             return f"{prompt}\nmodified"
 
     prompt = CustomActivity(
         config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
     ).build_prompt(SkillActivityInput(input_paths=["inputs/story.json"]))
 
-    assert prompt.endswith("following the skill's naming convention.\nmodified")
+    assert prompt.endswith("Do not remove the sentinel after verification.\nmodified")
 
 
 def test_execute_returns_paths_for_created_activity_logs(tmp_path, monkeypatch) -> None:
@@ -110,6 +115,10 @@ def test_execute_returns_paths_for_created_activity_logs(tmp_path, monkeypatch) 
 
     class FakeHarness:
         def run(self, prompt, *, cwd, config):
+            (tmp_path / ".process").mkdir(exist_ok=True)
+            (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
+                "task": "custom", "verify_params": {"artifact": "artifact.json"}
+            }))
             return HarnessResult(0, "", "")
 
     class CustomActivity(SkillActivity):
@@ -229,6 +238,10 @@ def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
 
     class FakeHarness:
         def run(self, prompt, *, cwd, config):
+            (tmp_path / ".process").mkdir(exist_ok=True)
+            (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
+                "task": "custom", "verify_params": {"artifact": "artifact.json"}
+            }))
             return HarnessResult(0, "", "", HarnessUsage(10, 5, 2, None))
 
     class CustomActivity(SkillActivity):

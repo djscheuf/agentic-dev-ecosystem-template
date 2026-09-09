@@ -26,6 +26,11 @@ class SkillActivityError(RuntimeError):
     pass
 
 
+def _sentinel_path(repo_root: Path, skill_name: str, input_paths: list[str]) -> Path:
+    parent = repo_root / Path(input_paths[0]).parent if input_paths else repo_root
+    return parent / ".process" / f"{skill_name}.done.json"
+
+
 @dataclass(frozen=True)
 class SkillActivityInput:
     skill_name: str = ""
@@ -91,18 +96,18 @@ class SkillActivity(ABC):
                 f"input path ({skill_input.input_paths[0]}), following the skill's "
                 f"naming convention."
             )
+        sentinel = _sentinel_path(self.repo_root, self.skill_name, skill_input.input_paths)
+        lines.append(
+            f"Create the .process directory if needed and write the completion sentinel to "
+            f"{sentinel.relative_to(self.repo_root)}. Do not remove the sentinel after verification."
+        )
         if skill_input.context:
             lines.append(skill_input.context)
         return self.modify_prompt("\n".join(lines))
 
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
-        sentinel_parent = (
-            self.repo_root / Path(skill_input.input_paths[0]).parent
-            if skill_input.input_paths
-            else self.repo_root
-        )
         sentinel = self.modify_sentinel_path(
-            sentinel_parent / ".process" / f"{self.skill_name}.done.json"
+            _sentinel_path(self.repo_root, self.skill_name, skill_input.input_paths)
         )
         if sentinel.exists():
             sentinel.unlink()
@@ -137,13 +142,10 @@ class SkillActivity(ABC):
             ambiguity_reason = ""
             try:
                 payload = json.loads(sentinel.read_text())
-            except FileNotFoundError:
-                output_path = self.expected_output_path(skill_input)
-                logger.warning(
-                    "WarnSkillArtifactVerification: skill_name=%s failure_reason=missing_sentinel output_path=%s",
-                    self.skill_name,
-                    output_path,
-                )
+            except FileNotFoundError as exc:
+                raise SkillActivityError(
+                    f"Missing sentinel for skill '{self.skill_name}'"
+                ) from exc
             except json.JSONDecodeError as exc:
                 raise SkillActivityError(f"Malformed sentinel for skill '{self.skill_name}'") from exc
             else:
@@ -211,17 +213,16 @@ def run_skill(
     repo_root: Path,
     expected_output_path: Callable[[SkillActivityInput], Path] | None = None,
 ) -> SkillActivityOutput:
-    sentinel_parent = (
-        repo_root / Path(skill_input.input_paths[0]).parent
-        if skill_input.input_paths
-        else repo_root
-    )
-    sentinel = sentinel_parent / ".process" / f"{skill_input.skill_name}.done.json"
+    sentinel = _sentinel_path(repo_root, skill_input.skill_name, skill_input.input_paths)
     if sentinel.exists():
         sentinel.unlink()
     lines = [f"Invoke the '{skill_input.skill_name}' skill."]
     if skill_input.input_paths:
         lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
+    lines.append(
+        f"Create the .process directory if needed and write the completion sentinel to "
+        f"{sentinel.relative_to(repo_root)}. Do not remove the sentinel after verification."
+    )
     if skill_input.context:
         lines.append(skill_input.context)
     start = time.monotonic()
@@ -233,12 +234,10 @@ def run_skill(
         )
     try:
         payload = json.loads(sentinel.read_text())
-    except FileNotFoundError:
-        if expected_output_path is None:
-            raise SkillActivityError(
-                f"Missing sentinel for skill '{skill_input.skill_name}'"
-            )
-        output_path = expected_output_path(skill_input)
+    except FileNotFoundError as exc:
+        raise SkillActivityError(
+            f"Missing sentinel for skill '{skill_input.skill_name}'"
+        ) from exc
     else:
         if payload.get("task") != skill_input.skill_name:
             raise SkillActivityError(

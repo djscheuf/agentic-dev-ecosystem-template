@@ -22,7 +22,7 @@ description: Discovers the current application reality BEFORE designing or imple
 - create current reality audit file in the same folder as the given analysis json. The audit file will follow the schema defined in `/schema/audit.schema.json`. The file should be named `current-reality.audit.json`.
 
 ### 6. Write the Sentinel File
-- create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
+- create `<input_parent>/.process/` when needed and write `{skill-name}.done.json` there; use the repository-root `.process/` only when no input path is supplied. The sentinel must not be removed after verification.
 - the sentinel file will follow `/schema/sentinel.schema.json`. 
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow `/schema/verify-params.schema.json`. 
