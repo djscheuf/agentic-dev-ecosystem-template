@@ -202,9 +202,16 @@ class StoryDesignEngine:
                 score=None,
             )
 
-        self._logger.info("Design grade did not pass; failing workflow")
+        self._logger.info("Design grade did not pass; publishing failed report")
+        if self._execute_publish_story_design_report is not None:
+            publish = await self._execute_publish_story_design_report(design_path, None)
+            report_path = publish["output_path"]
+        else:
+            report_path = None
         return WorkflowResult(
             design_path=design_path,
+            plan_path=None,
+            report_path=report_path,
             passed=False,
             final_status="failed",
             score=grade.get("score"),
