@@ -14,6 +14,7 @@ class FakeActivities:
         self.audit_result = {"output_path": "docs/current-reality.audit.json"}
         self.design_result = {"output_path": "docs/foo.design.json"}
         self.grade_result = {"output_path": "docs/foo.design-grade.json", "passed": True, "score": 0.95}
+        self.draft_result = {"output_path": "docs/foo.plan.json"}
         self.audit_exception = None
         self.validate_result = SourceDocumentValidationResult(
             True, SourceDocumentValidationRule.VALID
@@ -47,6 +48,10 @@ class FakeActivities:
     async def grade_story_design(self, design_path):
         self.calls.append(("grade_story_design", design_path))
         return self.grade_result
+
+    async def draft_implementation_plan(self, design_path):
+        self.calls.append(("draft_implementation_plan", design_path))
+        return self.draft_result
 
 
 def make_engine(activities):
@@ -191,4 +196,33 @@ async def test_run_returns_handoff_failed_when_design_artifact_is_invalid():
         "validate_handoff",
         "design_story_implementation",
         "validate_handoff",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_plans_when_grade_passes():
+    activities = FakeActivities()
+    engine = StoryDesignEngine(
+        validate_source_document=activities.validate_source_document,
+        validate_handoff=activities.validate_handoff,
+        execute_audit_current_reality=activities.audit_current_reality,
+        execute_design_story_implementation=activities.design_story_implementation,
+        execute_grade_story_design=activities.grade_story_design,
+        execute_draft_implementation_plan=activities.draft_implementation_plan,
+    )
+
+    result = await engine.run("docs/foo.analysis.json")
+
+    assert result.passed is True
+    assert result.final_status == "passed"
+    assert result.design_path == "docs/foo.design.json"
+    assert result.plan_path == "docs/foo.plan.json"
+    assert [c[0] for c in activities.calls] == [
+        "validate_source_document",
+        "audit_current_reality",
+        "validate_handoff",
+        "design_story_implementation",
+        "validate_handoff",
+        "grade_story_design",
+        "draft_implementation_plan",
     ]

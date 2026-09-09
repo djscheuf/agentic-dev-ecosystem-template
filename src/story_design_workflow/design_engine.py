@@ -41,6 +41,7 @@ class WorkflowResult:
     score: Optional[float] = None
     validation_rule: Optional[SourceDocumentValidationRule] = None
     handoff_rule: Optional[GuardrailRule] = None
+    plan_path: Optional[str] = None
 
 
 ValidateSourceDocument = Callable[[Optional[str]], Awaitable[SourceDocumentValidationResult]]
@@ -48,6 +49,7 @@ ValidateHandoff = Callable[[str, str], Awaitable[HandoffValidationResult]]
 ExecuteAuditCurrentReality = Callable[[str], Awaitable[dict]]
 ExecuteDesignStoryImplementation = Callable[[str, str], Awaitable[dict]]
 ExecuteGradeStoryDesign = Callable[[str], Awaitable[dict]]
+ExecuteDraftImplementationPlan = Callable[[str], Awaitable[dict]]
 
 
 async def _valid_source_document(_analysis_path: Optional[str]) -> SourceDocumentValidationResult:
@@ -73,6 +75,7 @@ class StoryDesignEngine:
         execute_audit_current_reality: ExecuteAuditCurrentReality,
         execute_design_story_implementation: ExecuteDesignStoryImplementation,
         execute_grade_story_design: ExecuteGradeStoryDesign,
+        execute_draft_implementation_plan: Optional[ExecuteDraftImplementationPlan] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self._validate_source_document = validate_source_document or _valid_source_document
@@ -80,6 +83,7 @@ class StoryDesignEngine:
         self._execute_audit_current_reality = execute_audit_current_reality
         self._execute_design_story_implementation = execute_design_story_implementation
         self._execute_grade_story_design = execute_grade_story_design
+        self._execute_draft_implementation_plan = execute_draft_implementation_plan
         self._logger = logger or _module_logger
 
     async def _run_audit_current_reality(self, analysis_path: str) -> str:
@@ -160,9 +164,16 @@ class StoryDesignEngine:
             )
 
         if grade["passed"]:
-            self._logger.info("Design grade passed; workflow complete")
+            self._logger.info("Design grade passed; drafting implementation plan")
+            if self._execute_draft_implementation_plan is not None:
+                plan = await self._execute_draft_implementation_plan(design_path)
+                plan_path = plan["output_path"]
+            else:
+                plan_path = None
+            self._logger.info("Implementation plan complete: %s", plan_path)
             return WorkflowResult(
                 design_path=design_path,
+                plan_path=plan_path,
                 passed=True,
                 final_status="passed",
                 score=grade.get("score"),
