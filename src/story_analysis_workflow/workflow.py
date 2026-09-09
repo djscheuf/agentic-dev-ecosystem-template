@@ -62,13 +62,18 @@ class StoryAnalysisWorkflow:
 
     async def _execute_skill_activity(self, name: str, *args: Any) -> dict:
         try:
-            return await execute_activity(
+            result = await execute_activity(
                 name,
                 dict,
                 *args,
                 start_to_close_timeout=ACTIVITY_START_TO_CLOSE_TIMEOUT,
                 retry_policy=ACTIVITY_RETRY_POLICY,
             )
+            observation = result.get("observation")
+            if observation:
+                observation["sequence"] = len(self._attempt_observations) + 1
+                self._attempt_observations.append(observation)
+            return result
         except CadenceActivityFailure as exc:
             raise ActivityFailure(str(exc)) from exc
 

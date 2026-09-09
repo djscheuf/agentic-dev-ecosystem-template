@@ -104,7 +104,7 @@
         {
           "id": 10,
           "name": "SkillActivityOutput_EachAttempt_CarriesTelemetryObservation",
-          "status": "pending",
+          "status": "passing",
           "description": "Each common Skill Activity execution returns retry-safe identity, artifacts, invocation profile, outcome, duration, and normalized ATIF usage.",
           "arrange": "Execute successful and failed harness attempts with Cadence Activity identity and partial ATIF metrics.",
           "act": "Read the Activity output observation.",

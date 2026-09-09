@@ -5,7 +5,7 @@ from pathlib import Path
 
 from types import SimpleNamespace
 
-from common.harness import HarnessResult
+from common.harness import HarnessResult, HarnessUsage
 from common.skill_activity import SkillActivity, SkillActivityInput
 from common.workflow_logger import WorkflowLoggerConfig
 
@@ -170,3 +170,68 @@ def test_execute_maps_explicit_ambiguity_sentinel(tmp_path) -> None:
     assert output.status == "ambiguity"
     assert output.ambiguity_reason == "requirements conflict"
     assert output.output_path == ""
+
+
+def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
+    tmp_path, monkeypatch
+) -> None:
+    config_path = tmp_path / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {"devin": {"model": "SWE-1.7", "permission_mode": "accept-edits"}},
+    }))
+    info = SimpleNamespace(
+        workflow_id="wf-1",
+        workflow_run_id="run-1",
+        activity_type="custom",
+        activity_id="act-1",
+        attempt=2,
+    )
+    monkeypatch.setattr(
+        "common.workflow_logger._resolve_activity_info", lambda activity_info=None: info
+    )
+    monkeypatch.setattr(
+        "common.skill_activity._resolve_activity_info", lambda activity_info=None: info
+    )
+    monkeypatch.setattr(
+        WorkflowLoggerConfig,
+        "load",
+        lambda: WorkflowLoggerConfig(log_root=tmp_path / "logs"),
+    )
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(0, "", "", HarnessUsage(10, 5, 2, None))
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("artifact.json")
+
+    output = CustomActivity(
+        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+    ).execute(SkillActivityInput())
+
+    assert output.observation == {
+        "workflow_id": "wf-1",
+        "run_id": "run-1",
+        "sequence": 0,
+        "step_name": "custom",
+        "activity_type": "custom",
+        "activity_id": "act-1",
+        "attempt": 2,
+        "started_at": output.observation["started_at"],
+        "duration_ms": output.duration_ms,
+        "outcome": "success",
+        "model": "SWE-1.7",
+        "permission_mode": "accept-edits",
+        "output_path": "artifact.json",
+        "activity_log_path": output.activity_log_path,
+        "devin_log_path": output.devin_log_path,
+        "atif_path": output.observation["atif_path"],
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "cached_tokens": 2,
+            "cost_usd": None,
+        },
+    }
