@@ -72,3 +72,7 @@ The workflow now publishes through a registered Cadence Activity after reaching 
 Skill Activity successes carry structured attempt identity, invocation profile, artifact references, duration, and independently available ATIF usage into the workflow ledger. V1 report and aggregate JSON Schemas validate documents before atomic publication. The CLI exposes explicit-root, explicit-UTC-window aggregation.
 
 Capturing observations from every Cadence-managed failed retry remains follow-up work because failed Activity return values are not delivered to workflow code; it requires a durable attempt-side evidence handoff rather than reconstructing facts from text logs.
+
+## Republish identity invariant — 2026-09-08
+
+A report reconstructed from existing attempt observations uses their shared `workflow_id` and `run_id`, not the identity of the Activity currently performing publication. This permits an idempotent republish from a helper workflow while preserving the original execution identity. Mixed observation identities still fail report construction, so republishing cannot combine evidence from different runs.
