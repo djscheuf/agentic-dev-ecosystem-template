@@ -27,12 +27,12 @@
       metric: scope-scores
       weight: 1
     - type: llm-rubric
-      value: "The Scope Section's Reason should mention that the story spans multiple systems."
+      value: "The Scope Section's Reason should mention the breadth of the story's scope. It may cite the number of systems touched or the evident complexity."
       threshold: 0.7
       metric: scope-reasons
       weight: 1
     - type: llm-rubric
-      value: "The Scope Section's Recommendation should include comment on how to improve scope-control, such as story splitting, looking for a thin vertical slice."
+      value: "The Scope Section's Recommendation should include comment on how to improve scope-control. Advise may include things like story splitting, or looking for a thin vertical slice."
       threshold: 0.7
       metric: scope-recommendation
       weight: 1

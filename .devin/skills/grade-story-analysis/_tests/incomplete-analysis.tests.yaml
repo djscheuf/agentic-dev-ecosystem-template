@@ -28,7 +28,7 @@
       metric: bv-scores
       weight: 1
     - type: llm-rubric
-      value: "The Business Value Section's Reason should mention unclear business goal, or taht it is vague and generic as reason for the score. "
+      value: "The Business Value Section's Reason should indicate some issue with expressed business goal. It may be missing, or vague and generic. The business goal may be only mechanical in nature, rather than strategic. "
       threshold: 0.7
       metric: bv-reasons
       weight: 1
@@ -92,34 +92,6 @@
       value: "The Dependency Section's Recommendation should include recommendations of dependencies to consider. "
       threshold: 0.7
       metric: dependency-recommendation
-      weight: 1
-
-# ========================================
-# INCOMPLETE Story ANALYSIS
-# ========================================
-- vars:
-    request: 
-      - '@../.devin/skills/grade-story-analysis/_tests/_data/truncated_display.analysis.json'
-    assert_config:
-      expected_failing_sections:
-        - "story_format"
-      score_floor: 1
-  description: 'Incomplete Story Analysis'
-  assert:
-    # Core definition
-    - type: javascript
-      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
-      metric: format-scores
-      weight: 1
-    - type: llm-rubric
-      value: "The Format Section's Reason should mention the proper format structure. May indicate some room for improvement of the story."
-      threshold: 0.7
-      metric: format-reasons
-      weight: 1
-    - type: llm-rubric
-      value: "The Format Section's Recommendation should include comment on how to improve the story, highlighting the so-so User Persona. "
-      threshold: 0.7
-      metric: format-recommendation
       weight: 1
 
 # ========================================

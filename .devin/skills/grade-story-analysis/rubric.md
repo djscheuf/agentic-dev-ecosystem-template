@@ -122,7 +122,7 @@ Each dimension is scored on a **0-3 scale**:
 - Can scope be adjusted to eliminate external dependencies?
 
 #### Trouble Case:
-- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Provide examples of dependencies to consider. 
+- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Suggest examples of dependencies to consider as part of the recommendation.
 
 ## Common Gaps & Remediation
 
