@@ -1,1 +1,4 @@
-@../SKILL.md Use the provided skill to grade the provided story analysis: {{request}}. Give me the grading result in JSON format.
+Use the /grade-story-analysis skill to grade the provided story analysis:: {{request}}.
+
+WARNING: You are unable to write files.
+RESOLUTION: YOu MUST Put the grade JSON in the Chat. 
