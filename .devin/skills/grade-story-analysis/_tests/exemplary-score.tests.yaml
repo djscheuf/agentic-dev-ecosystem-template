@@ -1,0 +1,51 @@
+# ========================================
+# EXEMPLARY SCORE (3) RECOMMENDATION BEHAVIOR
+# ========================================
+# Per test_cases.md: "AND no Recommendation needed" whenever a dimension is
+# exemplary (score 3). Previously nothing verified this - a grader could
+# score a section 3 and still emit a generic/filler recommendation, which
+# is misleading to consumers of the grade.
+
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+  description: 'Perfect Score Sections Have No Filler Recommendation'
+  assert:
+    - type: llm-rubric
+      value: "For every dimension (business_value, scope, acceptance_criteria, story_format, dependencies) that received a score of exactly 3, the recommendation field should be empty, 'N/A', or should explicitly state that no further improvement is needed - not a generic or filler suggestion. Dimensions scoring below 3 are not evaluated by this check."
+      threshold: 0.8
+      metric: exemplary-recommendation
+      weight: 1
+
+# ========================================
+# CONSISTENCY / DETERMINISM CHECK
+# ========================================
+# Grading the same analysis repeatedly should not produce wildly different
+# scores for the same dimension. This guards against an unstable grader
+# prompt where scores swing based on sampling noise rather than content.
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+  description: 'Repeated Grading Produces Stable Scores'
+  options:
+    repeat: 3
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:allScoresWithinBounds
+      metric: stability-scores
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/display_name_story.analysis.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-analysis/schema/analysis-grade.schema.json'

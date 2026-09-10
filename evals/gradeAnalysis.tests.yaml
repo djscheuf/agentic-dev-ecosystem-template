@@ -37,10 +37,10 @@ providers:
   #   label: 'Haiku'
   #   config:
   #     model: 'claude-haiku-4.5'
-  - id: 'exec: node ./devin.js'
-    label: 'Sonnet'
-    config:
-      model: 'claude-sonnet-4.6'
+  # - id: 'exec: node ./devin.js'
+  #   label: 'Sonnet'
+  #   config:
+  #     model: 'claude-sonnet-4.6'
   # - file://./stdProviders.config.yaml
   
 # Test cases loaded from external file
@@ -48,6 +48,9 @@ tests:
   - file://../.devin/skills/grade-story-analysis/_tests/base.tests.yaml
   - file://../.devin/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
   - file://../.devin/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
+  - file://../.devin/skills/grade-story-analysis/_tests/dependencies-quality.tests.yaml
+  - file://../.devin/skills/grade-story-analysis/_tests/exemplary-score.tests.yaml
+  - file://../.devin/skills/grade-story-analysis/_tests/robustness.tests.yaml
 
 # Output configuration
 outputPath: results.gradeAnalysis.html

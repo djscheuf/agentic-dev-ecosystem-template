@@ -1,0 +1,39 @@
+# ========================================
+# DEPENDENCIES DIMENSION - HIGH SCORE COVERAGE
+# ========================================
+# incomplete-analysis.tests.yaml only exercises the "0" (missing/undocumented)
+# end of this dimension. These tests cover the "well-documented / autonomous"
+# end (scores 2-3), which was previously untested.
+
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/improve-search-performance.analysis.json'
+    assert_config:
+      expected_passing_sections:
+        - "dependencies"
+      score_floor: 2
+  description: 'Well-Documented Autonomous Dependencies'
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasMinimumScores
+      metric: dep-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Dependency Section's Reason should recognize that existing dependencies are identified and there are no unresolved blockers (no external teams/decisions the team is waiting on), rather than penalizing the story for lacking a long dependency list."
+      threshold: 0.7
+      metric: dep-reasons
+      weight: 1
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-analysis/_tests/_data/administer-tactic-types-and-delivery-methods.analysis.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.devin/skills/grade-story-analysis/schema/analysis-grade.schema.json'
