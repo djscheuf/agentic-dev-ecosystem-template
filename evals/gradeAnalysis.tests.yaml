@@ -17,7 +17,7 @@ defaultTest:
     # Provider mode: prompt is plain text
     #
     # Devin CLI grader — ACTIVE
-    provider: 'SWE 1.6'
+    provider: 'SWE 1.7 Medium'
     
 # Use devin cli as a provider via script execution
 providers:
@@ -30,17 +30,9 @@ providers:
   #
   # Devin CLI provider — ACTIVE
   - id: 'exec: node ./devin.js'
-    label: 'SWE 1.6'
+    label: 'SWE 1.7 Medium'
     config:
-      model: 'SWE-1.6'
-  # - id: 'exec: node ./devin.js'
-  #   label: 'Haiku'
-  #   config:
-  #     model: 'claude-haiku-4.5'
-  # - id: 'exec: node ./devin.js'
-  #   label: 'Sonnet'
-  #   config:
-  #     model: 'claude-sonnet-4.6'
+      model: 'swe-1.7-medium'
   # - file://./stdProviders.config.yaml
   
 # Test cases loaded from external file
