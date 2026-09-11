@@ -11,6 +11,8 @@ description: Grades the quality of the extracted story document with additional 
 - grade the analysis based on the User Story Quality Rubric defined in `/rubric.md`.
 - Identify a score for each dimension and provide your reasoning for that score. 
 - Provide recommendations for improvement for each dimension with an imperfect score.
+- If a dimension scores 3, set `recommendation` to a short closing statement such as
+  "No improvements needed."
 
 ### 3. Save the Grade
 - save the grade to a new json file with the same name as the analysis json file, but with the suffix `.analysis-grade.json`. 
