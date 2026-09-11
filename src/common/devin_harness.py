@@ -18,7 +18,7 @@ from .workflow_logger import (
     get_devin_log_path,
 )
 
-DEFAULT_MODEL = "SWE-1.7"
+DEFAULT_MODEL = "swe-1.7-medium"
 DEFAULT_PERMISSION_MODE = "auto"
 SUPPORTED_PERMISSION_MODES = frozenset({"auto", "accept-edits", "dangerous", "bypass"})
 _SUPPORTED_KEYS = frozenset({"model", "permission_mode"})
