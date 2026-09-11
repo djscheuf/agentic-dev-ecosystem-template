@@ -77,7 +77,11 @@ Each dimension is scored on a **0-3 scale**:
 - Are there any criteria that are actually implementation details?
 
 #### Trouble Case:
-- No Edge Cases are Documented = Incomplete Acceptance Criteria. Automatic point deduction! Suggest adding edge cases, and provide examples of cases to consider. 
+- No Edge Cases are Documented = Incomplete Acceptance Criteria. This CAPS the score at 1,
+  regardless of how clear, testable, or well-formatted (e.g. Given-When-Then) the happy-path
+  criteria are. A well-written happy path alone is still "incomplete," per the score-1
+  descriptor above ("missing edge cases"). The `edge_cases` field (or equivalent) must be non-empty and substantive
+  to earn a 2 or higher. Suggest adding edge cases, and provide examples of cases to consider.
 
 ---
 
