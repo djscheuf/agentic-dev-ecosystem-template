@@ -212,6 +212,16 @@ def _atomic_write_json(
     return destination
 
 
+def publish_run_report_to_path(
+    report: StoryAnalysisRunReportV1,
+    destination: Path,
+    *,
+    replace_file: Callable[[str, str], None] = os.replace,
+) -> Path:
+    _validate_document(report, REPORT_SCHEMA_PATH)
+    return _atomic_write_json(report, destination, replace_file)
+
+
 def publish_run_report(
     report: StoryAnalysisRunReportV1,
     report_root: Path,
@@ -224,8 +234,7 @@ def publish_run_report(
         / _safe_component(report.run_id)
         / REPORT_FILENAME
     )
-    _validate_document(report, REPORT_SCHEMA_PATH)
-    return _atomic_write_json(report, destination, replace_file)
+    return publish_run_report_to_path(report, destination, replace_file=replace_file)
 
 
 def publish_run_aggregate(
@@ -300,7 +309,6 @@ def aggregate_run_reports(
         origin_counts[origin]
         for origin in (
             OutcomeOrigin.AUTOMATED_PASS.value,
-            OutcomeOrigin.REPAIRED_PASS.value,
         )
     )
     denominator = len(observations)
@@ -309,7 +317,7 @@ def aggregate_run_reports(
         schema_version=REPORT_SCHEMA_VERSION,
         generated_at=generated_at.isoformat().replace("+00:00", "Z"),
         formula_id="automated_pass_rate_v1",
-        formula_text="count(automated_pass or repaired_pass) / count(all terminal runs)",
+        formula_text="count(automated_pass) / count(all terminal runs)",
         window_start=window_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         window_end=window_end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         numerator=numerator,

@@ -65,7 +65,7 @@ def test_build_run_report_with_retries_preserves_ordered_attempts_and_usage():
     ]
     outcome = TerminalWorkflowOutcome(
         final_status="passed",
-        outcome_origin=OutcomeOrigin.REPAIRED_PASS,
+        outcome_origin=OutcomeOrigin.AUTOMATED_PASS,
         final_analysis_path="analysis.json",
         repair_attempt_count=1,
     )
@@ -221,14 +221,13 @@ def test_aggregate_run_reports_with_mixed_candidates_publishes_auditable_operand
     window_end = datetime(2026, 9, 9, tzinfo=timezone.utc)
     origins = [
         OutcomeOrigin.AUTOMATED_PASS,
-        OutcomeOrigin.REPAIRED_PASS,
         OutcomeOrigin.HUMAN_ACCEPT,
         OutcomeOrigin.HUMAN_ABORT,
         OutcomeOrigin.AUTOMATED_FAILURE,
     ]
     paths = []
     for index, origin in enumerate(origins):
-        status = "passed" if index < 2 else "human_resolved" if index < 4 else "failed"
+        status = "passed" if index < 1 else "human_resolved" if index < 3 else "failed"
         report = build_run_report(
             workflow_id=f"workflow-{index}",
             run_id=f"run-{index}",
@@ -265,14 +264,14 @@ def test_aggregate_run_reports_with_mixed_candidates_publishes_auditable_operand
     aggregate = aggregate_run_reports(tmp_path, window_start, window_end)
 
     assert aggregate.formula_id == "automated_pass_rate_v1"
-    assert aggregate.numerator == 2
-    assert aggregate.denominator == 5
-    assert aggregate.success_rate == 0.4
+    assert aggregate.numerator == 1
+    assert aggregate.denominator == 4
+    assert aggregate.success_rate == 0.25
     assert aggregate.manual_intervention_count == 2
     assert aggregate.outcome_origin_counts == {
         origin.value: 1 for origin in origins
     }
-    assert len(aggregate.observations) == 5
+    assert len(aggregate.observations) == 4
     assert aggregate.exclusion_counts == {
         "duplicate": 1,
         "incompatible_schema": 1,
@@ -298,7 +297,7 @@ def test_aggregate_run_reports_with_empty_sample_returns_null_rate(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_publish_run_report_activity_with_terminal_result_writes_run_scoped_report(
+async def test_publish_run_report_activity_writes_report_beside_source_document(
     monkeypatch, tmp_path
 ):
     from story_analysis_workflow.activities import publish_run_report as activity_module
@@ -318,11 +317,15 @@ async def test_publish_run_report_activity_with_terminal_result_writes_run_scope
         "outcome_origin": "automated_pass",
     }
 
+    story_path = tmp_path / "ex2" / "admin_story.md"
+    story_path.parent.mkdir()
+    story_path.write_text("As an admin...")
+
     result = await publish_story_analysis_run_report(
-        "story.md", terminal_result, [], str(tmp_path)
+        str(story_path), terminal_result, [], str(tmp_path / "process-logs")
     )
 
-    report_path = tmp_path / "workflow-1" / "run-1" / "story-analysis.report.json"
+    report_path = story_path.parent / "story-analysis.report.json"
     assert result == {"report_path": str(report_path)}
     assert json.loads(report_path.read_text())["workflow_id"] == "workflow-1"
 
@@ -366,16 +369,15 @@ async def test_publish_activity_preserves_original_identity_when_rerun_from_anot
         "outcome_origin": "automated_pass",
     }
 
+    story_path = tmp_path / "stories" / "story.md"
+    story_path.parent.mkdir()
+    story_path.write_text("As a user...")
+
     result = await publish_story_analysis_run_report(
-        "story.md", terminal_result, [attempt], str(tmp_path)
+        str(story_path), terminal_result, [attempt], str(tmp_path / "process-logs")
     )
 
-    expected = (
-        tmp_path
-        / "original-workflow"
-        / "original-run"
-        / "story-analysis.report.json"
-    )
+    expected = story_path.parent / "story-analysis.report.json"
     assert result == {"report_path": str(expected)}
     assert json.loads(expected.read_text())["run_id"] == "original-run"
 
