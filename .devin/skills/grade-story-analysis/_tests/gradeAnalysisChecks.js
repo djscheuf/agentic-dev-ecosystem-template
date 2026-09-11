@@ -13,7 +13,8 @@ function _parseJsonOutput(output) {
 }
 
 function _pullVarFromAssertConfig(context, varName) {
-    return context.vars?.assert_config?.[varName] || undefined;
+    const value = context.vars?.assert_config?.[varName];
+    return value === null ? undefined : value;
 }
 
 function hasExpectedFailingSections(output, context) {
@@ -27,7 +28,7 @@ function hasExpectedFailingSections(output, context) {
     }
 
     const scoreFloor = _pullVarFromAssertConfig(context, 'score_floor');
-    if (!scoreFloor) {
+    if (scoreFloor === undefined || scoreFloor === null) {
         return {
             pass: false,
             score: 0,
@@ -47,8 +48,9 @@ function hasExpectedFailingSections(output, context) {
     let errors=[];
     expectedFailingSections.forEach(section => {
         const sectionData = json[section];
-        if (!sectionData || !sectionData.score) {
+        if (!sectionData || sectionData.score === undefined || sectionData.score === null) {
             errors.push(`Missing section: ${section}`);
+            return;
         }
         if (sectionData.score > scoreFloor) {
             errors.push(`Section ${section} should have score <= ${scoreFloor} but got ${sectionData.score}`);
@@ -84,7 +86,7 @@ function allScoresWithinBounds(output){
 
     let errors = [];
     Object.keys(json).forEach(section => {
-        if(!json[section].score) {
+        if(json[section].score === undefined || json[section].score === null) {
             errors.push(`Section ${section} has no score`);
             return;
         }
@@ -140,7 +142,7 @@ function hasMinimumScores(output, context) {
     let errors = [];
     expectedPassingSections.forEach(section => {
         const sectionData = json[section];
-        if (!sectionData || sectionData.score === undefined) {
+        if (!sectionData || sectionData.score === undefined || sectionData.score === null) {
             errors.push(`Missing section: ${section}`);
             return;
         }
