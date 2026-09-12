@@ -1,219 +1,180 @@
 # Agentic Development Ecosystem Template
 
-A comprehensive template repository containing rules, workflows, and skills for AI-assisted development with Windsurf. This ecosystem provides a structured approach to multiply developer impact through systematic use of AI pair programming patterns.
+A referenceable, extensible, and reusable example of how to build agent skills, evaluate them, coordinate them into workflows, and apply them to an agentic software development lifecycle.
+
+The repository combines:
+
+- **Reusable rules and skills** — agent guidance and focused capabilities that can be adapted to another project;
+- **Tested skill contracts** — structured outputs, schemas, verification scripts, and evaluation cases;
+- **Proven workflows** — repeatable sequences for understanding codebases, analyzing work, designing changes, and implementing with TDD;
+- **Working orchestration** — durable coordination of agentic calls across the Analysis and Design phases; and
+- **Example artifacts** — inspectable inputs, outputs, grades, reports, and implementation references.
 
 ## Purpose
 
-This repository serves as a template for establishing effective AI-assisted development practices. It provides:
+This repository is the basis for building an agentic development ecosystem rather than a single application. It shows how to move from one-off prompts toward capabilities that are:
 
-- **Reusable Rules**: Coding standards and AI interaction patterns
-- **Proven Workflows**: Step-by-step processes for common development scenarios
-- **Example Sequences**: Real-world usage patterns showing inputs, outputs, and workflow combinations
-- **Persona Patterns**: Specialized AI interaction modes for different development needs
+- **Modular** — each skill has a focused responsibility;
+- **Composable** — workflows combine skills into useful sequences;
+- **Testable** — skills have repeatable evaluations and machine-verifiable output contracts;
+- **Observable** — orchestrated runs leave artifacts, reports, logs, and execution history;
+- **Reusable** — skills and workflow patterns can be carried into other repositories; and
+- **Extensible** — additional SDLC phases can follow the same boundaries and conventions.
 
-## Workflow Sequences
+The current orchestration implementation demonstrates the first two SDLC phases, **Analysis** and **Design**. Implementation remains a documented skill-driven handoff rather than part of the durable orchestration.
 
-### Brownfield Projects (Joining Existing Codebases)
+## Use the repository by scenario
 
-When joining an existing project, start with documentation:
+### Brownfield projects
 
-1. **[Explore Codebase](.devin/skills/explore-codebase/SKILL.md)** → Generate living documentation of the existing system
-   - Input: Existing codebase
-   - Output: Structured documentation of architecture, patterns, and key components
+When joining or modifying an existing codebase, begin by establishing current reality:
 
-### Greenfield Projects (Starting Fresh)
+1. Use [Explore Codebase](.devin/skills/explore-codebase/SKILL.md) to identify architecture, conventions, dependencies, and testing patterns.
+2. Use [Query Code](.devin/skills/query-code/SKILL.md) for focused follow-up exploration during analysis or design.
+3. Record durable architectural knowledge and constraints in the repository documentation or vault before designing changes.
 
-For new projects, establish standards first:
+This sequence reduces the risk of proposing work that conflicts with existing patterns or rediscovering decisions already captured by the project.
 
-1. **Active Partner Conversation** → Define coding standards and target architecture
-   - Input: Project goals, technology preferences, quality standards
-   - Output: Documented coding standards, architectural decisions, project structure
+### Greenfield projects
 
-### Feature Development (User Story Implementation)
+For a new project, establish the development system before scaling agentic work:
 
-For implementing user stories with defined personas, user value, and BDD-style acceptance criteria:
+1. Define the target architecture, coding standards, quality expectations, and repository conventions with an active human-agent design conversation.
+2. Capture those decisions as repository rules and architecture documentation.
+3. Adapt the skills and output contracts in `.devin/skills/` to the new domain.
+4. Add representative evaluation cases before treating a skill as reusable.
+5. Introduce orchestration when several stable skills need sequencing, retries, quality gates, or durable state.
 
-1. **[Analyze User Story](.devin/skills/analyze-story/SKILL.md)** → Deep analysis of requirements
-   - Input: User story (persona + value + BDD acceptance criteria)
-   - Output: Analysis document with clarifying questions
-   
-2. **Clarification Round** → Answer questions and resolve ambiguities
-   - Input: Responses to analysis questions
-   - Output: Confirmed understanding and refined requirements
+The repository is intended to be forked and tailored: retain the patterns, then replace examples and constraints with those of the target system.
 
-3. **[Planning](.devin/skills/sdlc-plan/SKILL.md)** → Generate implementation plan
-   - Input: Analyzed and clarified user story
-   - Output: Step-by-step implementation plan
+### Feature development
 
-4. **[Design Buddy](.devin/rules/design-buddy.md) Conversation** → Evaluate design and refine plan
-   - Input: Implementation plan
-   - Output: Design-reviewed plan focused on effective solutions rather than problem fixation
+The current feature-development path combines durable orchestration with a skill-driven implementation handoff:
 
-5. **[TDD Workflow](.devin/skills/tdd-workflow/SKILL.md)** → Iterative test-driven implementation
-   - Input: Implementation plan
-   - Process: For each step:
-     - Think about what to implement
-     - Write a failing test
-     - Implement code to pass the test
-     - Refactor for cleanliness
-   - Output: Fully implemented feature with comprehensive unit tests
+1. **Analysis orchestration** — validate a Markdown story, extract intent, analyze it, grade the analysis, and retry or request human intervention when necessary.
+2. **Design orchestration** — audit the current repository, validate handoffs, design the implementation, grade the design, and produce an implementation plan.
+3. **Design clarification** — when the design does not pass or requires human judgment, use the manual [Design Buddy](.devin/rules/design-buddy.md) to challenge assumptions, clarify trade-offs, and refine the intended design before continuing.
+4. **Implementation handoff** — use the [TDD Workflow](.devin/skills/tdd-workflow/SKILL.md) as the current working reference for implementing the approved plan through Think, Red, Green, and Refactor cycles.
 
-**Note**: This sequence covers implementation through unit testing. Integration testing and deployment are separate concerns handled by additional workflows.
+The durable orchestration currently ends with the Design outputs and implementation plan. It does **not yet orchestrate the TDD implementation phase**. See [Orchestration: Analysis and Design](docs/orchestration.md) for the operating guide, execution model, and extension points.
 
-### E2E Test Debugging (Systematic Failure Resolution)
+## Orchestration
 
-For debugging failing E2E tests with a systematic, evidence-based approach:
+Orchestration coordinates independently executable skills into a reliable process with explicit ordering, inputs, outputs, retries, validation, quality gates, and terminal states.
 
-1. **[Debug E2E Review](.devin/skills/debug-e2e-workflow/reference/review.md)** → Classify failures and gather evidence
-   - Input: Test failure information (terminal output or test-results folder)
-   - Process: For each failing test, classify as setup failure or test execution failure
-   - Output: Debugging session document with classified failures and evidence
-   
-2. **[Debug E2E Hypothesis](.devin/skills/debug-e2e-workflow/reference/hypothesis.md)** → Form root cause hypotheses
-   - Input: Classified failures with evidence
-   - Process: 
-     - Path A: Setup failures → Infrastructure/environment analysis
-     - Path B: Test execution failures → Application/test logic analysis
-     - Prioritize hypotheses (setup failures always first)
-   - Output: Prioritized hypothesis list with validation results
+In this repository, Cadence persists workflow state and decisions. Workers execute Activities that validate artifacts, invoke repository skills through Devin, grade outputs, and publish reports. The working Analysis and Design workflows demonstrate how skills can become durable SDLC building blocks without coupling business workflows to one another.
 
-3. **[Debug E2E Fix](.devin/skills/debug-e2e-workflow/reference/fix.md)** → Apply TDD-style fixes
-   - Input: Validated hypothesis
-   - Process: For each hypothesis (highest priority first):
-     - Think: Plan the fix
-     - Red: Create/verify failing test
-     - Green: Implement minimal fix
-     - Refactor: Clean up code
-     - Verify: Run E2E tests
-   - Output: Fixed tests with no regressions
-   - **Critical**: After fixing setup failures, re-run tests before fixing test execution failures
+Read [Orchestration: Analysis and Design](docs/orchestration.md) for setup, commands, execution paths, outputs, troubleshooting, and extension guidance. For the underlying platform, see the official [Cadence documentation](https://cadenceworkflow.io/docs/).
 
-4. **Final Verification** → Confirm all tests passing
-   - Input: All fixes applied
-   - Output: Full E2E suite passing, ready to commit
+## Architecture at a glance
 
-**Key Concepts:**
-- **Two failure types**: Setup failures (infrastructure) vs Test execution failures (application/test logic)
-- **Priority system**: Always fix setup failures first (Priority 0), then test failures (Priority 1+)
-- **Re-run gate**: Must re-run tests after fixing setup failures to get clean results
-- **TDD discipline**: Think → Red → Green → Refactor → Verify for all fixes
-
-**See**: [E2E Debugging Workflow Guide](docs/e2e-debugging-workflow-guide.md) for complete documentation
-
-## Repository Structure
-
-```
-.devin/
-├── rules/          # Coding standards and AI interaction patterns
-├── workflows/      # Step-by-step process definitions
-├── skills/         # Specialized capabilities and knowledge
-├── scripts/        # Hook scripts for automated verification and auditing
-└── hooks.json      # Hook configuration for Cascade events
+```text
+Human intent and repository context
+                |
+                v
+      Reusable rules and skills
+                |
+                +-----------------------------+
+                | direct use                  | orchestrated use
+                v                             v
+      Skill outputs and tests       Workflow client -> Cadence service
+                                                  |
+                                                  v
+                                      Orchestrator composition root
+                                                  |
+                                      +-----------+-----------+
+                                      |                       |
+                                      v                       v
+                           Analysis Worker route    Design Worker route
+                                      |                       |
+                                      v                       v
+                              Workflow engines and Activities
+                                      |                       |
+                                      +-----------+-----------+
+                                                  |
+                                                  v
+                                      SkillActivity / DevinHarness
+                                                  |
+                                                  v
+                                      Skills -> artifacts, grades,
+                                               reports, and logs
 ```
 
-## Key Components
+The runtime uses three implementation layers:
 
-### Rules
+- `src/common/` — reusable harness, Activity lifecycle, logging, and workflow-module contracts;
+- `src/story_analysis_workflow/` and `src/story_design_workflow/` — workflow-specific engines, Activities, clients, configuration, and tests; and
+- `src/orchestrator/` — workflow catalog loading, registry composition, and Worker lifecycle.
 
-Rules define how the AI assistant should behave and what standards to follow. They can be assigned to a type of file or manually activated. 
+## A skill at a glance
 
-I often use manually activated rules for 'Persona's like:
+A mature artifact-producing skill is a small, self-contained capability rather than just a prompt file. Representative skills such as [Analyze Story](.devin/skills/analyze-story/) and [Design Story Implementation](.devin/skills/design-story-implementation/) use this structure:
 
-- **active-partner.md**: Interactive questioning pattern for unclear requirements ([source](https://lexler.github.io/augmented-coding-patterns/patterns/active-partner/))
-- **design-buddy.md**: Design thinking and architectural guidance (custom persona)
-- **security-buddy.md**: Security-focused review persona (example for creating custom personas)
+```text
+.devin/skills/<skill-name>/
+├── SKILL.md                 # Purpose, inputs, process, outputs, and completion contract
+├── schema/
+│   ├── <output>.schema.json # Machine-readable output contract
+│   ├── <output>.example.json
+│   ├── sentinel.schema.json
+│   └── verify-params.schema.json
+├── verify.sh                # Deterministic structural/output verification
+└── _tests/
+    ├── test_cases.md        # Intended behavior and coverage
+    ├── prompt.md            # Evaluation prompt/template
+    ├── *.tests.yaml         # Promptfoo cases and assertions
+    ├── data/ or _data/      # Representative fixtures
+    └── *Checks.js           # Optional custom assertions
+```
 
-### Workflows
+Not every skill needs every file. Coordinating or reference skills may primarily contain `SKILL.md` and progressively disclosed reference pages. Artifact-producing skills should make their inputs, output schema, verification behavior, and completion signal explicit.
 
-Workflows provide structured processes for common development tasks:
+### What the evaluations provide
 
-**Development Workflows:**
-- **[explore-codebase](.devin/skills/explore-codebase/SKILL.md)**: Generate documentation for existing projects
-- **[analyze-user-story](.devin/skills/analyze-story/SKILL.md)**: Deep analysis of user stories
-- **[planning](.devin/skills/sdlc-plan/SKILL.md)**: Generate implementation plans
-- **[tdd-workflow](.devin/skills/tdd-workflow/SKILL.md)**: Test-driven development iteration
+Skill evaluation assets live with the skill under `_tests/`:
 
-**E2E Debugging Workflows:**
-- **[debug-e2e-workflow](.devin/skills/debug-e2e-workflow/reference/workflow.md)**: Complete E2E test debugging workflow (composite orchestrator)
-- **[debug-e2e-review](.devin/skills/debug-e2e-workflow/reference/review.md)**: Review test failures and classify failure types
-- **[debug-e2e-hypothesis](.devin/skills/debug-e2e-workflow/reference/hypothesis.md)**: Form and validate root cause hypotheses
-- **[debug-e2e-fix](.devin/skills/debug-e2e-workflow/reference/fix.md)**: Apply TDD-style fixes to validated hypotheses
+- **test cases** describe expected capability, edge cases, and failure behavior;
+- **fixtures** provide stable, representative inputs;
+- **Promptfoo YAML** executes repeatable model evaluations;
+- **custom checks** evaluate properties that simple text assertions cannot; and
+- **evaluation prompts** isolate the skill behavior under test.
 
-### Skills
+Cross-skill evaluation results and Evaluation-Driven Development guidance are collected under [`docs/edd/`](docs/edd/). This separates reusable test definitions from run results and broader evaluation analysis.
 
-Skills provide specialized knowledge and capabilities:
+## Repository map
 
-**[Promptfoo](.devin/skills/promptfoo/SKILL.md)**: Run Promptfoo tests and generate reports
-**[query-code](.devin/skills/query-code/SKILL.md)**: Query the code for information, leveraged during sdlc-design process.
+| Path | Purpose |
+|---|---|
+| `.devin/skills/` | Reusable capabilities, skill contracts, schemas, verification, and colocated evaluations |
+| `.devin/rules/` | Repository and interaction guidance used by agents and human collaborators |
+| `src/common/` | Workflow-independent Activity, harness, usage, and logging infrastructure |
+| `src/orchestrator/` | Workflow catalog, registry composition, and Worker runtime |
+| `src/story_analysis_workflow/` | Durable Analysis workflow and its Activities, clients, contracts, and tests |
+| `src/story_design_workflow/` | Durable Design workflow and its Activities, clients, contracts, and tests |
+| `scripts/` | Workflow operation, evaluation, and repository test entry points |
+| `docker/` | Local Cadence service and Web UI configuration |
+| `docs/edd/` | Evaluation-Driven Development guidance and consolidated evaluation results |
+| `docs/Development Process Map/` | Wider SDLC stages, artifacts, and process relationships |
+| `docs/reqs/` | Worked requirements, analyses, designs, plans, and implementation records |
+| `vault/` | Architectural decisions, service notes, and durable project knowledge |
 
-### Hooks
+## Getting started
 
-Hooks are automatically executed scripts triggered by events in the Cascade interaction stream, providing continuous verification and conversation auditing:
+1. **Fork this repository** as the basis for your own agentic development ecosystem.
+2. **Review the use-case paths above** and select the smallest relevant capability or workflow.
+3. **Inspect a representative skill** to understand its instructions, schema, verification, and evaluations before adapting it.
+4. **Follow the [orchestration quick start](docs/orchestration.md#quick-start)** to run the working Analysis and Design demonstrations.
+5. **Replace examples and rules deliberately**, preserving explicit contracts and tests as the repository evolves.
 
-- **[Hooks Overview](docs/hooks-overview.md)**: Complete guide to the hooks system
-- **[Conversation Audit Hook](docs/conversation-audit-hook.md)**: Capture and analyze AI conversations for continuous improvement
+## Additional documentation
 
-**Key capabilities:**
-- **Secret detection** - Prevent accidental commits of API keys and credentials
-- **Incremental verification** - Fast checks after code edits
-- **Command gating** - Block dangerous operations like `git push` until verification passes
-- **Conversation auditing** - Capture full conversation history for retrospective analysis and prompt evaluation
-
-The conversation audit hook is particularly valuable for building a feedback loop: review past conversations to identify successful patterns, refine prompts and workflows, and continuously improve your AI-assisted development practices.
-
-## Acknowledgments
-
-This ecosystem builds upon the excellent work of the AI-assisted development community:
-
-### External Contributors
-
-**[Devlin Liles](https://www.linkedin.com/in/devlinliles/)** and the Improvers community have been instrumental in refining these workflows:
-
-- **TDD Workflow**: Entirely credited to Devlin Liles, with minimal adaptations needed
-- **Analyze User Story**: Based on Devlin's workflow, adapted to match my existing prompt patterns
-- **Planning**: Borrowed from Devlin's work, customized for my workspace needs
-- **Hooks**: Initial validation checks, and common shell script for continual automated verification. 
-
-### Pattern Sources
-
-- **Active Partner**: Directly from [Augmented Coding Patterns](https://lexler.github.io/augmented-coding-patterns/patterns/active-partner/)
-
-### Personal Contributions
-
-My additions to this ecosystem include:
-
-- **Coding Standards Capture**: Translating team/personal coding standards into AI-consumable rules
-- **Design Buddy**: Custom persona developed using Active Partner to capture my design approach ([blog post](https://daniel.scheufler.tech/blog/design-buddy-for-better-code/))
-- **Security Buddy**: Example persona demonstrating how to create specialized AI interaction modes
-- **~~Workflow~~ Skill Adaptations**: Customizing community workflows to match my development style
-- **Conversation Audit Hook**: Expanded on the initial validation checks to create a comprehensive conversation auditing system, allowing for prompt evaluation on past conversations. 
-- ~~**E2E Logging Artifacts Skill**: Created a skill to automatically log E2E test artifacts (screenshots, videos, console and network logs) to a centralized directory for easy access and analysis.~~
-- **E2E Debugging Workflow**: Created a comprehensive workflow for debugging E2E test failures, including infrastructure checks, hypothesis-based application debugging, and re-run verification.
-- **Evaluation Driven Development**: integrated EDD testing into portions of the SDLC related skills.
-
-## Getting Started
-
-1. **Fork this repository** to create your own development ecosystem
-2. **Review and customize rules** in `.devin/rules/` to match your coding standards
-3. **Explore ~~workflows~~ Skills** in `.devin/skills/` to understand available processes
-4. **Try a skill sequence** based on your current project phase (brownfield/greenfield/feature development)
-
-## Additional Guides
-
-### E2E Test Debugging
-
-For comprehensive guidance on the E2E debugging workflow system, see the [E2E Debugging Workflow Guide](docs/e2e-debugging-workflow-guide.md). This guide explains:
-
-- **What the workflow is**: A systematic, evidence-based approach to debugging E2E test failures
-- **Why it exists**: Solves the complexity of distinguishing infrastructure issues from application bugs
-- **Core concepts**: Two failure types, re-run gate, priority system, TDD discipline
-- **How workflows and skills interact**: Complete integration map
-- **Common patterns**: Real-world debugging scenarios and solutions
-
-### Creating Your Own Personas
-
-Want to create specialized AI interaction modes like Security Buddy? See the [Creating Personas Guide](docs/creating-personas.md) for a step-by-step conversational approach to developing custom personas using the Active Partner pattern.
+- [Orchestration: Analysis and Design](docs/orchestration.md)
+- [Development Process Map](docs/Development%20Process%20Map/Software%20Development%20Process%20-%20Business%20Case%20to%20Deployed%20Code.md)
+- [Evaluation-Driven Development](docs/edd/README.md)
+- [Hooks overview](docs/hooks-overview.md)
+- [Creating personas](docs/creating-personas.md)
+- [Architecture decisions and project knowledge](vault/INDEX.md)
 
 ## License
 
-See LICENSE file for details.
+See [LICENSE](LICENSE) for details.

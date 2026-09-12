@@ -139,3 +139,11 @@ Executable characterization tests for `cadence-python-client` 0.3.0 establish th
 - `Worker.__aenter__` awaits `run()` and returns the Worker; `Worker.__aexit__` then awaits `close()`.
 
 These contracts are pinned in `tests/unit/test_cadence_sdk_contracts.py`.
+
+## Developer documentation entry points (2026-09-12)
+
+- `README.md` is the human-first, progressive-disclosure repository entry point. It presents the repository primarily as a reusable skills, evaluation, and workflow reference; Cadence orchestration is the working demonstration of those patterns across Analysis and Design.
+- The README routes brownfield, greenfield, and feature-development readers to focused next steps rather than duplicating operating instructions.
+- `docs/orchestration.md` is the canonical operating and extension guide for the current multi-workflow orchestration implementation, including its quick start.
+- The guide explicitly records that Analysis and Design are independently started modules; automatic cross-phase chaining requires a separate durable or external coordinator.
+- Durable orchestration currently ends at the Design plan. The existing TDD workflow remains the implementation reference until an implementation-phase orchestrator exists.
