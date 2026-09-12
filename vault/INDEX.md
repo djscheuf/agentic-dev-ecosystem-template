@@ -19,6 +19,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-014: Colocated Skill Activity Configuration and Template Method](decisions/ADR-014-colocated-skill-activity-template-method.md)
 - [ADR-015: Devin Cost Metric Capture Scope](decisions/ADR-015-devin-cost-metric-scope.md)
 - [ADR-016: Consolidated Story Analysis Run Reporting](decisions/ADR-016-consolidated-run-reporting.md)
+- [ADR-017: Agentic EDD Quality Ratchet](decisions/ADR-017-agentic-edd-quality-ratchet.md)
 
  
 ## Services
