@@ -14,10 +14,10 @@ pkgs.mkShell {
   # isn't on the default Nix library path. See vault/services/cadence.md.
   shellHook = ''
     export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"
-    echo "Development environment loaded"
-    echo "Node version: $(node --version)"
-    echo "NPM version: $(npm --version)"
-    echo "Python version: $(python3 --version)"
-    echo "You can now run: npm install promptfoo"
+    echo "Development environment loaded" >&2
+    echo "Node version: $(node --version)" >&2
+    echo "NPM version: $(npm --version)" >&2
+    echo "Python version: $(python3 --version)" >&2
+    echo "You can now run: npm install promptfoo" >&2
   '';
 }

@@ -26,3 +26,7 @@ This repository is developed on NixOS. Use `nix-shell` as the default way to pro
 
 - `.devin/skills/validate-json-schema/scripts/validate-json-schema.sh <schema.json> <document.json>` validates JSON with `python313Packages.jsonschema` supplied by `nix-shell`.
 - The script prints concise validation errors and exits nonzero on invalid schemas or documents; no arguments or `--help` prints usage.
+
+## `shellHook` must not write to stdout (2026-09-04)
+
+`nix-shell --run "..."` is used by automation (e.g. `scripts/start-workflow-engine.sh`) that captures command stdout. `shell.nix` `shellHook` messages must be redirected to stderr (`>&2`) so they don't corrupt JSON or other machine-readable output. The `inspect-catalog` call in `start-workflow-engine.sh` failed with `invalid inspect-catalog output` because the `shellHook` printed `Development environment loaded` and version lines before the JSON.
