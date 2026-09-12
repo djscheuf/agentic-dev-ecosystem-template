@@ -307,10 +307,7 @@
       "external_services": []
     },
     "story": {
-      "blocked_by": [
-        "Authentication/authorization system must be in place",
-        "Admin interface framework must be established"
-      ],
+      "blocked_by": [],
       "blocks": [
         "Requestor order form feature (depends on available tactic types and delivery methods)",
         "Reporting/analytics features that reference tactic types and delivery methods"

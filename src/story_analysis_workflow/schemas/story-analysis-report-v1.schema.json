@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "story-analysis-report-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "workflow_id", "run_id", "story_document", "terminal_at", "final_status", "outcome_origin", "final_analysis_path", "repair_attempt_count", "attempts", "usage"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "workflow_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "story_document": {"type": "string", "minLength": 1},
+    "terminal_at": {"type": "string", "format": "date-time"},
+    "final_status": {"enum": ["passed", "human_resolved", "failed"]},
+    "outcome_origin": {"enum": ["automated_pass", "repaired_pass", "automated_failure", "automated_timeout", "human_accept", "human_abort"]},
+    "final_analysis_path": {"type": ["string", "null"]},
+    "repair_attempt_count": {"type": "integer", "minimum": 0},
+    "attempts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/attempt"}
+    },
+    "usage": {"$ref": "#/$defs/usageTotals"}
+  },
+  "$defs": {
+    "usageValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "value"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "value": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "usageMetrics": {
+      "type": ["object", "null"],
+      "properties": {
+        "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "completion_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "cached_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "cost_usd": {"type": ["number", "null"], "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "usageTotals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prompt_tokens", "completion_tokens", "cached_tokens", "cost_usd"],
+      "properties": {
+        "prompt_tokens": {"$ref": "#/$defs/usageValue"},
+        "completion_tokens": {"$ref": "#/$defs/usageValue"},
+        "cached_tokens": {"$ref": "#/$defs/usageValue"},
+        "cost_usd": {"$ref": "#/$defs/usageValue"}
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflow_id", "run_id", "sequence", "step_name", "activity_type", "activity_id", "attempt", "started_at", "duration_ms", "outcome", "model", "permission_mode", "output_path", "activity_log_path", "devin_log_path", "atif_path", "usage"],
+      "properties": {
+        "workflow_id": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "sequence": {"type": "integer", "minimum": 1},
+        "step_name": {"type": "string", "minLength": 1},
+        "activity_type": {"type": "string", "minLength": 1},
+        "activity_id": {"type": "string", "minLength": 1},
+        "attempt": {"type": "integer", "minimum": 0},
+        "started_at": {"type": "string", "format": "date-time"},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "outcome": {"enum": ["success", "failed", "ambiguity"]},
+        "model": {"type": "string", "minLength": 1},
+        "permission_mode": {"type": "string", "minLength": 1},
+        "output_path": {"type": "string"},
+        "activity_log_path": {"type": "string"},
+        "devin_log_path": {"type": "string"},
+        "atif_path": {"type": ["string", "null"]},
+        "usage": {"$ref": "#/$defs/usageMetrics"}
+      }
+    }
+  }
+}

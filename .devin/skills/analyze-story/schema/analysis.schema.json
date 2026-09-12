@@ -335,7 +335,6 @@
         "required": [
           "criterion",
           "gherkin",
-          "type",
           "jtbd",
           "persona_served"
         ]
@@ -755,50 +754,10 @@
           }
         }
       ]
-    },
-    "complexity": {
-      "type": "object",
-      "description": "Complexity",
-      "properties": {
-        "story_points": {
-          "type": "integer",
-          "description": "Story points",
-          "examples": [
-            5
-          ]
-        },
-        "risk_level": {
-          "type": "string",
-          "description": "Risk level",
-          "examples": [
-            "Medium"
-          ]
-        },
-        "uncertainty": {
-          "type": "string",
-          "description": "Uncertainty",
-          "examples": [
-            "Low"
-          ]
-        }
-      },
-      "required": [
-        "story_points",
-        "risk_level",
-        "uncertainty"
-      ],
-      "examples": [
-        {
-          "story_points": 5,
-          "risk_level": "Medium",
-          "uncertainty": "Low"
-        }
-      ]
     }
   },
   "required": [
     "raw_request",
-    "title",
     "story",
     "target_persona",
     "capability_breakdown",

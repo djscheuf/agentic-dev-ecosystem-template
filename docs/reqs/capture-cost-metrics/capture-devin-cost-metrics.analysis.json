@@ -1,0 +1,284 @@
+{
+  "raw_request": "docs/reqs/capture-cost-metrics/proposed-architecture.md",
+  "title": "Capture Devin cost metrics",
+  "story": {
+    "so_that": "workflow operators can reconcile AI spend against budgets, detect cost anomalies before they exceed targets, and demonstrate per-workflow cost accountability by observing, auditing, and reporting prompt, completion, cached-token, and monetary-cost usage for each Devin invocation without changing existing harness behavior or exit codes",
+    "as_a": "workflow operator or cost-aware engineer running agentic workflows",
+    "i_want": "every non-interactive Devin CLI invocation run through the harness to request an ATIF export, have its aggregate standard final_metrics parsed defensively, and expose normalized usage on HarnessResult while retaining the raw export for any additional billing dimensions"
+  },
+  "target_persona": {
+    "name": "Owen - Workflow Operator / Cost Engineer",
+    "role": "Engineer / Operator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Needs to understand token and cost usage of automated Devin invocations inside Cadence workflows and correlate that usage with workflow, run, and Activity identity",
+      "during": "Inspects the durable Activity log directory, retained ATIF trajectory, and optional HarnessResult usage for a specific invocation",
+      "after": "Audits retained trajectories and aggregates usage across workflow runs while trusting that missing or malformed telemetry never changed the Devin subprocess outcome"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Run every non-interactive Devin CLI invocation with --export, retain the ATIF trajectory beside existing workflow logs when an Activity context is available, parse only the standard aggregate final_metrics defensively, and return a normalized HarnessUsage on HarnessResult; any additional Devin billing dimensions remain available in the raw ATIF export",
+    "inputs": [
+      "invocation profile (permission_mode, model)",
+      "Devin prompt",
+      "optional Activity artifact directory from workflow logging context",
+      "optional temporary directory when no Activity context is available",
+      "Devin CLI ATIF export written to the chosen path"
+    ],
+    "outputs": [
+      "exit_code from the devin subprocess",
+      "stdout and stderr from the devin subprocess",
+      "optional HarnessResult.usage with standard aggregate prompt_tokens, completion_tokens, cached_tokens, and cost_usd metrics",
+      "durable devin-trajectory.json file when an Activity artifact directory is available",
+      "temporary devin-trajectory.json file when no Activity context is available"
+    ],
+    "state_changes": [
+      "writes devin-trajectory.json into the current Activity attempt's artifact directory when a logging context exists",
+      "extends HarnessResult with an optional usage field",
+      "preserves the existing three-argument HarnessResult constructor for compatibility",
+      "adds get_activity_artifact_dir() to the common workflow logging contract",
+      "allocates and cleans up a temporary export directory when the harness is called outside an Activity context"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "common.devin_harness.DevinHarness.run()",
+        "common.harness.HarnessResult",
+        "common.harness.HarnessUsage",
+        "common.workflow_logger.get_activity_artifact_dir()",
+        "common ATIF usage parser"
+      ],
+      "database": [],
+      "external_services": [
+        "Devin CLI",
+        "Cadence service for Activity context"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Every common.DevinHarness invocation requests an ATIF export.",
+      "gherkin": "Given a DevinHarness run is configured When the subprocess is executed Then devin is invoked with --export <path>",
+      "type": "Functional",
+      "jtbd": "Request ATIF export for every harness run",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "An invocation inside an Activity logging context retains its trajectory beside that Activity's logs.",
+      "gherkin": "Given the harness is called inside an Activity logging context When the devin subprocess completes Then the ATIF trajectory is written to the Activity's artifact directory alongside activity.log and devin.log",
+      "type": "Functional",
+      "jtbd": "Persist trajectory beside Activity logs",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "An invocation outside an Activity context still captures usage through a temporary export.",
+      "gherkin": "Given the harness is called without an Activity logging context When the devin subprocess completes Then the ATIF trajectory is written to a temporary directory, parsed, and the usage is returned without a durable path",
+      "type": "Functional",
+      "jtbd": "Capture usage without Activity context",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "HarnessResult exposes optional normalized standard aggregate prompt, completion, cached-token, and USD-cost metrics.",
+      "gherkin": "Given a Devin invocation produced an ATIF document with aggregate final_metrics When the export is parsed Then HarnessResult.usage contains the supported standard prompt_tokens, completion_tokens, cached_tokens, and cost_usd fields, while any additional billing dimensions remain in the raw ATIF export",
+      "type": "Functional",
+      "jtbd": "Expose normalized usage metrics on harness result",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Existing harness implementations remain compatible without supplying usage.",
+      "gherkin": "Given an existing test or caller constructs HarnessResult with only exit_code, stdout, and stderr When the result is used Then it is valid and usage defaults to None",
+      "type": "Non-functional",
+      "jtbd": "Maintain compatibility with existing harness implementations",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Missing or malformed telemetry never changes the Devin subprocess exit result.",
+      "gherkin": "Given the devin subprocess exits with a specific code When the ATIF export is missing, unreadable, or malformed Then the harness returns the same exit_code with usage set to None",
+      "type": "Error handling",
+      "jtbd": "Preserve subprocess result regardless of telemetry errors",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Concurrent Activities and retries do not overwrite one another's trajectories.",
+      "gherkin": "Given each skill Activity calls the harness once per attempt and the logging layout scopes artifacts by Cadence attempt When concurrent Activities or retries write their ATIF exports Then each trajectory is stored in its own attempt-scoped, non-overwriting path",
+      "type": "Functional",
+      "jtbd": "Avoid trajectory overwrites across concurrent Activities and retries",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Raw trajectory data is not copied into normal Activity logs.",
+      "gherkin": "Given an ATIF trajectory contains prompts, tool calls, or file paths When the harness or logger writes diagnostics Then the Activity log contains only the export path and sanitized error category, not raw trajectory content",
+      "type": "Non-functional",
+      "jtbd": "Keep raw trajectory data out of Activity logs",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "ATIF export is missing after a successful Devin exit",
+      "gherkin": "Given the devin subprocess exits with code 0 and no ATIF file is written When the harness completes Then it returns exit_code 0 and usage set to None",
+      "type": "Edge case",
+      "jtbd": "Tolerate a missing export on success",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "ATIF export contains invalid JSON",
+      "gherkin": "Given the ATIF file exists but is not valid JSON When the harness parses it Then it returns usage set to None and preserves the original Devin exit_code",
+      "type": "Edge case",
+      "jtbd": "Tolerate malformed ATIF output",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "ATIF final_metrics is not a JSON object",
+      "gherkin": "Given the ATIF document is valid but final_metrics is a string or null When the harness parses it Then it returns usage set to None",
+      "type": "Edge case",
+      "jtbd": "Reject non-object final_metrics",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Token or cost fields have the wrong type",
+      "gherkin": "Given final_metrics contains a boolean for total_prompt_tokens or total_cost_usd When the harness normalizes values Then the affected fields become None and other valid fields are retained",
+      "type": "Edge case",
+      "jtbd": "Reject wrong-typed metric values",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "final_metrics contains only a subset of supported standard fields or additional billing dimensions",
+      "gherkin": "Given final_metrics provides only total_prompt_tokens plus an additional billing dimension When the export is parsed Then HarnessResult.usage contains prompt_tokens with other supported fields as None and the additional dimension remains available only in the raw ATIF export",
+      "type": "Edge case",
+      "jtbd": "Handle partial standard metrics without discarding raw billing data",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "No Activity logging context is available",
+      "gherkin": "Given the harness is called outside an Activity logging context When the devin subprocess completes Then the export is written to a temporary directory, parsed, and no durable trajectory path is retained",
+      "type": "Edge case",
+      "jtbd": "Capture usage without a workflow Activity context",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Concurrent Activity attempts or retries share a workflow run",
+      "gherkin": "Given two concurrent Activity attempts or a retry write to the same workflow run's activity directory When each export is written Then each trajectory is stored in a distinct attempt-scoped path",
+      "type": "Edge case",
+      "jtbd": "Keep concurrent and retry attempts isolated",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Devin subprocess exits nonzero with a valid ATIF export",
+      "gherkin": "Given the devin subprocess exits with a nonzero code and a valid ATIF file is produced When the harness returns Then the exit_code is nonzero and usage is populated",
+      "type": "Edge case",
+      "jtbd": "Capture usage even when the skill fails",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Workflow or activity identifiers contain path-unsafe characters",
+      "gherkin": "Given a workflow_id, run_id, or activity_id contains slashes, dots, or unicode When the artifact directory is derived Then the path components are sanitized to prevent traversal",
+      "type": "Edge case",
+      "jtbd": "Sanitize identifiers used as filesystem paths",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Filesystem rejects trajectory write",
+      "gherkin": "Given the Activity artifact directory is unwriteable When the harness attempts to write the export Then it still returns the Devin result, usage is None, and the error is logged as a sanitized category",
+      "type": "Edge case",
+      "jtbd": "Tolerate filesystem write failures",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "ATIF export is very large",
+      "gherkin": "Given the ATIF document is large enough to contain many turns When the harness parses final_metrics Then it reads only the aggregate object and does not copy raw trajectory content into Activity logs",
+      "type": "Edge case",
+      "jtbd": "Handle large ATIF files safely",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    }
+  ],
+  "definition_of_done": [
+    "Unit and integration tests cover ATIF parsing of supported standard aggregate metrics, export path selection, backward-compatible HarnessResult construction, failure semantics, and concurrent/retry isolation.",
+    "The implementation assumes Devin's ATIF final_metrics are aggregate totals inclusive of subagent usage; this assumption is documented and does not require subagent-level parsing in this story.",
+    "The PathAware workflow logger, Devin harness, and related harness integration are migrated to common as necessary, and the harness consumes the attempt-scoped artifact directory through get_activity_artifact_dir().",
+    "ATIF log retention policy and lifecycle management are excluded because another service owns retention.",
+    "Skill Activity result-level cost reporting and workflow-level cost aggregation are explicitly deferred; the future workflow aggregate is defined as the sum of all Activity aggregates across the workflow call."
+  ],
+  "questions": [],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/common/harness.py",
+        "src/common/devin_harness.py",
+        "src/common/workflow_logger.py",
+        "src/common/skill_activity.py",
+        "src/common/skill_activity_config.py",
+        "src/common/tests/test_devin_harness.py",
+        "src/common/tests/test_harness.py",
+        "src/common/tests/test_workflow_logger.py",
+        "src/orchestrator/workflow_logger.py",
+        "src/orchestrator/devin_harness.config.json"
+      ],
+      "new_code": [
+        "src/common/harness.py: add HarnessUsage dataclass and optional usage field on HarnessResult",
+        "src/common/devin_harness.py: add --export path selection, ATIF parsing, and usage return",
+        "src/common/workflow_logger.py: add get_activity_artifact_dir() and artifact directory context",
+        "src/common/atif_usage.py or equivalent defensive ATIF parser",
+        "src/common/tests/test_atif_usage.py",
+        "src/common/tests/test_harness_usage.py",
+        "docs/reqs/capture-cost-metrics/implementation-notes.md"
+      ],
+      "infrastructure": [
+        "Filesystem log root at .process/logs",
+        "Local Cadence server with domain and task list registration",
+        "Python 3.11+ environment with cadence client",
+        "NixOS development shell"
+      ],
+      "external_services": [
+        "Devin CLI",
+        "Cadence service for Activity context",
+        "Host filesystem"
+      ]
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [
+        "Workflow-level cost aggregation and reporting",
+        "Billing or quota policy stories"
+      ],
+      "related": [
+        "Configure Skill Activity Invocation Profiles",
+        "Workflow-aware Activity logging",
+        "Story Analysis Workflow orchestration",
+        "Cadence local SQLite stack runbook"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "ATIF schema, schema_version, and standard final_metrics semantics",
+        "Devin CLI --export behavior and --print mode",
+        "Token, cached-token, credit, ACU, and USD cost distinctions",
+        "Devin ATIF aggregate totals are assumed to include subagent usage for this story",
+        "Additional billing dimensions remain in the raw ATIF export and are not normalized in this story",
+        "Observational telemetry vs billing source of truth",
+        "Workflow logging path conventions and Cadence attempt isolation",
+        "Future workflow cost equals the sum of Activity aggregates across the workflow call"
+      ],
+      "technical_knowledge": [
+        "Python dataclasses and frozen dataclasses",
+        "contextvars for Activity-scoped context",
+        "pathlib and filesystem path safety",
+        "subprocess.run and CompletedProcess handling",
+        "defensive JSON parsing and type normalization",
+        "Cadence activity.info() and WorkflowContext field semantics"
+      ],
+      "stakeholder_questions": []
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Low"
+  },
+  "open_questions": [],
+  "recommendation": {
+    "decision": "Proceed with implementation",
+    "approach": "Implement in this order: (1) migrate the PathAware workflow logger into common and migrate Devin/harness integrations where necessary, exposing the current Cadence attempt-scoped artifact directory through get_activity_artifact_dir(); (2) add the backward-compatible HarnessUsage and optional HarnessResult.usage fields for supported standard aggregate metrics; (3) implement a defensive ATIF usage parser in a dedicated module with unit tests; (4) add durable and temporary export-path selection to DevinHarness.run(); (5) wire --export into the Devin CLI command and return parsed usage; (6) verify retry and concurrent Activity isolation using the existing local Cadence stack and worker runtimes. Treat final_metrics as aggregate totals inclusive of subagent usage. Preserve additional billing dimensions in the raw ATIF export without normalizing them. Defer retention, Skill Activity result-level cost reporting, and workflow-level aggregation.",
+    "rationale": "The clarified scope removes the implementation blockers. Activity logging already isolates Cadence attempts, each skill Activity calls the harness exactly once per attempt, and the local Cadence stack and worker runtimes already exist. Missing or malformed ATIF telemetry must never change the Devin exit code, and the existing HarnessResult constructor remains valid. Exporting the raw ATIF preserves possible additional Devin billing dimensions while the result contract stays focused on supported standard aggregate metrics. A later story can add cost to Skill Activity results and compute the workflow aggregate as the sum of all Activity aggregates across the workflow call."
+  }
+}

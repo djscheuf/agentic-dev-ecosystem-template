@@ -3,7 +3,6 @@
 # ========================================
 - vars:
     request: 
-      - '@../.devin/skills/analyze-story/_tests/_data/example-story.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Simple Calculator Story - Canary Test (Functional/Non-functional Requirements)'
@@ -24,16 +23,15 @@
 
 - vars:
     request: 
-      - '@../.devin/skills/analyze-story/_tests/_data/example-story.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
-  description: 'Simple Calculator Story'
+  description: 'Target Persona Capture'
   assert:
     # Core definition
     - type: llm-rubric
-      value: "Response clearly captures story in the So that ..., As A ..., I want ... format"
+      value: "Response JSON clearly captures a suitable target persona. The Persona's role should clearly relate to the story's value proposition, and relevant to the story's context."
       threshold: 0.8
-      metric: clarity
+      metric: persona_capture
       weight: 1
     
 
@@ -46,7 +44,6 @@
 
 - vars:
     request: 
-      - '@../.devin/skills/analyze-story/_tests/_data/example-story.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/create-tactic-with-validation.intent.json'
       - '@../.devin/skills/analyze-story/_tests/_data/administer-tactic-types-and-delivery-methods.intent.json'
   description: 'Output Schema Validation - Script Based'

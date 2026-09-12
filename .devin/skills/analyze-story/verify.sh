@@ -45,7 +45,7 @@ verify_structure() {
   local analysis
   analysis=$(jq '.' "$analysis_path")
   
-  local required_props=("raw_request" "title" "story" "target_persona" "capability_breakdown" "acceptance_criteria" "edge_cases" "dependencies" "complexity" "open_questions" "recommendation")
+  local required_props=("raw_request" "story" "target_persona" "capability_breakdown" "acceptance_criteria" "edge_cases" "questions" "dependencies")
   for prop in "${required_props[@]}"; do
     if ! jq -e ".$prop" <<< "$analysis" &>/dev/null; then
       fail "Schema validation failed: Missing required property '$prop'"
@@ -66,7 +66,7 @@ verify_structure() {
   if jq -e '.target_persona' <<< "$analysis" &>/dev/null; then
     local persona
     persona=$(jq '.target_persona' <<< "$analysis")
-    local persona_props=("name" "role" "technical_level" "journey")
+    local persona_props=("role" "technical_level" "journey")
     for prop in "${persona_props[@]}"; do
       if ! jq -e ".$prop" <<< "$persona" &>/dev/null; then
         fail "Schema validation failed: target_persona.$prop is required"
@@ -135,15 +135,10 @@ verify_structure() {
     fi
   fi
   
-  if jq -e '.complexity' <<< "$analysis" &>/dev/null; then
-    local complexity
-    complexity=$(jq '.complexity' <<< "$analysis")
-    local complexity_props=("story_points" "risk_level" "uncertainty")
-    for prop in "${complexity_props[@]}"; do
-      if ! jq -e ".$prop" <<< "$complexity" &>/dev/null; then
-        fail "Schema validation failed: complexity.$prop is required"
-      fi
-    done
+  if jq -e '.questions' <<< "$analysis" &>/dev/null; then
+    if ! jq -e '.questions | type == "array"' <<< "$analysis" &>/dev/null; then
+      fail "Schema validation failed: questions must be an array"
+    fi
   fi
 }
 
@@ -153,7 +148,7 @@ verify_completeness() {
   
   analysis=$(jq '.' "$analysis_path")
   
-  local required_fields=("title" "story" "target_persona" "capability_breakdown" "acceptance_criteria")
+  local required_fields=("story" "target_persona" "capability_breakdown" "acceptance_criteria")
   for field in "${required_fields[@]}"; do
     if ! jq -e ".$field" <<< "$analysis" &>/dev/null || [[ $(jq -r ".$field" <<< "$analysis") == "null" ]]; then
       fail "Missing required field: '$field'"
@@ -174,9 +169,6 @@ verify_completeness() {
   if jq -e '.target_persona' <<< "$analysis" &>/dev/null; then
     local persona
     persona=$(jq '.target_persona' <<< "$analysis")
-    if ! jq -e '.name' <<< "$persona" &>/dev/null || [[ $(jq -r '.name' <<< "$persona") == "null" ]]; then
-      fail "Target persona missing 'name'"
-    fi
     if ! jq -e '.role' <<< "$persona" &>/dev/null || [[ $(jq -r '.role' <<< "$persona") == "null" ]]; then
       fail "Target persona missing 'role'"
     fi
@@ -206,14 +198,54 @@ verify_completeness() {
         fail "Acceptance criterion $idx missing 'criterion' field"
       fi
       
-      if ! jq -e '.type' <<< "$criterion" &>/dev/null || [[ $(jq -r '.type' <<< "$criterion") == "null" ]]; then
-        fail "Acceptance criterion $idx missing 'type' field"
-      else
-        local ctype
-        ctype=$(jq -r '.type' <<< "$criterion")
-        if ! [[ "$ctype" =~ ^(Functional|Non-functional|Happy\ path|Error\ handling|Edge\ Case)$ ]]; then
-          fail "Acceptance criterion $idx has invalid type '$ctype'. Must be one of: Functional, Non-functional, Happy path, Error handling, Edge Case"
-        fi
+      if ! jq -e '.gherkin' <<< "$criterion" &>/dev/null || [[ $(jq -r '.gherkin' <<< "$criterion") == "null" ]]; then
+        fail "Acceptance criterion $idx missing 'gherkin' field"
+      fi
+      
+      if ! jq -e '.jtbd' <<< "$criterion" &>/dev/null || [[ $(jq -r '.jtbd' <<< "$criterion") == "null" ]]; then
+        fail "Acceptance criterion $idx missing 'jtbd' field"
+      fi
+      
+      if ! jq -e '.persona_served' <<< "$criterion" &>/dev/null || [[ $(jq -r '.persona_served' <<< "$criterion") == "null" ]]; then
+        fail "Acceptance criterion $idx missing 'persona_served' field"
+      fi
+    done
+  fi
+  
+  if jq -e '.edge_cases' <<< "$analysis" &>/dev/null; then
+    local edge_cases
+    edge_cases=$(jq '.edge_cases' <<< "$analysis")
+    
+    if ! jq -e 'type == "array"' <<< "$edge_cases" &>/dev/null; then
+      fail "Edge cases must be an array"
+      return
+    fi
+    
+    local edge_count
+    edge_count=$(jq 'length' <<< "$edge_cases")
+    
+    for idx in $(seq 0 $((edge_count - 1))); do
+      local edge_case
+      edge_case=$(jq ".[$idx]" <<< "$edge_cases")
+      
+      if ! jq -e '.criterion' <<< "$edge_case" &>/dev/null || [[ $(jq -r '.criterion' <<< "$edge_case") == "null" ]]; then
+        fail "Edge case $idx missing 'criterion' field"
+      fi
+      
+      if ! jq -e '.gherkin' <<< "$edge_case" &>/dev/null || [[ $(jq -r '.gherkin' <<< "$edge_case") == "null" ]]; then
+        fail "Edge case $idx missing 'gherkin' field"
+      fi
+      
+      if ! jq -e '.type' <<< "$edge_case" &>/dev/null || [[ $(jq -r '.type' <<< "$edge_case") == "null" ]]; then
+        fail "Edge case $idx missing 'type' field"
+      fi
+      
+      if ! jq -e '.jtbd' <<< "$edge_case" &>/dev/null || [[ $(jq -r '.jtbd' <<< "$edge_case") == "null" ]]; then
+        fail "Edge case $idx missing 'jtbd' field"
+      fi
+      
+      if ! jq -e '.persona_served' <<< "$edge_case" &>/dev/null || [[ $(jq -r '.persona_served' <<< "$edge_case") == "null" ]]; then
+        fail "Edge case $idx missing 'persona_served' field"
       fi
     done
   fi
@@ -226,8 +258,8 @@ verify_consistency() {
   analysis=$(jq '.' "$analysis_path")
   
   if jq -e '.acceptance_criteria and .target_persona' <<< "$analysis" &>/dev/null; then
-    local persona_name
-    persona_name=$(jq -r '.target_persona.name' <<< "$analysis")
+    local persona_role
+    persona_role=$(jq -r '.target_persona.role' <<< "$analysis")
     local criteria_list
     criteria_list=$(jq '.acceptance_criteria' <<< "$analysis")
     
@@ -238,40 +270,14 @@ verify_consistency() {
     for idx in $(seq 0 $((criteria_count - 1))); do
       local persona_served
       persona_served=$(jq -r ".[$idx].persona_served // empty" <<< "$criteria_list")
-      if [[ "$persona_served" == "$persona_name" ]]; then
+      if [[ -n "$persona_served" ]]; then
         target_persona_served=true
         break
       fi
     done
     
     if [[ "$target_persona_served" == false ]]; then
-      fail "Target persona '$persona_name' is not served by any acceptance criterion. At least one criterion must have persona_served matching the target persona."
-    fi
-  fi
-  
-  if jq -e '.complexity' <<< "$analysis" &>/dev/null; then
-    local complexity
-    complexity=$(jq '.complexity' <<< "$analysis")
-    
-    if jq -e '.risk_level' <<< "$complexity" &>/dev/null; then
-      local risk
-      risk=$(jq -r '.risk_level' <<< "$complexity")
-      if ! [[ "$risk" =~ ^(Low|Medium|High)$ ]]; then
-        fail "Risk level '$risk' is invalid. Must be one of: Low, Medium, High"
-      fi
-    fi
-    
-    if jq -e '.story_points' <<< "$complexity" &>/dev/null; then
-      local points
-      points=$(jq '.story_points' <<< "$complexity")
-      
-      if ! jq -e 'type == "number" and . > 0' <<< "$points" &>/dev/null; then
-        fail "Story points must be a positive number, got: $points"
-      else
-        if ! [[ "$points" =~ ^(1|2|3|5|8|13|21)$ ]]; then
-          fail "Story points '$points' is not a valid Fibonacci value. Accepted values: 1, 2, 3, 5, 8, 13, 21"
-        fi
-      fi
+      fail "At least one acceptance criterion must have persona_served field populated."
     fi
   fi
 }
@@ -299,9 +305,6 @@ main() {
   verify_completeness "$analysis_path"
   verify_consistency "$analysis_path"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   exit_if_failed
   
   echo -e "${GREEN}Analysis verification passed${NC}" >&2

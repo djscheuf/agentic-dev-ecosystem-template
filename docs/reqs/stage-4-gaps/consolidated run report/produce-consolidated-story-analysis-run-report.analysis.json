@@ -1,0 +1,453 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/consolidated run report/story.md",
+  "title": "Produce a Consolidated Story Analysis Run Report",
+  "story": {
+    "so_that": "certification evidence and workflow reliability can be reviewed without reconstructing runs from scattered logs",
+    "as_a": "Story Analysis Workflow certification owner",
+    "i_want": "each terminal workflow run summarized in one structured report and included in an auditable success-rate aggregate"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Certification Owner",
+    "role": "Certification owner responsible for workflow evidence and reliability metrics",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Reviews terminal workflow runs, activity logs, ATIF usage exports, and outcome annotations to understand how each run completed.",
+      "during": "Inspects a consolidated per-run report and an aggregate success-rate metric that includes status counts, formula, sample window, and manual-intervention count.",
+      "after": "Presents auditable run evidence and reproducible success metrics to certification examiners without reconstructing runs from scattered logs."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Produce one schema-versioned report for each terminal Story Analysis Workflow run and aggregate visible reports into auditable success-rate metrics",
+    "inputs": [
+      "Terminal workflow run metadata (workflow_id, run_id, story_document, final_status, attempt_count, terminal outcome origin)",
+      "Executed activity attempt records (step name, activity type, attempt, model, permission mode, duration, output path)",
+      "ATIF usage data (prompt_tokens, completion_tokens, cached_tokens)",
+      "cost_usd when supplied by the supported usage source",
+      "Raw ATIF evidence artifact paths",
+      "Collection of visible terminal-run reports for aggregation",
+      "Certification-owner decision on sample window, success formula, and threshold"
+    ],
+    "outputs": [
+      "One {workflow}.report.json per terminal workflow run",
+      "Success-rate aggregate with status counts, formula, numerator, denominator, sample window, and manual-intervention count",
+      "Traceable observation-to-report mapping for auditing",
+      "Explicit unavailable cost representation when cost_usd is absent"
+    ],
+    "state_changes": [
+      "A terminal run becomes auditable from a single report file",
+      "A collection of reports yields a reproducible end-to-end success metric",
+      "Cost fields are marked unavailable rather than estimated when absent"
+    ],
+    "side_effects": [
+      "Workflow log emits report-written and aggregation-published events",
+      "Raw ATIF trajectory files remain in their original activity artifact directories",
+      "Aggregates are published alongside the reports they consume for traceability"
+    ],
+    "affected_components": {
+      "ui": [
+        "No graphical UI is required",
+        "Workflow CLI status/query output may expose report_path and final_status",
+        "Certification review tooling reads {workflow}.report.json and aggregate JSON"
+      ],
+      "api": [
+        "src/story_analysis_workflow/story_analysis_engine.py: terminal result and attempt tracking",
+        "src/story_analysis_workflow/workflow.py: workflow result contract and completion",
+        "src/common/skill_activity.py: SkillActivityOutput extension to carry attempt, model, permission_mode, duration, and output_path",
+        "src/common/devin_harness.py: StartDevinInvocation / CompleteDevinInvocation log records",
+        "src/common/atif_usage.py: read_atif_usage_result for normalized token and cost data",
+        "src/common/workflow_logger.py: get_activity_artifact_dir and activity attempt-scoped log layout",
+        "New report writer module and report JSON Schema",
+        "New aggregation module and success-rate query/starter support"
+      ],
+      "database": [
+        "No application database schema change is required",
+        "Cadence persistence stores WorkflowExecution Event History",
+        "Filesystem report and log artifacts require deterministic paths"
+      ],
+      "external_services": [
+        "Cadence server and worker runtime",
+        "Devin CLI invocation runtime",
+        "Devin ATIF usage export",
+        "Host filesystem for report and trajectory storage"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a workflow reaches a terminal state, when completion processing finishes, then exactly one schema-valid report exists for its workflow_id and run_id.",
+      "gherkin": "Given a workflow reaches a terminal state When completion processing finishes Then exactly one schema-valid {workflow}.report.json exists for its workflow_id and run_id",
+      "type": "Functional",
+      "jtbd": "Obtain one auditable report per workflow run",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given a run contains retries, when the report is read, then every activity attempt appears once in execution order and retry attempts are not collapsed or double-counted.",
+      "gherkin": "Given a run contains activity retries When the report is read Then every activity attempt appears once in execution order and retries are not collapsed or double-counted",
+      "type": "Functional",
+      "jtbd": "Inspect every activity attempt in execution order",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given usage metrics are available in ATIF, when the report is written, then prompt, completion, and cached token totals match the source data and the raw ATIF artifact remains available.",
+      "gherkin": "Given usage metrics are available in ATIF When the report is written Then prompt, completion, and cached token totals match the source data and the raw ATIF artifact remains available",
+      "type": "Functional",
+      "jtbd": "Trust token usage totals from the raw ATIF artifact",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given cost_usd is absent from ATIF, when the report is written, then cost is explicitly unavailable and no estimated value is invented.",
+      "gherkin": "Given cost_usd is absent from ATIF When the report is written Then cost is explicitly unavailable and no estimated value is invented",
+      "type": "Error handling",
+      "jtbd": "Avoid inventing missing cost data",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given the run ends through automated failure, human accept, or human abort, when the report is read, then the final status and outcome origin distinguish those paths.",
+      "gherkin": "Given the run ends through automated failure, human accept, or human abort When the report is read Then the final status and outcome origin distinguish those terminal paths",
+      "type": "Functional",
+      "jtbd": "Distinguish how each run was resolved",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given report generation is interrupted, when evidence is inspected, then no truncated report is accepted as complete and rerunning completion for the same run produces one valid result.",
+      "gherkin": "Given report generation is interrupted When evidence is inspected Then no truncated report is accepted as complete and rerunning completion for the same run produces one valid result",
+      "type": "Error handling",
+      "jtbd": "Recover from interrupted report generation",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given concurrent workflows and activity retries, when their reports are generated, then records remain isolated by workflow, run, activity, and attempt.",
+      "gherkin": "Given concurrent workflows and activity retries When their reports are generated Then records remain isolated by workflow, run, activity, and attempt",
+      "type": "Functional",
+      "jtbd": "Keep concurrent run records isolated",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given a set of visible reports, when aggregation runs, then it publishes status counts, the defined success formula, numerator, denominator, sample window, and manual-intervention count, with each observation traceable to one report.",
+      "gherkin": "Given a set of visible reports When aggregation runs Then it publishes status counts, the defined success formula, numerator, denominator, sample window, and manual-intervention count with each observation traceable to one report",
+      "type": "Functional",
+      "jtbd": "Compute auditable end-to-end success metrics",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Given retries occur within a run, when the success rate is calculated, then the run contributes at most one observation to the denominator.",
+      "gherkin": "Given retries occur within a run When the success rate is calculated Then the run contributes at most one observation to the denominator",
+      "type": "Functional",
+      "jtbd": "Count each run once in success-rate denominator",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Automated tests cover passed, repaired, human-accepted, human-aborted, and automated-failure reports, missing usage fields, partial writes, retries, and concurrent runs.",
+      "gherkin": "Given the consolidated report implementation is complete When the automated test suite runs Then it covers passed, repaired, human-accepted, human-aborted, and automated-failure reports, missing usage fields, partial writes, retries, and concurrent runs",
+      "type": "Non-functional",
+      "jtbd": "Verify consolidated report behavior with automated tests",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Workflow metadata is missing one or more required fields",
+      "gherkin": "Given a terminal run is missing workflow_id, run_id, story_document, final_status, or attempt_count When the report writer runs Then it emits a validation error and does not produce a schema-invalid report",
+      "type": "Edge case",
+      "jtbd": "Reject incomplete run metadata",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "No activity attempts were executed before terminal status",
+      "gherkin": "Given a run reaches a terminal state without any recorded activity attempts When the report is generated Then the attempts array is empty and the final status still has a clear outcome origin",
+      "type": "Edge case",
+      "jtbd": "Handle a run with no activity attempts",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "ATIF export is missing, unreadable, or contains invalid JSON",
+      "gherkin": "Given an activity attempt has no readable ATIF export When the report is written Then token and cost fields for that attempt are explicitly unavailable and the raw path is omitted",
+      "type": "Edge case",
+      "jtbd": "Tolerate missing or malformed ATIF exports",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "ATIF final_metrics is missing some supported fields",
+      "gherkin": "Given ATIF final_metrics provides only prompt_tokens and cached_tokens When the report is written Then completion_tokens and cost_usd are explicitly unavailable while available fields are recorded",
+      "type": "Edge case",
+      "jtbd": "Handle partial ATIF metric sets",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Token or cost fields have wrong types or negative values",
+      "gherkin": "Given ATIF final_metrics contains a string, boolean, or negative number for a token or cost field When the report is written Then that field is marked unavailable and the rest of the report remains valid",
+      "type": "Edge case",
+      "jtbd": "Reject malformed numeric usage data",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Report write is interrupted before completion",
+      "gherkin": "Given report generation is interrupted after the file is opened but before it is closed When the workflow is inspected or rerun Then the partial file is not accepted and regeneration produces exactly one valid report",
+      "type": "Edge case",
+      "jtbd": "Avoid treating a partial report as complete",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Report or log destination is unwritable",
+      "gherkin": "Given the configured report path or log directory rejects a write When report generation runs Then the failure is logged and the run is not reported as complete",
+      "type": "Edge case",
+      "jtbd": "Tolerate filesystem write failures",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Concurrent workflows and activity retries write reports",
+      "gherkin": "Given multiple workflow runs and activity retries execute concurrently When reports are generated Then each report is scoped to one workflow_id and run_id with no overwrites or mixed attempts",
+      "type": "Edge case",
+      "jtbd": "Keep concurrent run reports isolated",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Maximum repair attempts boundary",
+      "gherkin": "Given a run reaches the configured maximum grade-repair attempts When the report is written Then attempt_count reflects the bounded count and no additional repair is recorded",
+      "type": "Edge case",
+      "jtbd": "Report boundary-limited repair loops",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Human signal timeout with no decision",
+      "gherkin": "Given a workflow awaits a human signal and both escalation waits time out When the report is generated Then the final status is failed with origin automated_timeout and the manual-intervention count is not incremented",
+      "type": "Edge case",
+      "jtbd": "Distinguish timeout from human decisions",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Aggregation is asked over an empty or single-report sample",
+      "gherkin": "Given zero or one visible terminal reports When aggregation runs Then the result still publishes the formula, sample window, and status counts with denominator equal to the sample size",
+      "type": "Edge case",
+      "jtbd": "Aggregate over small or empty samples",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Report files from mixed workflow versions or schemas",
+      "gherkin": "Given a set of visible reports contains different schema versions When aggregation runs Then incompatible reports are either filtered or migrated and the sample window and count are reported accurately",
+      "type": "Edge case",
+      "jtbd": "Handle schema drift in historical reports",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Workflow or run identifiers contain path-unsafe characters",
+      "gherkin": "Given a workflow_id or run_id contains slashes, dots, unicode, or spaces When the report path is derived Then the components are sanitized to prevent traversal and the report remains reachable",
+      "type": "Edge case",
+      "jtbd": "Sanitize identifiers used as filesystem paths",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Where should {workflow}.report.json be stored and what service owns retention?",
+      "impacts": [
+        "filesystem layout",
+        "audit retention",
+        "success-rate aggregation",
+        "report schema versioning"
+      ]
+    },
+    {
+      "question": "What is the authoritative primary success formula and target threshold for the end-to-end success rate?",
+      "impacts": [
+        "business rules",
+        "report aggregation",
+        "certification verdict",
+        "manual-intervention reporting"
+      ]
+    },
+    {
+      "question": "How should cost_usd be represented when ATIF does not supply it, and should a versioned price table ever be used?",
+      "impacts": [
+        "report schema",
+        "billing accuracy",
+        "external service dependency",
+        "ADR-015 compatibility"
+      ]
+    },
+    {
+      "question": "Should a report be emitted for startup rejection, cancellation, timeout, and infrastructure failure, or only for terminal workflow results?",
+      "impacts": [
+        "report lifecycle",
+        "success-rate denominator",
+        "failure traceability",
+        "recovery behavior"
+      ]
+    },
+    {
+      "question": "How are activity model and permission_mode captured, and should SkillActivityOutput carry them?",
+      "impacts": [
+        "activity output contract",
+        "harness config",
+        "report schema",
+        "workflow log format"
+      ]
+    },
+    {
+      "question": "What is the report JSON Schema version and migration policy?",
+      "impacts": [
+        "report schema",
+        "backward compatibility",
+        "certification evidence",
+        "aggregation logic"
+      ]
+    },
+    {
+      "question": "Should aggregation include only visible reports in the current workspace, or also load historical reports from an external store?",
+      "impacts": [
+        "filesystem layout",
+        "external service dependency",
+        "sample window",
+        "certification evidence"
+      ]
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "Where should {workflow}.report.json be stored and what service owns retention?",
+      "impacts": [
+        "filesystem layout",
+        "audit retention",
+        "success-rate aggregation",
+        "report schema versioning"
+      ]
+    },
+    {
+      "question": "What is the authoritative primary success formula and target threshold for the end-to-end success rate?",
+      "impacts": [
+        "business rules",
+        "report aggregation",
+        "certification verdict",
+        "manual-intervention reporting"
+      ]
+    },
+    {
+      "question": "How should cost_usd be represented when ATIF does not supply it, and should a versioned price table ever be used?",
+      "impacts": [
+        "report schema",
+        "billing accuracy",
+        "external service dependency",
+        "ADR-015 compatibility"
+      ]
+    },
+    {
+      "question": "Should a report be emitted for startup rejection, cancellation, timeout, and infrastructure failure, or only for terminal workflow results?",
+      "impacts": [
+        "report lifecycle",
+        "success-rate denominator",
+        "failure traceability",
+        "recovery behavior"
+      ]
+    },
+    {
+      "question": "How are activity model and permission_mode captured, and should SkillActivityOutput carry them?",
+      "impacts": [
+        "activity output contract",
+        "harness config",
+        "report schema",
+        "workflow log format"
+      ]
+    },
+    {
+      "question": "What is the report JSON Schema version and migration policy?",
+      "impacts": [
+        "report schema",
+        "backward compatibility",
+        "certification evidence",
+        "aggregation logic"
+      ]
+    },
+    {
+      "question": "Should aggregation include only visible reports in the current workspace, or also load historical reports from an external store?",
+      "impacts": [
+        "filesystem layout",
+        "external service dependency",
+        "sample window",
+        "certification evidence"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/common/harness.py: HarnessUsage dataclass carrying prompt_tokens, completion_tokens, cached_tokens, and cost_usd",
+        "src/common/devin_harness.py: Devin CLI invocation and ATIF export capture",
+        "src/common/atif_usage.py: read_atif_usage_result for defensive final_metrics parsing",
+        "src/common/workflow_logger.py: per-workflow, run, activity, and attempt artifact layout and get_activity_artifact_dir",
+        "src/common/skill_activity.py: SkillActivityInput/SkillActivityOutput contract",
+        "src/story_analysis_workflow/story_analysis_engine.py: workflow state, terminal status, attempt_count, and escalation reason",
+        "src/story_analysis_workflow/workflow.py: Cadence workflow registration, signals, and result contract",
+        "src/story_analysis_workflow/escalation.py: HumanDecision, EscalationReason, and terminal outcome vocabulary",
+        "src/story_analysis_workflow/activities/{extract,analyze,grade,repair}_story_*.py: activity wrappers and output paths"
+      ],
+      "new_code": [
+        "New report JSON Schema for StoryAnalysisWorkflow.report.json",
+        "New report writer module invoked at workflow completion",
+        "New aggregation module or script that scans visible reports and publishes success-rate metrics",
+        "Extension to SkillActivityOutput or activity log to carry model, permission_mode, and attempt",
+        "Tests for passed, repaired, human-accepted, human-aborted, automated-failure, missing usage, partial write, retry, and concurrent run scenarios"
+      ],
+      "infrastructure": [
+        "Existing local Cadence server and workers",
+        "Writable .process/logs and report artifact storage",
+        "JSON Schema validation tooling"
+      ],
+      "external_services": [
+        "Cadence server and worker runtime",
+        "Devin CLI invocation runtime",
+        "Devin ATIF usage export",
+        "Host filesystem"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Capture Devin cost metrics (src/common/harness.py and atif_usage.py)",
+        "Workflow-aware file logging (src/common/workflow_logger.py)",
+        "Implement Story Analysis Workflow Example (src/story_analysis_workflow/)",
+        "Configure Skill Activity Invocations"
+      ],
+      "blocks": [
+        "Close Story Analysis Workflow Stage 4 certification gaps",
+        "Reliable end-to-end success-rate reporting and trend dashboards"
+      ],
+      "related": [
+        "Refactor workflow modules into layers",
+        "Grade and repair story analysis activities",
+        "Extract story intent and analyze story skills"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Stage 4 certification expectations for audit trail, success rate, and traceability",
+        "Definitions of passed, human_resolved, and failed terminal statuses",
+        "Difference between manual correction, human accept, human abort, and automated failure",
+        "Representative sample and success-rate interpretation"
+      ],
+      "technical_knowledge": [
+        "Cadence workflow determinism, retries, and terminal state handling",
+        "ATIF final_metrics schema and aggregate semantics",
+        "Defensive JSON parsing and type normalization",
+        "Atomic file writes and idempotency on report regeneration",
+        "JSON Schema validation and schema versioning"
+      ],
+      "stakeholder_questions": [
+        "Confirm the authoritative success formula, target threshold, and whether human_resolved counts as success",
+        "Approve the report storage location and retention owner",
+        "Choose the missing-cost representation and whether a price table is acceptable",
+        "Decide whether non-terminal failures such as startup rejection and cancellation produce reports",
+        "Define the report JSON Schema version and migration policy",
+        "Confirm the sample window and representative workload for aggregation"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  },
+  "recommendation": {
+    "decision": "Proceed with implementation",
+    "approach": "Implement in this order: (1) define and version the {workflow}.report.json schema and deterministic report storage path; (2) extend SkillActivityOutput or activity log to carry model, permission_mode, attempt, duration, and ATIF artifact path; (3) implement a defensive report writer that reads workflow metadata, activity attempt records, and ATIF usage, marking cost as unavailable when absent and writing atomically; (4) add report generation at terminal workflow completion in the engine/workflow; (5) implement a report aggregator that scans visible reports, computes status counts, the success formula, numerator, denominator, sample window, and manual-intervention count, with each observation traceable to one report; (6) add tests covering all terminal paths, missing usage, partial writes, retries, and concurrent runs.",
+    "rationale": "The workflow already produces per-activity ATIF exports, attempt-scoped logs, and terminal status. The remaining work is to collect those existing artifacts into one schema-valid report per run and to aggregate visible reports without counting retries as separate runs. Cost should not be fabricated when ATIF omits it. Report generation must be atomic and idempotent so interrupted writes do not produce corrupt evidence. The success formula and threshold are a certification-owner decision, so the implementation must keep them explicit and configurable."
+  }
+}

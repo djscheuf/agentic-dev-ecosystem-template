@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "draft-implementation-plan",
+    "output_path_key": "plan_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

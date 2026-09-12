@@ -77,7 +77,11 @@ Each dimension is scored on a **0-3 scale**:
 - Are there any criteria that are actually implementation details?
 
 #### Trouble Case:
-- No Edge Cases are Documented = Incomplete Acceptance Criteria. Automatic point deduction! Suggest adding edge cases, and provide examples of cases to consider. 
+- No Edge Cases are Documented = Incomplete Acceptance Criteria. This CAPS the score at 1,
+  regardless of how clear, testable, or well-formatted (e.g. Given-When-Then) the happy-path
+  criteria are. A well-written happy path alone is still "incomplete," per the score-1
+  descriptor above ("missing edge cases"). The `edge_cases` field (or equivalent) must be non-empty and substantive
+  to earn a 2 or higher. Suggest adding edge cases, and provide examples of cases to consider.
 
 ---
 
@@ -122,7 +126,32 @@ Each dimension is scored on a **0-3 scale**:
 - Can scope be adjusted to eliminate external dependencies?
 
 #### Trouble Case:
-- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Provide examples of dependencies to consider. 
+- No Dependencies are Documented = Incomplete Dependencies. Call out lack of identified depdencies, resolved or otherwise. Suggest examples of dependencies to consider as part of the recommendation.
+
+#### Clarifying Note: Existing vs. Unresolved Dependencies
+- Items listed under `existing_code`, `infrastructure`, or similar "already in place" fields
+  are considered RESOLVED dependencies. They reference infrastructure that already exists.
+- Only count a dependency as "unresolved" if the analysis explicitly says it does not yet exist,
+  is scheduled for the future, is owned by another team, or is listed under `blocked_by`.
+- Fields like `questions`, `open_questions`, or `stakeholder_questions` are NOT dependencies,
+  even if they mention prerequisites, unknowns, or things to confirm with stakeholders. Never
+  let the presence or count of these questions lower the `dependencies` score. They are a
+  `scope`/`business_value` concern instead.
+- Distinguish "confirmed no dependencies" from "dependency analysis was never done": if
+  `existing_code`, `new_code`, `infrastructure`, `external_services`, `blocked_by`, `blocks`,
+  and the knowledge fields are ALL empty at once, that is the Trouble Case above (incomplete
+  dependency analysis), not an autonomous/score-2-or-3 story. A story only earns the "no
+  external dependencies" credit when at least some dependency fields ARE populated (showing
+  the analysis was actually done) and what remains unresolved/blocking is empty.
+- `dependencies` measures external blockers only — things outside the team's own control
+  (another team's API, a stakeholder decision, infrastructure that doesn't exist yet).
+  Undecided implementation or design approach that the team itself owns (e.g., "caching layer
+  (if implementing cache-based optimization)," "query rewriting vs. indexing," or any other
+  "we haven't picked an approach yet" language in `new_code`/`infrastructure`) is NOT a
+  dependency, even if the analysis phrases it as conditional or unresolved. The team can
+  resolve its own design choices without being blocked by anyone else. Do not lower the
+  `dependencies` score for this — it is a `scope` (vertical-slice/boundary) or `business_value`
+  concern at most, never a `dependencies` one.
 
 ## Common Gaps & Remediation
 

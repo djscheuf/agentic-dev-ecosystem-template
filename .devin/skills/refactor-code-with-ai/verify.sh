@@ -149,9 +149,6 @@ main() {
   verify_refactored_code_files "$refactored_code_files"
   run_test
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

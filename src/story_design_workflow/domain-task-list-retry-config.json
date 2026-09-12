@@ -1,0 +1,21 @@
+{
+  "domain": "story-design",
+  "task_list": "story-design",
+  "cadence_target": "localhost:7833",
+  "workflow_defaults": {
+    "execution_start_to_close_timeout_seconds": 3600,
+    "task_start_to_close_timeout_seconds": 10
+  },
+  "activity_defaults": {
+    "start_to_close_timeout_seconds": 1800
+  },
+  "human_escalation": {
+    "timeout_seconds": 300
+  },
+  "retry_policy": {
+    "initial_interval_seconds": 5,
+    "backoff_coefficient": 2.0,
+    "maximum_interval_seconds": 300,
+    "maximum_attempts": 3
+  }
+}

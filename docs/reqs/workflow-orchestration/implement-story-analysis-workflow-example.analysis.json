@@ -1,0 +1,297 @@
+{
+  "raw_request": "docs/reqs/workflow-orchestration/story.md",
+  "title": "Working Example of the Story Analysis Workflow Using Cadence (Python SDK, with Grade/Repair Loop)",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "target_persona": {
+    "name": "Alex - Software Engineer & AI Process Designer",
+    "role": "Software Engineer / AI Process Designer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Alex manually invokes each SDLC skill (extract-story-intent, analyze-story, draft-implementation-plan, etc.) one at a time, hand-tracking state, retries, and an audit trail across the multi-step Story Analysis Workflow.",
+      "during": "Alex defines the Story Analysis Workflow as a Cadence Workflow using the Python client SDK, with each of the four SDLC skill steps (extract-story-intent, analyze-story, grade-story-analysis, repair-story-analysis) implemented as a Cadence Activity. A Cadence Worker executes the steps, retries failed Activities per a configured retry policy, loops between grade-story-analysis and repair-story-analysis (capped at 3 attempts) until the analysis passes, and blocks on a Signal to escalate to a human whenever a step is ambiguous, uncertain, or the grade-repair loop is exhausted.",
+      "after": "Alex inspects the Cadence Workflow's Event History (via the `cadence` CLI or Web UI) to confirm every Activity/tool call ran and how retries/escalations were handled, and reuses or shares the documented Workflow/Activity/Worker code with other engineers for future stories."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Orchestrate the Story Analysis Workflow as a single durable Cadence Workflow (Python client SDK) with four steps, each implemented as a Cadence Activity: (1) extract-story-intent, (2) analyze-story, (3) grade-story-analysis, and (4) repair-story-analysis. If grade-story-analysis reports a score below its pass threshold, the Workflow invokes repair-story-analysis with the current analysis and the grader's feedback to produce a repaired analysis, then re-invokes grade-story-analysis; this grade-repair cycle is bounded to a maximum of 3 attempts before the Workflow stops and escalates to a human via Signal.",
+    "inputs": [
+      "Story document or verbatim story text to seed the workflow (WorkflowExecution input)",
+      "Cadence Workflow/Activity/Worker code and configuration (domain, task list, retry policies) written against the Cadence Python client SDK",
+      "Grader feedback (analysis-grade JSON from grade-story-analysis) consumed by repair-story-analysis on each repair attempt",
+      "Human responses delivered as Cadence Signals when a step escalates due to ambiguity, uncertainty, or exhaustion of the 3-attempt grade-repair loop"
+    ],
+    "outputs": [
+      "Completed Cadence WorkflowExecution with an auditable, traceable Event History covering every Activity, grade attempt, repair attempt, and tool call",
+      "Repository state changes produced by the workflow's Activities (e.g., extracted intent JSON, analysis JSON, analysis-grade JSON, repaired analysis JSON, updated documentation)",
+      "A final analysis JSON that either passed grade-story-analysis or exhausted the 3-attempt repair loop and was escalated to a human",
+      "Documentation describing how the Cadence Workflow/Activities/Worker are built, configured, and run so others can reuse it"
+    ],
+    "state_changes": [
+      "Repository files created or updated by each Activity invoked during the workflow (intent, analysis, grade, and repaired-analysis JSON files)",
+      "A grade-repair attempt counter tracked as Workflow state, incremented on each repair-story-analysis invocation and capped at 3",
+      "Cadence WorkflowExecution state persisted in the Cadence service's Event History (e.g., running, activity-retrying, grading, repairing, awaiting-signal, completed, failed)"
+    ],
+    "affected_components": {
+      "ui": [
+        "Cadence Web UI (optional, local dev) for observing WorkflowExecution history and status"
+      ],
+      "api": [
+        "Cadence frontend gRPC API: StartWorkflowExecution, SignalWorkflowExecution, QueryWorkflowExecution, DescribeWorkflowExecution",
+        "`cadence` CLI for starting, signaling, and inspecting workflow runs"
+      ],
+      "database": [
+        "Cadence service's persistence store (embedded SQLite for local dev; Cassandra/MySQL/PostgreSQL for production) storing WorkflowExecution Event History"
+      ],
+      "external_services": [
+        "Cadence service (frontend/history/matching) hosting and scheduling the workflow",
+        "Cadence Worker process(es) polling a Task List to execute the Story Analysis Workflow and its Activities"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "A working example of the Story Analysis Workflow of the SDLC process using Cadence",
+      "gherkin": "Given the Story Analysis Workflow is registered as a Cadence Workflow type and a Worker is polling its Task List When the workflow is started with a story document as input Then the workflow runs the SDLC Story Analysis steps end-to-end as Cadence Activities and the WorkflowExecution completes successfully",
+      "type": "Functional",
+      "jtbd": "Run story analysis workflow end-to-end",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The implemented workflow is documented and can be used by others",
+      "gherkin": "Given the Cadence Workflow, Activity, and Worker code exists When another engineer reads its documentation Then they can register the domain, start the Worker, and trigger the workflow themselves without additional guidance",
+      "type": "Non-functional",
+      "jtbd": "Reuse documented workflow",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The implemented workflow demonstrates flow of agentic actions, including tool calls and state management, retry-loops, and punching out to the human in cases of ambiguity or uncertainty",
+      "gherkin": "Given a Cadence Activity for an SDLC skill step fails or the step's output flags an open question When the Workflow processes that step Then Cadence retries the Activity according to its RetryPolicy, or the Workflow blocks on a Signal and escalates to a human for input before continuing",
+      "type": "Functional",
+      "jtbd": "Trace agentic workflow execution through retries and human escalation",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Workflow actions are auditable and traceable after workflow completion",
+      "gherkin": "Given a Cadence WorkflowExecution has completed When Alex runs `cadence workflow describe` (or inspects the Web UI) for that WorkflowID/RunID Then every Activity, retry attempt, and Signal received during the run is visible in the Event History",
+      "type": "Non-functional",
+      "jtbd": "Audit workflow actions after completion",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Agentic Workflow actions affect the repository state (e.g., create files, update documentation)",
+      "gherkin": "Given the Workflow executes its Activity steps When those Activities complete Then corresponding files are created or updated in the repository (e.g., intent JSON, analysis JSON, sentinel files)",
+      "type": "Functional",
+      "jtbd": "Persist workflow outputs to repository",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Workflow is repeatable, producing similar results when given the same inputs",
+      "gherkin": "Given the same story document input is provided When the Cadence Workflow is started multiple times with distinct WorkflowIDs Then each run produces similar Activity results and repository state changes",
+      "type": "Non-functional",
+      "jtbd": "Get repeatable workflow results",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Happy path: all SDLC skill Activities succeed on first attempt with no human escalation needed",
+      "gherkin": "Given a well-formed story document and no ambiguity in any step When the Workflow runs Then every Activity succeeds on its first attempt and the WorkflowExecution completes without any Signal being sent",
+      "type": "Happy path",
+      "jtbd": "Complete a story analysis run without intervention",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Error handling: an Activity fails repeatedly and exhausts its RetryPolicy",
+      "gherkin": "Given an SDLC skill Activity fails on every attempt When the Activity's RetryPolicy max attempts is exhausted Then the Workflow catches the ActivityFailure, surfaces it via a Signal/query for human review, and does not silently mark the run as completed",
+      "type": "Error handling",
+      "jtbd": "Know when a workflow step needs human intervention after retries are exhausted",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Human escalation timeout: no human responds to an escalation Signal within a bounded wait",
+      "gherkin": "Given the Workflow is blocked awaiting a human-response Signal When a configured timer duration elapses with no Signal received Then the Workflow either re-escalates (e.g., re-notifies) or fails gracefully, and the timeout is recorded in the Event History",
+      "type": "Edge Case",
+      "jtbd": "Avoid a workflow hanging indefinitely on an unanswered human escalation",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it",
+      "gherkin": "Given the Story Analysis Workflow is registered under a specific Cadence domain and task list When a client or Worker configured for a different domain attempts to start, signal, or poll for it Then the operation is rejected by the Cadence service",
+      "type": "Functional",
+      "jtbd": "Restrict workflow access to authorized domain/task-list configuration",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "An analysis that fails grade-story-analysis's pass threshold is repaired via repair-story-analysis and re-graded",
+      "gherkin": "Given analyze-story's output scores below the pass threshold in grade-story-analysis When the Workflow proceeds Then it invokes repair-story-analysis with the analysis and grader feedback, writes a repaired analysis, and re-invokes grade-story-analysis on the repaired output",
+      "type": "Functional",
+      "jtbd": "Automatically repair a failing analysis using grader feedback",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The grade-repair cycle is bounded to a maximum of 3 attempts",
+      "gherkin": "Given an analysis has failed grade-story-analysis after 3 repair-story-analysis attempts When the Workflow evaluates the attempt counter Then it stops looping and escalates to a human via Signal instead of retrying indefinitely",
+      "type": "Functional",
+      "jtbd": "Avoid an unbounded grade-repair loop",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty or null story document input",
+      "gherkin": "Given an empty or missing story document is provided as workflow input When the Workflow starts Then the first Activity (extract-story-intent) fails fast with a clear error instead of producing a malformed intent JSON",
+      "type": "Edge Case",
+      "jtbd": "Fail fast on missing story input",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Very large story document exceeds Cadence input/Activity payload size limits",
+      "gherkin": "Given a story document larger than the Cadence Blob/Event size limits When it is passed as Workflow or Activity input Then the Workflow surfaces a clear size-limit error rather than a generic serialization failure",
+      "type": "Edge Case",
+      "jtbd": "Handle oversized workflow input gracefully",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Special characters/unicode in the story text",
+      "gherkin": "Given a story document containing unicode characters or emojis When the Workflow processes it through each Activity Then the characters are preserved unmodified in the resulting intent/analysis JSON files",
+      "type": "Edge Case",
+      "jtbd": "Preserve non-ASCII content through workflow processing",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "First-time use: no Cadence domain registered yet",
+      "gherkin": "Given the Cadence domain for this workflow has not been registered When a client attempts to start the Workflow Then the client/documentation surfaces the 'domain not found' error and directs the user to register the domain first",
+      "type": "Edge Case",
+      "jtbd": "Guide first-time setup when the Cadence domain is missing",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Concurrent workflow executions for the same story",
+      "gherkin": "Given a WorkflowExecution is already running for a given WorkflowID When a second start request is made with the same WorkflowID and a WorkflowIDReusePolicy that rejects duplicates Then the second start is rejected instead of corrupting the in-flight run",
+      "type": "Edge Case",
+      "jtbd": "Prevent duplicate concurrent runs for the same story",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Worker crash mid-Activity and workflow resumption via replay",
+      "gherkin": "Given a Worker process crashes while executing an Activity When a new (or restarted) Worker picks up polling for the same task list Then Cadence replays the Workflow's Event History and resumes from the last recorded decision without losing state",
+      "type": "Edge Case",
+      "jtbd": "Recover workflow progress after a worker crash",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Cadence service temporarily unavailable",
+      "gherkin": "Given the Cadence frontend service is temporarily unreachable When the client attempts to start or signal the workflow, or the Worker attempts to poll Then the client/Worker retries with backoff and the workflow's durable state is unaffected once connectivity is restored",
+      "type": "Edge Case",
+      "jtbd": "Tolerate transient Cadence service outages",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Duplicate/idempotent Activity execution due to retries",
+      "gherkin": "Given an Activity that writes a repository file is retried after a transient failure When the Activity re-executes Then the resulting file write is idempotent (overwrite-safe) and does not produce duplicate or corrupted output",
+      "type": "Edge Case",
+      "jtbd": "Ensure repeated activity attempts do not corrupt repository state",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "SDLC skill implementations to be invoked as Cadence Activities: extract-story-intent, analyze-story, and grade-story-analysis (with its `/rubric.md` pass-threshold scoring, per ADR-006)",
+        "Per-skill verify.sh scripts and JSON schemas used to validate each Activity's output",
+        "Sentinel file / `.process/` completion contract (ADR-004) that each Activity currently writes"
+      ],
+      "new_code": [
+        "New `repair-story-analysis` skill (SKILL.md, output schema, verify.sh) that takes the current analysis JSON plus grade-story-analysis's feedback and produces a repaired analysis JSON, following the same skill-authoring pattern as the other SDLC skills",
+        "Cadence Workflow definition (Python client SDK) implementing the 4-step Story Analysis Workflow control flow: extract-story-intent -> analyze-story -> grade-story-analysis -> (bounded grade/repair-story-analysis loop, max 3 attempts)",
+        "Cadence Activity implementations wrapping each of the four SDLC skill steps",
+        "Cadence Worker process registration/startup code (Python client)",
+        "Signal and Query handlers for human-in-the-loop escalation, including escalation when the 3-attempt grade-repair loop is exhausted",
+        "Workflow starter/client script to trigger a run from a story document"
+      ],
+      "infrastructure": [
+        "Local Cadence server (embedded SQLite) for development, per the cadence-workflow-orchestration skill's local-quickstart",
+        "A registered Cadence domain for this workflow",
+        "A Task List for the Worker(s) to poll"
+      ],
+      "external_services": [
+        "Cadence service (frontend/history/matching)"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "extract-story-intent output for this story (docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.intent.json), which seeds the workflow's first Activity"
+      ],
+      "blocks": [
+        "Documentation task describing how to install, configure, and run the Cadence-based Story Analysis Workflow for other engineers"
+      ],
+      "related": [
+        "Future stories wrapping additional SDLC skills (draft-implementation-plan, split-plan-into-workstreams, sdlc-tdd) as Activities in the same or downstream Cadence workflows",
+        "New repair-story-analysis skill story (SKILL.md, schema, verify.sh) needed to close the grade/repair feedback loop for this workflow"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "SDLC skill sequencing and the sentinel-file/verify.sh completion contract (ADR-004: Skill Output Contracts & Sentinel Files)",
+        "The grader skill pattern (ADR-006) and quantitative/qualitative analysis separation (ADR-005): grade-story-analysis applies a rubric with a pass threshold and returns feedback that repair-story-analysis must consume",
+        "What counts as 'ambiguity or uncertainty' that should be escalated to a human vs. handled by an automatic retry or an automatic repair attempt"
+      ],
+      "technical_knowledge": [
+        "Cadence core concepts: Workflows, Activities, Workers, Task Lists, Domains, Event History, Determinism (cadence-workflow-orchestration skill, 01-concepts/)",
+        "Cadence Python client SDK for authoring Workflows/Activities, and its feature gaps vs. the Go client (03-python-client/, especially feature-gaps.md)",
+        "Cadence retry policies, timers, and Signals for human-in-the-loop steps (04-configuration/, 01-concepts/timers-and-schedules.md)",
+        "Local Cadence server setup and the `cadence` CLI (00-get-started/local-quickstart.md, 05-api-and-cli/cli-reference.md)"
+      ],
+      "stakeholder_questions": [
+        "Should human escalation be delivered purely via a Cadence Signal, or paired with an external notification (e.g., Slack/email) that instructs the human how to send that Signal?",
+        "Should repair-story-analysis have access to the full analysis-grade feedback (all dimensions) or only the failing dimensions when attempting a repair?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 8,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  },
+  "open_questions": [
+    {
+      "question": "What Signal and Query names/payload shapes should be used for human-in-the-loop escalation (including escalation after the 3rd failed repair attempt) and for external tooling to introspect current workflow state?",
+      "impacts": [
+        "workflow API design",
+        "human interface",
+        "auditability"
+      ]
+    },
+    {
+      "question": "Should the example workflow run against a local embedded-SQLite Cadence server, or target a shared/persistent Cadence cluster?",
+      "impacts": [
+        "infrastructure",
+        "reproducibility",
+        "documentation scope"
+      ]
+    },
+    {
+      "question": "What RetryPolicy (initial interval, backoff coefficient, max attempts) should apply to each SDLC skill Activity, independent of the outer 3-attempt grade/repair loop?",
+      "impacts": [
+        "reliability",
+        "human workload",
+        "workflow completion SLA"
+      ]
+    },
+    {
+      "question": "When the grade/repair loop is exhausted after 3 attempts, should the Workflow fail outright, or complete with a 'needs human review' status while preserving the best-scoring analysis attempt?",
+      "impacts": [
+        "workflow completion semantics",
+        "human interface",
+        "repository state (which analysis version is persisted as final)"
+      ]
+    }
+  ],
+  "recommendation": {
+    "decision": "Proceed",
+    "approach": "Implement the Story Analysis Workflow as a single Cadence Workflow using the Python client SDK, with one Activity per step across four steps: extract-story-intent, analyze-story, grade-story-analysis, and the new repair-story-analysis skill. Configure a bounded ActivityOptions RetryPolicy per Activity for transient failures. After grade-story-analysis, branch in the Workflow: if the grade passes, continue; if it fails, invoke repair-story-analysis with the analysis and grader feedback and re-invoke grade-story-analysis, tracking the attempt count in Workflow state and capping the grade/repair cycle at 3 attempts. If still failing after 3 attempts, block on a Signal (guarded by a timer via a Cadence Selector) to escalate to a human.",
+    "rationale": "Cadence's durable Event History satisfies the auditability/traceability acceptance criteria without extra tooling, Activity RetryPolicies directly implement the story's retry-loop requirement for transient failures, and a Workflow-state-tracked attempt counter cleanly bounds the grade/repair feedback loop (ADR-005/ADR-006) without needing external orchestration. Signals provide a state-preserving mechanism to punch out to a human both for step-level ambiguity and for a fully exhausted repair loop. The Python client SDK is used per stakeholder decision; feature-gaps.md should be checked before relying on any Go-only capability."
+  }
+}

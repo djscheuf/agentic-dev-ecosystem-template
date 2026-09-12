@@ -55,7 +55,7 @@ Implement planned functionality using Test-Driven Development (TDD) methodology 
 
 **Expected Output:**
 - Test cases JSON file at path specified in sentinel file
-- Sentinel file: `.process/design-test-cases.done.json`
+- Sentinel file: `<input_parent>/.process/design-test-cases.done.json`, retained after verification (repository-root fallback only when there is no input path)
 
 **Verification:**
 - Confirm test cases file exists and follows schema
@@ -155,7 +155,7 @@ Implement planned functionality using Test-Driven Development (TDD) methodology 
 **Actions:**
 - Run all tests to confirm they pass
 - Review git log to confirm proper commit messages
-- Confirm all sentinel files deleted from `.process/` directory
+- Confirm all co-located sentinel files remain available in their `.process/` directories
 
 **Output:** Confirmation that implementation is complete
 

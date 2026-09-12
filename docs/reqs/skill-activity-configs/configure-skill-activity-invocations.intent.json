@@ -1,0 +1,166 @@
+{
+  "raw_request": "docs/reqs/skill-activity-configs/story.md",
+  "title": "Configure Skill Activity Invocations",
+  "story": {
+    "so_that": "I can run agentic workflow Activities with the capabilities and safeguards appropriate to each task",
+    "as_a": "Software Engineer and AI Process Designer",
+    "i_want": "to configure the Devin model and tool permissions used by each Skill Activity invocation"
+  },
+  "target_persona": {
+    "name": "Alex - Software Engineer & AI Process Designer",
+    "role": "Software Engineer / AI Process Designer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Alex designs and operates agentic SDLC workflows, configures global harness settings, invokes Skills, reviews repository outputs and logs, and troubleshoots failed or blocked Activities. Different affected users include workflow authors who define profiles, operators who inspect retries and logs, and maintainers who implement alternate Harnesses.",
+      "during": "Alex edits a human-readable, version-controlled configuration to choose default and per-skill Devin models and permission modes, then starts a workflow whose Skill Activities resolve those settings from structured metadata.",
+      "after": "Alex verifies that Activities run with inherited or overridden safeguards, repository writes complete when permitted, retries follow the documented consistency policy, logs expose safe resolved settings, and invalid configurations fail before subprocess execution. This is typically a desktop-based development and operations task performed whenever workflow capabilities or safeguards change, with repository configuration and workflow execution permissions."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Configure and resolve default and per-skill Devin model and tool-permission profiles for Skill Activity invocations without coupling the generic Activity contract to Devin CLI details.",
+    "inputs": [
+      "Human-readable, version-controlled Skill Activity configuration",
+      "Default model, permission mode, and optional referenced Devin configuration profile",
+      "Canonical skill name and structured Skill Activity metadata",
+      "Optional skill-specific model, permission mode, and referenced configuration overrides",
+      "Documented retry-time configuration consistency policy",
+      "Existing global model and permission-mode configuration when migrating"
+    ],
+    "outputs": [
+      "Resolved model, permission mode, and optional referenced Devin configuration profile for each Skill Activity invocation",
+      "Devin subprocess arguments constructed from the resolved profile",
+      "Pre-subprocess validation errors that identify the affected skill and setting",
+      "Activity logs containing safe resolved configuration metadata without credentials or secrets",
+      "Documentation covering configuration, precedence, supported values, retry behavior, security, migration, and local development",
+      "Automated test results covering resolution, validation, invocation, compatibility, and logging"
+    ],
+    "state_changes": [
+      "A version-controlled Skill Activity configuration file stores defaults and canonical-skill overrides",
+      "Each invocation resolves effective settings by applying skill-specific values over defaults",
+      "Permitted unattended Activities create or update repository files while preserving existing output and sentinel contracts",
+      "Existing installations retain compatible global settings or transition through an explicit migration error"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Skill Activity invocation settings are defined in a human-readable, version-controlled configuration file.",
+      "gherkin": "Given Alex needs to configure Skill Activity invocations When Alex opens the repository configuration Then the invocation settings are human-readable and tracked by version control",
+      "type": "Constraint",
+      "jtbd": "Review invocation settings in version control",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The configuration provides default settings that apply when a skill has no explicit override.",
+      "gherkin": "Given default invocation settings exist and a skill has no explicit override When its Activity configuration is resolved Then the default settings apply",
+      "type": "Functional",
+      "jtbd": "Apply default settings to unconfigured skills",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The configuration supports overrides keyed by the canonical skill name, including `extract-story-intent`, `analyze-story`, `grade-story-analysis`, and `repair-story-analysis`.",
+      "gherkin": "Given overrides are keyed by canonical skill names When any listed Story Analysis skill is invoked Then its matching override can be resolved",
+      "type": "Functional",
+      "jtbd": "Override settings for a named skill",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Each default or skill-specific profile can select the Devin model used for the invocation.",
+      "gherkin": "Given a default or skill-specific profile selects a supported Devin model When the Skill Activity is invoked Then the selected model is used",
+      "type": "Functional",
+      "jtbd": "Select a model for each invocation profile",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Each default or skill-specific profile can select a supported Devin CLI permission mode.",
+      "gherkin": "Given a default or skill-specific profile selects a supported permission mode When the Skill Activity is invoked Then the Devin CLI uses that permission mode",
+      "type": "Functional",
+      "jtbd": "Select permissions for each invocation profile",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "A skill-specific setting takes precedence over the corresponding default setting, while unspecified values inherit from the defaults.",
+      "gherkin": "Given defaults and a partial skill-specific profile exist When the skill configuration is resolved Then explicit skill values override matching defaults and missing values inherit from defaults",
+      "type": "Business rule",
+      "jtbd": "Customize one skill while inheriting defaults",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The resolved configuration allows unattended skills to create and update files in the repository without requiring interactive confirmation when their permission profile permits those operations.",
+      "gherkin": "Given an unattended skill has a profile permitting repository writes When it creates or updates a repository file Then the operation completes without interactive confirmation",
+      "type": "Functional",
+      "jtbd": "Run permitted repository edits unattended",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Unrestricted tool permissions are not granted by default and must be selected explicitly.",
+      "gherkin": "Given no profile explicitly selects unrestricted permissions When an invocation configuration is resolved Then unrestricted tool permissions are not granted",
+      "type": "Business rule",
+      "jtbd": "Avoid unrestricted permissions by default",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Invalid configuration, including unsupported permission modes, malformed values, and unusable referenced configuration files, fails before the Devin subprocess is started and reports the affected skill and setting.",
+      "gherkin": "Given a skill configuration contains an unsupported mode, malformed value, or unusable referenced file When the Activity validates its configuration Then it fails before starting Devin and reports the affected skill and setting",
+      "type": "Functional",
+      "jtbd": "Correct invalid settings before invocation",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Skill configuration is resolved from structured Skill Activity metadata rather than inferred by parsing the natural-language prompt.",
+      "gherkin": "Given structured Skill Activity metadata identifies the canonical skill When configuration is resolved Then the profile is selected from that metadata without parsing the prompt",
+      "type": "Constraint",
+      "jtbd": "Resolve skill settings from reliable metadata",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The generic Skill Activity contract remains independent of Devin-specific command-line details and continues to support alternate Harness implementations.",
+      "gherkin": "Given a Skill Activity uses the generic Harness contract When a non-Devin Harness implementation is supplied Then the Activity remains usable without depending on Devin CLI arguments",
+      "type": "Constraint",
+      "jtbd": "Use alternate harnesses without changing activities",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Existing skill output and sentinel-file contracts remain unchanged.",
+      "gherkin": "Given model and permission configuration is added When an existing skill completes Then its output and sentinel files retain their existing contracts",
+      "type": "Constraint",
+      "jtbd": "Preserve downstream skill completion contracts",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Each Activity log records the skill name and resolved model, permission mode, and any referenced Devin configuration profile without recording credentials or other secrets.",
+      "gherkin": "Given a Skill Activity resolves its invocation profile When the Activity is logged Then the log records the skill name, model, permission mode, and referenced profile while excluding credentials and secrets",
+      "type": "Non-functional",
+      "jtbd": "Audit resolved invocation settings safely",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Cadence retries apply the documented configuration consistency policy so operators can determine whether all attempts use a workflow-start snapshot or the latest Activity-side configuration.",
+      "gherkin": "Given a Cadence Activity is retried after configuration may have changed When the retry resolves its settings Then it follows the documented snapshot-or-latest consistency policy and operators can determine which policy applied",
+      "type": "Business rule",
+      "jtbd": "Predict configuration used across retries",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Existing installations using the current global model and permission-mode configuration either remain compatible or receive a clear migration error with corrective guidance.",
+      "gherkin": "Given an existing installation uses the current global model and permission-mode configuration When the new configuration mechanism is introduced Then the installation remains compatible or receives a clear actionable migration error",
+      "type": "Constraint",
+      "jtbd": "Migrate existing invocation settings safely",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "Automated tests cover default resolution, per-skill overrides, partial inheritance, invalid configuration, subprocess argument construction, alternate Harness compatibility, and safe logging.",
+      "gherkin": "Given the Skill Activity configuration feature is implemented When the automated test suite runs Then it verifies defaults, overrides, inheritance, validation, subprocess arguments, alternate Harness compatibility, and secret-safe logging",
+      "type": "Non-functional",
+      "jtbd": "Verify invocation configuration behavior automatically",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    },
+    {
+      "criterion": "The configuration format, precedence rules, supported values, retry behavior, security implications, and local-development examples are documented for other users.",
+      "gherkin": "Given another user needs to configure Skill Activities When they read the documentation Then they can understand the format, precedence, supported values, retry behavior, security implications, and local-development examples",
+      "type": "Non-functional",
+      "jtbd": "Configure Skill Activities from documentation",
+      "persona_served": "Alex - Software Engineer & AI Process Designer"
+    }
+  ]
+}

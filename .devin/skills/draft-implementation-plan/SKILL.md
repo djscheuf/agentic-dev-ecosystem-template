@@ -58,7 +58,7 @@ RISKS AND MITIGATIONS:
 Update the "risks_and_mitigations" field in the plan json file.
 
 ### 7. Write the Sentinel File
-- create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
+- create `<input_parent>/.process/` when needed and write `{skill-name}.done.json` there; use the repository-root `.process/` only when no input path is supplied. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json. 
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 

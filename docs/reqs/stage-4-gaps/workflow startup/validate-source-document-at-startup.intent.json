@@ -1,0 +1,87 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/workflow startup/story.md",
+  "title": "Validate Story Analysis Workflow Startup",
+  "story": {
+    "so_that": "invalid workflow requests fail before any agent work or incomplete evidence is produced",
+    "as_a": "Story Analysis Workflow operator",
+    "i_want": "the workflow to validate its source document at startup"
+  },
+  "target_persona": {
+    "name": "Story Analysis Workflow Operator",
+    "role": "Workflow Operator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Receives a workflow request containing a story_document path and initiates the Story Analysis Workflow.",
+      "during": "Observes a startup guardrail that validates the source document; a valid Markdown path leads to extract_story_intent being scheduled, while an invalid request fails fast with a sanitized validation result.",
+      "after": "Continues with the story analysis for valid input, or addresses the source document problem and resubmits for invalid input."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Run a startup guardrail that validates the workflow source document before scheduling extract_story_intent, rejecting requests with null, empty, missing, unreadable, or non-Markdown inputs.",
+    "inputs": [
+      "story_document path",
+      "filesystem for existence, readability, and Markdown extension checks"
+    ],
+    "outputs": [
+      "sanitized startup validation result",
+      "either a scheduled extract_story_intent activity or a terminal validation-failed state"
+    ],
+    "state_changes": [
+      "workflow advances to the first scheduled activity for valid input",
+      "workflow reaches a terminal validation-failed state for invalid input",
+      "workflow log records the startup validation outcome and the failed rule"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given an existing readable Markdown file, when the workflow starts, then startup validation passes and extract_story_intent is scheduled exactly once.",
+      "gherkin": "Given a story_document that refers to an existing, readable Markdown file When the Story Analysis Workflow starts Then startup validation passes and extract_story_intent is scheduled exactly once",
+      "type": "functional",
+      "jtbd": "Start workflow with a valid Markdown source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document is null, empty, or whitespace-only, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document is null, empty, or whitespace-only When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "business rule",
+      "jtbd": "Reject empty source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document does not exist, identifies a directory, or is not readable, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document does not exist, identifies a directory, or is not a readable regular file When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "business rule",
+      "jtbd": "Reject inaccessible source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given story_document has a non-Markdown extension, when the workflow starts, then it fails startup validation and schedules no Skill Activity.",
+      "gherkin": "Given story_document has a non-Markdown file extension When the workflow starts Then startup validation fails and no Skill Activity is scheduled",
+      "type": "business rule",
+      "jtbd": "Reject non-Markdown source document",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given a valid Markdown path contains spaces or Unicode characters, when the workflow starts, then the path is validated without lossy normalization and extraction is scheduled.",
+      "gherkin": "Given a story_document path with spaces or Unicode characters that points to an existing, readable Markdown file When the workflow starts Then the path is validated without lossy normalization and extract_story_intent is scheduled",
+      "type": "functional",
+      "jtbd": "Validate Markdown paths with spaces or Unicode characters",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Given startup validation fails, when the workflow reaches its terminal state, then its observable result or workflow log identifies startup validation as the failure origin without exposing sensitive filesystem details.",
+      "gherkin": "Given startup validation fails for a story_document When the workflow reaches its terminal state Then the result or log identifies startup validation as the failure origin and does not expose sensitive filesystem details",
+      "type": "business rule",
+      "jtbd": "Report validation failure origin safely",
+      "persona_served": "Story Analysis Workflow Operator"
+    },
+    {
+      "criterion": "Automated tests cover valid input and every rejected input category without invoking the Devin harness for rejected requests.",
+      "gherkin": "Given the startup validation implementation is complete When the automated test suite runs Then it covers the valid input case and each rejected input category without invoking the Devin harness for rejected requests",
+      "type": "non-functional",
+      "jtbd": "Verify startup validation with automated tests",
+      "persona_served": "Story Analysis Workflow Operator"
+    }
+  ]
+}

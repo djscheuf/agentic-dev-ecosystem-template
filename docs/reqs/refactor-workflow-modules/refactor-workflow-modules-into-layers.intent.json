@@ -1,0 +1,156 @@
+{
+  "raw_request": "docs/reqs/refactor-workflow-modules/proposed-architecture.md",
+  "title": "Refactor Workflow Modules into a Three-Layer Architecture",
+  "story": {
+    "so_that": "I can add new workflows by creating a package and registering it in the orchestrator catalog without modifying existing workflow code or entangling generic infrastructure with domain behavior",
+    "as_a": "Workflow Platform Developer",
+    "i_want": "to refactor the orchestrator package into three layers (common, orchestrator, and workflow modules) with a stable module contract"
+  },
+  "target_persona": {
+    "name": "Taylor - Workflow Platform Developer",
+    "role": "Software Engineer / Platform Engineer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Taylor needs to add or modify a workflow, but the orchestrator package mixes generic Cadence/Devin infrastructure, Story Analysis behavior, and Worker startup, making changes risky and entangled. Different affected users include Story Analysis workflow maintainers, new workflow authors, and operators who start and stop Workers.",
+      "during": "Taylor refactors the codebase into three layers: common owns generic infrastructure, each workflow package owns its complete domain, and orchestrator is the composition root that loads configured modules.",
+      "after": "Taylor adds a new workflow by creating a package and a catalog entry; the orchestrator mounts it on its own task list without touching existing workflow code."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Refactor the existing orchestrator package into a three-layer architecture (common infrastructure, workflow packages, and orchestrator composition root), define a WorkflowModuleSpec contract, and make the orchestrator load configured Python module paths and run one Cadence Worker per domain/task-list pair.",
+    "inputs": [
+      "Current orchestrator package source code and package layout",
+      "Proposed three-layer architecture document",
+      "Existing Story Analysis workflow implementation, activities, and tests",
+      "Cadence Python SDK and Worker/Registry APIs",
+      "Start/stop scripts and domain registration scripts",
+      "Workflow catalog configuration (e.g., workflow_catalog.json)"
+    ],
+    "outputs": [
+      "New src/common/ package with workflow-agnostic interfaces and infrastructure",
+      "New or populated src/story_analysis_workflow/ package owning complete Story Analysis behavior",
+      "Refactored src/orchestrator/ package as the composition root",
+      "WorkflowModuleSpec and WorkerSpec contracts",
+      "Updated start/stop scripts for multi-Worker startup and shutdown",
+      "Moved and updated tests for common, workflow-module, and orchestrator",
+      "Validated dependency rules and live Cadence integration"
+    ],
+    "state_changes": [
+      "Generic infrastructure moves from orchestrator/ into common/",
+      "Story Analysis domain code moves from orchestrator/ into story_analysis_workflow/",
+      "orchestrator/ becomes the application composition root that imports common and configured workflow module entry points",
+      "Dependency direction becomes common <- workflow modules <- orchestrator",
+      "Orchestrator loads configured Python module paths and groups them by (domain, task_list)",
+      "One Cadence Worker is created and supervised per domain/task-list pair",
+      "Stale Story Analysis code and imports are removed from orchestrator/"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "common contains generic interfaces and infrastructure and imports no workflow package or orchestrator module",
+      "gherkin": "Given the common package is created When its imports are analyzed Then it contains no references to orchestrator or any workflow package",
+      "type": "Constraint",
+      "jtbd": "Maintain clean dependency boundaries",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "each workflow package imports generic capabilities from common and never imports another workflow package",
+      "gherkin": "Given a workflow package exists When its imports are analyzed Then it imports only common and its own modules",
+      "type": "Constraint",
+      "jtbd": "Keep workflow packages independent",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "story_analysis_workflow owns its workflow definition, engine, contracts, complete Activity folder, domain logic, clients, configuration, and tests",
+      "gherkin": "Given the refactor is complete When the story_analysis_workflow package is inspected Then it contains all Story Analysis-specific workflow, engine, activity, contract, and client code",
+      "type": "Functional",
+      "jtbd": "Consolidate Story Analysis ownership",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "orchestrator imports common and configured workflow module entry points as the application composition root",
+      "gherkin": "Given the orchestrator package is built When its dependencies are inspected Then it imports only common and the configured workflow module entry points",
+      "type": "Constraint",
+      "jtbd": "Compose applications from modules",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "orchestrator contains no Story Analysis skill names, grading rules, artifact conventions, Activity implementations, or result details",
+      "gherkin": "Given the orchestrator package is refactored When its source is searched for Story Analysis domain concepts Then no skill names, grading rules, artifact conventions, Activity implementations, or result details remain",
+      "type": "Constraint",
+      "jtbd": "Remove domain knowledge from the composition root",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "the orchestrator loads supported workflow modules from configured Python module paths",
+      "gherkin": "Given a workflow catalog configuration exists When the orchestrator starts Then it imports each configured Python module path and validates its SPEC",
+      "type": "Functional",
+      "jtbd": "Register supported workflow paths",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "each workflow module declares its domain, task list, workflow names, Activity names, and registration callable",
+      "gherkin": "Given a workflow package is configured When its module descriptor is inspected Then it exposes name, domain, task_list, workflow_types, activity_types, and a register callable",
+      "type": "Constraint",
+      "jtbd": "Expose a stable module contract",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "the orchestrator validates registrations and creates one Cadence Worker per domain/task-list pair",
+      "gherkin": "Given configured workflow module specs When the orchestrator composes Workers Then it groups modules by (domain, task_list), detects conflicts, and creates one Worker per group",
+      "type": "Functional",
+      "jtbd": "Run independent Workers per task list",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "the start script registers all configured domains and waits for every configured Worker to poll",
+      "gherkin": "Given the start-workflow-engine script runs When it starts the orchestrator Then it registers every configured domain and waits until all Workers report polling",
+      "type": "Functional",
+      "jtbd": "Start all configured Workers reliably",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "the stop path shuts down every Worker cleanly",
+      "gherkin": "Given the stop script runs When it shuts down the orchestrator Then every Worker context is cancelled and closed",
+      "type": "Functional",
+      "jtbd": "Stop all Workers cleanly",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "generic logging identifies workflow modules and task-list-specific Workers without assuming a Story Analysis module name",
+      "gherkin": "Given the logging implementation is moved to common When logs are emitted Then they include domain and task_list but do not hard-code story-analysis references",
+      "type": "Functional",
+      "jtbd": "Observe generic Worker lifecycle",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "the single-Activity diagnostic workflow remains top-level and can target Activities on each mounted task list, or its unresolved routing behavior is captured in an approved follow-up before the old path is removed",
+      "gherkin": "Given the single-Activity diagnostic workflow is implemented When it is invoked Then it can target Activities on each mounted task list or its unresolved routing is documented and approved before removal",
+      "type": "Functional",
+      "jtbd": "Diagnose Activities across task lists",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "a second workflow is mounted by adding its package and orchestrator catalog entry, without changing Story Analysis code",
+      "gherkin": "Given a new workflow package exists When it is added to the orchestrator catalog Then Story Analysis code is unchanged and the new workflow runs independently",
+      "type": "Functional",
+      "jtbd": "Add workflows without modifying existing ones",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "all common, workflow-module, orchestrator, and live Cadence integration tests pass",
+      "gherkin": "Given the refactor is complete When the test suites and integration tests run Then all common, workflow-module, orchestrator, and live Cadence tests pass",
+      "type": "Non-functional",
+      "jtbd": "Verify the refactor with tests",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    },
+    {
+      "criterion": "stale Story Analysis implementations and imports are removed from orchestrator after migration",
+      "gherkin": "Given the migration is complete When the orchestrator package is inspected Then no stale Story Analysis implementations or imports remain",
+      "type": "Constraint",
+      "jtbd": "Clean up the composition root",
+      "persona_served": "Taylor - Workflow Platform Developer"
+    }
+  ]
+}

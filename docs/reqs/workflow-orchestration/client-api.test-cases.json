@@ -1,0 +1,152 @@
+{
+  "target_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "source_workstream": "docs/reqs/workflow-orchestration/streams/client-api.stream.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Configuration and client-side signal/query helpers",
+      "tests": [
+        {
+          "id": 1,
+          "name": "config_loads_domain_defaults_from_json_file",
+          "status": "pending",
+          "description": "Load default domain, task list, target, and timeout values from domain-task-list-retry-config.json",
+          "arrange": "Point config loader at repo's domain-task-list-retry-config.json",
+          "act": "Call load_config()",
+          "assert": "Returns domain='story-analysis', task_list='story-analysis', cadence_target='localhost:7833', and escalation_timeout_seconds=300"
+        },
+        {
+          "id": 2,
+          "name": "config_allows_overrides_and_environment_fallback",
+          "status": "pending",
+          "description": "Config values can be overridden and fall back to environment variables when file is missing",
+          "arrange": "Provide overrides and unset config file path",
+          "act": "Call load_config(domain='other', target='host:9999')",
+          "assert": "Returned config uses provided overrides and falls back to defaults for missing fields"
+        },
+        {
+          "id": 3,
+          "name": "signals_send_human_response_with_valid_decision_calls_client_signal_workflow",
+          "status": "pending",
+          "description": "send_human_response encodes the decision and notes and calls client.signal_workflow",
+          "arrange": "Create a FakeClient that records signal_workflow calls",
+          "act": "Call send_human_response(client, 'wf-1', 'retry', notes='focus on edge cases')",
+          "assert": "client.signal_workflow was awaited with workflow_id='wf-1', run_id='', signal_name='human_response', and args ('retry', 'focus on edge cases')"
+        },
+        {
+          "id": 4,
+          "name": "signals_rejects_unknown_decision",
+          "status": "pending",
+          "description": "Only retry, accept, and abort are valid human_response decisions",
+          "arrange": "Create a FakeClient",
+          "act": "Call send_human_response(client, 'wf-1', 'invalid')",
+          "assert": "Raises ValueError before calling the client"
+        },
+        {
+          "id": 5,
+          "name": "queries_get_status_calls_client_query_workflow",
+          "status": "pending",
+          "description": "get_status queries the StoryAnalysisWorkflow's get_status query",
+          "arrange": "Create a FakeClient that returns a canned status dict",
+          "act": "Call get_status(client, 'wf-1')",
+          "assert": "client.query_workflow was awaited with workflow_id='wf-1', run_id='', query_type='get_status', result_type=dict and the canned dict is returned"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Workflow starter",
+      "tests": [
+        {
+          "id": 6,
+          "name": "starter_starts_story_analysis_workflow_with_defaults",
+          "status": "pending",
+          "description": "start_story_analysis_workflow starts StoryAnalysisWorkflow with the story document and default config",
+          "arrange": "Create a FakeClient and use a test config",
+          "act": "Call start_story_analysis_workflow(client, 'docs/reqs/workflow-orchestration/story.md')",
+          "assert": "client.start_workflow was awaited with workflow_type='StoryAnalysisWorkflow', args=(story_document, config), task_list='story-analysis', execution_start_to_close_timeout=timedelta(hours=1), and workflow_id_reuse_policy=RejectDuplicate"
+        },
+        {
+          "id": 7,
+          "name": "starter_generates_deterministic_workflow_id_from_story_path",
+          "status": "pending",
+          "description": "When workflow_id is omitted, derive a stable id from the story document path",
+          "arrange": "Create a FakeClient and a story path",
+          "act": "Call start_story_analysis_workflow without workflow_id",
+          "assert": "The generated workflow_id is deterministic and contains a sanitized form of the story path"
+        },
+        {
+          "id": 8,
+          "name": "starter_accepts_explicit_workflow_id_and_config_overrides",
+          "status": "pending",
+          "description": "Operator can override workflow_id, domain, task list, and timeout",
+          "arrange": "Create a FakeClient",
+          "act": "Call start_story_analysis_workflow with explicit workflow_id and config overrides",
+          "assert": "client.start_workflow uses the provided workflow_id and timeout"
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Command-line helper",
+      "tests": [
+        {
+          "id": 9,
+          "name": "cli_start_subcommand_invokes_starter_and_prints_execution",
+          "status": "pending",
+          "description": "The 'start' subcommand parses arguments and calls start_story_analysis_workflow",
+          "arrange": "Patch starter and create a FakeClient context manager",
+          "act": "Run cli_main(['start', 'docs/reqs/workflow-orchestration/story.md', '--workflow-id', 'wf-1'])",
+          "assert": "starter was called with the story document and workflow_id; output includes workflow_id and run_id"
+        },
+        {
+          "id": 10,
+          "name": "cli_signal_subcommand_invokes_send_human_response",
+          "status": "pending",
+          "description": "The 'signal' subcommand sends a human_response signal",
+          "arrange": "Patch send_human_response and create a FakeClient context manager",
+          "act": "Run cli_main(['signal', 'wf-1', 'accept', '--notes', 'Looks good'])",
+          "assert": "send_human_response was called with workflow_id='wf-1', decision='accept', notes='Looks good'"
+        },
+        {
+          "id": 11,
+          "name": "cli_query_subcommand_invokes_get_status_and_prints_json",
+          "status": "pending",
+          "description": "The 'query' subcommand queries workflow status and prints JSON",
+          "arrange": "Patch get_status to return a dict and create a FakeClient context manager",
+          "act": "Run cli_main(['query', 'wf-1'])",
+          "assert": "get_status was called with workflow_id='wf-1' and printed JSON matches the dict"
+        },
+        {
+          "id": 12,
+          "name": "cli_register_domain_subcommand_registers_the_domain",
+          "status": "pending",
+          "description": "The 'register-domain' subcommand calls the Cadence RegisterDomain gRPC endpoint",
+          "arrange": "Create a FakeClient with a domain_stub that records RegisterDomain calls",
+          "act": "Run cli_main(['register-domain', '--retention-days', '3'])",
+          "assert": "domain_stub.RegisterDomain was awaited with name='story-analysis' and retention period of 3 days"
+        },
+        {
+          "id": 13,
+          "name": "cli_exits_with_error_on_unknown_subcommand",
+          "status": "pending",
+          "description": "The CLI prints help and exits non-zero for unknown subcommands",
+          "arrange": "Create a FakeClient context manager",
+          "act": "Run cli_main(['unknown-command'])",
+          "assert": "SystemExit is raised with a non-zero exit code"
+        }
+      ]
+    },
+    {
+      "description": "Priority 4: Integration/end-to-end behavior",
+      "tests": [
+        {
+          "id": 14,
+          "name": "client_api_round_trip_start_signal_query_uses_consistent_defaults",
+          "status": "pending",
+          "description": "A full client interaction uses the same domain, task list, and signal/query names across modules",
+          "arrange": "Create a FakeClient capturing all calls",
+          "act": "Call starter, send_human_response, and get_status using default config",
+          "assert": "All calls reference domain from config, signal_name='human_response', query_type='get_status', and workflow_type='StoryAnalysisWorkflow'"
+        }
+      ]
+    }
+  ]
+}

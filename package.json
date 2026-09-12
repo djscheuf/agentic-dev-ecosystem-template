@@ -6,7 +6,8 @@
   "scripts": {
     "test": "cd evals && promptfoo eval --no-cache --config $1",
     "test:verbose": "cd evals && promptfoo eval --no-cache --verbose --config $1 > test.log",
-    "view": "promptfoo view"
+    "view": "promptfoo view",
+    "inspect-eval": "node scripts/inspect-eval.js"
   }
 
 }

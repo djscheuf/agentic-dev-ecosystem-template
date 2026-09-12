@@ -11,12 +11,16 @@ description: Grades the quality of the extracted story document with additional 
 - grade the analysis based on the User Story Quality Rubric defined in `/rubric.md`.
 - Identify a score for each dimension and provide your reasoning for that score. 
 - Provide recommendations for improvement for each dimension with an imperfect score.
+- If a dimension scores 3, set `recommendation` to a short closing statement such as
+  "No improvements needed."
 
 ### 3. Save the Grade
-- save the grade to a new json file with the same name as the analysis json file, but with the suffix `.analysis-grade.json`. This file must follow the `/schema/analysis-grade.schema.json` schema.
+- save the grade to a new json file with the same name as the analysis json file, but with the suffix `.analysis-grade.json`. 
+  - If unable to write files, put the grade JSON in the chat.
+- Output file MUST follow the `/schema/analysis-grade.schema.json` schema.
 
 ### 4. Write the Sentinel File
-- create a sentinel file in the `.process` directory, named `{skill-name}.done.json`.
+- create `<input_parent>/.process/` when needed and write `{skill-name}.done.json` there; use the repository-root `.process/` only when no input path is supplied. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json. 
 - set the task field to "{skill-name}".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json. 

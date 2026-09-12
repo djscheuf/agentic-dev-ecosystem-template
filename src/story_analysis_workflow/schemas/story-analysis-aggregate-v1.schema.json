@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "story-analysis-aggregate-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "formula_id", "formula_text", "window_start", "window_end", "numerator", "denominator", "success_rate", "status_counts", "outcome_origin_counts", "manual_intervention_count", "included_count", "exclusion_counts", "observations"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "formula_id": {"const": "automated_pass_rate_v1"},
+    "formula_text": {"type": "string", "minLength": 1},
+    "window_start": {"type": "string", "format": "date-time"},
+    "window_end": {"type": "string", "format": "date-time"},
+    "numerator": {"type": "integer", "minimum": 0},
+    "denominator": {"type": "integer", "minimum": 0},
+    "success_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "status_counts": {"$ref": "#/$defs/counts"},
+    "outcome_origin_counts": {"$ref": "#/$defs/counts"},
+    "manual_intervention_count": {"type": "integer", "minimum": 0},
+    "included_count": {"type": "integer", "minimum": 0},
+    "exclusion_counts": {"$ref": "#/$defs/counts"},
+    "observations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/observation"}
+    }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflow_id", "run_id", "report_path", "final_status", "outcome_origin"],
+      "properties": {
+        "workflow_id": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "report_path": {"type": "string", "minLength": 1},
+        "final_status": {"enum": ["passed", "human_resolved", "failed"]},
+        "outcome_origin": {"enum": ["automated_pass", "repaired_pass", "automated_failure", "automated_timeout", "human_accept", "human_abort"]}
+      }
+    }
+  }
+}

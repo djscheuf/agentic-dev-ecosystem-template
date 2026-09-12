@@ -223,9 +223,6 @@ main() {
   verify_audit_structure "$audit_path"
   verify_audit_paths "$audit_path" "$PROJECT_DIR"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

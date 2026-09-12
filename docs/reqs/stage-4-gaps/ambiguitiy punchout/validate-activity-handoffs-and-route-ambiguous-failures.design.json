@@ -1,0 +1,762 @@
+{
+  "story_path": "docs/reqs/stage-4-gaps/ambiguitiy punchout/validate-activity-handoffs-and-route-ambiguous-failures.analysis.json",
+  "repo_state_before_design": "docs/reqs/stage-4-gaps/ambiguitiy punchout/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "WorkflowStarted: the operator starts a StoryAnalysisWorkflow with the existing story_document and optional config. The workflow begins the same as today and reaches the first skill Activity.",
+      "layers_involved": ["Client", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Workflow",
+          "contract_used": "StoryAnalysisWorkflowInput",
+          "data_shape": "story_document: string; config?: { max_attempts?: int, escalation_timeout_seconds?: int }"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "SkillActivityCompleted: a skill Activity (extract, analyze, grade, or repair) finishes and returns a SkillActivityOutput. The output now includes an explicit status so the Activity can report success, explicit ambiguity, or a harness failure.",
+      "layers_involved": ["Activity", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Activity",
+          "to_layer": "Workflow",
+          "contract_used": "SkillActivityOutput",
+          "data_shape": "status: success|ambiguity|failure; output_path: string; sentinel_path: string; duration_ms: int; activity_log_path: string; devin_log_path: string; ambiguity_reason?: string"
+        }
+      ]
+    },
+    {
+      "step": "3a",
+      "description": "HandoffValidationRequested: after a successful skill Activity, the workflow schedules a validate_handoff Activity. It passes the previous output_path, the previous Activity's type, the expected artifact schema, and the current workflow/run/attempt identity.",
+      "layers_involved": ["Workflow", "Guardrail Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Guardrail Activity",
+          "contract_used": "HandoffValidationRequest",
+          "data_shape": "output_path: string; previous_activity_name: string; workflow_id: string; run_id: string; attempt: int; schema_path: string"
+        }
+      ]
+    },
+    {
+      "step": "3b",
+      "description": "HandoffValidated: the guardrail confirms the artifact exists, is readable, and conforms to the expected schema. The workflow schedules the dependent skill Activity exactly once.",
+      "layers_involved": ["Guardrail Activity", "Workflow", "Skill Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Guardrail Activity",
+          "to_layer": "Workflow",
+          "contract_used": "HandoffValidationResult",
+          "data_shape": "valid: true; ambiguity: false; rule: null; artifact_path: string; schema_path: string"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Skill Activity",
+          "contract_used": "SkillActivityInput",
+          "data_shape": "input_paths: [validated output_path]; context: optional notes"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "GuardrailFailedDeterministic: the guardrail finds a missing, unreadable, empty, malformed, or schema-invalid artifact. It returns a deterministic failure rule; the workflow records an automated guardrail failure and reaches a terminal failed state without scheduling the dependent Activity.",
+      "layers_involved": ["Guardrail Activity", "Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Guardrail Activity",
+          "to_layer": "Workflow",
+          "contract_used": "HandoffValidationResult",
+          "data_shape": "valid: false; ambiguity: false; rule: MISSING_OUTPUT_PATH|INACCESSIBLE_ARTIFACT|UNREADABLE_ARTIFACT|EMPTY_ARTIFACT|MALFORMED_JSON|SCHEMA_VIOLATION|SCHEMA_UNAVAILABLE; artifact_path: string; schema_path: string"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "GuardrailFailureRecord",
+          "data_shape": "workflow_id, run_id, attempt, step, activity_name, rule, artifact_path, schema_path, recorded_at"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "ActivityOrGuardrailFlaggedAmbiguity: an Activity or a handoff guardrail returns an explicit ambiguous result. The workflow enters awaiting_signal with escalation_reason ACTIVITY_FLAGGED_AMBIGUITY and does not schedule the next Activity.",
+      "layers_involved": ["Activity", "Guardrail Activity", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Activity",
+          "to_layer": "Workflow",
+          "contract_used": "SkillActivityOutput",
+          "data_shape": "status: ambiguity; ambiguity_reason: string; output_path?: string"
+        },
+        {
+          "from_layer": "Guardrail Activity",
+          "to_layer": "Workflow",
+          "contract_used": "HandoffValidationResult",
+          "data_shape": "valid: false; ambiguity: true; rule: ACTIVITY_FLAGGED_AMBIGUITY; ambiguity_reason: string"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Client",
+          "contract_used": "get_status",
+          "data_shape": "status: awaiting_signal; escalation_reason: activity_flagged_ambiguity"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "HumanDecisionReceived: while awaiting a decision, the operator sends a human_response Signal. The workflow validates the decision against the supported values and the current run/attempt state, then records or rejects it.",
+      "layers_involved": ["Client", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Workflow",
+          "contract_used": "human_response",
+          "data_shape": "decision: retry|accept|abort; notes: string; run_id?: string"
+        }
+      ]
+    },
+    {
+      "step": "7a",
+      "description": "AmbiguityResolvedRetry: a supported retry decision is accepted once. The workflow re-runs the ambiguous Activity (if the ambiguity came from an Activity) or the guardrail (if the ambiguity came from a guardrail), logs the decision, and continues.",
+      "layers_involved": ["Workflow", "Activity", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "HumanDecisionRecord",
+          "data_shape": "workflow_id, run_id, decision: retry, notes, decision_origin: human_response, escalation_reason: activity_flagged_ambiguity, terminal_path: null"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "ReRunAmbiguousStep",
+          "data_shape": "same inputs as the original Activity or guardrail invocation"
+        }
+      ]
+    },
+    {
+      "step": "7b",
+      "description": "AmbiguityResolvedAccept: a supported accept decision is accepted once. The workflow proceeds past the ambiguity to the next skill Activity or, if the ambiguity was after a passing grade, to terminal passed. The decision and terminal path are logged.",
+      "layers_involved": ["Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "HumanDecisionRecord",
+          "data_shape": "workflow_id, run_id, decision: accept, notes, decision_origin: human_response, escalation_reason: activity_flagged_ambiguity, terminal_path: human_resolved|passed"
+        }
+      ]
+    },
+    {
+      "step": "7c",
+      "description": "AmbiguityResolvedAbort: a supported abort decision is accepted once. The workflow reaches a terminal failed state with outcome_origin human_aborted and logs the decision distinctly from an automated failure.",
+      "layers_involved": ["Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "HumanDecisionRecord",
+          "data_shape": "workflow_id, run_id, decision: abort, notes, decision_origin: human_response, escalation_reason: activity_flagged_ambiguity, terminal_path: failed"
+        }
+      ]
+    },
+    {
+      "step": "7d",
+      "description": "InvalidHumanDecisionIgnored: an unsupported, stale, duplicate, or out-of-state decision is rejected. The workflow does not advance and records the invalid attempt while remaining in awaiting_signal.",
+      "layers_involved": ["Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "InvalidHumanDecisionRecord",
+          "data_shape": "workflow_id, run_id, attempted_decision, rejection_reason, recorded_at"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "AmbiguityTimeout: no valid decision arrives before the bounded timeout policy completes. The existing _escalate performs one re-notification; after the second timeout the workflow reaches a terminal failed state with outcome_origin automated_timeout and logs the outcome once.",
+      "layers_involved": ["Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "TimeoutRecord",
+          "data_shape": "workflow_id, run_id, escalation_reason: activity_flagged_ambiguity, timeout_count: 2, terminal_path: failed, outcome_origin: automated_timeout"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "GradePassedPostGraderRequested: when grade_story_analysis returns passed: true, the workflow schedules a validate_final_artifacts Activity before it can complete. The guardrail verifies that the intent, analysis, and analysis-grade artifacts all exist and match their schemas.",
+      "layers_involved": ["Workflow", "Guardrail Activity"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Guardrail Activity",
+          "contract_used": "FinalArtifactValidationRequest",
+          "data_shape": "artifact_checks: [{ activity_name, output_path, schema_path }]; workflow_id; run_id; attempt"
+        }
+      ]
+    },
+    {
+      "step": "10a",
+      "description": "PostGraderValidated: all final artifacts are present and schema-valid. The workflow reaches terminal passed with outcome_origin automated_pass or repaired_pass depending on whether any repairs occurred.",
+      "layers_involved": ["Guardrail Activity", "Workflow", "Client"],
+      "handshake_points": [
+        {
+          "from_layer": "Guardrail Activity",
+          "to_layer": "Workflow",
+          "contract_used": "FinalArtifactValidationResult",
+          "data_shape": "valid: true; checked_artifacts: [{ activity_name, output_path, schema_path }]"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Client",
+          "contract_used": "WorkflowResult",
+          "data_shape": "final_analysis_path: string; passed: true; attempt_count: int; escalated: bool; final_status: passed; outcome_origin: automated_pass|repaired_pass"
+        }
+      ]
+    },
+    {
+      "step": "10b",
+      "description": "PostGraderFailed: one or more final artifacts are missing or schema-invalid. The workflow records an automated guardrail failure and reaches terminal failed without completing.",
+      "layers_involved": ["Guardrail Activity", "Workflow", "Observability"],
+      "handshake_points": [
+        {
+          "from_layer": "Guardrail Activity",
+          "to_layer": "Workflow",
+          "contract_used": "FinalArtifactValidationResult",
+          "data_shape": "valid: false; failed_artifacts: [{ activity_name, output_path, schema_path, rule }]"
+        },
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Observability",
+          "contract_used": "GuardrailFailureRecord",
+          "data_shape": "workflow_id, run_id, attempt, step: post_grader, activity_name, rule, artifact_path, schema_path, recorded_at"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "ValidateActivityHandoff",
+      "description": "Records the start of a handoff guardrail after a skill Activity completes.",
+      "layers_involved": ["Workflow", "Guardrail Activity"],
+      "data_points": [
+        {
+          "point": "workflow_id_run_id",
+          "description": "Cadence correlation identifiers for the owning execution."
+        },
+        {
+          "point": "previous_activity_name",
+          "description": "The activity whose output is being validated."
+        },
+        {
+          "point": "artifact_path_schema_path",
+          "description": "The path being validated and the expected schema path."
+        },
+        {
+          "point": "attempt",
+          "description": "The Cadence Activity attempt being validated."
+        }
+      ]
+    },
+    {
+      "event_name": "PassActivityHandoff",
+      "description": "Records that a handoff guardrail passed and the dependent Activity was scheduled exactly once.",
+      "layers_involved": ["Guardrail Activity", "Workflow"],
+      "data_points": [
+        {
+          "point": "next_activity_name",
+          "description": "The dependent Activity that was scheduled."
+        },
+        {
+          "point": "schedule_count",
+          "description": "Must equal one per valid handoff."
+        }
+      ]
+    },
+    {
+      "event_name": "FailActivityHandoff",
+      "description": "Records a deterministic guardrail failure and the rule that failed.",
+      "layers_involved": ["Guardrail Activity", "Workflow", "Observability"],
+      "data_points": [
+        {
+          "point": "rule",
+          "description": "MISSING_OUTPUT_PATH, INACCESSIBLE_ARTIFACT, UNREADABLE_ARTIFACT, EMPTY_ARTIFACT, MALFORMED_JSON, SCHEMA_VIOLATION, or SCHEMA_UNAVAILABLE."
+        },
+        {
+          "point": "artifact_path",
+          "description": "The artifact path that failed validation."
+        },
+        {
+          "point": "terminal_path",
+          "description": "failed with outcome_origin automated_guardrail_failure."
+        }
+      ]
+    },
+    {
+      "event_name": "FlagActivityAmbiguity",
+      "description": "Records that an Activity or guardrail returned an explicit ambiguous outcome.",
+      "layers_involved": ["Activity", "Guardrail Activity", "Workflow"],
+      "data_points": [
+        {
+          "point": "ambiguity_source",
+          "description": "activity or guardrail."
+        },
+        {
+          "point": "ambiguity_reason",
+          "description": "The human-readable reason for the ambiguity."
+        },
+        {
+          "point": "escalation_reason",
+          "description": "ACTIVITY_FLAGGED_AMBIGUITY."
+        }
+      ]
+    },
+    {
+      "event_name": "AwaitHumanDecision",
+      "description": "Records that the workflow entered awaiting_signal for an ambiguity punch-out.",
+      "layers_involved": ["Workflow"],
+      "data_points": [
+        {
+          "point": "timeout_seconds",
+          "description": "Configured escalation timeout."
+        },
+        {
+          "point": "re_notification_count",
+          "description": "Number of re-escalations allowed before terminal timeout."
+        }
+      ]
+    },
+    {
+      "event_name": "ReceiveHumanDecision",
+      "description": "Records a human_response Signal arrival and whether it was accepted or rejected.",
+      "layers_involved": ["Workflow", "Client"],
+      "data_points": [
+        {
+          "point": "decision",
+          "description": "retry, accept, abort, or an invalid value."
+        },
+        {
+          "point": "validation_outcome",
+          "description": "accepted, unsupported, duplicate, stale, or out_of_state."
+        }
+      ]
+    },
+    {
+      "event_name": "ResolveAmbiguity",
+      "description": "Records the one-time transition from a valid human decision to a retry, accept, or abort path.",
+      "layers_involved": ["Workflow"],
+      "data_points": [
+        {
+          "point": "decision",
+          "description": "retry, accept, or abort."
+        },
+        {
+          "point": "terminal_path",
+          "description": "The resulting terminal or continuation path."
+        }
+      ]
+    },
+    {
+      "event_name": "TimeoutAmbiguity",
+      "description": "Records that the bounded timeout policy completed without a valid human decision.",
+      "layers_involved": ["Workflow"],
+      "data_points": [
+        {
+          "point": "timeout_count",
+          "description": "Number of timeout periods that elapsed."
+        },
+        {
+          "point": "terminal_path",
+          "description": "failed with outcome_origin automated_timeout."
+        }
+      ]
+    },
+    {
+      "event_name": "ValidateFinalArtifacts",
+      "description": "Records the start and result of the post-grader final artifact guardrail.",
+      "layers_involved": ["Workflow", "Guardrail Activity"],
+      "data_points": [
+        {
+          "point": "checked_artifact_count",
+          "description": "Number of final artifacts checked (intent, analysis, analysis-grade)."
+        },
+        {
+          "point": "valid",
+          "description": "true if all artifacts passed validation."
+        },
+        {
+          "point": "failed_artifacts",
+          "description": "List of artifacts that failed with rule and path."
+        }
+      ]
+    },
+    {
+      "event_name": "RecordGuardrailFailure",
+      "description": "Records a structured guardrail failure artifact for audit.",
+      "layers_involved": ["Workflow", "Data"],
+      "data_points": [
+        {
+          "point": "record_path",
+          "description": "Path to the guardrail-failure record in the run log directory."
+        },
+        {
+          "point": "rule",
+          "description": "The failed guardrail rule."
+        }
+      ]
+    },
+    {
+      "event_name": "RecordHumanDecision",
+      "description": "Records a structured human decision artifact for audit.",
+      "layers_involved": ["Workflow", "Data"],
+      "data_points": [
+        {
+          "point": "record_path",
+          "description": "Path to the human-decision record in the run log directory."
+        },
+        {
+          "point": "decision",
+          "description": "retry, accept, or abort."
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Client/Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Render awaiting_signal, escalation_reason, guardrail failure rule, and terminal path from get_status without interpreting filesystem details.",
+          "intent": "Presentation belongs at the operator boundary; enforcement and state remain in the workflow."
+        },
+        {
+          "responsibility": "Send supported retry, accept, or abort decisions through the existing story-analysis-cli signal path and surface validation errors.",
+          "intent": "The CLI is the trusted operator path; the workflow is the final authority on whether a signal advances state."
+        }
+      ]
+    },
+    {
+      "layer": "Workflow Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Run a handoff guardrail after each skill Activity and a final artifact guardrail after a passing grade, scheduling the dependent Activity exactly once on success.",
+          "intent": "The workflow owns sequencing and is the only layer that can guarantee no downstream Activity consumes an invalid artifact."
+        },
+        {
+          "responsibility": "Treat explicit ambiguity from an Activity or guardrail as an ACTIVITY_FLAGGED_AMBIGUITY escalation and open the bounded human decision wait.",
+          "intent": "Only the workflow has durable Cadence state to await, record, and act on a human decision."
+        },
+        {
+          "responsibility": "Validate every human_response decision against supported values, current run/attempt, and awaiting state; reject duplicates, stale, and out-of-state decisions without advancing.",
+          "intent": "The workflow is the durable state machine and can enforce idempotency and correctness."
+        },
+        {
+          "responsibility": "Apply the documented bounded timeout policy (one re-notification, then terminal automated_timeout) and log the outcome once.",
+          "intent": "The engine already owns the bounded escalation loop; reusing it preserves consistency."
+        },
+        {
+          "responsibility": "Record guardrail failures and human decisions in the workflow result, query output, workflow log, and structured run records.",
+          "intent": "The workflow is the source of truth for terminal and audit-worthy state."
+        }
+      ]
+    },
+    {
+      "layer": "Guardrail Activity Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Check the output_path for existence, readability, regular-file status, and JSON Schema conformance using jsonschema, and map each failure to a stable rule enum.",
+          "intent": "Filesystem state is nondeterministic and belongs in an Activity; the workflow consumes a structured, deterministic result."
+        },
+        {
+          "responsibility": "Load the expected schema from the colocated Activity *.config.json schema namespace so each Activity owns its artifact contract.",
+          "intent": "Schema association follows ADR-014 and is independently mockable."
+        },
+        {
+          "responsibility": "Return a HandoffValidationResult that distinguishes valid, deterministic failure, and explicit ambiguity; never mutate workflow state.",
+          "intent": "Guardrails are stateless validators; the workflow decides what to do."
+        }
+      ]
+    },
+    {
+      "layer": "Skill Activity Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Read the skill sentinel status field and produce a SkillActivityOutput with status success, ambiguity, or failure.",
+          "intent": "Skills already write sentinel files; honoring the status field gives them a structured way to report ambiguity without exceptions."
+        },
+        {
+          "responsibility": "Preserve the existing output_path, sentinel, and log path contracts so downstream guardrails and reporting continue to work.",
+          "intent": "The new status field is backward compatible; the skill output artifact remains the validated handoff artifact."
+        }
+      ]
+    },
+    {
+      "layer": "Data/Filesystem",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist skill output artifacts, JSON Schema definitions, per-run workflow logs, and structured guardrail/human-decision records.",
+          "intent": "The filesystem is the source of truth for artifacts and audit evidence; Cadence history and logs provide the durable decision trail."
+        }
+      ]
+    },
+    {
+      "layer": "Automated Tests",
+      "new_responsibilities": [
+        {
+          "responsibility": "Verify each guardrail rule, exact-once scheduling, ambiguity punch-out, invalid/stale/duplicate signal rejection, timeout, post-grader success/failure, and a recorded certification run that attempts to bypass the human wait.",
+          "intent": "The non-functional acceptance criteria require observable proof at pure-engine, Activity, and end-to-end boundaries."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivityOutput",
+      "description": "Extends the existing activity result with an explicit status so Activities can report success, ambiguity, or harness failure.",
+      "changes": {
+        "added": "status: success|ambiguity|failure; ambiguity_reason?: string",
+        "modified": "Existing fields (output_path, sentinel_path, duration_ms, activity_log_path, devin_log_path) remain required and backward compatible.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HandoffValidationResult",
+      "description": "A deterministic, mockable value returned by the handoff and final artifact guardrail Activities.",
+      "changes": {
+        "added": "valid: bool; ambiguity: bool; rule: string|null; ambiguity_reason: string|null; artifact_path: string; schema_path: string; workflow_id: string; run_id: string; attempt: int",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "FinalArtifactValidationResult",
+      "description": "A deterministic, mockable value returned by the post-grader guardrail Activity that checks the final three artifacts.",
+      "changes": {
+        "added": "valid: bool; checked_artifacts: [{ activity_name: string, output_path: string, schema_path: string }]; failed_artifacts: [{ activity_name, output_path, schema_path, rule }]",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "GuardrailFailureRecord",
+      "description": "A structured run-scoped record written when a deterministic guardrail failure occurs.",
+      "changes": {
+        "added": "workflow_id, run_id, attempt, step, activity_name, rule, artifact_path, schema_path, recorded_at",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HumanDecisionRecord",
+      "description": "A structured run-scoped record written when a valid human decision resolves an ambiguity.",
+      "changes": {
+        "added": "workflow_id, run_id, decision, notes, decision_origin, escalation_reason, terminal_path, recorded_at",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "WorkflowResult",
+      "description": "Extends the terminal result to distinguish how the workflow ended and to carry guardrail/human-decision metadata.",
+      "changes": {
+        "added": "outcome_origin: automated_pass|repaired_pass|automated_guardrail_failure|automated_timeout|human_accept|human_abort; guardrail_failure_rule?: string; human_decision?: string",
+        "modified": "final_status remains passed, human_resolved, or failed; passed remains a bool; attempt_count and escalated remain as today.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "StoryAnalysisWorkflowInput",
+      "description": "The public start contract remains unchanged; handoff behavior is driven by the workflow and Activity configuration, not by new start parameters.",
+      "changes": {
+        "added": "None",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "human_response",
+      "description": "Extends the human_response Signal to support optional run/attempt correlation so the workflow can reject stale or duplicate signals.",
+      "changes": {
+        "added": "run_id: string (optional); attempt: int (optional)",
+        "modified": "decision remains retry|accept|abort; notes remains string; the workflow validates the decision and the run/attempt state.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "get_status",
+      "description": "Exposes the new guardrail and ambiguity state in addition to the existing status, attempt_count, escalated, escalation_reason, and workflow_log_path.",
+      "changes": {
+        "added": "outcome_origin, guardrail_failure_rule, human_decision",
+        "modified": "escalation_reason may now be activity_flagged_ambiguity",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivityConfig",
+      "description": "Adds a schema namespace to the colocated Activity configuration so each Activity declares its expected output JSON Schema.",
+      "changes": {
+        "added": "schema.artifact_schema_path: string",
+        "modified": "activity and harness namespaces remain unchanged.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "ValidateBeforeHandoff",
+      "description": "The workflow invokes a validate_handoff Activity after each skill Activity and a validate_final_artifacts Activity after a passing grade, branching on the result before scheduling downstream work.",
+      "changes": {
+        "added": "validate_handoff Activity after each skill Activity; validate_final_artifacts Activity after grade pass",
+        "modified": "StoryAnalysisEngine.run advances only when guardrail returns valid",
+        "removed": "Unconditional scheduling of the next Activity after an Activity returns"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "AmbiguityPunchOut",
+      "description": "An Activity or guardrail status of ambiguity transitions the workflow to awaiting_signal with ACTIVITY_FLAGGED_AMBIGUITY; only a supported, validated human decision can resolve it.",
+      "changes": {
+        "added": "ACTIVITY_FLAGGED_AMBIGUITY escalation branch, re-use of _escalate for bounded human wait",
+        "modified": "StoryAnalysisEngine._run_activity_with_escalation must check for ambiguity status before guardrail or next Activity",
+        "removed": "None"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Run handoff validation and final artifact validation as dedicated workflow-package Cadence Activities, not inside deterministic workflow code.",
+      "justification": "Filesystem state and JSON Schema validation are nondeterministic I/O. Keeping them in Activities preserves replay determinism and lets the pure engine consume injected validation callables for unit testing.",
+      "basis": "ADR-013 three-layer architecture and the existing pattern in docs/reqs/stage-4-gaps/workflow startup/validate-source-document-at-startup.design.json",
+      "impact": "Adds two new Activities (validate_handoff, validate_final_artifacts), their registration in module.py, and focused tests. No cross-package dependency inversion.",
+      "answers_open_question": "Should startup validation run inside a Cadence Activity or inside deterministic workflow code?"
+    },
+    {
+      "decision": "Use the existing EscalationReason.ACTIVITY_FLAGGED_AMBIGUITY and the existing StoryAnalysisEngine._escalate bounded wait for ambiguity punch-outs.",
+      "justification": "The enum value and the two-wait escalation loop already exist and are tested. Reusing them gives the new punch-out the same bounded timeout, re-notification, and human decision semantics as the existing grade-repair and activity-failure paths.",
+      "basis": "src/story_analysis_workflow/escalation.py, src/story_analysis_workflow/story_analysis_engine.py, and src/story_analysis_workflow/domain-task-list-retry-config.json",
+      "impact": "The workflow Signal/Query contracts stay the same; only the engine's escalation triggers and result handling expand.",
+      "answers_open_question": "What is the exact bounded timeout policy and what terminal path does it produce?"
+    },
+    {
+      "decision": "Treat deterministic guardrail failures (missing, unreadable, empty, malformed, schema-invalid) as terminal automated failures, not human escalations.",
+      "justification": "These conditions are objectively determinable from the filesystem. A human cannot reasonably accept a missing or schema-invalid artifact, so the workflow fails fast and records the rule for remediation.",
+      "basis": "Story acceptance criteria and the validate-source-document-at-startup design precedent for terminal validation failures",
+      "impact": "WorkflowResult gains outcome_origin automated_guardrail_failure and a guardrail_failure_rule; the guardrail Activities return failure rules without awaiting human input.",
+      "answers_open_question": "Does a retry decision re-run the failing activity from scratch, re-run only the guardrail, or accept the ambiguous artifact and continue?"
+    },
+    {
+      "decision": "Extend SkillActivityOutput with a status field and honor a sentinel status of ambiguity as the structured way for a skill to report an explicit ambiguous outcome.",
+      "justification": "Skills already write sentinel files. Adding a status value gives them a channel for ambiguity without introducing a new transport or exception type, and mapping existing completed -> success preserves backward compatibility.",
+      "basis": "ADR-004 skill output contracts and the existing sentinel schema with a status field",
+      "impact": "SkillActivity.execute and the sentinel parser in common/skill_activity.py change slightly; the story_analysis_workflow engine checks status after each Activity.",
+      "answers_open_question": "How does an activity or guardrail structurally report an explicit ambiguous outcome?"
+    },
+    {
+      "decision": "Associate each Activity's expected output JSON Schema through a new schema namespace in its colocated *.config.json file.",
+      "justification": "This keeps the schema contract next to the Activity that produces the artifact, follows ADR-014, and lets the guardrail load the schema from the same Activity configuration without a central catalog.",
+      "basis": "ADR-014 colocated skill Activity configuration and the existing analyze_story/extract_story_intent/grade_story_analysis/repair_story_analysis.config.json files",
+      "impact": "Each Activity config gains a schema.artifact_schema_path entry; the post-grader guardrail uses a separate post_grading_guardrail.config.json with a list of final artifact schemas.",
+      "answers_open_question": "Where is the expected JSON Schema for each skill artifact stored and how is it associated with a specific activity step?"
+    },
+    {
+      "decision": "Associate artifacts with the current workflow run and attempt by validating the exact output_path returned by the current Activity execution and by reading activity.info() for attempt identity.",
+      "justification": "Cadence executes and returns one Activity result per attempt. The Activity result's output_path is the authoritative artifact for that attempt, and the guardrail runs immediately after the Activity that produced it.",
+      "basis": "Pattern seen in src/common/skill_activity.py SkillActivityOutput and src/common/workflow_logger.py attempt-scoped context",
+      "impact": "No change to artifact naming; concurrency safety relies on the guardrail being invoked in the same workflow step as the Activity and on the Activity result being the latest attempt's result.",
+      "answers_open_question": "How are artifacts associated with the current workflow run and activity attempt so concurrent runs do not collide?"
+    },
+    {
+      "decision": "Record guardrail failures and human decisions as both workflow log entries and structured JSON records in the run log directory.",
+      "justification": "Log entries give operators real-time traceability; structured records provide auditable evidence for certification and are a stable source for the consolidated run report.",
+      "basis": "ADR-011 workflow-aware logging and the story's certification/audit acceptance criteria",
+      "impact": "Adds GuardrailFailureRecord and HumanDecisionRecord data models and small writer helpers in the workflow package.",
+      "answers_open_question": "Should guardrail failures and human decisions be recorded as standalone JSON files, workflow log entries, or both?"
+    },
+    {
+      "decision": "Run the post-grader guardrail after a passing grade and before terminal passed, outside the grade/repair loop.",
+      "justification": "The grade/repair loop already decides whether to repair or proceed. The post-grader is a final completeness check that does not alter the grade; keeping it separate avoids duplicating or conflicting with the grader's own pass/fail logic.",
+      "basis": "src/story_analysis_workflow/grade_repair.py and the story's post-grader acceptance criterion",
+      "impact": "StoryAnalysisEngine.run adds a final validation step after PROCEED; the grade_repair module is unchanged.",
+      "answers_open_question": "How should the post-grader guardrail be integrated with the existing grade_repair loop?"
+    },
+    {
+      "decision": "Validate human decisions in the workflow signal handler by checking supported values, awaiting state, and run/attempt correlation, and reject unsupported/stale/duplicate/out-of-state decisions without advancing.",
+      "justification": "The workflow is the durable state machine and the only layer that knows whether it is awaiting a decision and for which run/attempt. Centralizing validation prevents any client from bypassing the wait.",
+      "basis": "src/story_analysis_workflow/workflow.py and src/story_analysis_workflow/signals.py",
+      "impact": "The human_response signal contract accepts optional run_id and attempt; the signal handler records invalid attempts and ignores duplicates.",
+      "answers_open_question": "What constitutes the trusted operator boundary for sending human_response signals?"
+    },
+    {
+      "decision": "The trusted operator boundary for sending human_response signals is the existing story-analysis-cli (or any Cadence client) with network access to the gRPC endpoint, plus the workflow's state validation.",
+      "justification": "The story explicitly excludes defining identity infrastructure or a new authentication provider. Network ACL/mTLS around the Cadence frontend is the operational trust boundary; the workflow enforces semantic validity.",
+      "basis": "Story out-of-scope list and vault/services/cadence.md Cadence gRPC endpoint documentation",
+      "impact": "No new auth provider is introduced; the CLI signal command remains the operator path and the workflow rejects semantically invalid signals.",
+      "answers_open_question": "What constitutes the trusted operator boundary for sending human_response signals?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "How does an activity or guardrail structurally report an explicit ambiguous outcome?",
+      "answer": "A skill Activity returns SkillActivityOutput with status='ambiguity' and an ambiguity_reason, derived from the sentinel status field. A guardrail returns HandoffValidationResult with ambiguity=true and an ambiguity_reason. Both are mapped to ACTIVITY_FLAGGED_AMBIGUITY by the engine.",
+      "justification": "This reuses the existing sentinel and Activity result contracts rather than introducing a new transport or exception type, and it is backward compatible with existing skills that write status='completed'.",
+      "basis": "ADR-004 skill output contracts and the existing SkillActivityOutput/Sentinel schemas"
+    },
+    {
+      "question": "Where is the expected JSON Schema for each skill artifact stored and how is it associated with a specific activity step?",
+      "answer": "Each Activity's colocated *.config.json gains a schema.artifact_schema_path key that points to the skill output schema in .devin/skills/<skill>/schema/. The post-grader uses a post_grading_guardrail.config.json that lists the final intent, analysis, and analysis-grade schemas.",
+      "justification": "Colocating the schema with the Activity follows the existing configuration pattern and avoids a central schema catalog.",
+      "basis": "ADR-014 colocated skill Activity configuration and the existing src/story_analysis_workflow/activities/*.config.json files"
+    },
+    {
+      "question": "What is the exact bounded timeout policy and what terminal path does it produce?",
+      "answer": "The policy is one re-notification after the initial timeout, matching the existing _escalate behavior and the re_notification_count: 1 in domain-task-list-retry-config.json. If no valid decision arrives after the second timeout, the workflow ends with final_status='failed' and outcome_origin='automated_timeout'.",
+      "justification": "This reuses the tested two-wait loop and keeps the default 300s escalation timeout unchanged.",
+      "basis": "src/story_analysis_workflow/story_analysis_engine.py _escalate and src/story_analysis_workflow/domain-task-list-retry-config.json"
+    },
+    {
+      "question": "What constitutes the trusted operator boundary for sending human_response signals?",
+      "answer": "The trusted boundary is the existing story-analysis-cli signal command (or any Cadence client) with network access to the Cadence gRPC endpoint, combined with the workflow's validation of the decision, run/attempt correlation, and awaiting state. No new identity provider is introduced.",
+      "justification": "The story explicitly excludes defining identity infrastructure; operational trust is provided by network ACL/mTLS to Cadence, and semantic trust is enforced by the workflow.",
+      "basis": "Story out-of-scope list and vault/services/cadence.md"
+    },
+    {
+      "question": "How are artifacts associated with the current workflow run and activity attempt so concurrent runs do not collide?",
+      "answer": "The guardrail validates the exact output_path returned by the current Cadence Activity execution, and it uses activity.info() workflow_id, run_id, and attempt to identify the current attempt. The Activity result is the authoritative artifact for that attempt.",
+      "justification": "Cadence Activity execution is per-attempt and the result is returned to the workflow before any downstream step, so the guardrail always sees the current attempt's artifact.",
+      "basis": "src/common/skill_activity.py and src/common/workflow_logger.py attempt context"
+    },
+    {
+      "question": "Should guardrail failures and human decisions be recorded as standalone JSON files, workflow log entries, or both?",
+      "answer": "Both. Workflow log entries provide real-time traceability, and structured GuardrailFailureRecord and HumanDecisionRecord JSON files in the run log directory provide auditable certification evidence.",
+      "justification": "Logs are useful for operators; structured records are stable artifacts for certification and for the consolidated run report.",
+      "basis": "ADR-011 workflow-aware logging and the story's certification acceptance criteria"
+    },
+    {
+      "question": "Does a retry decision re-run the failing activity from scratch, re-run only the guardrail, or accept the ambiguous artifact and continue?",
+      "answer": "For ACTIVITY_FLAGGED_AMBIGUITY from an Activity, retry re-executes the same Activity with the same inputs. For ACTIVITY_FLAGGED_AMBIGUITY from a guardrail, retry re-executes the guardrail on the same artifact. Accept proceeds past the ambiguity; abort ends the workflow.",
+      "justification": "The human needs a chance to resolve the ambiguity at the source. Re-running the offending step gives the Activity or guardrail another attempt without silently accepting an ambiguous artifact.",
+      "basis": "Story acceptance criteria for retry, accept, and abort decisions"
+    },
+    {
+      "question": "How should the post-grader guardrail be integrated with the existing grade_repair loop?",
+      "answer": "The post-grader runs after grade_story_analysis returns passed=true and the engine decides PROCEED. It checks the intent, analysis, and analysis-grade artifacts before the workflow can complete. If it fails, the workflow reaches terminal failed.",
+      "justification": "The post-grader is a final completeness gate, not a grader. Running it after the grade decision keeps the grade/repair loop unchanged and avoids duplicating grader logic.",
+      "basis": "src/story_analysis_workflow/grade_repair.py and the story's post-grader acceptance criterion"
+    }
+  ]
+}

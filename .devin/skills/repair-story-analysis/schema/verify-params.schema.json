@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "analysis_path": {
+      "type": "string",
+      "description": "Path to the repaired analysis JSON file, relative to the repo root."
+    }
+  },
+  "required": ["analysis_path"]
+}

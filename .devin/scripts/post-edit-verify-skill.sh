@@ -12,7 +12,7 @@ if [[ -z "$file_path" ]]; then
   exit 0
 fi
 
-# Skip non-sentinel files (must be in .process directory and end with .done.json)
+# Accept persistent sentinels from any co-located .process directory
 if [[ ! "$file_path" =~ \.process/.*\.done\.json$ ]]; then
   info "Skipping non-sentinel file: $file_path"
   exit 0

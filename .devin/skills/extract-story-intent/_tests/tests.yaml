@@ -46,6 +46,20 @@
       metric: jobs-to-be-done
       weight: 2
 
+- vars:
+    request: 
+      - '@../.devin/skills/extract-story-intent/_tests/example_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/tactic_story.md'
+      - '@../.devin/skills/extract-story-intent/_tests/admin_story.md'
+  description: 'User Journey'
+  assert:
+    # Persona Capture
+    - type: llm-rubric
+      value: "Target Person clearly indicates where new capability fits into user journey, with before, during and afeter elements tied together."
+      threshold: 0.7
+      metric: user_journey
+      weight: 1
+
 # ========================================
 # SCRIPT-BASED DETERMINISTIC EVALUATIONS
 # ========================================

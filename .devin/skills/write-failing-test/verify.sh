@@ -472,9 +472,6 @@ main() {
   verify_failing_test_file "$failing_test_path"
   run_failing_test "$failing_test_path" "$failing_test_name"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

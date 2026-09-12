@@ -1,6 +1,9 @@
 node_modules
+__pycache__
+.venv*
 results.*.html
 *.log
-
+*.process
+*.done.json
 *.zip
 *.tar.gz

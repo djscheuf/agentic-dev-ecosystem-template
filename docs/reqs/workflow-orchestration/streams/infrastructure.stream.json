@@ -1,0 +1,81 @@
+{
+  "source_story": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "overall_design": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+  "story": {
+    "so_that": "I can durably automate complete multi-step workflows of agentic action",
+    "as_a": "Software Engineer, and AI Process Designer",
+    "i_want": "a working example of the Story Analysis Workflow of the SDLC process using a publicly available workflow engine"
+  },
+  "related_acceptance_criteria": [
+    {"criterion": "The implemented workflow is documented and can be used by others", "status": "completed"},
+    {"criterion": "Workflow is repeatable, producing similar results when given the same inputs", "status": "completed"},
+    {"criterion": "Workflow actions are auditable and traceable after workflow completion", "status": "completed"},
+    {"criterion": "Domain/task-list scoping: only Workers and clients configured for the workflow's Cadence domain and task list can start, signal, or execute it", "status": "completed"}
+  ],
+  "related_edge_cases": [
+    {"criterion": "First-time use: no Cadence domain registered yet", "status": "completed"},
+    {"criterion": "Worker crash mid-Activity and workflow resumption via replay", "status": "pending"},
+    {"criterion": "Cadence service temporarily unavailable", "status": "pending"},
+    {"criterion": "Very large story document exceeds Cadence input/Activity payload size limits", "status": "pending"}
+  ],
+  "dependencies": [
+    "docs/reqs/workflow-orchestration/streams/foundations.stream.json"
+  ],
+  "steps": [
+    {
+      "description": "Author a docker-compose.yml that runs the `ubercadence/server` image configured for embedded-SQLite persistence (no CASSANDRA_SEEDS, no Cassandra container) plus the Cadence Web UI, exposing the gRPC frontend (7833) and Web UI (8088) ports",
+      "layer": "database",
+      "status": "completed",
+      "depends_on": [],
+      "artifacts": ["docker/docker-compose.yml"]
+    },
+    {
+      "description": "Bring the stack up with `docker compose up` and verify the Cadence server and Web UI are reachable",
+      "layer": "database",
+      "status": "completed",
+      "depends_on": ["1"],
+      "artifacts": ["running `cadence` container reachable at 127.0.0.1:7833; Web UI reachable at http://localhost:8088"]
+    },
+    {
+      "description": "Register the domain and task list using the cadence CLI (or its Docker image) against the composed stack",
+      "layer": "api",
+      "status": "completed",
+      "depends_on": ["2"],
+      "artifacts": [
+        "cadence domain 'story-analysis' registered",
+        "cadence task list 'story-analysis' configured (task lists are created on worker poll; 'story-analysis' is the configured task list)"
+      ]
+    },
+    {
+      "description": "Verify the SQLite-backed server is reachable from the Python client (no Cassandra dependency) and confirm persistence config",
+      "layer": "database",
+      "status": "completed",
+      "depends_on": ["2", "3"],
+      "artifacts": ["docker/cadence-ping.py passes against localhost:7833"]
+    },
+    {
+      "description": "Write the README/runbook for starting the docker-compose stack and registering the domain",
+      "layer": "external_services",
+      "status": "completed",
+      "depends_on": ["3", "4"],
+      "artifacts": ["docs/reqs/workflow-orchestration/streams/cadence-local-runbook.md"]
+    }
+  ],
+  "relevant_context": {
+    "documentation": [
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+      "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.design.json",
+      ".devin/skills/cadence-workflow-orchestration/00-get-started/local-quickstart.md",
+      ".devin/skills/cadence-workflow-orchestration/04-configuration/local-server-config.md",
+      ".devin/skills/cadence-workflow-orchestration/05-api-and-cli/cli-reference.md",
+      ".devin/skills/cadence-workflow-orchestration/06-debugging/troubleshooting-playbook.md"
+    ],
+    "code": [
+      ".devin/skills/cadence-workflow-orchestration/examples/python/worker_setup.py",
+      "docker/cadence-ping.py",
+      "cadence CLI",
+      "ubercadence/server Docker image",
+      "ubercadence/web Docker image"
+    ]
+  }
+}

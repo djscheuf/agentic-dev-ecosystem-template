@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(find)",
+      "Exec(cat)",
+      "Exec(git status)",
+      "Exec(grep)",
+      "Exec(git log)",
+      "Exec(nix-shell)",
+      "Exec(nix-shell)",
+      "Exec(git diff)",
+      "Exec(git commit)",
+      "Exec(git add)",
+      "Exec(./scripts/run_unit_tests.sh)",
+      "Exec(scripts/run_unit_tests.sh)",
+      "Exec(date)",
+      "Exec(.devin/skills/validate-json-schema/scripts/validate-json-schema.sh)",
+      "Exec(./.devin/skills/validate-json-schema/scripts/validate-json-schema.sh)"
+    ]
+  }
+}

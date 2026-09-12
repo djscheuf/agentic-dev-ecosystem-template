@@ -1,0 +1,98 @@
+log:
+  stdout: true
+  level: info
+
+persistence:
+  numHistoryShards: 4
+  defaultStore: default
+  visibilityStore: visibility
+  datastores:
+    default:
+      sql:
+        pluginName: "sqlite"
+        maxConns: 1
+        maxIdleConns: 1
+        maxConnLifetime: "128h"
+        databaseName: "/data/cadence.db"
+    visibility:
+      sql:
+        pluginName: "sqlite"
+        maxConns: 1
+        maxIdleConns: 1
+        maxConnLifetime: "128h"
+        databaseName: "/data/cadence_visibility.db"
+
+ringpop:
+  name: cadence
+  broadcastAddress: ""
+  bootstrapMode: hosts
+  bootstrapHosts:
+    - "127.0.0.1:7933"
+    - "127.0.0.1:7934"
+    - "127.0.0.1:7935"
+    - "127.0.0.1:7939"
+  maxJoinDuration: 30s
+
+services:
+  frontend:
+    rpc:
+      port: 7933
+      grpcPort: 7833
+      bindOnIP: "0.0.0.0"
+      grpcMaxMsgSize: 33554432
+    pprof:
+      port: 7936
+      host: "0.0.0.0"
+
+  matching:
+    rpc:
+      port: 7935
+      grpcPort: 7835
+      bindOnIP: "0.0.0.0"
+      grpcMaxMsgSize: 33554432
+
+  history:
+    rpc:
+      port: 7934
+      grpcPort: 7834
+      bindOnIP: "0.0.0.0"
+      grpcMaxMsgSize: 33554432
+
+  worker:
+    rpc:
+      port: 7939
+      bindOnIP: "0.0.0.0"
+
+clusterGroupMetadata:
+  clusterRedirectionPolicy:
+    policy: "all-domain-apis-forwarding"
+  failoverVersionIncrement: 10
+  primaryClusterName: "cluster0"
+  currentClusterName: "cluster0"
+  clusterGroup:
+    cluster0:
+      enabled: true
+      initialFailoverVersion: 0
+      rpcName: "cadence-frontend"
+      rpcAddress: "127.0.0.1:7833"
+      rpcTransport: "grpc"
+
+archival:
+  history:
+    status: "disabled"
+    enableRead: false
+  visibility:
+    status: "disabled"
+    enableRead: false
+
+domainDefaults:
+  archival:
+    history:
+      status: "disabled"
+      URI: ""
+    visibility:
+      status: "disabled"
+      URI: ""
+
+publicClient:
+  hostPort: "127.0.0.1:7833"

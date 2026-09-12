@@ -1,0 +1,549 @@
+{
+  "story_path": "docs/reqs/skill-activity-configs/refactor/refactor-skill-activity-template-method.analysis.json",
+  "repo_state_before_design": "docs/reqs/skill-activity-configs/refactor/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "ActivityDefinitionCommitted — Morgan adds or migrates a concrete SkillActivity class and a same-stem adjacent JSON file. The class owns behavior that cannot be represented safely as data, especially expected output-path calculation; the JSON owns canonical skill identity, output verify-parameter key, and namespaced Harness settings. This is the story's change from the current multi-file central-catalog onboarding flow to a two-file Activity-owned flow.",
+      "layers_involved": ["Workflow Activity Adapter", "Skill Activity Domain", "Repository Configuration"],
+      "handshake_points": [
+        {
+          "from_layer": "Activity Author",
+          "to_layer": "Repository Configuration",
+          "contract_used": "AdjacentSkillActivityConfiguration",
+          "data_shape": "{activity: {skill_name: non-empty canonical string, output_path_key: non-empty string}, harness: {devin?: {model?: non-empty string, permission_mode?: auto|accept-edits|dangerous|bypass}, sibling_namespace?: object}}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "ActivityConfigurationLoaded or ActivityConfigurationRejected — importing the concrete Activity for Worker registration constructs its SkillActivity instance, derives the same-stem config path, reads and validates the Activity-owned fields, recursively freezes the configuration, and retains one snapshot for the Worker lifetime. Missing, unreadable, malformed, or invalid required Activity configuration prevents Worker startup; explicit constructor values are permitted only for tests or deployment composition and take precedence.",
+      "layers_involved": ["Worker Composition", "Skill Activity Domain", "Repository Configuration", "Activity Logging"],
+      "handshake_points": [
+        {
+          "from_layer": "Repository Configuration",
+          "to_layer": "Skill Activity Domain",
+          "contract_used": "SkillActivityConfigSnapshot",
+          "data_shape": "immutable {activity: {skill_name, output_path_key}, harness: Mapping[str, object]} loaded once during concrete instance construction"
+        },
+        {
+          "from_layer": "Skill Activity Domain",
+          "to_layer": "Worker Composition",
+          "contract_used": "ConstructedSkillActivity",
+          "data_shape": "valid concrete SkillActivity instance or sanitized configuration exception before Worker polling starts"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "SkillActivityScheduled — the existing Cadence workflow schedules one of the unchanged Activity wire names with its existing argument shape and retry policy. The thin async adapter converts arguments into SkillActivityInput, retaining skill_name during migration, and delegates blocking work to the concrete instance's final execute method through asyncio.to_thread.",
+      "layers_involved": ["Cadence Workflow", "Workflow Activity Adapter", "Skill Activity Domain"],
+      "handshake_points": [
+        {
+          "from_layer": "Cadence Workflow",
+          "to_layer": "Workflow Activity Adapter",
+          "contract_used": "CadenceActivityWireContract",
+          "data_shape": "existing wire names extract_story_intent|analyze_story|grade_story_analysis|repair_story_analysis with unchanged serializable arguments"
+        },
+        {
+          "from_layer": "Workflow Activity Adapter",
+          "to_layer": "Skill Activity Domain",
+          "contract_used": "SkillActivityExecuteContract",
+          "data_shape": "execute(SkillActivityInput{skill_name, input_paths, context}) -> SkillActivityOutput"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "SkillActivityPrepared — execute resolves repository root and immutable config; creates and type-checks the transformed sentinel path; removes a stale sentinel; creates and type-checks the transformed prompt; obtains and type-checks the transformed immutable Harness mapping; creates and type-checks the transformed invocation context; then enters Activity logging and invocation contexts in the fixed order. Concrete hooks may replace same-typed values but cannot reorder lifecycle stages or invoke the Harness.",
+      "layers_involved": ["Skill Activity Domain", "Repository", "Activity Logging", "Invocation Context"],
+      "handshake_points": [
+        {
+          "from_layer": "Skill Activity Domain",
+          "to_layer": "Repository",
+          "contract_used": "SkillSentinelPathContract",
+          "data_shape": ".process/{canonical_skill_name}.done.json Path, optionally replaced by modify_sentinel_path(Path) -> Path"
+        },
+        {
+          "from_layer": "Skill Activity Domain",
+          "to_layer": "Invocation Context",
+          "contract_used": "SkillInvocationContextContract",
+          "data_shape": "AbstractContextManager[None] carrying canonical skill identity for observability, optionally replaced by a same-typed hook"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "HarnessInvocationRequested — inside both contexts, execute calls the selected Harness exactly once with the transformed prompt, repository root, and immutable mapping below the top-level harness key. The generic SkillActivity neither selects a Harness namespace nor translates settings into CLI flags.",
+      "layers_involved": ["Skill Activity Domain", "Harness Abstraction"],
+      "handshake_points": [
+        {
+          "from_layer": "Skill Activity Domain",
+          "to_layer": "Harness Abstraction",
+          "contract_used": "HarnessRunContract",
+          "data_shape": "run(prompt: str, *, cwd: Path, config: Mapping[str, object]) -> HarnessResult"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "DevinConfigurationResolved or DevinConfigurationRejected — DevinHarness reads only config['devin'], treats absence as empty, ignores sibling namespaces, rejects a non-mapping namespace, unknown Devin keys, and invalid values, and resolves model plus permission_mode against secure SWE-1.7/auto defaults. Artifact-producing Activities opt into accept-edits in their adjacent files. No central skill lookup or invocation-context profile selection occurs.",
+      "layers_involved": ["Devin Harness", "Activity Logging"],
+      "handshake_points": [
+        {
+          "from_layer": "Harness Abstraction",
+          "to_layer": "Devin Harness",
+          "contract_used": "DevinHarnessNamespace",
+          "data_shape": "config['devin']?: {model?: non-empty string, permission_mode?: auto|accept-edits|dangerous|bypass}; sibling namespaces remain uninterpreted"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "DevinInvocationCompleted or DevinInvocationFailed — DevinHarness builds a fresh argument-list command, invokes the host-installed Devin CLI without a shell, records sanitized start/completion or launch-failure events, writes subprocess output only to devin.log, and returns HarnessResult. execute measures duration and converts a nonzero result into SkillActivityError without placing raw subprocess output in Activity logs.",
+      "layers_involved": ["Devin Harness", "Host Devin CLI", "Activity Logging", "Devin Logging", "Skill Activity Domain"],
+      "handshake_points": [
+        {
+          "from_layer": "Devin Harness",
+          "to_layer": "Host Devin CLI",
+          "contract_used": "DevinCliCommand",
+          "data_shape": "[devin, -p, --permission-mode, effective_mode, --model, effective_model, --, prompt]"
+        },
+        {
+          "from_layer": "Devin Harness",
+          "to_layer": "Skill Activity Domain",
+          "contract_used": "HarnessResult",
+          "data_shape": "{exit_code: int, stdout: str, stderr: str}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "SkillArtifactResolved or SkillArtifactRejected — after a successful Harness result, execute reads a present sentinel and validates task identity plus the configured verify_params output key. If the verification hook already consumed the sentinel, the concrete Activity calculates its expected path and a sanitized warning is emitted. Malformed or mismatched present sentinels fail. The resolved Path passes through the same-type output hook.",
+      "layers_involved": ["Skill Activity Domain", "Repository", "Activity Logging"],
+      "handshake_points": [
+        {
+          "from_layer": "Repository",
+          "to_layer": "Skill Activity Domain",
+          "contract_used": "ExistingSkillSentinelContract",
+          "data_shape": "{task: canonical skill name, verify_params: {configured_output_path_key: repository-relative path}}"
+        },
+        {
+          "from_layer": "Concrete Skill Activity",
+          "to_layer": "Skill Activity Domain",
+          "contract_used": "ExpectedOutputPathContract",
+          "data_shape": "expected_output_path(SkillActivityInput) -> Path used only when the successful invocation's sentinel is absent"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "SkillActivityCompleted — execute constructs the backward-compatible SkillActivityOutput, applies and type-checks modify_result, and returns it to the thin Activity adapter. Grade Story Analysis preserves its existing post-template score/passed enrichment. The adapter returns the same dictionary shape to Cadence, so existing workflows and retries observe no wire change.",
+      "layers_involved": ["Skill Activity Domain", "Workflow Activity Adapter", "Cadence Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Skill Activity Domain",
+          "to_layer": "Workflow Activity Adapter",
+          "contract_used": "SkillActivityOutput",
+          "data_shape": "{status, output_path, sentinel_path, duration_ms, activity_log_path, devin_log_path}"
+        },
+        {
+          "from_layer": "Workflow Activity Adapter",
+          "to_layer": "Cadence Workflow",
+          "contract_used": "CadenceActivityResultContract",
+          "data_shape": "existing serialized result dictionary; grade_story_analysis additionally retains score and passed"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "LegacyRunnerRetired — after characterization, template, configuration, protocol, concrete Activity, alternate-Harness, and live Cadence checks pass, run_skill, generic skill-name output branches, DevinHarnessConfig.resolve(skill_name), central per-skill entries, and context-based profile selection are removed. ADR-012 is annotated as partially superseded by ADR-014, while least-privilege, validation, immutability, sentinel, logging, and retry invariants remain.",
+      "layers_involved": ["Skill Activity Domain", "Devin Harness", "Repository Configuration", "Architecture Documentation"],
+      "handshake_points": [
+        {
+          "from_layer": "Migration Verification",
+          "to_layer": "Architecture Documentation",
+          "contract_used": "ADRPartialSupersessionRecord",
+          "data_shape": "ADR-012 note identifying central skill catalog, unchanged Harness signature, and context-based profile selection as superseded by ADR-014"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "LoadActivityConfiguration",
+      "description": "Records successful startup-time loading of one Activity configuration snapshot without logging raw configuration.",
+      "layers_involved": ["Skill Activity Domain", "Worker Composition", "Activity Logging"],
+      "data_points": [
+        {"point": "activity_type", "description": "Non-sensitive concrete Cadence Activity type or module identity."},
+        {"point": "skill_name", "description": "Validated canonical skill name."},
+        {"point": "config_path", "description": "Repository-relative adjacent configuration path; never file contents."},
+        {"point": "harness_namespaces", "description": "Namespace names only, excluding values."}
+      ]
+    },
+    {
+      "event_name": "RejectActivityConfiguration",
+      "description": "Records a sanitized fail-fast configuration error before the Worker accepts Activity work.",
+      "layers_involved": ["Skill Activity Domain", "Worker Composition", "Activity Logging"],
+      "data_points": [
+        {"point": "activity_type", "description": "Concrete Activity being constructed."},
+        {"point": "config_path", "description": "Affected repository-relative path when safe."},
+        {"point": "error_category", "description": "Stable category: missing_file, unreadable_file, malformed_json, invalid_type, missing_required_field, or invalid_value."},
+        {"point": "setting", "description": "Field or namespace name only; excludes the rejected value."}
+      ]
+    },
+    {
+      "event_name": "StartSkillActivity",
+      "description": "Marks entry into the fixed template lifecycle after startup configuration has succeeded.",
+      "layers_involved": ["Skill Activity Domain", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical Activity-owned identity."},
+        {"point": "activity_type", "description": "Cadence Activity type from activity context."},
+        {"point": "attempt", "description": "Cadence retry attempt when available."}
+      ]
+    },
+    {
+      "event_name": "RejectHookResult",
+      "description": "Records that a transformation hook returned an incompatible type and execution stopped at the hook boundary.",
+      "layers_involved": ["Skill Activity Domain", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Affected canonical skill."},
+        {"point": "hook_name", "description": "One of modify_prompt, modify_sentinel_path, modify_harness_config, modify_invocation_context, modify_output_path, or modify_result."},
+        {"point": "error_category", "description": "Stable invalid_hook_return_type category; actual value is not logged."}
+      ]
+    },
+    {
+      "event_name": "ResolveDevinConfiguration",
+      "description": "Records safe effective Devin settings selected from the Activity-provided devin namespace immediately before command construction.",
+      "layers_involved": ["Devin Harness", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical identity available for observability, not profile lookup."},
+        {"point": "model", "description": "Effective model after namespace values and secure defaults."},
+        {"point": "permission_mode", "description": "Effective validated permission mode."}
+      ]
+    },
+    {
+      "event_name": "RejectDevinConfiguration",
+      "description": "Records a namespace type, unknown-key, or known-value validation failure before subprocess launch.",
+      "layers_involved": ["Devin Harness", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Affected canonical skill for correlation."},
+        {"point": "setting", "description": "Namespace or field name, excluding its raw value."},
+        {"point": "error_category", "description": "Stable category such as invalid_namespace_type, unknown_key, invalid_value, or unsupported_value."}
+      ]
+    },
+    {
+      "event_name": "StartDevinInvocation",
+      "description": "Preserves the current sanitized event emitted immediately before the host CLI starts.",
+      "layers_involved": ["Devin Harness", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill for correlation."},
+        {"point": "model", "description": "Effective model."},
+        {"point": "permission_mode", "description": "Effective permission mode."}
+      ]
+    },
+    {
+      "event_name": "CompleteDevinInvocation",
+      "description": "Preserves the current sanitized subprocess completion event and dedicated output-log pointer.",
+      "layers_involved": ["Devin Harness", "Activity Logging", "Devin Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill for correlation."},
+        {"point": "exit_code", "description": "Subprocess return code."},
+        {"point": "duration_ms", "description": "Measured subprocess duration."},
+        {"point": "devin_log_path", "description": "Dedicated repository-relative debug log containing subprocess output."}
+      ]
+    },
+    {
+      "event_name": "WarnSkillArtifactVerification",
+      "description": "Preserves the current warning when a successful invocation's sentinel is absent and concrete fallback resolution is used.",
+      "layers_involved": ["Skill Activity Domain", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill."},
+        {"point": "failure_reason", "description": "Stable missing_sentinel category."},
+        {"point": "output_path", "description": "Resolved repository-relative expected artifact path."}
+      ]
+    },
+    {
+      "event_name": "CompleteSkillActivity",
+      "description": "Records successful completion of the complete template lifecycle.",
+      "layers_involved": ["Skill Activity Domain", "Activity Logging"],
+      "data_points": [
+        {"point": "skill_name", "description": "Canonical skill."},
+        {"point": "duration_ms", "description": "Measured Harness invocation duration retained in SkillActivityOutput."},
+        {"point": "output_path", "description": "Repository-relative output artifact path."},
+        {"point": "sentinel_source", "description": "sentinel or concrete_fallback, without logging artifact contents."}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Repository Configuration (Data Layer)",
+      "new_responsibilities": [
+        {"responsibility": "Store one same-stem *.config.json beside every concrete Skill Activity.", "intent": "Configuration is the only persisted data introduced by the story; colocation makes ownership and movement atomic with Activity behavior."},
+        {"responsibility": "Represent activity identity/output metadata separately from namespaced Harness settings.", "intent": "The activity and harness namespaces preserve ownership boundaries and avoid embedding executable behavior or CLI flags in untyped data."},
+        {"responsibility": "Explicitly grant accept-edits to unattended artifact writers while omitting secrets and PII.", "intent": "Git-tracked configuration enforces reviewable least-privilege intent and must remain safe to publish."}
+      ]
+    },
+    {
+      "layer": "Worker Composition (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Construct concrete SkillActivity instances while Activity modules are imported for registration.", "intent": "Startup is where adjacent paths and required identity are available, allowing invalid configuration to fail before polling work."},
+        {"responsibility": "Retain immutable Activity configuration snapshots for the Worker lifetime.", "intent": "One startup snapshot prevents concurrent invocations or file edits from changing behavior across retries in the running Worker."},
+        {"responsibility": "Preserve existing registry entries, task list, wire names, and retry policy.", "intent": "The story changes internal execution ownership, not Cadence's external durable contract."}
+      ]
+    },
+    {
+      "layer": "Workflow Activity Adapter (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Translate unchanged Cadence arguments into SkillActivityInput and call execute through asyncio.to_thread.", "intent": "The adapter has wire-level information but should remain thin because lifecycle and Harness behavior belong below it."},
+        {"responsibility": "Serialize SkillActivityOutput without changing existing result shapes and retain grade-specific score enrichment.", "intent": "Cadence consumers require backward-compatible dictionaries while grade scoring remains concrete Activity behavior."}
+      ]
+    },
+    {
+      "layer": "Skill Activity Domain (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Load and validate required activity fields, recursively freeze mappings, and expose constructor override precedence for tests/composition.", "intent": "The generic Activity layer owns Activity metadata and has the information needed to reject incomplete definitions early."},
+        {"responsibility": "Own a final execute template with fixed preparation, context, invocation, validation, output, and result order.", "intent": "Centralizing invariant sequencing prevents concrete Activities from skipping stale-sentinel cleanup, logging, timing, or validation."},
+        {"responsibility": "Provide typed no-op transformation hooks with targeted runtime return-type checks.", "intent": "Concrete Activities can specialize values at explicit seams without taking over control flow or causing obscure downstream failures."},
+        {"responsibility": "Delegate expected missing-sentinel output calculation to each concrete SkillActivity.", "intent": "Only the concrete Activity knows its artifact naming rule, eliminating the generic skill-name switch."},
+        {"responsibility": "Preserve sentinel validation, sanitized errors, invocation-context cleanup, and SkillActivityOutput construction.", "intent": "These are cross-Activity lifecycle invariants already enforced by run_skill and required for backward compatibility."}
+      ]
+    },
+    {
+      "layer": "Harness Abstraction (Backend)",
+      "new_responsibilities": [
+        {"responsibility": "Accept an immutable namespaced configuration mapping in run(prompt, cwd, config).", "intent": "The explicit generic boundary enables independent Harness implementations without exposing Devin types to SkillActivity."},
+        {"responsibility": "Require all implementations and fakes to migrate atomically or through an explicit short-lived adapter.", "intent": "Avoiding TypeError-based signature detection keeps implementation errors distinguishable from compatibility behavior."}
+      ]
+    },
+    {
+      "layer": "Devin Harness (Backend/Security Boundary)",
+      "new_responsibilities": [
+        {"responsibility": "Consume and validate only the devin namespace and ignore sibling Harness namespaces.", "intent": "DevinHarness is the only layer with Devin CLI knowledge, while namespace isolation keeps alternate Harness configuration independently mockable."},
+        {"responsibility": "Reject unknown Devin keys and invalid model/permission values before command construction.", "intent": "Strict active-namespace validation catches misspellings and prevents arbitrary dictionary-to-CLI translation."},
+        {"responsibility": "Apply SWE-1.7 and auto defaults and build a fresh list-valued command per invocation.", "intent": "Secure defaults, no shell, and fresh arguments preserve least privilege and concurrency isolation."},
+        {"responsibility": "Preserve split logging and sanitized launch/completion failures.", "intent": "The Harness has access to prompt, config, and subprocess output and therefore must enforce the confidentiality boundary."}
+      ]
+    },
+    {
+      "layer": "Frontend",
+      "new_responsibilities": []
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "AdjacentSkillActivityConfiguration",
+      "description": "Git-tracked same-stem JSON model loaded once when a concrete SkillActivity is constructed. Activity metadata is validated by SkillActivityConfig; each Harness validates only its own nested namespace.",
+      "changes": {
+        "added": "Top-level activity object with required non-empty skill_name and output_path_key; top-level harness object containing independently owned namespaces; same-stem files for extract_story_intent, analyze_story, grade_story_analysis, and repair_story_analysis; explicit harness.devin.permission_mode=accept-edits for each artifact writer.",
+        "modified": "Effective precedence becomes explicit constructor values for tests/composition, then adjacent JSON, then generic Activity or Harness secure defaults. Nested dictionaries become immutable mappings at startup.",
+        "removed": "Central canonical-skill entries in src/orchestrator/devin_harness.config.json after all four Activities migrate and verification passes; no environment or central-file operational override in this story."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivityConfigSnapshot",
+      "description": "Typed, immutable Worker-lifetime representation of Activity-owned identity and opaque namespaced Harness settings.",
+      "changes": {
+        "added": "A frozen Python model or equivalent with canonical skill_name, output_path_key, immutable harness Mapping[str, object], and source config path for diagnostics.",
+        "modified": "Configuration loading moves from DevinHarness's central defaults/skills catalog to each concrete SkillActivity's startup construction path.",
+        "removed": "Per-invocation filesystem reads, mutable nested dictionaries, and DevinHarnessConfig.resolve(skill_name) as the Activity profile source."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "HarnessRunContract",
+      "description": "Generic independently mockable boundary between the fixed SkillActivity lifecycle and a selected execution backend.",
+      "changes": {
+        "added": "Required config: Mapping[str, object] keyword argument containing the complete immutable mapping below adjacent JSON's harness key.",
+        "modified": "run(prompt: str, *, cwd: Path) -> HarnessResult becomes run(prompt: str, *, cwd: Path, config: Mapping[str, object]) -> HarnessResult across Protocol, DevinHarness, alternate integration Harnesses, and test fakes.",
+        "removed": "Implicit configuration selection by canonical skill name inside DevinHarness and any need for SkillActivity to know which Harness namespace is active."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SkillActivityExecuteContract",
+      "description": "Final template-method entry point called by thin Cadence Activity adapters; independently testable without a live Cadence server.",
+      "changes": {
+        "added": "SkillActivity.execute(SkillActivityInput) -> SkillActivityOutput; required concrete expected_output_path behavior; typed no-op modify_prompt, modify_sentinel_path, modify_harness_config, modify_invocation_context, modify_output_path, and modify_result hooks.",
+        "modified": "The run_skill lifecycle moves intact into execute and obtains skill identity/output key from the immutable Activity snapshot while retaining SkillActivityInput.skill_name during migration for compatibility checks and observability.",
+        "removed": "Generic _conventional_output_path skill-name branches and run_skill after all callers migrate and unit/live checks pass."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "DevinHarnessNamespace",
+      "description": "Harness-owned validation and translation contract for config['devin']; sibling namespaces are outside DevinHarness's responsibility.",
+      "changes": {
+        "added": "Missing devin means empty settings; accepted first-slice keys are model and permission_mode; unknown keys inside devin fail; sibling namespaces are ignored.",
+        "modified": "model and permission_mode are resolved per invocation from the passed namespace against SWE-1.7/auto rather than from a central per-skill profile. Sanitized effective-setting logging remains.",
+        "removed": "skills/defaults/legacy central-file parsing for steady-state Activity execution, invocation-context profile lookup, sandbox/config_path support in this slice, and mechanical or arbitrary extra CLI argument generation."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "FixedSkillActivityLifecycle",
+      "description": "Ordered backend interaction pattern that allows same-type value transformation while preventing concrete Activities from replacing lifecycle control flow.",
+      "changes": {
+        "added": "Ordered stages: root/config; sentinel creation-hook-cleanup; prompt creation-hook; Harness mapping-hook; invocation context creation-hook; enter logging/context; timed Harness call; result validation; sentinel/fallback output resolution-hook; output construction-result hook. Runtime checks guard hook boundaries where wrong types would obscure failures.",
+        "modified": "Current run_skill behavior becomes class-owned and subclass-extensible at declared seams while preserving stale-sentinel, timing, context cleanup, logging, and verification invariants.",
+        "removed": "Concrete control-flow overrides, side-effecting hooks, Harness calls from hooks, and skill-name conditionals in generic infrastructure."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "CadenceActivityWireContract",
+      "description": "Stable external contract between StoryAnalysisWorkflow and its four registered Activities.",
+      "changes": {
+        "added": "No wire-level fields or endpoints; class instances remain behind existing function adapters.",
+        "modified": "Internal implementation delegates to SkillActivity.execute through asyncio.to_thread; grade_story_analysis still enriches the template output with score and passed.",
+        "removed": "No wire names, argument shapes, result fields, timeout values, or retry policies."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ExistingSkillSentinelAndOutputContracts",
+      "description": "Unchanged repository artifact boundary from ADR-004 and current SkillActivityOutput wire model.",
+      "changes": {
+        "added": "Concrete Activity-owned expected output-path callable replaces generic fallback branching; output path still passes through a typed hook.",
+        "modified": "Sentinel output-key lookup uses the Activity snapshot's output_path_key. Missing successful-invocation sentinels continue to warn and use fallback because verification hooks may consume them.",
+        "removed": "No sentinel fields or SkillActivityOutput fields; malformed, mismatched, and missing-output-key sentinels remain errors."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Use a final SkillActivity.execute template and allow specialization only through required concrete values/behavior plus typed same-type transformation hooks.",
+      "justification": "The base class has the information required to enforce cross-cutting lifecycle order; concrete classes have the information required for skill-specific output naming. This removes generic conditionals without giving subclasses control over safety and observability invariants.",
+      "basis": "ADR-014 and accepted detailed design; Template Method pattern",
+      "impact": "Substantial refactor of src/orchestrator/skill_activity.py, four Activity wrappers, and lifecycle characterization tests. This follows current target architecture rather than straying from it.",
+      "answers_open_question": "Resolves how Activities specialize prompt, sentinel, Harness config, invocation context, output, and result without overriding execution order."
+    },
+    {
+      "decision": "Store required identity and Harness settings in a same-stem adjacent JSON file, loaded and recursively frozen when the concrete Activity instance is constructed.",
+      "justification": "Activity construction has the config path and required identity context, so it can fail before Worker polling. Colocation reduces new-Activity onboarding to one class and one config and preserves stable Worker-lifetime behavior.",
+      "basis": "ADR-014; ADR-009 colocation precedent; resolved analysis decision on startup loading",
+      "impact": "Adds four adjacent config files and SkillActivityConfig loading/validation. Supersedes ADR-012's central canonical-skill catalog, which must be explicitly annotated.",
+      "answers_open_question": "Adjacent configuration is mandatory in production; explicit constructor values may override it for tests or deployment composition."
+    },
+    {
+      "decision": "Change Harness.run atomically to receive the full immutable namespaced Harness mapping.",
+      "justification": "SkillActivity knows the Activity's complete Harness mapping but not the selected Harness implementation. Passing the full mapping lets each implementation consume its namespace and keeps fakes independently mockable.",
+      "basis": "ADR-014 and Protocol-based Harness pattern in src/orchestrator/harness.py",
+      "impact": "Breaking internal protocol change across DevinHarness, HARNESS alternatives, integration fixtures, and unit fakes; Cadence wire contracts remain unchanged. Explicitly supersedes ADR-012's decision to keep the old signature.",
+      "answers_open_question": "No signature introspection or TypeError fallback; migrate implementations atomically or use an explicit temporary adapter."
+    },
+    {
+      "decision": "Make DevinHarness strictly validate only config['devin'], ignore sibling namespaces, and support only model and permission_mode in this slice.",
+      "justification": "DevinHarness is where Devin field semantics and CLI rendering are available. Strict active-namespace validation catches misspellings; sibling isolation allows alternate Harnesses; limiting keys bounds security and test scope.",
+      "basis": "ADR-014; resolved story-analysis question; current safe subprocess pattern in src/orchestrator/devin_harness.py",
+      "impact": "Replaces central profile resolution and unknown-key tolerance inside Devin settings. sandbox and config_path statements in the earlier Markdown proposal are superseded for this implementation slice.",
+      "answers_open_question": "Initial Devin support is model plus permission_mode only; sandbox and config_path remain future reviewed additions."
+    },
+    {
+      "decision": "Retain SkillActivityInput.skill_name during migration and validate or normalize it against Activity-owned identity without changing Cadence arguments.",
+      "justification": "The field exists in current characterization contracts and invocation context. Retention minimizes migration risk while Activity-owned config becomes authoritative; removing it can be a later explicit contract change.",
+      "basis": "Resolved story-analysis question and current SkillActivityInput in src/orchestrator/skill_activity.py",
+      "impact": "No immediate input/wire shape change. Concrete adapters continue supplying canonical identity during migration; a future story may remove redundancy.",
+      "answers_open_question": "skill_name remains in SkillActivityInput until all Activities are ported and the old interface is removed."
+    },
+    {
+      "decision": "Perform targeted runtime type checks at every transformation-hook boundary where an invalid return would otherwise fail obscurely.",
+      "justification": "Hooks are extension points executing inside a safety-critical ordered lifecycle. Early stable errors improve diagnosis without replacing static typing and unit coverage.",
+      "basis": "Resolved story-analysis question and ADR-014 typed-hook requirement",
+      "impact": "Adds hook validation helpers, stable invalid_hook_return_type errors/events, and positive/negative tests for all six hooks.",
+      "answers_open_question": "Hook contracts use runtime checks plus static typing/tests, not static typing alone."
+    },
+    {
+      "decision": "Use typed Python/dataclass validation rather than introducing a formal JSON Schema for Activity config in this slice.",
+      "justification": "Only Python startup code consumes the files today, and runtime validation is required regardless. Deferring duplicate schema maintenance keeps the minimum change focused while preserving fail-fast behavior.",
+      "basis": "Resolved story-analysis question",
+      "impact": "Adds Python validation tests but no new schema artifact. This is a bounded implementation choice and does not conflict with existing architecture.",
+      "answers_open_question": "A formal schema may be added if non-Python authoring/consumption needs emerge."
+    },
+    {
+      "decision": "Preserve Worker-lifetime snapshots only; exclude operational override precedence and Cadence-history snapshot transport.",
+      "justification": "Construction-time immutable values isolate concurrent invocations in one Worker and match current loading behavior. Persisting values into durable history requires a separate workflow/API design and is not needed for the one-step refactor.",
+      "basis": "ADR-012 deferred retry transport, ADR-014 follow-up boundary, and resolved story-analysis question",
+      "impact": "Configuration changes require Worker restart; retries routed to the same running Worker use its snapshot, but cross-restart deterministic transport remains future work.",
+      "answers_open_question": "No environment/central operational override in this story; future work owns retry-history transport."
+    },
+    {
+      "decision": "Preserve the four function-based Cadence adapters, wire names, argument/result shapes, and retry policy around ordinary SkillActivity instances.",
+      "justification": "Cadence registration information is available in the adapter while reusable execution behavior belongs in an ordinary class. Keeping this boundary avoids coupling the template to Cadence decorators and protects durable callers.",
+      "basis": "ADR-014, current src/orchestrator/workflow.py, and current Activity wrappers",
+      "impact": "Internal adapters change delegation only; no frontend, database, external API, or Cadence contract migration occurs.",
+      "answers_open_question": "Clarifies that SkillActivity is not itself decorated as a Cadence Activity."
+    },
+    {
+      "decision": "Implement this refactor in the current src/orchestrator layout and do not combine it with the ADR-013 package/composition-root move.",
+      "justification": "Behavior-preserving interface migration is already broad; moving ownership boundaries simultaneously would obscure regressions. The adjacent class/config pair is designed to move together in the later architecture refactor.",
+      "basis": "ADR-013 target architecture and ADR-014 detailed design migration boundary",
+      "impact": "Temporary location remains src/orchestrator/activities. This intentionally delays, but does not contradict, the accepted three-layer target architecture.",
+      "answers_open_question": "Explicitly calls out the only architectural deferral: final common/workflow/composition-root placement is not part of this story."
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should skill_name remain in SkillActivityInput or move entirely into immutable Activity configuration?",
+      "answer": "Retain it during migration; Activity config is authoritative for the new class, and removal is deferred until all callers and run_skill are gone.",
+      "justification": "This preserves current input and observability contracts while avoiding a simultaneous Cadence adapter shape change.",
+      "basis": "Resolved question in refactor-skill-activity-template-method.analysis.json; pattern in src/orchestrator/skill_activity.py and four Activity adapters"
+    },
+    {
+      "question": "Is absence of an adjacent config always fatal, or may tests supply values directly?",
+      "answer": "Production construction requires readable valid adjacent config; tests or deployment composition may pass explicit constructor values, which take precedence.",
+      "justification": "Production must fail before accepting work, while isolated template tests need deterministic values without unnecessary filesystem setup.",
+      "basis": "Resolved question in the analysis and precedence documented in skill-activity-template-method.design.md"
+    },
+    {
+      "question": "Which Devin settings are supported initially?",
+      "answer": "Only model and permission_mode. sandbox and config_path are reserved for later typed, security-reviewed additions.",
+      "justification": "These two settings already have implemented defaults, validation, logging, and tests; adding path or sandbox semantics expands the security surface.",
+      "basis": "Resolved question in the analysis; current src/orchestrator/devin_harness.py"
+    },
+    {
+      "question": "Do adjacent Activity configs receive a formal JSON Schema now?",
+      "answer": "No. Validate with typed Python models and unit tests in this slice.",
+      "justification": "Python is the sole consumer and must perform runtime validation regardless; a schema would duplicate rules before a second consumer exists.",
+      "basis": "Resolved question in the analysis"
+    },
+    {
+      "question": "Are hook return types checked at runtime?",
+      "answer": "Yes, at all six hook boundaries where incompatible values would otherwise cause obscure failures; static typing and tests remain primary development controls.",
+      "justification": "Hooks are subclass extension points inside the invariant lifecycle, so early stable errors protect operation and diagnosis.",
+      "basis": "Resolved question in the analysis; hook constraints in skill-activity-template-method.design.md"
+    },
+    {
+      "question": "Is an operational override layer or Cadence-history snapshot transport included?",
+      "answer": "No. The immutable startup snapshot is the complete configuration source for this story; restart the Worker to pick up file changes.",
+      "justification": "Override precedence and durable retry transport require separate contracts and would weaken the two-file ownership goal if added implicitly.",
+      "basis": "Resolved question in the analysis; ADR-012 deferred retry transport; ADR-014 follow-up boundary"
+    },
+    {
+      "question": "When are the central Devin skill catalog and legacy run_skill removed?",
+      "answer": "In the final migration phase after all four Activities, alternate Harnesses, unit tests, and live Cadence checks pass; ADR-012 is annotated at the same boundary.",
+      "justification": "A temporary compatibility period permits behavior comparison, but steady state must satisfy the no-central-catalog acceptance criterion.",
+      "basis": "Resolved stakeholder question and migration Phase 5 in the analysis/detailed design"
+    },
+    {
+      "question": "Who owns adjacent Activity configuration?",
+      "answer": "The Activity author or workflow maintainer owns it; infrastructure maintainers review Harness namespace and security choices.",
+      "justification": "The Activity author has identity and output knowledge, while Harness reviewers have permission and CLI security knowledge.",
+      "basis": "Resolved stakeholder question in refactor-skill-activity-template-method.analysis.json; responsibility split in ADR-014"
+    },
+    {
+      "question": "How should the earlier Markdown proposal's sandbox/config_path tests and open decisions be interpreted?",
+      "answer": "The updated structured analysis supersedes those unresolved proposal details: sandbox/config_path are excluded, and all six listed questions use the recorded resolutions in this design JSON.",
+      "justification": "The structured analysis is the direct input to this design and contains later explicit resolutions; implementing stale proposal options would contradict the accepted scope.",
+      "basis": "Updated analysis dated 2026-09-03 compared with docs/reqs/skill-activity-configs/refactor/skill-activity-template-method.design.md lines 248-257, 542-551, and 600-607"
+    },
+    {
+      "question": "Does the refactor also move Activities into ADR-013's final workflow package?",
+      "answer": "No. Keep current paths for this behavior-preserving migration; ensure each Python/config pair can move together in the subsequent module-architecture work.",
+      "justification": "Separating protocol/template migration from package relocation keeps failures attributable and limits the story's change surface.",
+      "basis": "ADR-013 and explicit non-goal/migration constraint in skill-activity-template-method.design.md"
+    }
+  ]
+}

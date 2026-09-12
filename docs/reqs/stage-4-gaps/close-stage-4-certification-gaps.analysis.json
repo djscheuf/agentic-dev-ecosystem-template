@@ -1,0 +1,434 @@
+{
+  "raw_request": "docs/reqs/stage-4-gaps/gap-analysis.md",
+  "title": "Close Story Analysis Workflow Stage 4 Certification Gaps",
+  "story": {
+    "so_that": "the Story Analysis Workflow can demonstrate auditable, safe, reliable end-to-end operation and qualify for Stage 4 certification",
+    "as_a": "Stage 4 certification owner for the Story Analysis Workflow",
+    "i_want": "to close the identified agent-quality, guardrail, punch-out, success-reporting, and audit-trail gaps"
+  },
+  "target_persona": {
+    "role": "Engineering owner responsible for certification readiness and evidence",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Reviews certification criteria, implementation, design artifacts, evaluation results, and existing run logs to identify unsupported claims and missing controls.",
+      "during": "Coordinates agent-quality improvements, adds explicit workflow guardrails and escalation behavior, runs representative scenarios, and consolidates execution evidence.",
+      "after": "Audits the generated reports and logs, calculates the end-to-end success rate, and submits traceable evidence for Stage 4 examination."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Make the Story Analysis Workflow demonstrably compliant with all five Stage 4 certification criteria",
+    "inputs": [
+      "Markdown story document path",
+      "Stage 4 certification criteria and quality thresholds",
+      "Per-agent real-work evaluation results",
+      "Skill output artifacts and their JSON schemas",
+      "Cadence workflow and activity histories",
+      "Human escalation signals and decisions",
+      "Per-attempt activity logs and raw Devin ATIF exports",
+      "Representative benchmark scenario definitions"
+    ],
+    "outputs": [
+      "Stage 3 certification evidence for all four agents",
+      "Manual-correction and escalation-rate evidence",
+      "Explicit startup, between-step, adversarial, and post-grader guardrail outcomes",
+      "Tested ambiguity punch-out and bypass-rejection evidence",
+      "Representative end-to-end benchmark records and an aggregate success rate",
+      "A consolidated workflow report for every completed run",
+      "Structured logs that distinguish automated failure from human decisions"
+    ],
+    "state_changes": [
+      "A workflow may fail before extraction when its source is not a valid Markdown document",
+      "Each activity handoff becomes contingent on artifact existence and schema validity",
+      "Ambiguous activity or guardrail outcomes may transition the workflow to an awaiting-human state",
+      "Human accept, retry, abort, timeout, and automated failure become separately auditable outcomes",
+      "Completed runs persist consolidated metadata, step outcomes, usage, and cost data",
+      "Certification evidence changes from partial and scattered to consolidated and reviewable"
+    ],
+    "side_effects": [
+      "Additional workflow, activity, validation, escalation, and human-decision log events",
+      "Additional report and benchmark artifacts under repository-controlled evidence locations",
+      "Potentially increased workflow latency and activity count from explicit guardrail nodes",
+      "Potential human notifications when ambiguity or exhausted retries trigger punch-out"
+    ],
+    "affected_components": {
+      "ui": [
+        "No graphical UI is identified",
+        "Story-analysis CLI status/query output may expose guardrail, failure-origin, and human-wait states"
+      ],
+      "api": [
+        "Cadence StoryAnalysisWorkflow input and result contracts",
+        "Cadence human_response Signal validation and handling",
+        "Workflow status query contract",
+        "SkillActivityInput and SkillActivityOutput contracts"
+      ],
+      "database": [
+        "No application database schema change is identified",
+        "Cadence persists workflow state and event history in the existing local SQLite-backed stack",
+        "Filesystem report and log artifacts require deterministic paths and retention expectations"
+      ],
+      "external_services": [
+        "Cadence server and worker runtime",
+        "Devin CLI harness",
+        "Devin ATIF usage export",
+        "Human operator signal channel"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "All four Story Analysis agents have linked, reproducible real-work evaluation evidence at or above the 95% Stage 3 quality bar, and the observed manual-correction rate is reported.",
+      "gherkin": "Given the latest representative real-work evaluations for extract-story-intent, analyze-story, grade-story-analysis, and repair-story-analysis, when the certification artifact is generated, then every agent has a reproducible score of at least 95% and the manual-correction and escalation rates are stated with their sample size.",
+      "type": "constraint",
+      "jtbd": "Verify agent quality before certification",
+      "persona_served": "Story Analysis Workflow Certification Owner",
+      "dependencies": []
+    },
+    {
+      "criterion": "A valid Markdown story completes the automated workflow through explicit guardrails and produces all required artifacts and a consolidated report.",
+      "gherkin": "Given an accessible Markdown story and successful skill outputs, when the workflow runs, then a startup guardrail passes, every between-step artifact guardrail passes, the post-grader guardrail confirms the intent, analysis, and grade artifacts, and the run completes with a report covering every executed step.",
+      "type": "happy path",
+      "jtbd": "Complete certified story analysis automatically",
+      "persona_served": "Story Analysis Workflow Certification Owner",
+      "dependencies": [
+        "AC1",
+        "AC3",
+        "AC6"
+      ]
+    },
+    {
+      "criterion": "The workflow rejects invalid, missing, inaccessible, or schema-invalid inputs and intermediate artifacts before scheduling a dependent skill activity.",
+      "gherkin": "Given a missing, inaccessible, non-Markdown, nonexistent, empty, or schema-invalid source or intermediate artifact, when its guardrail runs, then the dependent activity is not scheduled, the workflow fails safely or punches out only when ambiguity is explicitly classified, and the exact failing guardrail and artifact are logged.",
+      "type": "error handling",
+      "jtbd": "Prevent invalid artifacts from advancing",
+      "persona_served": "Story Analysis Workflow Certification Owner",
+      "dependencies": []
+    },
+    {
+      "criterion": "Invalid or absent human responses cannot bypass an awaiting-human workflow, while valid retry, accept, and abort decisions produce distinct deterministic outcomes.",
+      "gherkin": "Given a live workflow awaiting a human signal, when no signal arrives before the configured boundary or a caller sends an unsupported, stale, duplicate, or unauthorized decision, then the workflow remains safely blocked, times out according to policy, or rejects the signal without treating it as valid; and when an authorized operator sends retry, accept, or abort, then the corresponding transition and decision origin are recorded.",
+      "type": "permission/access",
+      "jtbd": "Resolve workflow punch-outs securely",
+      "persona_served": "Workflow Operator",
+      "dependencies": [
+        "AC3"
+      ]
+    },
+    {
+      "criterion": "Ambiguity raised during an activity or guardrail uses the ACTIVITY_FLAGGED_AMBIGUITY punch-out path and is proven by automated and recorded-run evidence.",
+      "gherkin": "Given an activity or guardrail returns an explicitly ambiguous result, when the engine evaluates it, then the workflow enters an awaiting-human state with reason ACTIVITY_FLAGGED_AMBIGUITY, accepts only a valid decision, and stores both integration-test evidence and at least one recorded execution trace.",
+      "type": "functional",
+      "jtbd": "Escalate ambiguous analysis to a human",
+      "persona_served": "Workflow Operator",
+      "dependencies": [
+        "AC4"
+      ]
+    },
+    {
+      "criterion": "Every completed workflow writes a schema-valid consolidated report containing run metadata, all attempts and steps, final status and origin, model settings, durations, artifacts, token totals, and cost representation.",
+      "gherkin": "Given a workflow reaches passed, human_resolved, or failed, when completion processing runs, then exactly one schema-valid report is written atomically for that run and includes workflow_id, run_id, story_document, final_status, attempt_count, failure or resolution origin, and one ordered record for every activity attempt with step, activity_type, model, permission_mode, prompt_tokens, completion_tokens, cached_tokens, cost_usd or an explicit unavailable value, duration_ms, and output_path.",
+      "type": "non-functional",
+      "jtbd": "Audit a workflow from one report",
+      "persona_served": "Certification Examiner",
+      "dependencies": [
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5"
+      ]
+    },
+    {
+      "criterion": "The end-to-end success metric is computed over a visible representative sample and remains traceable to individual reports.",
+      "gherkin": "Given recorded runs for happy path, one repair, exhausted repair with human accept, exhausted repair with human abort, automated guardrail failure, and ambiguity punch-out, when aggregation runs, then it publishes the metric formula, numerator, denominator, sample window, status counts, manual-intervention rate, and links each observation to its workflow report without double-counting retries as separate runs.",
+      "type": "business rule",
+      "jtbd": "Measure workflow reliability across real runs",
+      "persona_served": "Story Analysis Workflow Certification Owner",
+      "dependencies": [
+        "AC5",
+        "AC6"
+      ]
+    },
+    {
+      "criterion": "Boundary-sized histories, maximum repair attempts, and the human-response timeout boundary produce bounded, complete, and deterministic reports.",
+      "gherkin": "Given a run at the configured maximum repair count, maximum expected step or attempt count, or exact human-response timeout boundary, when it terminates, then no extra repair or wait occurs, all attempts appear once in order, totals do not overflow or become negative, and the terminal status follows the configured boundary rule.",
+      "type": "boundary condition",
+      "jtbd": "Trust reports at workflow limits",
+      "persona_served": "Story Analysis Workflow Certification Owner",
+      "dependencies": [
+        "AC4",
+        "AC6"
+      ]
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Null, empty, whitespace-only, nonexistent, directory, non-Markdown, and inaccessible story_document values",
+      "gherkin": "Given any null, empty, whitespace-only, nonexistent, directory, non-Markdown, or unreadable story_document value, when startup validation runs, then extraction is not scheduled and a sanitized deterministic validation failure is recorded.",
+      "type": "Input edge case",
+      "jtbd": "Reject unusable story inputs safely",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Very long paths and Markdown documents at the supported size boundary",
+      "gherkin": "Given a valid path and Markdown document at the declared maximum supported sizes, when the workflow runs, then validation and processing either complete within configured limits or fail with an explicit size-limit result without partial downstream execution.",
+      "type": "Input boundary",
+      "jtbd": "Process stories within supported limits",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Unicode, emoji, spaces, and shell-special characters in paths and document content",
+      "gherkin": "Given a valid Markdown story whose path or content contains Unicode, emoji, spaces, or shell-special characters, when the workflow runs, then the exact path is handled without command injection or lossy normalization and report JSON remains valid UTF-8.",
+      "type": "Input edge case",
+      "jtbd": "Analyze safely named story documents",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "First run with no existing log, report, benchmark, or certification artifact directories",
+      "gherkin": "Given a correctly configured writable workspace with no prior run artifacts, when the first workflow executes, then required artifact directories and one complete report are created without relying on historical data.",
+      "type": "State edge case",
+      "jtbd": "Record the first certified workflow run",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Partial report write or process interruption at workflow completion",
+      "gherkin": "Given report generation is interrupted after completion starts, when the run is inspected or recovery executes, then no truncated file is treated as a valid report and regeneration is idempotent for the same workflow_id and run_id.",
+      "type": "Partial completion",
+      "jtbd": "Recover trustworthy workflow evidence",
+      "persona_served": "Certification Examiner"
+    },
+    {
+      "criterion": "Concurrent workflows and retries write isolated artifacts",
+      "gherkin": "Given multiple workflow runs and activity retries execute concurrently, when logs, ATIF exports, and reports are written, then each artifact is scoped to the correct workflow_id, run_id, activity, and attempt with no overwrite or metric mixing.",
+      "type": "Concurrency edge case",
+      "jtbd": "Audit concurrent runs independently",
+      "persona_served": "Certification Examiner"
+    },
+    {
+      "criterion": "Unauthorized, stale, duplicate, or contradictory human signals",
+      "gherkin": "Given a workflow is awaiting human input, when an unauthorized caller or a stale, duplicate, or contradictory signal is received, then it is rejected or ignored deterministically and cannot alter an already consumed or terminal decision.",
+      "type": "Permission/access edge case",
+      "jtbd": "Prevent unauthorized workflow resolution",
+      "persona_served": "Workflow Operator"
+    },
+    {
+      "criterion": "Operator session or client disconnects while the workflow awaits a decision",
+      "gherkin": "Given the operator client disconnects or its session expires while the durable workflow awaits a decision, when the client reconnects with authorization, then it can query the current state and submit one valid decision before timeout without losing the escalation context.",
+      "type": "Interrupted workflow",
+      "jtbd": "Resume a pending human decision",
+      "persona_served": "Workflow Operator"
+    },
+    {
+      "criterion": "Cadence or worker unavailable, activity timeout, or network interruption",
+      "gherkin": "Given Cadence, a worker, or network communication is unavailable during a step, when retry and timeout policies are exhausted, then the workflow remains durable, records attempts accurately, and reaches the configured automated-failure or human-escalation path without a false success report.",
+      "type": "System edge case",
+      "jtbd": "Handle orchestration outages predictably",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Devin invocation fails, times out, or is rate limited",
+      "gherkin": "Given the Devin harness fails, times out, or is rate limited, when activity retry policy executes, then every attempt is separately logged and the final report records the terminal activity outcome without counting failed attempts as successful workflow runs.",
+      "type": "External service edge case",
+      "jtbd": "Trace failed agent invocations",
+      "persona_served": "Certification Examiner"
+    },
+    {
+      "criterion": "ATIF export is absent, malformed, incomplete, or omits cost_usd",
+      "gherkin": "Given a completed harness invocation has no readable ATIF export or omits one or more usage fields, when reporting runs, then the report preserves available raw evidence, marks unavailable normalized values explicitly, does not invent cost, and records a diagnostic without discarding the workflow outcome.",
+      "type": "External data edge case",
+      "jtbd": "Report usage without fabricated metrics",
+      "persona_served": "Certification Examiner"
+    },
+    {
+      "criterion": "Maximum repair count and exact signal-timeout boundary",
+      "gherkin": "Given the configured repair limit is reached or a signal arrives exactly at the timeout boundary, when the engine evaluates the next transition, then only one deterministic terminal or escalation transition occurs and the report contains no extra attempt or duplicate human decision.",
+      "type": "Boundary edge case",
+      "jtbd": "Resolve workflow boundaries deterministically",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    },
+    {
+      "criterion": "Report or log destination is unwritable or storage is exhausted",
+      "gherkin": "Given the configured artifact destination rejects a write or has insufficient capacity, when logging or report generation occurs, then certification evidence is not reported as complete and the failure is surfaced through an available independent channel or workflow result.",
+      "type": "System edge case",
+      "jtbd": "Avoid claiming unauditable completion",
+      "persona_served": "Story Analysis Workflow Certification Owner"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What exact Stage 4 end-to-end success formula is authoritative: non-failed terminal runs, fully automated passed runs, or both as separate metrics?",
+      "impacts": [
+        "business rules",
+        "report aggregation",
+        "certification verdict",
+        "manual-intervention reporting"
+      ]
+    },
+    {
+      "question": "What sample size, workload mix, and observation window qualify as representative and demonstrate stability or improvement over time?",
+      "impacts": [
+        "benchmark design",
+        "statistical confidence",
+        "certification evidence",
+        "test runtime"
+      ]
+    },
+    {
+      "question": "Does Stage 3 require each agent's individual score and manual-correction rate to meet 95%, and how is a manual correction distinguished from an intentional punch-out?",
+      "impacts": [
+        "agent evaluation",
+        "metric definitions",
+        "workflow design",
+        "certification documentation"
+      ]
+    },
+    {
+      "question": "Should ACTIVITY_FLAGGED_AMBIGUITY be raised by a structured activity result, a dedicated adversarial guardrail, an exception, or more than one mechanism?",
+      "impacts": [
+        "activity contracts",
+        "engine branching",
+        "guardrail design",
+        "test fixtures"
+      ]
+    },
+    {
+      "question": "What independent adversarial-review behavior and pass/fail contract satisfy the requirement to challenge prior outputs without duplicating grade_story_analysis?",
+      "impacts": [
+        "workflow graph",
+        "new skill or activity design",
+        "latency and cost",
+        "certification compliance"
+      ]
+    },
+    {
+      "question": "What authentication and authorization mechanism identifies callers allowed to send human_response signals?",
+      "impacts": [
+        "security",
+        "operator experience",
+        "Cadence client integration",
+        "audit attribution"
+      ]
+    },
+    {
+      "question": "Should a report be emitted for startup rejection, cancellation, timeout, and infrastructure failure, or only for terminal workflow results?",
+      "impacts": [
+        "report lifecycle",
+        "success-rate denominator",
+        "failure traceability",
+        "recovery behavior"
+      ]
+    },
+    {
+      "question": "When ATIF omits total_cost_usd, should cost_usd be null with an availability reason, derived from a versioned price table, or supplied by an updated harness contract?",
+      "impacts": [
+        "report schema",
+        "billing accuracy",
+        "external service dependency",
+        "ADR-015 compatibility"
+      ]
+    },
+    {
+      "question": "Where should consolidated reports and benchmark summaries be stored, and what service owns retention and cleanup?",
+      "impacts": [
+        "filesystem layout",
+        "deployment operations",
+        "audit retention",
+        "storage limits"
+      ]
+    },
+    {
+      "question": "What maximum source size, path length, attempt count, and report history size must be supported?",
+      "impacts": [
+        "input validation",
+        "performance",
+        "resource limits",
+        "boundary tests"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "src/story_analysis_workflow/workflow.py workflow registration, signals, and result construction",
+        "src/story_analysis_workflow/story_analysis_engine.py orchestration, retry, grade/repair, and escalation state transitions",
+        "src/story_analysis_workflow/escalation.py escalation reasons and HumanDecision vocabulary",
+        "src/story_analysis_workflow/signals.py client-side signal validation and dispatch",
+        "src/common/skill_activity.py sentinel handling, expected output paths, activity output contracts, and harness execution",
+        "src/story_analysis_workflow/activities/grade_story_analysis.py deterministic grade scoring integration",
+        "src/story_analysis_workflow/grade_repair.py and grade_scoring.py decision boundaries",
+        "src/common/workflow_logger.py per-workflow, run, activity, and attempt artifact layout",
+        "src/common/harness.py HarnessUsage and harness result contracts",
+        "src/common/atif_usage.py ATIF aggregate metric parsing",
+        "Existing unit and end-to-end workflow, signal, state, and audit-trail tests"
+      ],
+      "new_code": [
+        "Startup Markdown input guardrail",
+        "Between-step artifact existence and schema guardrail activity or decision",
+        "Independent adversarial review guardrail and contract",
+        "Post-grader required-artifact guardrail",
+        "ACTIVITY_FLAGGED_AMBIGUITY integration in the engine",
+        "Human-decision authorization and explicit audit events if not already provided by deployment infrastructure",
+        "Atomic schema-versioned workflow report writer",
+        "Workflow-level report and success-rate aggregation",
+        "Integration and e2e bypass, timeout, ambiguity, concurrency, and report-completeness tests",
+        "Stage 3 certification and representative benchmark evidence artifacts"
+      ],
+      "infrastructure": [
+        "Existing Cadence server, workers, and local SQLite development stack",
+        "Writable and capacity-managed .process/logs artifact storage",
+        "CI or evaluation environment capable of repeated real-work agent and workflow runs",
+        "Mechanism for storing or publishing certification evidence and trends"
+      ],
+      "external_services": [
+        "Devin CLI invocation runtime",
+        "Devin ATIF usage export contract",
+        "Human operator and Cadence signaling client"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Agent-quality work needed to bring all four skill evaluations to the 95% Stage 3 threshold",
+        "Stakeholder decisions on success semantics, representative sample size, adversarial guardrail scope, signal authorization, and missing-cost treatment"
+      ],
+      "blocks": [
+        "Formal Stage 4 certification of the Story Analysis Workflow",
+        "Reliable trend reporting and certification dashboards based on consolidated run data",
+        "Examiner sign-off on punch-out, guardrail, and audit evidence"
+      ],
+      "related": [
+        "Implement Story Analysis Workflow Example",
+        "Capture Devin Cost Metrics",
+        "Workflow-aware file logging",
+        "Configure Skill Activity Invocations",
+        "Refactor Workflow Modules into Layers"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Stage 3 and Stage 4 certification rules and acceptable evidence",
+        "Definition of regular manual correction versus intentional human punch-out",
+        "Representative real-work workload selection and success-rate interpretation",
+        "Audit retention and examiner traceability expectations"
+      ],
+      "technical_knowledge": [
+        "Cadence deterministic workflow constraints, retries, signals, queries, timeouts, and event history",
+        "Story Analysis engine state machine and activity contracts",
+        "JSON Schema validation and atomic filesystem writes",
+        "Devin CLI ATIF export structure and metric availability",
+        "Concurrent workflow and retry artifact isolation",
+        "Authentication and authorization for workflow signals"
+      ],
+      "stakeholder_questions": [
+        "Confirm the authoritative success metric and whether human_resolved counts as success",
+        "Approve the representative benchmark matrix, sample size, and trend window",
+        "Define the adversarial guardrail's independence and pass/fail contract",
+        "Choose the authorization policy for human signals",
+        "Choose the missing-cost representation and report retention owner",
+        "Define supported source, path, attempt, and report-size boundaries"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 13,
+    "risk_level": "High",
+    "uncertainty": "High"
+  }
+}

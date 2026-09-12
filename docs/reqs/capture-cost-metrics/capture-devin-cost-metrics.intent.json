@@ -1,0 +1,106 @@
+{
+  "raw_request": "docs/reqs/capture-cost-metrics/proposed-architecture.md",
+  "title": "Capture Devin cost metrics",
+  "story": {
+    "so_that": "workflow operators can observe, audit, and report prompt, completion, cached-token, and monetary-cost usage for each Devin invocation without changing existing harness behavior or exit codes",
+    "as_a": "workflow operator or cost-aware engineer running agentic workflows",
+    "i_want": "every non-interactive Devin CLI invocation run through the harness to request an ATIF export, have its aggregate final_metrics parsed defensively, and expose normalized usage on HarnessResult"
+  },
+  "target_persona": {
+    "name": "Owen - Workflow Operator / Cost Engineer",
+    "role": "Engineer / Operator",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Needs to understand token and cost usage of automated Devin invocations inside Cadence workflows and correlate that usage with workflow, run, and Activity identity",
+      "during": "Inspects the durable Activity log directory, retained ATIF trajectory, and optional HarnessResult usage for a specific invocation",
+      "after": "Audits retained trajectories and aggregates usage across workflow runs while trusting that missing or malformed telemetry never changed the Devin subprocess outcome"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Run the devin CLI with --export, persist or temporarily retain the ATIF trajectory, parse final_metrics defensively, and return a normalized HarnessUsage on HarnessResult",
+    "inputs": [
+      "invocation profile (permission_mode, model)",
+      "Devin prompt",
+      "optional Activity artifact directory from workflow logging context",
+      "optional temporary directory when no Activity context is available"
+    ],
+    "outputs": [
+      "exit_code from the devin subprocess",
+      "stdout and stderr from the devin subprocess",
+      "optional HarnessResult.usage with prompt_tokens, completion_tokens, cached_tokens, cost_usd, and extra",
+      "durable devin-trajectory.json file when an Activity artifact directory is available",
+      "temporary devin-trajectory.json file when no Activity context is available"
+    ],
+    "state_changes": [
+      "writes devin-trajectory.json into the current Activity attempt's artifact directory",
+      "extends HarnessResult with an optional usage field",
+      "preserves the existing three-argument HarnessResult constructor for compatibility"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Every common.DevinHarness invocation requests an ATIF export.",
+      "gherkin": "Given a DevinHarness run is configured When the subprocess is executed Then devin is invoked with --export <path>",
+      "type": "Functional",
+      "jtbd": "Request ATIF export for every harness run",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "An invocation inside an Activity logging context retains its trajectory beside that Activity's logs.",
+      "gherkin": "Given the harness is called inside an Activity logging context When the devin subprocess completes Then the ATIF trajectory is written to the Activity's artifact directory alongside activity.log and devin.log",
+      "type": "Functional",
+      "jtbd": "Persist trajectory beside Activity logs",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "An invocation outside an Activity context still captures usage through a temporary export.",
+      "gherkin": "Given the harness is called without an Activity logging context When the devin subprocess completes Then the ATIF trajectory is written to a temporary directory, parsed, and the usage is returned without a durable path",
+      "type": "Functional",
+      "jtbd": "Capture usage without Activity context",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "HarnessResult exposes optional normalized prompt, completion, cached-token, and USD-cost metrics.",
+      "gherkin": "Given a devin invocation produced an ATIF document with final_metrics When the export is parsed Then HarnessResult.usage contains prompt_tokens, completion_tokens, cached_tokens, cost_usd, and extra",
+      "type": "Functional",
+      "jtbd": "Expose normalized usage metrics on harness result",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Existing harness implementations remain compatible without supplying usage.",
+      "gherkin": "Given an existing test or caller constructs HarnessResult with only exit_code, stdout, and stderr When the result is used Then it is valid and usage defaults to None",
+      "type": "Constraint",
+      "jtbd": "Maintain compatibility with existing harness implementations",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Missing or malformed telemetry never changes the Devin subprocess exit result.",
+      "gherkin": "Given the devin subprocess exits with a specific code When the ATIF export is missing, unreadable, or malformed Then the harness returns the same exit_code with usage set to None",
+      "type": "Business rule",
+      "jtbd": "Preserve subprocess result regardless of telemetry errors",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Concurrent Activities and retries do not overwrite one another's trajectories.",
+      "gherkin": "Given multiple Activity attempts or concurrent invocations share a workflow run When each invocation writes its ATIF export Then each trajectory is stored in a distinct, non-overwriting path",
+      "type": "Functional",
+      "jtbd": "Avoid trajectory overwrites across concurrent Activities and retries",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Raw trajectory data is not copied into normal Activity logs.",
+      "gherkin": "Given an ATIF trajectory contains prompts, tool calls, or file paths When the harness or logger writes diagnostics Then the Activity log contains only the export path and sanitized error category, not raw trajectory content",
+      "type": "Business rule",
+      "jtbd": "Keep raw trajectory data out of Activity logs",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    },
+    {
+      "criterion": "Tests cover parsing, path selection, compatibility, failure semantics, and isolation.",
+      "gherkin": "Given the implementation is complete When the test suite runs Then tests verify ATIF parsing, export path selection, backward-compatible construction, failure semantics, and concurrent/retry isolation",
+      "type": "Non-functional",
+      "jtbd": "Verify metrics capture with comprehensive tests",
+      "persona_served": "Owen - Workflow Operator / Cost Engineer"
+    }
+  ]
+}

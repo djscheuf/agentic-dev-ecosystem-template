@@ -1,0 +1,425 @@
+{
+  "story_path": "docs/reqs/stage-4-gaps/consolidated run report/produce-consolidated-story-analysis-run-report.analysis.json",
+  "repo_state_before_design": "docs/reqs/stage-4-gaps/consolidated run report/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "A Story Analysis Workflow run starts with Cadence workflow_id and run_id and executes the existing extract, analyze, grade, repair, and human-escalation domain flow. The story adds an in-memory ordered run ledger that records each Activity attempt as an immutable observation while existing workflow behavior continues.",
+      "layers_involved": ["Story Analysis Workflow", "Common Activity Runtime", "Cadence Runtime"],
+      "handshake_points": [
+        {
+          "from_layer": "Cadence Runtime",
+          "to_layer": "Story Analysis Workflow",
+          "contract_used": "WorkflowExecutionIdentity",
+          "data_shape": "workflow_id: str, run_id: str, story_document: str"
+        },
+        {
+          "from_layer": "Common Activity Runtime",
+          "to_layer": "Story Analysis Workflow",
+          "contract_used": "ActivityAttemptObservation",
+          "data_shape": "sequence, step_name, activity_type, activity_id, attempt, model, permission_mode, duration_ms, outcome, output_path, artifact paths, optional usage"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "Each Activity attempt completes or fails. At the boundary where Cadence identity, harness configuration, duration, output path, and ATIF normalization are available, one attempt observation is emitted. Retries append observations rather than replacing prior attempts, preserving execution order and workflow/run/activity/attempt isolation.",
+      "layers_involved": ["Common Activity Runtime", "Story Analysis Workflow", "Filesystem Data Layer"],
+      "handshake_points": [
+        {
+          "from_layer": "Common Activity Runtime",
+          "to_layer": "Story Analysis Workflow",
+          "contract_used": "ActivityAttemptObservation",
+          "data_shape": "One immutable record per executed Cadence Activity attempt, keyed by workflow_id, run_id, activity_id, and attempt"
+        },
+        {
+          "from_layer": "Common Activity Runtime",
+          "to_layer": "Filesystem Data Layer",
+          "contract_used": "AttemptScopedArtifactLayout",
+          "data_shape": "activity.log, devin.log, devin-trajectory.json, and skill output paths under the sanitized attempt directory"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "The existing grade-repair and escalation flow reaches a terminal domain event: automated pass, repaired pass, automated failure, automated timeout, human accept, or human abort. WorkflowResult gains an explicit outcome_origin so equal final_status values do not erase how resolution occurred.",
+      "layers_involved": ["Story Analysis Engine", "Story Analysis Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Engine",
+          "to_layer": "Story Analysis Workflow",
+          "contract_used": "TerminalWorkflowOutcome",
+          "data_shape": "final_analysis_path, passed, repair_attempt_count, escalated, final_status, outcome_origin"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "After a terminal outcome is known, completion processing constructs one schema-versioned StoryAnalysisRunReport from terminal metadata and the ordered attempt ledger. Usage totals are sums of available attempt values; availability is represented per field, cost is never estimated, and raw ATIF paths remain references to retained evidence.",
+      "layers_involved": ["Story Analysis Reporting Service", "Report Data Model", "Filesystem Data Layer"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Workflow",
+          "to_layer": "Story Analysis Reporting Service",
+          "contract_used": "RunReportInput",
+          "data_shape": "WorkflowExecutionIdentity + TerminalWorkflowOutcome + ordered ActivityAttemptObservation[]"
+        },
+        {
+          "from_layer": "Story Analysis Reporting Service",
+          "to_layer": "Report Data Model",
+          "contract_used": "StoryAnalysisRunReportV1",
+          "data_shape": "schema_version, run identity, terminal outcome, attempts, aggregate usage, evidence paths, generated_at"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "The report writer validates the complete document, writes it to a unique temporary sibling, flushes it, and atomically replaces the deterministic final path. Repeated completion for the same workflow_id and run_id replaces the same logical report; interrupted temporary files are never discoverable as complete reports.",
+      "layers_involved": ["Story Analysis Reporting Service", "Filesystem Data Layer", "JSON Schema Validator"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Reporting Service",
+          "to_layer": "JSON Schema Validator",
+          "contract_used": "StoryAnalysisRunReportV1Schema",
+          "data_shape": "Complete candidate JSON document"
+        },
+        {
+          "from_layer": "Story Analysis Reporting Service",
+          "to_layer": "Filesystem Data Layer",
+          "contract_used": "AtomicRunReportWrite",
+          "data_shape": "<log-root>/<safe-workflow-id>/<safe-run-id>/story-analysis.report.json via unique temporary sibling and os.replace"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "The terminal workflow result and status query expose report_path only after atomic publication succeeds. A write or validation failure is logged and completion fails rather than claiming that the run is reported; Cadence retry can safely regenerate the same report.",
+      "layers_involved": ["Story Analysis Workflow", "Story Analysis Client API", "Story Analysis Reporting Service"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Workflow",
+          "to_layer": "Story Analysis Client API",
+          "contract_used": "ReportedWorkflowResult",
+          "data_shape": "Existing WorkflowResult fields + outcome_origin + report_path"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "When a certification owner requests an aggregate for an explicit filesystem root and sample window, the workflow-owned aggregation service discovers only final report filenames, validates compatible schema versions, filters terminal timestamps, and deduplicates by workflow_id plus run_id before calculation.",
+      "layers_involved": ["Story Analysis Client API", "Story Analysis Aggregation Service", "Filesystem Data Layer"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Client API",
+          "to_layer": "Story Analysis Aggregation Service",
+          "contract_used": "AggregateRunReportsRequest",
+          "data_shape": "report_root, window_start, window_end, formula_id"
+        },
+        {
+          "from_layer": "Filesystem Data Layer",
+          "to_layer": "Story Analysis Aggregation Service",
+          "contract_used": "StoryAnalysisRunReportV1",
+          "data_shape": "Validated visible final reports; temporary, invalid, incompatible, and out-of-window files are excluded with reason counts"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "Aggregation publishes a schema-versioned snapshot atomically beside the reports. The snapshot contains one trace observation per included run, status and origin counts, automated-pass numerator, all-terminal-run denominator, formula, sample window, success rate or null for an empty sample, and manual-intervention count.",
+      "layers_involved": ["Story Analysis Aggregation Service", "Filesystem Data Layer", "Certification Review Tooling"],
+      "handshake_points": [
+        {
+          "from_layer": "Story Analysis Aggregation Service",
+          "to_layer": "Filesystem Data Layer",
+          "contract_used": "AtomicAggregateWrite",
+          "data_shape": "story-analysis.aggregate.json containing schema_version, formula, numerator, denominator, success_rate, counts, sample_window, exclusions, observations"
+        },
+        {
+          "from_layer": "Filesystem Data Layer",
+          "to_layer": "Certification Review Tooling",
+          "contract_used": "StoryAnalysisRunAggregateV1",
+          "data_shape": "Auditable aggregate JSON with every observation referencing exactly one report_path"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "RecordActivityAttempt",
+      "description": "Records one reportable observation for each executed Activity attempt without logging prompt or ATIF contents.",
+      "layers_involved": ["Common Activity Runtime", "Story Analysis Workflow Logging"],
+      "data_points": [
+        {"point": "workflow_id_run_id", "description": "Correlation identity for the owning execution."},
+        {"point": "activity_type_activity_id_attempt", "description": "Retry-safe attempt identity."},
+        {"point": "sequence_outcome_duration_ms", "description": "Execution ordering, result category, and elapsed duration."},
+        {"point": "usage_available_fields", "description": "Names of normalized usage fields available, not trajectory contents."}
+      ]
+    },
+    {
+      "event_name": "ReachWorkflowTerminalState",
+      "description": "Records the terminal status and origin before report construction.",
+      "layers_involved": ["Story Analysis Engine", "Story Analysis Workflow Logging"],
+      "data_points": [
+        {"point": "final_status", "description": "passed, human_resolved, or failed."},
+        {"point": "outcome_origin", "description": "automated_pass, repaired_pass, automated_failure, automated_timeout, human_accept, or human_abort."},
+        {"point": "repair_attempt_count", "description": "Bounded domain repair count, distinct from Cadence Activity retry attempts."}
+      ]
+    },
+    {
+      "event_name": "WriteRunReport",
+      "description": "Records successful atomic publication of a schema-valid run report.",
+      "layers_involved": ["Story Analysis Reporting Service", "Workflow Logging"],
+      "data_points": [
+        {"point": "workflow_id_run_id", "description": "Logical report identity."},
+        {"point": "schema_version", "description": "Report contract version."},
+        {"point": "report_path", "description": "Final published path, never the temporary path."},
+        {"point": "attempt_record_count", "description": "Number of included Activity attempt records."}
+      ]
+    },
+    {
+      "event_name": "FailRunReportWrite",
+      "description": "Records validation or filesystem publication failure and prevents reported completion.",
+      "layers_involved": ["Story Analysis Reporting Service", "Workflow Logging"],
+      "data_points": [
+        {"point": "workflow_id_run_id", "description": "Affected execution."},
+        {"point": "failure_category", "description": "validation_failed, path_rejected, temporary_write_failed, flush_failed, or replace_failed."},
+        {"point": "final_path", "description": "Sanitized intended report location; no document contents or secrets."}
+      ]
+    },
+    {
+      "event_name": "PublishRunAggregate",
+      "description": "Records atomic publication of an auditable aggregation snapshot.",
+      "layers_involved": ["Story Analysis Aggregation Service", "Workflow Logging"],
+      "data_points": [
+        {"point": "formula_id", "description": "Versioned success formula identifier."},
+        {"point": "numerator_denominator", "description": "Published integer operands."},
+        {"point": "sample_window", "description": "Inclusive start and exclusive end timestamps."},
+        {"point": "included_excluded_counts", "description": "Visible sample accounting."},
+        {"point": "manual_intervention_count", "description": "Runs whose outcome origin is human_accept or human_abort."}
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Story Analysis Engine",
+      "new_responsibilities": [
+        {"responsibility": "Emit explicit terminal outcome_origin alongside final_status for all automated and human resolution paths.", "intent": "The engine owns the decision branch and is the only layer with sufficient information to distinguish timeout, human accept, human abort, ordinary failure, and repaired success."}
+      ]
+    },
+    {
+      "layer": "Common Activity Runtime",
+      "new_responsibilities": [
+        {"responsibility": "Expose immutable per-attempt execution facts and artifact references at Activity completion/failure.", "intent": "Cadence attempt identity, model, permission mode, duration, harness usage, and output location coexist at this boundary; recording elsewhere would reconstruct or lose facts."},
+        {"responsibility": "Preserve attempt-scoped path sanitization and isolation.", "intent": "Common logging already owns safe filesystem components and concurrent retry isolation under ADR-011 and ADR-015."}
+      ]
+    },
+    {
+      "layer": "Story Analysis Workflow / Reporting Service",
+      "new_responsibilities": [
+        {"responsibility": "Maintain ordered observations for one run and construct a report only after a terminal outcome.", "intent": "The workflow package owns its domain evidence contract under ADR-013 and can associate attempts with the terminal result without cross-workflow state."},
+        {"responsibility": "Validate and atomically publish one idempotent report per workflow_id and run_id before reporting completion.", "intent": "Business completeness and idempotency are defensible workflow rules, while the filesystem only supplies storage primitives."},
+        {"responsibility": "Expose report_path through existing workflow result/query surfaces.", "intent": "No graphical frontend exists; the Cadence adapter and CLI are the current presentation/API boundary."}
+      ]
+    },
+    {
+      "layer": "Story Analysis Aggregation Service",
+      "new_responsibilities": [
+        {"responsibility": "Discover, validate, version-filter, time-filter, and deduplicate visible terminal reports.", "intent": "The service owns the auditable success-rate business rule and must defend the denominator against retries, duplicates, partial files, and incompatible schemas."},
+        {"responsibility": "Calculate formula operands, status/origin counts, and manual-intervention count and retain one trace observation per included report.", "intent": "These derived values are cheap over the certification filesystem sample and should not create duplicated stored run state."}
+      ]
+    },
+    {
+      "layer": "Filesystem Data Layer",
+      "new_responsibilities": [
+        {"responsibility": "Persist schema-versioned final report and aggregate JSON through same-filesystem atomic replacement.", "intent": "The current architecture stores evidence in deterministic workflow artifact directories and has no application database."},
+        {"responsibility": "Retain raw ATIF at existing attempt-scoped paths without copying trajectory content into reports.", "intent": "ADR-015 makes raw ATIF authoritative for unknown dimensions and explicitly excludes retention policy from this workflow feature."}
+      ]
+    },
+    {
+      "layer": "Certification Review Tooling",
+      "new_responsibilities": [
+        {"responsibility": "Display or inspect report and aggregate fields without recomputing hidden business rules.", "intent": "Presentation consumes independently mockable JSON contracts; enforcement, filtering, and calculation remain backend responsibilities."}
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ActivityAttemptObservation",
+      "description": "Immutable record for exactly one executed Cadence Activity attempt in a Story Analysis run.",
+      "changes": {
+        "added": "workflow_id, run_id, sequence, step_name, activity_type, activity_id, attempt, started_at, duration_ms, outcome, model, permission_mode, output_path, activity_log_path, devin_log_path, atif_path, usage fields with explicit availability",
+        "modified": "Skill Activity completion/failure plumbing returns or emits reportable attempt metadata without collapsing retries.",
+        "removed": "No existing output fields; prompts, stdout, stderr, and raw ATIF contents are deliberately excluded."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "TerminalWorkflowOutcome",
+      "description": "Backward-compatible extension of WorkflowResult that distinguishes how terminal resolution occurred.",
+      "changes": {
+        "added": "outcome_origin enum: automated_pass, repaired_pass, automated_failure, automated_timeout, human_accept, human_abort; report_path after publication",
+        "modified": "final_status remains passed, human_resolved, or failed; attempt_count remains the grade-repair count and is renamed only in serialized report context for clarity.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "StoryAnalysisRunReportV1",
+      "description": "One independently valid, auditable terminal-run document keyed by workflow_id and run_id.",
+      "changes": {
+        "added": "schema_version, generated_at, workflow_id, run_id, story_document, terminal_at, final_status, outcome_origin, final_analysis_path, repair_attempt_count, ordered attempts[], usage totals with per-field availability, evidence paths",
+        "modified": "None; this is a new workflow-owned JSON Schema and Python model.",
+        "removed": "No estimated cost, raw trajectory content, or aggregate success verdict."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "AtomicRunReportWrite",
+      "description": "Validate-first, temporary-write, flush, and same-filesystem atomic replace publication for one deterministic final path.",
+      "changes": {
+        "added": "Unique temporary sibling per write; schema validation before publication; os.replace to <report-root>/<safe-workflow-id>/<safe-run-id>/story-analysis.report.json; cleanup attempt for failed temporary writes.",
+        "modified": "Workflow terminal completion returns only after report publication succeeds and can be retried idempotently.",
+        "removed": "Direct writes to the discoverable final filename and acceptance of partial JSON."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ReportedWorkflowResult",
+      "description": "Existing Cadence run result and get_status query extended for report discovery.",
+      "changes": {
+        "added": "outcome_origin and report_path; report_path is absent/null until publication succeeds.",
+        "modified": "Existing status, attempt_count, escalated, escalation_reason, final_analysis_path, and workflow_log_path semantics remain compatible.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "AggregateRunReportsRequest",
+      "description": "Independently callable pure-service/CLI boundary for reproducible aggregation over an explicit sample.",
+      "changes": {
+        "added": "report_root: Path, window_start: UTC timestamp inclusive, window_end: UTC timestamp exclusive, formula_id: automated_pass_rate_v1, optional output_path",
+        "modified": "Story Analysis CLI/starter gains an aggregation command or callable without introducing a new network service.",
+        "removed": "Implicit current-directory scans and unspecified time windows."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "StoryAnalysisRunAggregateV1",
+      "description": "Auditable point-in-time aggregate derived from validated visible V1 reports.",
+      "changes": {
+        "added": "schema_version, generated_at, formula_id, formula_text, window_start, window_end, numerator, denominator, success_rate nullable, status_counts, outcome_origin_counts, manual_intervention_count, included_count, exclusion_counts, observations[{workflow_id, run_id, report_path, final_status, outcome_origin}]",
+        "modified": "None; aggregate values are derived at request time and atomically published.",
+        "removed": "No certification threshold or pass/fail verdict until product ownership defines one."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Place run-report models, writer, and aggregator in story_analysis_workflow; reuse common attempt telemetry and artifact APIs without making common understand Story Analysis report schemas.",
+      "justification": "Reporting is workflow-domain behavior, while invocation telemetry and filesystem layout are reusable infrastructure. This preserves dependency direction and independent workflow ownership.",
+      "basis": "ADR-013 Three-Layer Workflow Module Architecture",
+      "impact": "New story_analysis_workflow reporting modules and narrow extensions to common attempt outputs; no orchestrator domain logic.",
+      "answers_open_question": "Defines component ownership and where aggregation is implemented."
+    },
+    {
+      "decision": "Store each report in the existing sanitized workflow/run artifact directory with final filename story-analysis.report.json; retention remains owned by the external artifact/log retention concern.",
+      "justification": "The existing layout already isolates workflow and run identity, keeps report references near raw evidence, and avoids introducing a database or external store.",
+      "basis": "ADR-011 workflow logging and ADR-015 exclusion of retention",
+      "impact": "Filesystem path helpers, report discovery, operator documentation, and path-safety tests.",
+      "answers_open_question": "Where should the report be stored and what service owns retention?"
+    },
+    {
+      "decision": "Publish reports and aggregates through schema validation plus atomic same-filesystem replacement at deterministic final paths.",
+      "justification": "A final filename becomes the completeness marker. Atomic replacement prevents readers from accepting truncation and makes Cadence completion retries idempotent for a run.",
+      "basis": "Existing filesystem artifact architecture plus standard atomic-file publication pattern",
+      "impact": "Writer implementation, write-failure semantics, temporary-file filtering, and interruption/idempotency tests.",
+      "answers_open_question": "How should interrupted report generation recover while preserving exactly one valid result?"
+    },
+    {
+      "decision": "Represent every usage field with value plus availability; sum only available values, report unavailable when no contributing attempt supplies the field, and never derive cost from token counts or price tables.",
+      "justification": "ATIF fields are optional and independently validated. Zero is a real measurement and must not mean missing; invented price estimates would violate the authoritative evidence boundary.",
+      "basis": "ADR-015 and vault/services/devin-atif.md",
+      "impact": "Run report schema, aggregation code, missing/partial telemetry tests, and certification interpretation.",
+      "answers_open_question": "How should cost_usd be represented when absent, and should a price table be used?"
+    },
+    {
+      "decision": "Define automated_pass_rate_v1 as runs with outcome_origin automated_pass or repaired_pass divided by all included terminal reports; report human_accept and human_abort separately and count both as manual interventions. Use null success_rate when denominator is zero.",
+      "justification": "This is reproducible, counts each run once, measures end-to-end automated success, and does not hide human assistance. Publishing operands and formula permits later formulas without rewriting evidence.",
+      "basis": "Explicit architectural change required by this story; no existing ADR defines the formula",
+      "impact": "Aggregate schema, formula registry, denominator deduplication, empty-sample behavior, and certification reporting.",
+      "answers_open_question": "What is the authoritative primary success formula and target threshold? Formula is assumed; threshold remains intentionally outside this story."
+    },
+    {
+      "decision": "Emit reports for executions that enter the workflow and reach a modeled terminal outcome, including automated timeout and infrastructure/activity failure after escalation; startup rejection before workflow execution has no run report and is excluded.",
+      "justification": "The workflow can reliably report only facts available inside its execution. Startup rejection has no completed workflow state or Activity ledger and requires a separate client-operation evidence contract.",
+      "basis": "Current StoryAnalysisEngine terminal paths and Cadence execution boundary",
+      "impact": "Outcome-origin enum, report lifecycle, denominator rules, and startup-rejection documentation.",
+      "answers_open_question": "Should startup rejection, cancellation, timeout, and infrastructure failure produce reports?"
+    },
+    {
+      "decision": "Version report and aggregate contracts independently starting at 1.0; V1 aggregation accepts only the V1 major version and reports incompatible files as exclusions rather than silently migrating them.",
+      "justification": "Explicit rejection preserves audit reproducibility. Migration would be a data transformation requiring its own tested versioned policy.",
+      "basis": "Schema-versioned skill contracts and conservative audit-evidence practice",
+      "impact": "JSON Schemas, loaders, exclusion counts, and mixed-version tests.",
+      "answers_open_question": "What is the report JSON Schema version and migration policy?"
+    },
+    {
+      "decision": "Aggregate only reports visible under an explicitly supplied local report root and explicit UTC sample window; do not query Cadence persistence or an external historical store.",
+      "justification": "Visible immutable report artifacts are the auditable source requested by the story. External storage and retention are absent from current architecture and would broaden security and operational scope.",
+      "basis": "ADR-011, ADR-015, and current filesystem-first evidence architecture",
+      "impact": "Aggregation request contract, CLI options, deterministic discovery, and sample-window tests.",
+      "answers_open_question": "Should aggregation include workspace-visible reports or an external historical store?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Where should {workflow}.report.json be stored and what service owns retention?",
+      "answer": "Store story-analysis.report.json under the existing sanitized workflow_id/run_id artifact directory; the existing external artifact/log retention concern owns retention, not this feature.",
+      "justification": "This is the smallest change and preserves locality with workflow.log and Activity evidence.",
+      "basis": "ADR-011 and ADR-015"
+    },
+    {
+      "question": "What is the authoritative primary success formula and target threshold?",
+      "answer": "Assume automated_pass_rate_v1 = count(automated_pass or repaired_pass) / count(all included terminal runs), with null rate for an empty sample. Publish no threshold verdict until the certification owner supplies a threshold.",
+      "justification": "The story asks for an auditable reliability rate and manual intervention visibility but provides no authoritative threshold; separating formula from threshold avoids inventing certification policy.",
+      "basis": "Acceptance criteria 8-9 and absence of a formula/threshold ADR"
+    },
+    {
+      "question": "How should missing cost_usd be represented, and should a price table be used?",
+      "answer": "Represent cost as unavailable with no numeric value when ATIF omits or rejects it; do not use a price table.",
+      "justification": "ATIF is the supported source and estimates would not be auditable source data.",
+      "basis": "ADR-015 and vault/services/devin-atif.md"
+    },
+    {
+      "question": "Which terminal conditions produce reports?",
+      "answer": "Produce reports for workflow executions that reach automated pass, repaired pass, automated failure, automated timeout, human accept, or human abort. Do not fabricate a run report for pre-execution startup rejection; treat unmodeled cancellation as a future explicit outcome before including it.",
+      "justification": "These are the terminal outcomes for which the current workflow owns enough metadata to produce truthful evidence.",
+      "basis": "Pattern seen in src/story_analysis_workflow/story_analysis_engine.py and workflow.py"
+    },
+    {
+      "question": "How are Activity model and permission_mode captured?",
+      "answer": "Extend the common per-attempt observation/output at SkillActivity execution, populated from the already validated harness invocation profile, rather than reconstructing values from logs.",
+      "justification": "The information is available at the Activity/harness boundary and may not be recoverable accurately after completion.",
+      "basis": "Pattern seen in src/common/skill_activity.py and src/common/devin_harness.py; responsibility heuristic 'where is the information available to act?'"
+    },
+    {
+      "question": "What is the schema version and migration policy?",
+      "answer": "Start report and aggregate schemas at 1.0. V1 aggregation accepts the same major version and explicitly excludes incompatible versions; no implicit migration occurs.",
+      "justification": "Audit calculations must be reproducible and must not silently reinterpret historical evidence.",
+      "basis": "Existing schema-versioned repository contracts and standard explicit-version compatibility practice"
+    },
+    {
+      "question": "Which reports are aggregated?",
+      "answer": "Only schema-valid final report files visible beneath an explicitly supplied local root and falling within an explicit inclusive-start/exclusive-end UTC terminal-time window.",
+      "justification": "An explicit root and window make samples reproducible; external history is outside current architecture.",
+      "basis": "ADR-011 filesystem evidence architecture and acceptance criterion requiring visible reports and sample window"
+    },
+    {
+      "question": "How are retries prevented from inflating the denominator?",
+      "answer": "Attempt retries remain nested evidence within one report; aggregation deduplicates logical observations by the composite workflow_id and run_id and rejects conflicting duplicate reports.",
+      "justification": "A workflow execution, not an Activity attempt, is the unit of end-to-end reliability.",
+      "basis": "Acceptance criteria 2, 7, and 9; ADR-010 requires run_id in addition to workflow_id"
+    }
+  ]
+}

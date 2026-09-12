@@ -193,9 +193,6 @@ main() {
   verify_structure "$test_cases_path"
   verify_test_cases_completeness "$test_cases_path"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

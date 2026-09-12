@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "design-story-implementation",
+    "output_path_key": "design_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

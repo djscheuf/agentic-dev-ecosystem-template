@@ -1,0 +1,443 @@
+{
+  "story_path": "docs/reqs/capture-cost-metrics/capture-devin-cost-metrics.analysis.json",
+  "repo_state_before_design": "docs/reqs/capture-cost-metrics/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "A Cadence Worker begins a skill Activity attempt and establishes the existing workflow-aware logging context using sanitized workflow, run, Activity, and attempt identity. The story changes current reality by making the attempt's containing artifact directory available through the common logging contract.",
+      "layers_involved": [
+        "Workflow Runtime",
+        "Common Logging",
+        "Filesystem"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Runtime",
+          "to_layer": "Common Logging",
+          "contract_used": "ActivityArtifactContext",
+          "data_shape": "Cadence activity identity: workflow_id, workflow_run_id, activity_type, activity_id, attempt"
+        },
+        {
+          "from_layer": "Common Logging",
+          "to_layer": "Filesystem",
+          "contract_used": "AttemptScopedArtifactLayout",
+          "data_shape": "Absolute sanitized directory path under .process/logs/<workflow>/<run>/activities/<activity>_<id>_<attempt>/"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "The generic SkillActivity builds the prompt, enters skill invocation context, and calls the configured Harness exactly as it does today. No cost-specific behavior is added to the workflow package or SkillActivity result contract.",
+      "layers_involved": [
+        "Workflow Activity",
+        "Common Skill Runtime",
+        "Harness API"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Skill Runtime",
+          "to_layer": "Harness API",
+          "contract_used": "Harness.run",
+          "data_shape": "prompt: str, cwd: Path, config: Mapping[str, object]"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "DevinHarness validates its namespaced invocation profile and selects an absolute ATIF export path. It uses devin-trajectory.json in the current attempt-scoped artifact directory when one exists; otherwise it creates a temporary directory whose lifecycle encloses subprocess execution and parsing.",
+      "layers_involved": [
+        "Common Devin Harness",
+        "Common Logging",
+        "Filesystem"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Devin Harness",
+          "to_layer": "Common Logging",
+          "contract_used": "get_activity_artifact_dir",
+          "data_shape": "Path | None"
+        },
+        {
+          "from_layer": "Common Devin Harness",
+          "to_layer": "Filesystem",
+          "contract_used": "ATIFExportPath",
+          "data_shape": "Absolute Path ending in devin-trajectory.json"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "DevinHarness invokes the host Devin CLI non-interactively with --export while preserving the existing model, permission mode, prompt boundary, working directory, stdout, stderr, launch-error behavior, and process exit code.",
+      "layers_involved": [
+        "Common Devin Harness",
+        "Host Devin CLI"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Devin Harness",
+          "to_layer": "Host Devin CLI",
+          "contract_used": "DevinCLIExportInvocation",
+          "data_shape": "devin -p --export <absolute-path> --permission-mode <mode> --model <model> -- <prompt>"
+        },
+        {
+          "from_layer": "Host Devin CLI",
+          "to_layer": "Common Devin Harness",
+          "contract_used": "CompletedProcess",
+          "data_shape": "returncode: int, stdout: str, stderr: str; optional ATIF file side effect"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "After any normal subprocess completion, the parser reads the export defensively and inspects only the aggregate final_metrics object. Valid standard fields become an immutable HarnessUsage; missing, unreadable, malformed, or structurally invalid telemetry produces no usage without altering the process result. Unknown billing dimensions remain solely in the retained raw export.",
+      "layers_involved": [
+        "ATIF Parser",
+        "Filesystem",
+        "Harness Data Model"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Filesystem",
+          "to_layer": "ATIF Parser",
+          "contract_used": "ATIFTrajectoryDocument",
+          "data_shape": "JSON object with optional final_metrics object"
+        },
+        {
+          "from_layer": "ATIF Parser",
+          "to_layer": "Harness Data Model",
+          "contract_used": "ATIFUsageNormalization",
+          "data_shape": "HarnessUsage(prompt_tokens: int | None, completion_tokens: int | None, cached_tokens: int | None, cost_usd: float | None) | None"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "DevinHarness returns HarnessResult with the original process fields and optional usage. For temporary mode, parsing completes before cleanup; for Activity mode, the raw trajectory remains beside activity.log and devin.log for operator audit. SkillActivity continues evaluating exit_code and sentinel behavior unchanged.",
+      "layers_involved": [
+        "Common Devin Harness",
+        "Harness API",
+        "Common Skill Runtime",
+        "Filesystem"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Common Devin Harness",
+          "to_layer": "Common Skill Runtime",
+          "contract_used": "HarnessResultWithUsage",
+          "data_shape": "HarnessResult(exit_code: int, stdout: str, stderr: str, usage: HarnessUsage | None = None)"
+        },
+        {
+          "from_layer": "Common Devin Harness",
+          "to_layer": "Filesystem",
+          "contract_used": "TrajectoryRetentionPolicy",
+          "data_shape": "Durable attempt-scoped ATIF retained; temporary ATIF removed with its temporary directory"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "SelectDevinExportPath",
+      "description": "Records that an export destination was selected without logging prompts or trajectory content.",
+      "layers_involved": [
+        "Common Devin Harness",
+        "Common Logging"
+      ],
+      "data_points": [
+        {
+          "point": "storage_mode",
+          "description": "Either activity_artifact or temporary; safe for operational correlation."
+        },
+        {
+          "point": "export_path",
+          "description": "The selected path when existing logging policy permits paths; never trajectory content."
+        },
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity already available in invocation context."
+        }
+      ]
+    },
+    {
+      "event_name": "CompleteDevinInvocation",
+      "description": "Extends the sanitized completion observation with whether normalized usage was available while preserving existing subprocess outcome semantics.",
+      "layers_involved": [
+        "Common Devin Harness",
+        "Common Logging"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Canonical skill identity."
+        },
+        {
+          "point": "exit_code",
+          "description": "Original Devin subprocess exit code."
+        },
+        {
+          "point": "usage_available",
+          "description": "Boolean indicating whether a structurally valid aggregate was normalized."
+        }
+      ]
+    },
+    {
+      "event_name": "RejectAtifTelemetry",
+      "description": "Reports a sanitized telemetry failure category; it is observational and never changes HarnessResult.exit_code.",
+      "layers_involved": [
+        "ATIF Parser",
+        "Common Logging"
+      ],
+      "data_points": [
+        {
+          "point": "error_category",
+          "description": "One of missing_export, unreadable_export, malformed_json, invalid_document, or invalid_final_metrics; excludes exception text and raw content."
+        },
+        {
+          "point": "storage_mode",
+          "description": "Whether the rejected export was activity-scoped or temporary."
+        }
+      ]
+    },
+    {
+      "event_name": "NormalizeAtifUsage",
+      "description": "Records successful normalization without copying token values, costs, prompts, tool calls, or raw ATIF into normal Activity logs.",
+      "layers_involved": [
+        "ATIF Parser",
+        "Common Logging"
+      ],
+      "data_points": [
+        {
+          "point": "available_fields",
+          "description": "Names of supported standard fields that passed type validation, not their values."
+        },
+        {
+          "point": "ignored_unknown_fields",
+          "description": "Count of unnormalized metric fields, without names or values if they may be producer-sensitive."
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Workflow Runtime / Common Logging",
+      "new_responsibilities": [
+        {
+          "responsibility": "Establish an Activity-attempt-scoped artifact context and expose its directory through get_activity_artifact_dir().",
+          "intent": "Cadence identity is available when Activity logging begins, and this layer already owns sanitization, directory layout, concurrency isolation, and retry-attempt isolation."
+        },
+        {
+          "responsibility": "Migrate the reusable path-aware logger behavior from orchestrator into common without importing workflow packages or the composition root.",
+          "intent": "ADR-013 assigns generic logging mechanics to common and forbids reverse dependencies."
+        }
+      ]
+    },
+    {
+      "layer": "Common Devin Harness",
+      "new_responsibilities": [
+        {
+          "responsibility": "Request an ATIF export on every non-interactive Devin invocation.",
+          "intent": "The harness is the only layer that constructs the Devin CLI command and knows the invocation lifecycle."
+        },
+        {
+          "responsibility": "Choose durable versus temporary export storage and keep temporary storage alive through parsing.",
+          "intent": "The harness has both the optional logging context and the subprocess boundary needed to guarantee consistent capture for all callers."
+        },
+        {
+          "responsibility": "Return optional normalized usage without changing stdout, stderr, exit_code, or launch failure semantics.",
+          "intent": "The harness owns the process-to-HarnessResult translation and can preserve backward compatibility at that boundary."
+        }
+      ]
+    },
+    {
+      "layer": "ATIF Parser",
+      "new_responsibilities": [
+        {
+          "responsibility": "Parse only final_metrics and normalize supported standard token and USD fields defensively.",
+          "intent": "Metric type information originates in the ATIF document; isolating pure normalization from subprocess control makes malformed telemetry independently testable."
+        },
+        {
+          "responsibility": "Reject booleans as numeric values, normalize integer USD values to float, preserve valid sibling fields, and return None for invalid documents or final_metrics containers.",
+          "intent": "This layer has the parsed values needed to enforce the stable HarnessUsage contract without failing the invocation."
+        }
+      ]
+    },
+    {
+      "layer": "Harness Data Model",
+      "new_responsibilities": [
+        {
+          "responsibility": "Define frozen HarnessUsage and add usage: HarnessUsage | None = None to frozen HarnessResult.",
+          "intent": "The common model is the workflow-agnostic contract shared by real, fake, and future harness implementations; the default preserves existing three-field construction."
+        }
+      ]
+    },
+    {
+      "layer": "Filesystem Data Layer",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist raw ATIF in an existing attempt-scoped Activity artifact directory or temporary directory selected by the harness.",
+          "intent": "Raw trajectories are file artifacts, not relational application data; no database, API, or frontend is introduced by this story."
+        },
+        {
+          "responsibility": "Retain Activity-scoped exports and remove out-of-context temporary exports after parsing.",
+          "intent": "This is the smallest storage change consistent with auditability and the explicit exclusion of a new retention service or policy."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "HarnessUsage",
+      "description": "Immutable normalized aggregate metrics for one Devin harness invocation; absent or invalid individual fields are represented as None rather than zero.",
+      "changes": {
+        "added": "frozen dataclass HarnessUsage(prompt_tokens: int | None = None, completion_tokens: int | None = None, cached_tokens: int | None = None, cost_usd: float | None = None)",
+        "modified": "None",
+        "removed": "No fields; producer-specific and unstable billing dimensions are deliberately not added and remain in raw ATIF."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HarnessResultWithUsage",
+      "description": "Backward-compatible result for one Harness invocation.",
+      "changes": {
+        "added": "usage: HarnessUsage | None = None as the final field",
+        "modified": "Existing exit_code, stdout, and stderr semantics remain unchanged.",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ActivityArtifactContext",
+      "description": "Common logging API through which infrastructure consumers obtain the current attempt's artifact directory without deriving it from a log filename.",
+      "changes": {
+        "added": "get_activity_artifact_dir() -> Path | None and Activity context state containing an absolute attempt-scoped artifact directory",
+        "modified": "common.workflow_logger gains generalized path-aware Activity and Devin file logging migrated from the legacy orchestrator implementation.",
+        "removed": "No public behavior required by worker route logging; legacy orchestrator duplication may be removed only after consumers and tests migrate."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ATIFUsageNormalization",
+      "description": "Pure best-effort conversion from an ATIF export path to supported aggregate usage.",
+      "changes": {
+        "added": "read_atif_usage(path: Path) -> HarnessUsage | None in a dedicated common module; supported source keys are total_prompt_tokens, total_completion_tokens, total_cached_tokens, and total_cost_usd.",
+        "modified": "None",
+        "removed": "No unknown fields are deleted from disk; they are simply excluded from the normalized object."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "DevinCLIExportInvocation",
+      "description": "Every DevinHarness command requests an absolute-path ATIF export before the existing permission, model, and prompt arguments.",
+      "changes": {
+        "added": "--export <absolute devin-trajectory.json path>",
+        "modified": "Command assembly and temporary-directory lifecycle now enclose post-process ATIF parsing.",
+        "removed": "No existing CLI arguments or subprocess capture options."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "BestEffortTelemetry",
+      "description": "Telemetry is observational: parse outcomes cannot replace, mask, or modify a normally returned Devin process result.",
+      "changes": {
+        "added": "Post-completion parse step and sanitized telemetry diagnostics.",
+        "modified": "HarnessResult may include usage for either zero or nonzero Devin exits.",
+        "removed": "No existing devin_launch_failed behavior, SkillActivity exit handling, sentinel handling, or stdout/stderr behavior."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Export raw ATIF for every common.DevinHarness invocation and normalize only the four supported standard aggregate metrics.",
+      "justification": "Unconditional capture makes invocation behavior consistent, while a narrow typed result remains stable and raw ATIF preserves additional billing dimensions for later use.",
+      "basis": "ADR-015 and docs/reqs/capture-cost-metrics/proposed-architecture.md",
+      "impact": "src/common/devin_harness.py, new common ATIF parser, common harness models, and tests",
+      "answers_open_question": "Resolves how to handle producer-specific credit, ACU, or extra billing fields: retain them only in raw ATIF in this story."
+    },
+    {
+      "decision": "Treat ATIF final_metrics as invocation aggregates inclusive of subagent usage and do not parse step-level or subagent-level metrics.",
+      "justification": "This keeps the story bounded to one stable aggregate per harness call and avoids double counting while actual vendor semantics remain to be characterized.",
+      "basis": "ADR-015",
+      "impact": "ATIF parser semantics and downstream interpretation of HarnessUsage",
+      "answers_open_question": "Assumes subagent usage is included in aggregate totals; characterization may revise a future contract but does not block this implementation."
+    },
+    {
+      "decision": "Complete the path-aware logger migration into common and expose the Activity attempt directory explicitly rather than deriving it from activity.log or devin.log paths.",
+      "justification": "Common DevinHarness cannot import orchestrator, and the logging layer owns Cadence identity sanitization and attempt-scoped directory allocation.",
+      "basis": "ADR-013, ADR-015, and the existing src/orchestrator/workflow_logger.py pattern",
+      "impact": "src/common/workflow_logger.py, Activity integration, public common exports, migration tests, and eventual removal of legacy duplication",
+      "answers_open_question": "Confirms the existing legacy layout isolates retries by including attempt and assigns migration to common."
+    },
+    {
+      "decision": "Use a fixed devin-trajectory.json name inside an attempt-scoped directory and temporary storage outside Activity context.",
+      "justification": "Current generic SkillActivity performs one harness call per Activity attempt, so attempt identity is a sufficient non-overwriting discriminator; temporary storage gives non-workflow callers equivalent parsing without durable orphan artifacts.",
+      "basis": "ADR-015, src/common/skill_activity.py, and src/orchestrator/workflow_logger.py",
+      "impact": "Export path selection, context management, concurrency/retry tests, and artifact layout",
+      "answers_open_question": "Assumes one DevinHarness invocation per generic SkillActivity.execute call; a future multi-invocation Activity must add an invocation discriminator."
+    },
+    {
+      "decision": "Keep telemetry failures non-fatal and log only sanitized categories and safe correlation data.",
+      "justification": "Cost observation must never turn successful work into failure, and trajectories may contain prompts, tool calls, file paths, credentials, or other sensitive operational context.",
+      "basis": "ADR-015, vault/services/orchestrator-harness.md, and proposed architecture security requirements",
+      "impact": "Parser return contract, DevinHarness control flow, logging events, and malformed/missing/unwriteable export tests",
+      "answers_open_question": "Establishes behavior for missing files, malformed JSON, invalid metric types, filesystem errors, and nonzero Devin exits."
+    },
+    {
+      "decision": "Do not add frontend, database, external metrics service, SkillActivity output cost fields, workflow aggregation, pricing derivation, or a new retention configuration.",
+      "justification": "The smallest next step captures one invocation at the existing harness boundary and stores the authoritative raw artifact under the existing log root; higher-level reporting depends on this contract and is explicitly deferred.",
+      "basis": "ADR-015 and story analysis definition of done",
+      "impact": "No changes outside common logging/harness infrastructure and its runtime integration are required for this story.",
+      "answers_open_question": "Defers reporting surface, aggregate workflow cost, retention period, and organization billing policy to later stories."
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Where should a trajectory be stored for a harness call inside a Cadence Activity?",
+      "answer": "As devin-trajectory.json in the current sanitized Activity-attempt artifact directory beside activity.log and devin.log.",
+      "justification": "The legacy path-aware logger already associates workflow, run, Activity, and attempt and prevents concurrent/retry overwrites.",
+      "basis": "ADR-015 and pattern in src/orchestrator/workflow_logger.py"
+    },
+    {
+      "question": "How should a harness call outside Activity logging context capture usage?",
+      "answer": "Create a temporary directory, pass its absolute export path to Devin, parse before context exit, and retain no durable path.",
+      "justification": "Tests and diagnostic callers should receive the same normalized usage without being forced to initialize Cadence logging or leaving durable artifacts.",
+      "basis": "docs/reqs/capture-cost-metrics/proposed-architecture.md"
+    },
+    {
+      "question": "What happens when ATIF is absent, unreadable, malformed, structurally invalid, partially populated, or contains wrong-typed fields?",
+      "answer": "Invalid document/final_metrics structure returns usage None; a valid aggregate returns HarnessUsage with each absent or invalid field set to None and valid sibling fields preserved. In all cases, the original process result is unchanged.",
+      "justification": "Unknown telemetry is not zero usage and observational failures must not become workflow failures.",
+      "basis": "Acceptance criteria and edge cases in capture-devin-cost-metrics.analysis.json"
+    },
+    {
+      "question": "Should booleans count as integers and should integer USD costs be accepted?",
+      "answer": "Reject booleans for token and cost fields; accept int or float cost values except booleans and normalize accepted USD values to float.",
+      "justification": "Python bool is an int subtype but semantically invalid usage, while a producer may validly serialize whole-dollar cost as an integer.",
+      "basis": "ATIF parsing rules in docs/reqs/capture-cost-metrics/proposed-architecture.md"
+    },
+    {
+      "question": "Should additional billing dimensions be exposed in HarnessUsage?",
+      "answer": "No. Normalize only prompt_tokens, completion_tokens, cached_tokens, and cost_usd; retain all other dimensions in raw ATIF.",
+      "justification": "Unknown vendor-specific dimensions do not yet have a stable semantic contract and must not be mislabeled as USD.",
+      "basis": "ADR-015"
+    },
+    {
+      "question": "Can a fixed filename overwrite another invocation?",
+      "answer": "Not under the current invariant of one Harness.run per SkillActivity.execute and an artifact directory containing Activity attempt identity. Add an invocation discriminator if a future Activity makes multiple calls in one attempt.",
+      "justification": "Concurrency and retries are already separated by the legacy path layout; avoiding an unused ID is the smallest change from current reality.",
+      "basis": "src/common/skill_activity.py, src/orchestrator/workflow_logger.py, and ADR-015"
+    },
+    {
+      "question": "Should telemetry errors or a valid export from a failed Devin process alter exit handling?",
+      "answer": "No. Parse after every normal completion, including nonzero exits, populate usage when possible, and preserve the exact subprocess exit code. Preserve existing devin_launch_failed behavior for launch OSError.",
+      "justification": "Failed invocations can incur cost, but telemetry cannot mask or manufacture execution success or failure.",
+      "basis": "Acceptance criteria in capture-devin-cost-metrics.analysis.json and sanitized failure precedent in vault/services/orchestrator-harness.md"
+    },
+    {
+      "question": "Does this design stray from the current architecture?",
+      "answer": "No intentional architectural departure. It completes the already-approved staged migration of generic path-aware logging from orchestrator to common and extends the common Harness result compatibly.",
+      "justification": "Generic infrastructure remains in common, workflow packages remain consumers, and orchestrator remains the composition root.",
+      "basis": "ADR-013 and ADR-015"
+    }
+  ]
+}

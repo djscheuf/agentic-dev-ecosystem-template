@@ -201,9 +201,6 @@ main() {
   verify_lines_changed "$changed_code_files" "$MAX_LINES_CHANGED"
   run_test "$failing_test_path" "$failing_test_name"
   
-  # Delete sentinel file after verification
-  rm -f "$sentinel_path"
-
   # Exit if any failures
   exit_if_failed
   

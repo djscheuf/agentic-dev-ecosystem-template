@@ -1,0 +1,424 @@
+{
+  "story_path": "docs/reqs/workflow-orchestration/implement-story-analysis-workflow-example.analysis.json",
+  "repo_state_before_design": "docs/reqs/workflow-orchestration/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "StoryAnalysisWorkflowStarted \u2014 Alex (or CI) starts the Story Analysis Workflow via the `cadence` CLI or the Python client, passing the story document (path or verbatim text) plus domain/task-list/retry configuration. This replaces the current-reality first step of Alex manually invoking extract-story-intent.",
+      "layers_involved": ["Client", "Cadence Service", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Cadence Service",
+          "contract_used": "CadenceClientInteraction",
+          "data_shape": "StartWorkflowExecutionRequest{domain, task_list, workflow_type, workflow_id, input: WorkflowInput}"
+        },
+        {
+          "from_layer": "Cadence Service",
+          "to_layer": "Workflow",
+          "contract_used": "WorkflowInput",
+          "data_shape": "WorkflowInput{story_document, config}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "StoryIntentExtracted \u2014 the Workflow schedules the extract-story-intent Activity. The Activity wraps the existing extract-story-intent skill (shelling out to the `devin` CLI, same subprocess pattern as evals/devin.js), which writes the intent JSON and its sentinel file to the repository.",
+      "layers_involved": ["Workflow", "Activity", "Repository"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityInput{skill_name: \"extract-story-intent\", input_paths, context}"
+        },
+        {
+          "from_layer": "Activity",
+          "to_layer": "Repository",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityOutput{output_path: intent.json, sentinel_path, status}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "StoryAnalyzed \u2014 the Workflow schedules the analyze-story Activity against the intent JSON, producing the analysis JSON + sentinel file (this is the existing analysis.json already produced for this story, now generated as part of the durable Workflow rather than a manual skill invocation).",
+      "layers_involved": ["Workflow", "Activity", "Repository"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityInput{skill_name: \"analyze-story\", input_paths: [intent.json]}"
+        },
+        {
+          "from_layer": "Activity",
+          "to_layer": "Repository",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityOutput{output_path: analysis.json, sentinel_path, status}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "AnalysisGraded \u2014 the Workflow schedules the grade-story-analysis Activity against the current analysis JSON, producing an analysis-grade JSON + sentinel with a score and pass/fail against the fixed-floor rubric threshold (ADR-006).",
+      "layers_involved": ["Workflow", "Activity", "Repository"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityInput{skill_name: \"grade-story-analysis\", input_paths: [analysis.json]}"
+        },
+        {
+          "from_layer": "Activity",
+          "to_layer": "Repository",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityOutput{output_path: analysis-grade.json, sentinel_path, status}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "GradeRepairLoopEvaluated \u2014 pure Workflow decision logic (no side effects) inspects the grade result. If it passes the rubric threshold, the Workflow proceeds to completion (step 9). If it fails and the durable attempt_count is below max_attempts (3), the Workflow transitions to AnalysisRepaired (step 6). If it fails and attempt_count has reached 3, the Workflow transitions to HumanEscalationRaised (step 7). This is the story's one-step change over current reality: today this branch/loop exists only in Alex's head.",
+      "layers_involved": ["Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Workflow",
+          "contract_used": "GradeRepairLoopState",
+          "data_shape": "GradeRepairLoopState{attempt_count, max_attempts, last_grade_path, escalated}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "AnalysisRepaired \u2014 the Workflow increments the durable attempt_count and schedules the repair-story-analysis Activity, passing the current analysis JSON plus the grader's feedback. The repaired analysis JSON + sentinel are written to the repository, then the Workflow loops back to step 4 (AnalysisGraded) to re-grade.",
+      "layers_involved": ["Workflow", "Activity", "Repository"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Activity",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityInput{skill_name: \"repair-story-analysis\", input_paths: [analysis.json, analysis-grade.json]}"
+        },
+        {
+          "from_layer": "Activity",
+          "to_layer": "Repository",
+          "contract_used": "SkillActivityInterface",
+          "data_shape": "SkillActivityOutput{output_path: analysis.json (overwritten), sentinel_path, status}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "HumanEscalationRaised \u2014 when the grade/repair loop is exhausted (3 failed attempts) or an Activity signals ambiguity/uncertainty in its own output, the Workflow opens a Selector over a named Signal channel (\"human_response\") and a bounded Timer, and records the escalation reason in Workflow state so it is visible via Query and Event History.",
+      "layers_involved": ["Workflow", "Cadence Service", "Client"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Cadence Service",
+          "contract_used": "HumanEscalationSignal",
+          "data_shape": "EscalationState{reason, attempt_count, awaiting_signal: true}"
+        },
+        {
+          "from_layer": "Cadence Service",
+          "to_layer": "Client",
+          "contract_used": "CadenceClientInteraction",
+          "data_shape": "QueryWorkflowExecutionResponse{step, attempt_count, escalated, escalation_reason}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "HumanResponseReceived \u2014 Alex (or another engineer) inspects the escalation via `cadence workflow describe`/Query, then sends a `human_response` Signal (decision: retry | accept | abort, optional notes) via the `cadence` CLI or client SDK. If the Timer fires before a Signal arrives, the Workflow re-escalates once (re-notifies) and then fails gracefully, recording the timeout in Event History.",
+      "layers_involved": ["Client", "Cadence Service", "Workflow"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Cadence Service",
+          "contract_used": "HumanEscalationSignal",
+          "data_shape": "SignalWorkflowExecutionRequest{signal_name: \"human_response\", payload: {decision, notes}}"
+        },
+        {
+          "from_layer": "Cadence Service",
+          "to_layer": "Workflow",
+          "contract_used": "HumanEscalationSignal",
+          "data_shape": "HumanResponsePayload{decision, notes}"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "StoryAnalysisWorkflowCompleted \u2014 the Workflow returns a final result (analysis passed the rubric, or was resolved via human decision) and the Cadence Service closes the Event History for the run. Alex inspects `cadence workflow describe` or the Web UI to confirm every Activity, retry, and Signal that occurred, satisfying the auditability/traceability acceptance criteria.",
+      "layers_involved": ["Workflow", "Cadence Service", "Client"],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow",
+          "to_layer": "Cadence Service",
+          "contract_used": "CadenceClientInteraction",
+          "data_shape": "WorkflowResult{final_analysis_path, passed, attempt_count, escalated}"
+        },
+        {
+          "from_layer": "Cadence Service",
+          "to_layer": "Client",
+          "contract_used": "CadenceClientInteraction",
+          "data_shape": "DescribeWorkflowExecutionResponse{event_history, close_status}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "StartStoryAnalysisWorkflow",
+      "description": "Emitted when a client starts a new WorkflowExecution for the Story Analysis Workflow.",
+      "layers_involved": ["Client", "Cadence Service"],
+      "data_points": [
+        { "point": "workflow_id", "description": "Deterministic WorkflowID derived from the story document path/hash, used to reject duplicate concurrent runs." },
+        { "point": "domain", "description": "Cadence domain the workflow is registered/started under." },
+        { "point": "task_list", "description": "Task list the Worker(s) poll for this workflow." }
+      ]
+    },
+    {
+      "event_name": "InvokeSkillActivity",
+      "description": "Emitted each time the Workflow schedules one of the four SDLC skill Activities (extract-story-intent, analyze-story, grade-story-analysis, repair-story-analysis).",
+      "layers_involved": ["Workflow", "Activity"],
+      "data_points": [
+        { "point": "skill_name", "description": "Which of the four SDLC skills is being invoked." },
+        { "point": "attempt_number", "description": "Cadence-managed retry attempt number for this Activity Task (distinct from the outer grade-repair attempt_count)." },
+        { "point": "input_paths", "description": "Repository-relative paths of the input document(s) passed to the skill." }
+      ]
+    },
+    {
+      "event_name": "CompleteSkillActivity",
+      "description": "Emitted when a skill Activity finishes (success or failure), based on the Activity's return value and the sentinel file it wrote.",
+      "layers_involved": ["Activity", "Repository"],
+      "data_points": [
+        { "point": "status", "description": "success | failure, derived from Activity return value and presence/validity of the sentinel file." },
+        { "point": "output_path", "description": "Repository-relative path of the artifact JSON written by the skill." },
+        { "point": "duration_ms", "description": "Wall-clock time the underlying `devin` CLI subprocess took to run the skill." }
+      ]
+    },
+    {
+      "event_name": "EvaluateGradeRepairLoop",
+      "description": "Emitted after each grade-story-analysis Activity completes, capturing the branch decision the Workflow makes.",
+      "layers_involved": ["Workflow"],
+      "data_points": [
+        { "point": "score", "description": "Overall grade score returned by grade-story-analysis." },
+        { "point": "passed", "description": "Whether the score met the rubric's pass threshold." },
+        { "point": "attempt_count", "description": "Current durable grade-repair attempt count (0-3)." },
+        { "point": "decision", "description": "proceed | repair | escalate." }
+      ]
+    },
+    {
+      "event_name": "RaiseHumanEscalationSignal",
+      "description": "Emitted when the Workflow opens a Signal-or-Timer wait for human input, whether due to loop exhaustion or an ambiguous Activity result.",
+      "layers_involved": ["Workflow", "Cadence Service"],
+      "data_points": [
+        { "point": "escalation_reason", "description": "grade_repair_exhausted | activity_flagged_ambiguity | activity_failure_exhausted_retries." },
+        { "point": "timeout_duration", "description": "Configured bounded wait duration before re-escalation/failure." }
+      ]
+    },
+    {
+      "event_name": "ReceiveHumanResponseSignal",
+      "description": "Emitted when the `human_response` Signal is delivered to the running Workflow.",
+      "layers_involved": ["Client", "Cadence Service", "Workflow"],
+      "data_points": [
+        { "point": "decision", "description": "retry | accept | abort, as chosen by the human." },
+        { "point": "notes", "description": "Optional free-text guidance from the human, consumable by a subsequent repair-story-analysis attempt." }
+      ]
+    },
+    {
+      "event_name": "CompleteStoryAnalysisWorkflow",
+      "description": "Emitted once when the Workflow reaches a terminal state (completed, escalated-and-resolved, or failed).",
+      "layers_involved": ["Workflow", "Cadence Service"],
+      "data_points": [
+        { "point": "final_status", "description": "passed | human_resolved | failed." },
+        { "point": "total_attempt_count", "description": "Final grade-repair attempt_count when the workflow closed." },
+        { "point": "final_analysis_path", "description": "Repository-relative path of the analysis JSON considered final." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Client",
+      "new_responsibilities": [
+        { "responsibility": "Start the Story Analysis WorkflowExecution with the story document and domain/task-list/retry configuration.", "intent": "Only the client has access to the story document and the operator's chosen configuration; starting the run is where that information first enters the system." },
+        { "responsibility": "Send the `human_response` Signal and read Workflow status via Query/`cadence workflow describe`.", "intent": "Human decision-making and observability are display/interaction concerns, not orchestration or execution concerns (per Frontend heuristics: display, sequence, human interaction)." }
+      ]
+    },
+    {
+      "layer": "Workflow",
+      "new_responsibilities": [
+        { "responsibility": "Deterministically sequence the four SDLC skill Activities (extract-story-intent \u2192 analyze-story \u2192 grade-story-analysis \u2194 repair-story-analysis).", "intent": "Sequencing business process steps is the workflow's defensible zone per ADR-003 (workflows coordinate skill invocation)." },
+        { "responsibility": "Maintain the grade-repair attempt_count as durable in-process state, capped at 3.", "intent": "This counter's value is only meaningful to the orchestration itself, and Cadence's replay model durably preserves local workflow variables without needing an external store." },
+        { "responsibility": "Decide proceed/repair/escalate branching from each grade result.", "intent": "This is core business logic for the story's grade-repair loop (ADR-005/ADR-006), which belongs in the layer that owns process control flow." },
+        { "responsibility": "Configure and apply a RetryPolicy per Activity, independent of the outer grade-repair loop.", "intent": "Resilience/performance tuning for transient failures is an orchestration concern distinct from the skills' own logic." },
+        { "responsibility": "Open the Signal-or-Timer wait for human escalation, including bounded-timeout re-escalation.", "intent": "Only the Workflow can durably 'wait' across process/host failures; this is Cadence's core value proposition (fault-oblivious waiting)." }
+      ]
+    },
+    {
+      "layer": "Activity",
+      "new_responsibilities": [
+        { "responsibility": "Invoke the underlying SDLC skill for each step by shelling out to the `devin` CLI (mirroring evals/devin.js), passing the skill name and input document paths.", "intent": "Skill execution is agentic (LLM + file tools) and therefore a side effect; side effects belong in Activities, never in workflow code (determinism requirement)." },
+        { "responsibility": "Read the skill's resulting JSON artifact and its sentinel file, and translate sentinel absence/`verify.sh` failure into an ActivityFailure.", "intent": "The Activity is the boundary that must reconcile the pre-existing file-based completion contract (ADR-004) with Cadence's typed Activity result/failure model." },
+        { "responsibility": "Be idempotent/overwrite-safe so repeated Activity attempts (Cadence retries) don't corrupt repository state.", "intent": "Cadence may re-execute an Activity after a Worker crash or transient failure; only the Activity (the side-effecting code) can guarantee its own idempotency." }
+      ]
+    },
+    {
+      "layer": "Cadence Service",
+      "new_responsibilities": [
+        { "responsibility": "Persist the WorkflowExecution's Event History (every Activity call, retry, Signal, Query, Timer).", "intent": "Durable state persistence is Cadence's own architectural responsibility and directly satisfies the story's auditability acceptance criterion." },
+        { "responsibility": "Enforce domain/task-list scoping so only authorized Workers and clients can start, signal, or poll this workflow.", "intent": "Access/security enforcement belongs in the backend/service layer, not the client." },
+        { "responsibility": "Schedule Decision Tasks and Activity Tasks to Workers polling the configured Task List, applying each Activity's RetryPolicy.", "intent": "Task dispatch and retry mechanics are the service's job; the Workflow only declares the policy." }
+      ]
+    },
+    {
+      "layer": "Repository",
+      "new_responsibilities": [
+        { "responsibility": "Store each step's artifact (intent.json, analysis.json, analysis-grade.json, repaired analysis.json) and sentinel file exactly as the manually-invoked skills do today.", "intent": "Storage and schema/data integrity for skill outputs is a data-layer concern (ADR-004); keeping the same file shapes means no downstream tooling (verify.sh, hooks, evals) needs to change." }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "WorkflowInput",
+      "description": "The input payload passed to StartWorkflowExecution for the Story Analysis Workflow.",
+      "changes": {
+        "added": "{ story_document: string (repo-relative path or verbatim text), config: { domain: string, task_list: string, retry_policy: { initial_interval, backoff_coefficient, maximum_attempts } } }",
+        "modified": "n/a \u2014 net-new contract, no prior Workflow input existed",
+        "removed": "none"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "GradeRepairLoopState",
+      "description": "Durable, in-process (not file-persisted) Workflow state tracking the bounded grade-repair loop.",
+      "changes": {
+        "added": "{ attempt_count: int (0-3), max_attempts: 3, last_grade_path: string, escalated: bool, escalation_reason: string|null }",
+        "modified": "none",
+        "removed": "none"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "SkillActivityInterface",
+      "description": "The uniform interface each of the four SDLC-skill Activity wrappers exposes to the Workflow, reused across extract-story-intent, analyze-story, grade-story-analysis, and repair-story-analysis so the Workflow can call all four the same way.",
+      "changes": {
+        "added": "Input: { skill_name: string, input_paths: string[], context?: string }. Output: { output_path: string, sentinel_path: string, status: \"success\"|\"failure\" }",
+        "modified": "none \u2014 the underlying skills' own SKILL.md/schema/verify.sh contracts (ADR-004) are unchanged; the Activity is a new thin adapter layer in front of them",
+        "removed": "none"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "HumanEscalationSignal",
+      "description": "The Signal and Query surface used for human-in-the-loop escalation.",
+      "changes": {
+        "added": "Signal \"human_response\": { decision: \"retry\"|\"accept\"|\"abort\", notes?: string }. Query \"get_status\": returns { step: string, attempt_count: int, escalated: bool, escalation_reason: string|null }",
+        "modified": "none \u2014 net-new contract",
+        "removed": "none"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "CadenceClientInteraction",
+      "description": "The pattern by which the Client (Alex, CI, or another engineer) interacts with the running Workflow via the `cadence` CLI or gRPC client.",
+      "changes": {
+        "added": "StartWorkflowExecution (with WorkflowIDReusePolicy=RejectDuplicate and a deterministic WorkflowID derived from the story path), SignalWorkflowExecution(\"human_response\"), QueryWorkflowExecution(\"get_status\"), DescribeWorkflowExecution for audit/Event History inspection",
+        "modified": "none \u2014 replaces today's fully manual, ad-hoc invocation of each skill one at a time",
+        "removed": "Manual, hand-tracked sequential invocation of extract-story-intent \u2192 analyze-story \u2192 grade-story-analysis \u2192 repair-story-analysis by Alex"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Wrap each existing SDLC skill (extract-story-intent, analyze-story, grade-story-analysis, repair-story-analysis) as a thin Cadence Activity that shells out to the `devin` CLI in single-turn/non-interactive mode, rather than reimplementing the skills' logic natively in Python.",
+      "justification": "Skills are agentic instructions (LLM + file/tool use) authored for an AI coding agent, not deterministic library functions, so they cannot run as workflow code (which must be deterministic) or as a plain Python function; a subprocess boundary is the natural Activity side effect.",
+      "basis": "ADR-003 (Skills-Based Architecture with Workflow Coordination \u2014 workflows coordinate skills, they don't reimplement them); pattern seen in evals/devin.js, which already invokes `devin -p --permission-mode auto --model <model> -- <prompt>` via spawnSync as a non-interactive subprocess.",
+      "impact": "One Activity function per skill (or a single generic `run_skill_activity(skill_name, input_paths)` Activity parameterized by skill name); each Activity's `start_to_close_timeout`/`heartbeat_timeout` must be sized for LLM-agent runtime, not typical sub-second Activity latency.",
+      "answers_open_question": "How does a Cadence Activity invoke an agentic SDLC skill that requires an LLM+file-tools rather than being a pure function? (implied by dependencies.technical.new_code: 'Cadence Activity implementations wrapping each of the four SDLC skill steps')"
+    },
+    {
+      "decision": "Keep using the existing sentinel-file (`.process/{skill}.done.json`) + `verify.sh` contract as the authoritative success/failure signal for a skill Activity, in addition to the Activity's typed return value.",
+      "justification": "Preserves ADR-004's completion/verification contract so existing hooks (post-edit-verify-skill.sh), evals, and human reviewers keep working identically whether a step was run manually or via the new Workflow; avoids maintaining two parallel notions of 'the skill succeeded.'",
+      "basis": "ADR-004: Skill Output Contracts & Sentinel Files.",
+      "impact": "The Activity wrapper reads the sentinel file after the `devin` subprocess exits; a missing/malformed sentinel or a non-zero `verify.sh` exit is translated into an ActivityFailure so Cadence's RetryPolicy engages.",
+      "answers_open_question": "How should the new Activities interoperate with the repo's existing per-skill verification hook without duplicating it? (dependencies.technical.existing_code: 'Sentinel file / .process/ completion contract (ADR-004) that each Activity currently writes')"
+    },
+    {
+      "decision": "Track the grade-repair attempt_count as in-process Workflow state (a plain loop variable, durably preserved by Cadence's Event-History replay), capped at 3, rather than persisting it to a separate file.",
+      "justification": "Cadence's fault-oblivious model already durably preserves local workflow variables across host/process failures, so a second file-based counter would be a redundant, driftable source of truth for information the Workflow itself owns.",
+      "basis": "cadence-workflow-orchestration skill, 01-concepts/workflows.md (determinism/replay model); explicit Workflow-state requirement from the story's capability_breakdown.state_changes ('A grade-repair attempt counter tracked as Workflow state').",
+      "impact": "Workflow function contains a bounded loop (`for attempt in range(1, max_attempts + 1)`) calling grade-story-analysis then conditionally repair-story-analysis; on exhaustion it transitions to escalation instead of retrying indefinitely.",
+      "answers_open_question": "Where does the grade-repair attempt counter live, and how is it kept consistent with repository state? (open_questions is silent on this; resolved via the story's own state_changes description)"
+    },
+    {
+      "decision": "Implement human escalation as a named Signal (\"human_response\") combined with a bounded Timer via a Cadence Selector, rather than an indefinite blocking wait.",
+      "justification": "Satisfies the story's edge case that an unanswered escalation must not hang the Workflow forever; on timeout the Workflow re-escalates once (re-notifies) and then fails gracefully, recording the timeout in Event History as required.",
+      "basis": "cadence-workflow-orchestration skill, 03-python-client/messaging.md (Signal handling) and 01-concepts/timers-and-schedules.md (durable timers); explicit story acceptance criterion 'Human escalation timeout: no human responds to an escalation Signal within a bounded wait.'",
+      "impact": "Workflow adds a Selector over the `human_response` Signal channel and a configurable Timer; the timeout duration is a new configuration value alongside domain/task_list/retry_policy in WorkflowInput.config.",
+      "answers_open_question": "What Signal and Query names/payload shapes should be used for human-in-the-loop escalation ... and for external tooling to introspect current workflow state? (open_questions[0]) \u2014 resolved as Signal \"human_response\"{decision, notes} and Query \"get_status\"{step, attempt_count, escalated, escalation_reason}."
+    },
+    {
+      "decision": "Run the example against a local Cadence server configured for embedded-SQLite persistence for this story, launched via a custom docker-compose.yml running the `ubercadence/server` image (no Cassandra container, no building the `cadence-server` binary from source), with domain registration and Worker startup documented as manual local-dev steps (not a shared/persistent cluster).",
+      "justification": "The story's target persona and journey describe a local working example an engineer runs and inspects; a shared cluster adds infrastructure/ops scope (Cassandra/MySQL, multi-node topology) not required to demonstrate the orchestration pattern. Running the official server image via Docker keeps the zero-dependency SQLite persistence model while avoiding a from-source build (`git clone` + `make bins`), which is slower and adds a Go toolchain dependency for engineers who just want to run the example.",
+      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md (Option A: embedded SQLite is the zero-dependency path; Option B: docker-compose is documented but defaults to Cassandra) and 04-configuration/local-server-config.md (persistence backend is a config/env concern of the `ubercadence/server` image, independent of whether it's run via binary or Docker); story's affected_components.database listing embedded SQLite as the local-dev store.",
+      "impact": "README/documentation for this story covers `docker compose up` against a custom compose file that runs the `ubercadence/server` image configured for embedded-SQLite persistence (no `CASSANDRA_SEEDS`), domain registration via the `cadence` CLI (or its Docker image), and starting the Worker \u2014 not production cluster operations, and not a from-source build.",
+      "answers_open_question": "Should the example workflow run against a local embedded-SQLite Cadence server, or target a shared/persistent Cadence cluster? (open_questions[1])"
+    },
+    {
+      "decision": "Apply a modest per-Activity RetryPolicy (e.g., initial_interval=1s, backoff_coefficient=2.0, maximum_attempts=3) to each of the four skill Activities, kept independent of and smaller in scope than the outer 3-attempt grade-repair loop.",
+      "justification": "Activity-level retries handle transient failures (Cadence service hiccups, `devin` subprocess crash) and are Cadence's built-in mechanism for the story's 'Error handling: an Activity fails repeatedly and exhausts its RetryPolicy' criterion; using the same cap (3) as the outer loop keeps worst-case latency predictable and easy to reason about for a demonstration workflow.",
+      "basis": "cadence-workflow-orchestration skill, 04-configuration/retry-policies-and-timeouts.md; explicit story acceptance criterion on RetryPolicy exhaustion surfacing via Signal/query for human review.",
+      "impact": "ActivityOptions for each of the four Activities specify this RetryPolicy; when an Activity exhausts it, the Workflow catches the resulting ActivityFailure and routes to the same HumanEscalationSignal path used for grade-repair exhaustion (escalation_reason='activity_failure_exhausted_retries').",
+      "answers_open_question": "What RetryPolicy (initial interval, backoff coefficient, max attempts) should apply to each SDLC skill Activity, independent of the outer 3-attempt grade/repair loop? (open_questions[2])"
+    },
+    {
+      "decision": "When the grade/repair loop is exhausted after 3 attempts, the Workflow completes with a 'needs human review' terminal status (not an outright failure), preserving the last (highest-attempt) analysis JSON as the persisted final version, pending the human's `human_response` Signal.",
+      "justification": "An outright failure would discard 3 attempts' worth of progressively-repaired analysis and force a full restart; completing with a clear 'needs human review' status keeps the best-available analysis in the repository (matching the story's requirement that agentic actions affect repository state) while still making the need for human judgement explicit and auditable.",
+      "basis": "Story's capability_breakdown.outputs ('A final analysis JSON that either passed grade-story-analysis or exhausted the 3-attempt repair loop and was escalated to a human'); ADR-005/ADR-006 (qualitative grading provides feedback, not a hard reject) as precedent for treating a failing grade as 'needs more work' rather than a hard error.",
+      "impact": "WorkflowResult includes a `final_status` of `passed | human_resolved | needs_human_review`; the Repository always retains the latest analysis.json (from the final repair-story-analysis attempt) rather than deleting/rolling it back.",
+      "answers_open_question": "When the grade/repair loop is exhausted after 3 attempts, should the Workflow fail outright, or complete with a 'needs human review' status while preserving the best-scoring analysis attempt? (open_questions[3])"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What Signal and Query names/payload shapes should be used for human-in-the-loop escalation (including escalation after the 3rd failed repair attempt) and for external tooling to introspect current workflow state?",
+      "answer": "A single Signal named \"human_response\" with payload { decision: \"retry\"|\"accept\"|\"abort\", notes?: string }, and a single Query named \"get_status\" returning { step, attempt_count, escalated, escalation_reason }. The same Signal/Query pair is reused for both mid-step ambiguity escalation and post-3rd-attempt escalation; the escalation_reason field distinguishes the cause.",
+      "justification": "One uniform Signal/Query pair keeps the Worker/Workflow code and any external tooling (Slack bot, CLI helper) simple, since escalation always resolves to the same three human decisions regardless of what triggered it.",
+      "basis": "Story's affected_components.api listing SignalWorkflowExecution/QueryWorkflowExecution; ADR-006 grader-feedback pattern as precedent for a small, fixed decision vocabulary."
+    },
+    {
+      "question": "Should the example workflow run against a local embedded-SQLite Cadence server, or target a shared/persistent Cadence cluster?",
+      "answer": "Local Cadence server with embedded-SQLite persistence, run via Docker (a custom docker-compose.yml wrapping the `ubercadence/server` image, not the from-source binary build and not the Cassandra-backed docker-compose in the quickstart); documentation is scoped to local dev, not production cluster operations.",
+      "justification": "Matches the persona's journey (Alex runs and inspects the example locally) and avoids introducing Cassandra/MySQL/multi-node ops scope that the skill explicitly says it does not cover. Using Docker instead of a from-source build removes the Go toolchain/build-tooling dependency for engineers reproducing the example, while keeping the zero-dependency SQLite persistence model.",
+      "basis": "cadence-workflow-orchestration skill, 00-get-started/local-quickstart.md (Option A vs. Option B) and its explicit scope statement ('does not cover production cluster operations'); 04-configuration/local-server-config.md documenting persistence backend as an independent config/env concern of the server image."
+    },
+    {
+      "question": "What RetryPolicy (initial interval, backoff coefficient, max attempts) should apply to each SDLC skill Activity, independent of the outer 3-attempt grade/repair loop?",
+      "answer": "initial_interval=1s, backoff_coefficient=2.0, maximum_interval=30s, maximum_attempts=3 for each of the four skill Activities \u2014 independent of, and matching the same cap as, the outer grade-repair loop.",
+      "justification": "A small, exponential-backoff retry budget is standard for Activities that call an external subprocess (`devin` CLI) which can fail transiently (rate limits, transient tool errors) without needing an unbounded retry budget for a demonstration workflow.",
+      "basis": "cadence-workflow-orchestration skill, 04-configuration/retry-policies-and-timeouts.md documented defaults/patterns."
+    },
+    {
+      "question": "When the grade/repair loop is exhausted after 3 attempts, should the Workflow fail outright, or complete with a 'needs human review' status while preserving the best-scoring analysis attempt?",
+      "answer": "Complete with a 'needs_human_review' terminal status, preserving the latest (highest-attempt) analysis JSON in the repository, and still offer the human an `accept`/`retry`/`abort` decision via the human_response Signal before the Workflow fully closes.",
+      "justification": "Preserves the repository-state acceptance criterion (agentic actions must leave artifacts behind) and gives the human a decision point rather than silently discarding 3 attempts of repair work.",
+      "basis": "Story's capability_breakdown.outputs and dependencies.story.blocks (downstream documentation expects a final analysis JSON to exist either way)."
+    },
+    {
+      "question": "Should human escalation be delivered purely via a Cadence Signal, or paired with an external notification (e.g., Slack/email) that instructs the human how to send that Signal? (stakeholder_questions[0])",
+      "answer": "For this example, escalation is delivered purely via the Cadence Signal/Query mechanism (visible through `cadence workflow describe`/Web UI and the `get_status` Query); external notification (Slack/email) is called out as a documented future extension point, not built in this story.",
+      "justification": "Keeps the working example's scope to what the story explicitly asks for (demonstrating Signal-based escalation and auditability via Cadence tooling); adding a Slack/email integration would introduce an unscoped external-service dependency.",
+      "basis": "Story's affected_components.external_services lists only the Cadence service and Worker \u2014 no notification service is listed as an input/dependency."
+    },
+    {
+      "question": "Should repair-story-analysis have access to the full analysis-grade feedback (all dimensions) or only the failing dimensions when attempting a repair? (stakeholder_questions[1])",
+      "answer": "Pass the full analysis-grade JSON (all dimensions, not just failing ones) as input to repair-story-analysis.",
+      "justification": "The existing repair-story-analysis SKILL.md already reads 'the Analysis Grade feedback' as a whole document and applies grader recommendations directly (ADR-007: skills read their input documents directly rather than depending on a filtered/pre-processed subset); filtering would require new Workflow-side logic to parse and subset the grade JSON, adding coupling ADR-007 explicitly avoids.",
+      "basis": "ADR-007 (Skill Input Independence); .devin/skills/repair-story-analysis/SKILL.md step 4 ('Read the Analysis Grade feedback')."
+    }
+  ]
+}

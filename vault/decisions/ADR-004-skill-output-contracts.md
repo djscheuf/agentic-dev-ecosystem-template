@@ -44,3 +44,13 @@ A hook monitors the `.process/` directory for new sentinel files. When a sentine
 
 - [ADR-003: Skills-Based Architecture with Workflow Coordination](ADR-003-skills-based-architecture.md)
 - [ADR-005: Quantitative vs. Qualitative Analysis Separation](ADR-005-analysis-separation.md)
+
+## Runtime consumption update (2026-09-02)
+
+The verification hook may consume and delete a sentinel before the Skill Activity reads it. A missing sentinel after a successful harness invocation therefore produces a warning rather than failing a known Story Analysis skill; the Activity derives the artifact path from that skill's output naming convention. Present but malformed sentinels remain errors.
+
+> **Stale as of 2026-09-08:** Verification no longer consumes sentinel files, so the missing-sentinel fallback described above no longer applies.
+
+## Co-located persistent sentinels (2026-09-08)
+
+Sentinels live at `<first_input_parent>/.process/<skill-name>.done.json`; invocations without input paths use the repository-root `.process/` directory. Verification leaves sentinels in place, while the runtime deletes only the exact stale sentinel before invoking a skill. A successful harness invocation without the expected sentinel is an error.
