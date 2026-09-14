@@ -36,22 +36,47 @@ An agent operating inside the Cadence workflow. It may inspect the current state
 
 A user authorized to accept or reject a proposed change to evaluation definitions, especially LLM-graded rubrics. Human approval is required before such a change is applied or retained.
 
+## Enabling Capability: Target Repository Context
+
+The EDD ratchet depends on a cross-cutting orchestration capability that does not yet exist end to end: a workflow must be able to operate on a target Git repository other than the repository containing and running the Cadence worker code.
+
+The workflow input must carry enough information to resolve one canonical target repository root. The primary resolution rule is to start from an input document or other repository-anchored input path and select its nearest ancestor containing the applicable Git worktree root. An optional explicit repository root may be supplied when there is no natural input document or when the caller needs an unambiguous override. If both an anchor path and an explicit root are supplied, preflight must verify that they resolve to the same Git worktree; disagreement is an input error.
+
+The resolved target repository context becomes immutable workflow-run state and includes at least:
+
+- canonical absolute Git worktree root;
+- caller-facing repository anchor and repository-relative form;
+- Git branch or detached-HEAD state and starting commit;
+- clean-worktree evidence captured during preflight;
+- repository identity suitable for correlating Activities and preventing concurrent conflicting runs.
+
+Every filesystem, subprocess, skill, prompt, evaluation, Git, sentinel, and output operation must receive and use this target repository context explicitly. No Activity may infer its operational repository from `__file__`, the worker process startup directory, or the orchestration package location. Cadence workflow code carries only the resolved context and delegates filesystem validation and use to Activities.
+
+The target repository, not the orchestration repository, owns the skills, skill-supporting documents, evaluation configuration, tests, repository rules, and local agent configuration used by invoked agentic Activities. Skill discovery and invocation occur with the target root as the working directory and must not silently fall back to similarly named skills in the orchestration repository.
+
+This capability is an implementation prerequisite for the EDD ratchet and should be delivered as shared orchestration infrastructure so existing and future workflows can use the same repository-context contract.
+
 ## Preconditions
 
 The workflow must reject the request during preflight unless all of the following are true:
 
-1. The target skill already exists.
-2. The target skill already has an evaluation suite.
-3. The requester supplies a non-empty set of required test cases for use during refinement.
-4. The complete evaluation suite can be invoked deterministically through a requester-supplied command.
-5. The promptfoo evaluation resolves to exactly one execution provider for the entire refinement run.
-6. A maximum iteration count, cumulative token budget, or both are supplied.
-7. The workflow can identify the files that the refiner is allowed to modify.
-8. The repository begins in a state that permits changes made by this workflow to be isolated from unrelated work.
-9. The evaluation output exposes enough structured data to calculate the configured score and determine pass, fail, timeout, or execution error.
-10. The workflow has a configured timeout for each long-running evaluation Activity.
+1. The repository anchor path exists and resolves to exactly one accessible Git worktree root, or an explicit target repository root is supplied and valid.
+2. When both an anchor path and explicit root are supplied, they identify the same Git worktree.
+3. Every repository-scoped input path belongs to the resolved target repository and does not escape it after canonicalization and symlink resolution.
+4. The target repository worktree is completely clean, with no unrelated staged, unstaged, or untracked changes.
+5. No other workflow run holds the mutation lease for the same target repository.
+6. The target skill exists in the target repository.
+7. The target skill already has an evaluation suite in the target repository.
+8. The requester supplies a non-empty set of required test cases for use during refinement.
+9. The complete evaluation suite can be invoked deterministically from the target repository root through a requester-supplied command.
+10. The promptfoo evaluation resolves to exactly one execution provider for the entire refinement run.
+11. A maximum iteration count, cumulative token budget, or both are supplied.
+12. The workflow can identify the target-repository-relative files that the refiner is allowed to modify.
+13. The evaluation output exposes enough structured data to calculate the configured metrics and determine pass, fail, timeout, or execution error.
+14. The workflow has a configured timeout for each long-running evaluation Activity.
+15. Every Activity worker that may execute the run can access the same target repository at the resolved path with the required read or write permissions.
 
-Preflight must have no refining side effects. On failure, it reports every failed condition and does not create a refinement commit.
+Preflight must have no refining side effects other than acquiring an explicit, releasable repository mutation lease. On failure, it reports every failed condition, releases any acquired lease, and does not invoke an agent or create a refinement commit.
 
 ## Proposed Input Template
 
@@ -59,11 +84,13 @@ The initial contract should capture the following information. Exact field names
 
 | Input | Required | Purpose |
 |---|---:|---|
-| Target skill identifier or path | Yes | Selects the existing skill to refine. |
-| Evaluation configuration path | Yes | Identifies the existing promptfoo suite. |
-| Evaluation command | Yes | Provides the deterministic CLI invocation for the complete suite. |
+| Repository anchor path | Conditional | Identifies an input document or path from which the nearest Git worktree root is derived. Required unless an explicit root is supplied. |
+| Explicit target repository root | Conditional | Selects the Git worktree directly. Required when no anchor path is available; when both are supplied, it must match the anchor-derived root. |
+| Target skill identifier or path | Yes | Selects the existing skill within the target repository to refine. |
+| Evaluation configuration path | Yes | Identifies the existing promptfoo suite relative to the target repository. |
+| Evaluation command | Yes | Provides the deterministic CLI invocation for the complete suite, executed from the target repository root. |
 | Required test cases | Yes | Defines scenarios that must be present or added and must remain exercised throughout the run. |
-| Authorized file scope | Yes | Limits which skill, support-document, scripted-check, and evaluation files may change. |
+| Authorized file scope | Yes | Limits which target-repository-relative skill, support-document, scripted-check, and evaluation files may change. |
 | Single provider identifier | Yes | Pins the only promptfoo execution provider permitted during the run. |
 | Evaluation metric mapping | Yes | Defines how structured results expose passing, failing, and total evaluations and required test-case coverage for ratchet comparison. |
 | Evaluation timeout | Yes | Bounds each promptfoo evaluation Activity, expected to accommodate suites that may run for 10–20 minutes. |
@@ -125,14 +152,18 @@ A change is never accepted merely because it increases the denominator, rearrang
 
 ### 1. Preflight
 
-A deterministic Activity validates all entry conditions, normalizes the request, verifies single-provider use, confirms the evaluation command and score parser, and records the resolved limits. It must distinguish invalid input from infrastructure failure.
+A deterministic Activity resolves and canonicalizes the target Git worktree root from the repository anchor and optional explicit root. It validates repository membership for every scoped path, captures the starting branch and commit, requires an empty Git status including untracked files, verifies worker access, and acquires a repository-scoped mutation lease before refinement. It then validates the remaining entry conditions, normalizes target-repository-relative paths, verifies single-provider use, confirms the evaluation command and metric parser from the target root, and records the resolved limits.
+
+The resolved repository context must be returned as structured data and snapshotted into workflow state so every later Activity receives the same root and starting identity. Preflight must distinguish invalid input, dirty-worktree rejection, repository-busy rejection, access failure, and infrastructure failure.
 
 ### 2. Initialize Progress Record
 
 Create a schema-versioned JSON progress document containing:
 
 - workflow and run identity;
-- normalized inputs and authorized scope;
+- resolved target repository identity, canonical root, anchor, starting branch/HEAD state, and commit;
+- clean-worktree and repository-lease evidence;
+- normalized target-repository-relative inputs and authorized scope;
 - provider and evaluation command identity;
 - iteration and token limits;
 - evaluation metric mapping and coverage adequacy criteria;
@@ -260,28 +291,38 @@ Updates must be atomic, schema-validated, and idempotent for a workflow run and 
 
 ### Workflow Code
 
-- Own deterministic control flow, iteration state, budget checks, score comparisons, and stop conditions.
-- Never invoke the CLI, inspect Git, access files, or call an agent directly.
+- Own deterministic control flow, immutable resolved repository context, iteration state, budget checks, score comparisons, and stop conditions.
+- Pass the same target repository context explicitly to every repository-scoped Activity.
+- Never invoke the CLI, resolve paths, inspect Git, access files, or call an agent directly.
 - Wait durably for human approval through a Signal and expose current status through a Query.
-- Carry logical iteration identity across Activity retries.
+- Carry logical iteration and repository identity across Activity retries and Continue-As-New.
 
 ### Activities
 
 Activities perform all side effects, including:
 
-- preflight inspection;
+- target Git worktree discovery, canonicalization, access validation, and mutation-lease management;
+- clean-worktree and starting-revision inspection;
 - progress-record publication;
-- prompt or skill invocation;
-- repository diff inspection and scope validation;
-- promptfoo CLI execution and result parsing;
-- deterministic Git commit creation;
-- restoration of the last accepted working state;
-- final report publication.
+- prompt or skill invocation from the target repository root;
+- repository diff inspection and target-relative scope validation;
+- promptfoo CLI execution from the target repository root and result parsing;
+- deterministic Git commit creation in the target repository;
+- restoration of the target repository to the last accepted working state;
+- final report publication and mutation-lease release.
 
-Long-running promptfoo Activities must use explicit start-to-close timeouts, heartbeat while work is active when practical, honor cancellation, and return artifact references rather than oversized raw output. Activities that mutate files or create commits must be idempotent under retry.
+A shared Activity boundary must validate the supplied repository context before each side effect, set subprocess `cwd` explicitly, resolve sentinel and output paths against the target root, and reject paths that escape the worktree. Activity implementations must not retain a process-global repository root selected from their installed source location.
+
+Long-running promptfoo Activities must use explicit start-to-close timeouts, heartbeat while work is active when practical, honor cancellation, and return artifact references rather than oversized raw output. Activities that mutate files, leases, or commits must be idempotent under retry.
 
 ## Guardrails and Invariants
 
+- Repository root is resolved once during preflight and remains immutable for the workflow run.
+- All repository-scoped paths are canonicalized, represented relative to the target root in durable contracts where practical, and rejected if they escape that root.
+- The target worktree is clean before the baseline, and its branch/HEAD state and starting commit are recorded.
+- Every Activity and subprocess operates on the target repository explicitly; none defaults to the orchestration code repository.
+- Invoked skills, repository rules, and agent configuration come from the target repository.
+- At most one mutating workflow holds the lease for a target worktree, and the lease is released on every terminal path.
 - Exactly one promptfoo execution provider is used for all comparable evaluations in a run.
 - The baseline and candidate evaluations use the same command, configuration, provider, metric mapping, coverage criteria, and required test set unless an exact evaluation change receives human approval.
 - The refiner cannot silently remove, skip, weaken, or rewrite a failing test to improve its score.
@@ -299,6 +340,19 @@ Long-running promptfoo Activities must use explicit start-to-close timeouts, hea
 - A retry of an Activity does not consume an additional logical iteration, though its actual token usage must still count toward the cumulative budget when observable.
 - The workflow never claims improvement when scores are incomparable or evaluation evidence is incomplete.
 - The final state is no worse than the successfully measured baseline under the authoritative unchanged measurement, unless the requester explicitly accepts a changed-measurement outcome.
+
+## Target Repository Acceptance Criteria
+
+1. Given a repository-anchored input path and no explicit root, when preflight runs, then it resolves the nearest containing Git worktree root and records its canonical path and starting revision.
+2. Given both an anchor-derived root and an explicit root, when they identify different worktrees, then preflight rejects the request before invoking an agent.
+3. Given an input, skill, evaluation, or authorized-scope path that resolves outside the target worktree, when preflight validates it, then the request is rejected.
+4. Given the target worktree contains staged, unstaged, or untracked changes, when preflight inspects Git status, then the workflow rejects the request and leaves the worktree unchanged.
+5. Given another mutating workflow owns the target repository lease, when preflight runs, then the workflow rejects or waits according to policy without starting refinement.
+6. Given a valid external target repository, when any agentic, promptfoo, file, sentinel, or Git Activity runs, then it uses that repository as its explicit working and path-resolution root rather than the orchestration repository.
+7. Given the target repository and orchestration repository contain skills with the same name, when a skill Activity runs, then it invokes the target repository's skill and does not silently fall back to the orchestration copy.
+8. Given an Activity retry or worker restart, when repository work resumes, then the Activity validates the same repository identity and does not redirect work to a different checkout.
+9. Given an Activity worker cannot access the resolved target root, when preflight or an Activity validates context, then the run fails safely without operating on the worker's local orchestration checkout.
+10. Given the workflow reaches any terminal outcome, when finalization completes, then its repository mutation lease is released and the progress record identifies the target repository and final accepted commit.
 
 ## Initial Acceptance Criteria
 
@@ -335,9 +389,13 @@ Long-running promptfoo Activities must use explicit start-to-close timeouts, hea
 - Fabricating token usage or monetary cost when authoritative telemetry is unavailable.
 - A graphical dashboard for progress or approval.
 - Defining a universal quality score that applies to every skill.
+- Cloning, fetching, or provisioning a target repository from a remote URL; the initial capability operates on an existing accessible local worktree.
+- Automatically installing missing target-repository dependencies during root resolution.
 
 ## Dependencies
 
+- A shared, workflow-independent target repository context contract and preflight Activity.
+- Refactoring generic Skill Activity construction so repository context is supplied per invocation rather than fixed from orchestration source location.
 - Existing generic Cadence workflow-module and Skill Activity infrastructure.
 - A generic prompt-invocation Activity capable of returning structured output, changed files, and usage evidence.
 - Deterministic promptfoo execution and structured result parsing.
@@ -355,13 +413,18 @@ Long-running promptfoo Activities must use explicit start-to-close timeouts, hea
 5. Does token usage from timed-out, failed, and retried agentic Activities count? The conservative expectation is yes whenever observable.
 6. What is the exact approval transport and authorization model for Cadence Signals?
 7. Should a rejected approval return to planning, consume an iteration, or terminate the run?
-8. What repository isolation mechanism is required: clean branch, dedicated worktree, or another transaction boundary?
+8. Is a clean caller-selected worktree sufficient isolation, or must startup create or require a dedicated worktree or branch for the run?
 9. What deterministic commit message and metadata identify workflow, run, iteration, score delta, and approval evidence?
 10. Which evaluation edits are mechanical scripted-check repairs versus expectation changes requiring approval?
 11. How should score comparability be represented after an approved evaluation change?
 12. What retry policy is safe for a 10–20 minute promptfoo invocation, and how will the Activity detect or prevent duplicate child processes after timeout or worker restart?
 13. What terminal objective, beyond budget exhaustion, allows early success—for example, all required tests passing, a target score, or no justified next action?
+14. Should an explicit repository root override be allowed to select a parent worktree different from the anchor-derived nearest Git root, or must disagreement always fail?
+15. What stable repository identity and lease mechanism prevents concurrent workflows from mutating the same worktree across worker processes or hosts?
+16. Must all Activities for one workflow route to workers sharing the same filesystem mount, or should repository access be abstracted behind a checkout/workspace service?
+17. Where should workflow operational artifacts live when the target repository differs from the orchestration repository, and which artifacts are intentionally written into the target worktree?
+18. How should target-repository skill discovery interact with globally installed skills while guaranteeing that orchestration-repository skills do not leak into the invocation?
 
 ## Desired Exit Outcome
 
-The workflow terminates within its declared limits with a complete audit record and the repository at the best accepted, evaluated commit. Under an unchanged authoritative evaluation, that state is equal to or better than the measured baseline; any improvement resulting from a human-approved measurement change is explicitly distinguished from skill-behavior improvement.
+The workflow terminates within its declared limits with a complete audit record and the resolved target repository at the best accepted, evaluated commit. Under an unchanged authoritative evaluation, that state is equal to or better than the measured baseline; any improvement resulting from a human-approved measurement change is explicitly distinguished from skill-behavior improvement. The orchestration repository remains untouched unless it is itself the explicitly resolved target.
