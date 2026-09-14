@@ -52,7 +52,7 @@
     {
       "criterion": "Both repository anchor and explicit target root are missing or empty",
       "gherkin": "Given both repository anchor and explicit target root are missing when preflight runs then the workflow rejects the request with a clear validation error",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Anchor path is not inside any Git worktree",
