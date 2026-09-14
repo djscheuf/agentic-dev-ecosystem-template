@@ -1,6 +1,24 @@
 from pathlib import Path
 
-from edd_refinement_workflow.progress_record import ProgressRecordStore
+import pytest
+from edd_refinement_workflow.progress_record import (
+    ProgressRecordSerializer,
+    ProgressRecordStore,
+    SchemaVersionMismatch,
+)
+
+
+def test_serializer_enforces_schema_version_and_field_allow_list() -> None:
+    serializer = ProgressRecordSerializer(
+        schema_version=1, allowed_fields={"schema_version", "run_id"}
+    )
+    serialized = serializer.serialize(
+        {"schema_version": 1, "run_id": "run-1", "secret_token": "shhh"}
+    )
+    assert serialized == {"schema_version": 1, "run_id": "run-1"}
+
+    with pytest.raises(SchemaVersionMismatch):
+        serializer.serialize({"schema_version": 2, "run_id": "run-1"})
 
 
 def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
