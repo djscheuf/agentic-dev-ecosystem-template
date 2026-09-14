@@ -45,7 +45,7 @@
     {
       "criterion": "Given any precondition fails, when preflight completes, then the workflow reports every failed condition and releases any lease it had acquired",
       "gherkin": "Given any precondition fails when preflight completes then the workflow reports every failed condition and releases any lease it had acquired",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "edge_cases": [
