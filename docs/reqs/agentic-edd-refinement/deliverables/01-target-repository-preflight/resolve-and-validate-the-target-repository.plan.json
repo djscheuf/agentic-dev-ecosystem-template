@@ -25,7 +25,7 @@
     {
       "criterion": "Given the target worktree has staged, unstaged, or untracked changes, when preflight inspects repository status, then the workflow rejects the request and leaves the worktree unchanged",
       "gherkin": "Given the target worktree has staged, unstaged, or untracked changes when preflight inspects repository status then the workflow rejects the request and leaves the worktree unchanged",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "criterion": "Given another workflow run already holds the mutation lease for the same target repository, when preflight runs, then the workflow rejects or waits according to configured policy without starting refinement",
@@ -77,7 +77,7 @@
     {
       "criterion": "Target worktree is dirty because of preflight-created files in a known scratch directory",
       "gherkin": "Given the only changes in the target worktree are in a configured scratch or process directory when preflight inspects status then the workflow ignores those changes and does not reject on that basis",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "criterion": "Current workflow already holds the mutation lease for the target repository",
@@ -129,12 +129,12 @@
     {
       "description": "Implement ScopedPathValidator: canonicalize scoped inputs with Path.resolve(), enforce containment via relative_to, and reject traversal or symlink escapes",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement RepositoryStatusInspector: call git status, classify changes, allow configured scratch globs when all unexpected changes are confined, and reject otherwise",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement SkillAndEvaluationDiscovery: verify the target skill directory and evaluation suite exist without parsing semantic content",
