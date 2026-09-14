@@ -7,17 +7,22 @@ class TargetRepositoryResolutionError(Exception):
 
 
 class TargetWorktreeResolver:
-    def resolve(self, anchor_path: str, explicit_root: str | None = None) -> Path:
-        anchor = Path(anchor_path)
-        anchor_root = self._git_root(anchor.parent)
+    def resolve(
+        self, anchor_path: str | None = None, explicit_root: str | None = None
+    ) -> Path:
+        if anchor_path is None and explicit_root is None:
+            raise TargetRepositoryResolutionError(
+                "anchor_path or explicit_root is required"
+            )
+        anchor_root = self._git_root(Path(anchor_path).parent) if anchor_path else None
         if explicit_root is None:
-            return anchor_root
+            return anchor_root  # type: ignore[return-value]
         explicit_root = self._git_root(Path(explicit_root))
-        if anchor_root != explicit_root:
+        if anchor_root is not None and anchor_root != explicit_root:
             raise TargetRepositoryResolutionError(
                 f"Anchor-derived root {anchor_root} conflicts with explicit root {explicit_root}"
             )
-        return anchor_root
+        return explicit_root
 
     def _git_root(self, cwd: Path) -> Path:
         try:

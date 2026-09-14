@@ -56,3 +56,20 @@ def test_resolve_matching_explicit_root_returns_canonical_worktree_root(tmp_path
     root = resolver.resolve(str(anchor), explicit_root=str(repo))
 
     assert root == repo.resolve()
+
+
+def test_resolve_explicit_root_only_returns_canonical_worktree_root(tmp_path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init"],
+        cwd=str(repo),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    resolver = TargetWorktreeResolver()
+    root = resolver.resolve(explicit_root=str(repo))
+
+    assert root == repo.resolve()
