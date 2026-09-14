@@ -31,7 +31,22 @@ class PlanRefinementActivity:
             or progress_record.get("consecutive_confirmed_regressions", 0) >= 3
         )
 
-    def plan(self, progress_record: dict, baseline: dict) -> PlanningResult:
+    def _requires_approval(self, action: str) -> bool:
+        return action == "propose_evaluation_expectation_change"
+
+    def _is_authorized(self, action: str) -> bool:
+        return (
+            action in self.taxonomy
+            and action in self.required_test_case_mapping
+            and action == action.strip().lower()
+        )
+
+    def plan(
+        self,
+        progress_record: dict,
+        baseline: dict,
+        proposed_action: str | None = None,
+    ) -> PlanningResult:
         if self._budget_exhausted(progress_record):
             return PlanningResult(
                 action="stop",
@@ -39,9 +54,27 @@ class PlanRefinementActivity:
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
+
+        if proposed_action is None:
+            return PlanningResult(
+                action="stop",
+                rationale="no action proposed in this cycle",
+                stop_recommendation=True,
+                taxonomy_version=self.taxonomy_version,
+            )
+
+        if not self._is_authorized(proposed_action):
+            return PlanningResult(
+                action="stop",
+                rationale="proposed action is not authorized or has no mapping",
+                stop_recommendation=True,
+                taxonomy_version=self.taxonomy_version,
+            )
+
         return PlanningResult(
-            action="stop",
-            rationale="no further action selected in this cycle",
-            stop_recommendation=True,
+            action=proposed_action,
+            rationale=f"selected authorized action {proposed_action}",
+            requires_approval=self._requires_approval(proposed_action),
+            stop_recommendation=False,
             taxonomy_version=self.taxonomy_version,
         )
