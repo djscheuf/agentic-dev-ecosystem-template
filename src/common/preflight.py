@@ -43,13 +43,12 @@ def resolve_and_validate_target_repository(
     except TargetRepositoryResolutionError as exc:
         return PreflightResult(status="failure", failed_conditions=[str(exc)])
 
+    failed_conditions: list[str] = []
+
     inspector = RepositoryStatusInspector()
     status = inspector.inspect(str(repo_root), scratch_globs=scratch_globs)
     if not status.is_clean:
-        return PreflightResult(
-            status="failure",
-            failed_conditions=["target worktree has unexpected changes"],
-        )
+        failed_conditions.append("target worktree has unexpected changes")
 
     if scoped_paths:
         validator = ScopedPathValidator()
@@ -57,14 +56,16 @@ def resolve_and_validate_target_repository(
             try:
                 validator.validate(path, str(repo_root))
             except TargetScopeError as exc:
-                return PreflightResult(status="failure", failed_conditions=[str(exc)])
+                failed_conditions.append(str(exc))
 
     discovery = SkillAndEvaluationDiscovery()
     skill_result = discovery.discover(skill_name, evaluation_path, str(repo_root))
     if not skill_result.ok:
+        failed_conditions.append("target skill or evaluation suite missing")
+
+    if failed_conditions:
         return PreflightResult(
-            status="failure",
-            failed_conditions=["target skill or evaluation suite missing"],
+            status="failure", failed_conditions=failed_conditions
         )
 
     store = MutationLeaseStore()
