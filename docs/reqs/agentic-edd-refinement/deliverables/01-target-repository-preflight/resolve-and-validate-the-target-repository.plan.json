@@ -15,12 +15,12 @@
     {
       "criterion": "Given both an anchor-derived root and an explicit root are supplied and they identify different Git worktrees, when preflight runs, then the request is rejected before any agent is invoked",
       "gherkin": "Given an anchor-derived root and an explicit root that identify different Git worktrees when preflight runs then the workflow rejects the request before invoking an agent",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree, when preflight validates it, then the request is rejected",
       "gherkin": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree when preflight validates it then the workflow rejects the request",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "criterion": "Given the target worktree has staged, unstaged, or untracked changes, when preflight inspects repository status, then the workflow rejects the request and leaves the worktree unchanged",
@@ -124,12 +124,12 @@
     {
       "description": "Implement TargetWorktreeResolver: resolve the nearest Git worktree from an anchor or explicit root, canonicalize both with realpath, and reject missing or conflicting roots",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement ScopedPathValidator: canonicalize scoped inputs with Path.resolve(), enforce containment via relative_to, and reject traversal or symlink escapes",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement RepositoryStatusInspector: call git status, classify changes, allow configured scratch globs when all unexpected changes are confined, and reject otherwise",
