@@ -40,7 +40,7 @@
     {
       "criterion": "Given required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid, when preflight runs, then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
       "gherkin": "Given required test cases, a deterministic evaluation command, a single execution provider, and valid iteration and token limits when preflight runs then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "criterion": "Given any precondition fails, when preflight completes, then the workflow reports every failed condition and releases any lease it had acquired",
@@ -82,7 +82,7 @@
     {
       "criterion": "Current workflow already holds the mutation lease for the target repository",
       "gherkin": "Given the current workflow run already holds a mutation lease for the same target repository when preflight runs then the workflow treats it as already acquired rather than rejecting",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Lease store is temporarily unavailable during preflight",
@@ -144,12 +144,12 @@
     {
       "description": "Implement MutationLeaseStore: persist leases keyed by repo_key and run_id with TTL, acquire, release, and is_held operations, and conflict detection",
       "layer": "database",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement MutationLeasePolicyHandler: apply immediate-reject policy, detect re-entrant same-run leases, and wrap acquisition in explicit release on terminal paths",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement resolve_and_validate_target_repository activity: sequence the checks, emit instrumentation events, and return a PreflightResult with TargetRepositoryContext",
