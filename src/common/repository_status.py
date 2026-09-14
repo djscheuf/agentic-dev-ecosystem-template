@@ -12,13 +12,16 @@ class RepositoryStatus:
 
 
 class RepositoryStatusInspector:
-    def inspect(self, repo_root: str) -> RepositoryStatus:
+    def inspect(
+        self, repo_root: str, scratch_globs: list[str] | None = None
+    ) -> RepositoryStatus:
         result = subprocess.run(
-            ["git", "-C", str(repo_root), "status", "--porcelain"],
+            ["git", "-C", str(repo_root), "status", "--porcelain", "-uall"],
             capture_output=True,
             text=True,
             check=True,
         )
+        scratch_globs = scratch_globs or []
         staged: list[str] = []
         modified: list[str] = []
         untracked: list[str] = []
@@ -26,6 +29,8 @@ class RepositoryStatusInspector:
             if not line:
                 continue
             path = line[3:].strip()
+            if any(Path(path).match(glob) for glob in scratch_globs):
+                continue
             if line.startswith("??"):
                 untracked.append(path)
             elif line[1] == "M":
