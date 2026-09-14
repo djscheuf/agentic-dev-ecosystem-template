@@ -29,3 +29,13 @@ class RunBaselineEvaluationActivity:
         self.store.save(run_id, record)
 
         return result
+
+
+from cadence import activity
+
+
+@activity.defn(name="run_baseline_evaluation")
+async def run_baseline_evaluation_activity(
+    run_id: str, profile: dict, repo_root: str
+) -> dict:
+    raise NotImplementedError

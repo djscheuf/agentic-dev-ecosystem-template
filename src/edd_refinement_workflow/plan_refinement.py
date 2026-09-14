@@ -78,3 +78,15 @@ class PlanRefinementActivity:
             stop_recommendation=False,
             taxonomy_version=self.taxonomy_version,
         )
+
+
+from cadence import activity
+
+
+@activity.defn(name="plan_refinement_action")
+async def plan_refinement_action(
+    progress_record: dict,
+    baseline: dict,
+    proposed_action: str | None = None,
+) -> dict:
+    raise NotImplementedError

@@ -32,3 +32,16 @@ class InitializeRunActivity:
             self.on_event(event_name, run_id=run_id, workflow_run_id=workflow_run_id)
 
         return created
+
+
+from cadence import activity
+
+
+@activity.defn(name="initialize_run")
+async def initialize_run_activity(workflow_run_id: str, preflight_result) -> dict:
+    from ..progress_record import ProgressRecordFactory, ProgressRecordStore
+
+    repo_root = preflight_result.target_context.repo_root
+    store = ProgressRecordStore(repo_root)
+    factory = ProgressRecordFactory(store)
+    return InitializeRunActivity(factory).run(workflow_run_id, preflight_result)
