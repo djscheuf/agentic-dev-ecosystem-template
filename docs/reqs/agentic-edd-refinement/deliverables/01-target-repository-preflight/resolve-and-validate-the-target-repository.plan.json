@@ -20,7 +20,7 @@
     {
       "criterion": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree, when preflight validates it, then the request is rejected",
       "gherkin": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree when preflight validates it then the workflow rejects the request",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "criterion": "Given the target worktree has staged, unstaged, or untracked changes, when preflight inspects repository status, then the workflow rejects the request and leaves the worktree unchanged",
@@ -67,7 +67,7 @@
     {
       "criterion": "Scoped path contains parent-directory traversal that escapes the target worktree",
       "gherkin": "Given a scoped path contains '..' or symlink traversal that resolves outside the target worktree when preflight validates it then the workflow rejects the request",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Target worktree is a nested Git repository inside another worktree",
