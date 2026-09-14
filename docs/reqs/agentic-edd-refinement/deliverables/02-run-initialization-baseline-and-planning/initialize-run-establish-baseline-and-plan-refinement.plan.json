@@ -166,7 +166,7 @@
     {
       "description": "Implement ProgressRecordSerializer: allow-list only declared fields, replace environment variables and credential-bearing paths with a sentinel token, and fail on schema version mismatch",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement InitializeRun Activity: verify preflight result and active mutation lease, derive run id from workflow run id and starting revision, locate or create the progress record, and emit InitializeRun/ResumeRun events",
@@ -197,11 +197,6 @@
       "description": "Wire the new Activities into the EDD Cadence workflow: sequence InitializeRun, RunBaselineEvaluation, and PlanRefinementAction after preflight, passing TargetRepositoryContext and emitting the instrumentation events",
       "layer": "api",
       "status": "completed"
-    },
-    {
-      "description": "Render workflow progress and stop/approval prompts in the frontend, driven by PlanningResult.requires_approval without enforcement logic",
-      "layer": "ui",
-      "status": "in_progress"
     }
   ],
   "testing_strategy": {
