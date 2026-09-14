@@ -40,7 +40,7 @@
     {
       "criterion": "Given required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid, when preflight runs, then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
       "gherkin": "Given required test cases, a deterministic evaluation command, a single execution provider, and valid iteration and token limits when preflight runs then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "criterion": "Given any precondition fails, when preflight completes, then the workflow reports every failed condition and releases any lease it had acquired",
@@ -154,12 +154,12 @@
     {
       "description": "Implement resolve_and_validate_target_repository activity: sequence the checks, emit instrumentation events, and return a PreflightResult with TargetRepositoryContext",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Update EDD workflow to call preflight and gate downstream refinement activities on a success status, passing TargetRepositoryContext to each",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Update SkillActivityInput/SkillActivityOutput to accept an optional TargetRepositoryContext and use it instead of an implicit REPO_ROOT",
