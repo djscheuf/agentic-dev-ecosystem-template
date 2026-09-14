@@ -7,10 +7,11 @@ from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Callable, Mapping, Optional
 
 from .harness import Harness, HarnessResult
 from .invocation_context import skill_invocation_context
+from .preflight import TargetRepositoryContext
 from .skill_activity_config import SkillActivityConfig
 from .workflow_logger import (
     _resolve_activity_info,
@@ -36,6 +37,7 @@ class SkillActivityInput:
     skill_name: str = ""
     input_paths: list[str] = field(default_factory=list)
     context: str = ""
+    target_context: Optional[TargetRepositoryContext] = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,7 @@ class SkillActivityOutput:
     devin_log_path: str = ""
     ambiguity_reason: str = ""
     observation: dict = field(default_factory=dict)
+    target_context: Optional[TargetRepositoryContext] = None
 
 
 class SkillActivity(ABC):
@@ -87,7 +90,13 @@ class SkillActivity(ABC):
     def modify_result(self, result: SkillActivityOutput) -> SkillActivityOutput:
         return result
 
+    def _repo_root(self, skill_input: SkillActivityInput) -> Path:
+        if skill_input.target_context is not None:
+            return skill_input.target_context.repo_root
+        return self.repo_root
+
     def build_prompt(self, skill_input: SkillActivityInput) -> str:
+        repo_root = self._repo_root(skill_input)
         lines = [f"Invoke the '{self.skill_name}' skill."]
         if skill_input.input_paths:
             lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
@@ -96,18 +105,19 @@ class SkillActivity(ABC):
                 f"input path ({skill_input.input_paths[0]}), following the skill's "
                 f"naming convention."
             )
-        sentinel = _sentinel_path(self.repo_root, self.skill_name, skill_input.input_paths)
+        sentinel = _sentinel_path(repo_root, self.skill_name, skill_input.input_paths)
         lines.append(
             f"Create the .process directory if needed and write the completion sentinel to "
-            f"{sentinel.relative_to(self.repo_root)}. Do not remove the sentinel after verification."
+            f"{sentinel.relative_to(repo_root)}. Do not remove the sentinel after verification."
         )
         if skill_input.context:
             lines.append(skill_input.context)
         return self.modify_prompt("\n".join(lines))
 
     def execute(self, skill_input: SkillActivityInput) -> SkillActivityOutput:
+        repo_root = self._repo_root(skill_input)
         sentinel = self.modify_sentinel_path(
-            _sentinel_path(self.repo_root, self.skill_name, skill_input.input_paths)
+            _sentinel_path(repo_root, self.skill_name, skill_input.input_paths)
         )
         if sentinel.exists():
             sentinel.unlink()
@@ -121,7 +131,7 @@ class SkillActivity(ABC):
             ):
                 result = self.harness.run(
                     self.build_prompt(skill_input),
-                    cwd=self.repo_root,
+                    cwd=repo_root,
                     config=self.modify_harness_config(self.harness_config),
                 )
             duration_ms = int((time.monotonic() - start) * 1000)
@@ -195,12 +205,13 @@ class SkillActivity(ABC):
             output = SkillActivityOutput(
                 status=status,
                 output_path=resolved_output_path,
-                sentinel_path=str(sentinel.relative_to(self.repo_root)),
+                sentinel_path=str(sentinel.relative_to(repo_root)),
                 duration_ms=duration_ms,
                 activity_log_path=activity_log_path,
                 devin_log_path=devin_log_path,
                 ambiguity_reason=ambiguity_reason,
                 observation=observation,
+                target_context=skill_input.target_context,
             )
         return self.modify_result(output)
 
@@ -213,7 +224,12 @@ def run_skill(
     repo_root: Path,
     expected_output_path: Callable[[SkillActivityInput], Path] | None = None,
 ) -> SkillActivityOutput:
-    sentinel = _sentinel_path(repo_root, skill_input.skill_name, skill_input.input_paths)
+    effective_repo_root = (
+        skill_input.target_context.repo_root
+        if skill_input.target_context is not None
+        else repo_root
+    )
+    sentinel = _sentinel_path(effective_repo_root, skill_input.skill_name, skill_input.input_paths)
     if sentinel.exists():
         sentinel.unlink()
     lines = [f"Invoke the '{skill_input.skill_name}' skill."]
@@ -221,13 +237,13 @@ def run_skill(
         lines.append("Input document path(s): " + ", ".join(skill_input.input_paths))
     lines.append(
         f"Create the .process directory if needed and write the completion sentinel to "
-        f"{sentinel.relative_to(repo_root)}. Do not remove the sentinel after verification."
+        f"{sentinel.relative_to(effective_repo_root)}. Do not remove the sentinel after verification."
     )
     if skill_input.context:
         lines.append(skill_input.context)
     start = time.monotonic()
     with skill_invocation_context(skill_input.skill_name):
-        result = harness.run("\n".join(lines), cwd=repo_root)
+        result = harness.run("\n".join(lines), cwd=effective_repo_root)
     if result.exit_code:
         raise SkillActivityError(
             f"Harness exited {result.exit_code} while running skill '{skill_input.skill_name}'"
@@ -252,6 +268,7 @@ def run_skill(
     return SkillActivityOutput(
         status="success",
         output_path=str(output_path),
-        sentinel_path=str(sentinel.relative_to(repo_root)),
+        sentinel_path=str(sentinel.relative_to(effective_repo_root)),
         duration_ms=int((time.monotonic() - start) * 1000),
+        target_context=skill_input.target_context,
     )
