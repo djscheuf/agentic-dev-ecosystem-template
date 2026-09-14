@@ -181,12 +181,12 @@
     {
       "description": "Implement BaselineResult parser and artifact writer: parse pass/fail/coverage metrics and failures, validate expected shape, write artifact files next to the progress record, and store relative references",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement PlanRefinementAction Activity: load the authorized action taxonomy, read the latest baseline, budgets, and progress record, select exactly one authorized action or stop, and reject any non-exact or unmapped action",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement PlanningResult model and approval semantics: include rationale, evidence, intended files, expected effect, requires_approval flag, stop recommendation, and authorized taxonomy version",
