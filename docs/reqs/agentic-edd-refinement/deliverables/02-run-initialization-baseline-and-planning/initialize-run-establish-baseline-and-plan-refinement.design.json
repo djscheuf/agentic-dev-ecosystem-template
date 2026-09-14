@@ -1,0 +1,633 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/02-run-initialization-baseline-and-planning/initialize-run-establish-baseline-and-plan-refinement.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/02-run-initialization-baseline-and-planning/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "PreflightCompleted: target repository resolved, clean worktree confirmed, and repository-scoped mutation lease acquired. Existing upstream of the EDD refinement workflow.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "MutationLease",
+          "data_shape": "{repo_root: string, run_id: string, lease_holder: string, ttl_seconds: int}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "RunInitializationRequested: workflow starts and resolves or generates the durable run identity and target context from the preflight result.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PreflightResult",
+          "data_shape": "{run_id: string, target_context: TargetRepositoryContext}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "ProgressRecordLocated: initializer searches for an existing progress record for this run and schema version in the target .process/edd/ directory, enabling worker resumption without duplication.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecordStore",
+          "data_shape": "{run_id: string, schema_version: string} -> optional ProgressRecord"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "ProgressRecordCreatedOrResumed: a schema-versioned, secret-free JSON progress record is materialized with run identity, repository identity, authorized scope, limits, and empty iteration history.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "ProgressRecord"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "BaselineEvaluationRequested: the workflow invokes the complete evaluation suite against the target repository using the deterministic command and pinned provider.",
+      "layers_involved": [
+        "Backend",
+        "External"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "DeterministicEvaluation",
+          "data_shape": "{command: string, provider: string, timeout_ms: int, retry_policy: RetryPolicy, target_context: TargetRepositoryContext}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "BaselineEvaluationCompleted: raw pass/fail counts, required-test-case coverage, failures, artifact references, duration, and outcome are captured and written into the progress record.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "BaselineResult",
+          "data_shape": "{passing: int, failing: int, total: int, percentage: float, required_coverage: dict, failures: list, artifacts: list, duration_ms: int, outcome: string}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "PlanningRequested: the planner reads the progress record, latest baseline, required test cases, remaining budgets, and authorized action taxonomy to select one authorized next action.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PlanningInput",
+          "data_shape": "{progress_record: ProgressRecord, baseline: BaselineResult, budgets: Budgets, authorized_actions: list}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "PlanningResultValidated: the selected action name is checked against the canonical authorized set and required-test-case mapping; unauthorized, malformed, or unmapped actions are rejected.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": []
+    },
+    {
+      "step": "9",
+      "description": "PlanningCompleted: the selected action or stop decision is recorded with rationale, intended files, expected effect, approval requirement, and stop recommendation.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "PlanningResult",
+          "data_shape": "{action: string, rationale: string, evidence: list, intended_files: list, expected_effect: string, requires_approval: bool, stop_recommendation: string}"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "NextActionReady: the progress record now contains the durable initial state, baseline, and one validated authorized action, so downstream refinement Activities can be scheduled.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "ProgressRecord with baseline and planning_result populated"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "InitializeRun",
+      "description": "Emitted when a new or resumed run is initialized and the progress record is persisted.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "schema_version",
+          "description": "Version of the progress record schema used."
+        },
+        {
+          "point": "resumed",
+          "description": "True if an existing progress record was reused."
+        }
+      ]
+    },
+    {
+      "event_name": "ResumeRun",
+      "description": "Emitted when an existing progress record is found and reused after a worker restart or retry.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "existing_progress_path",
+          "description": "Path of the reused progress record."
+        }
+      ]
+    },
+    {
+      "event_name": "RunBaselineEvaluation",
+      "description": "Emitted when the baseline evaluation suite starts.",
+      "layers_involved": [
+        "Backend",
+        "External"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "attempt",
+          "description": "Retry attempt number."
+        },
+        {
+          "point": "provider",
+          "description": "Pinned provider name."
+        }
+      ]
+    },
+    {
+      "event_name": "RecordBaselineResult",
+      "description": "Emitted when baseline results are recorded in the progress record.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "passing",
+          "description": "Number of passing evaluations."
+        },
+        {
+          "point": "failing",
+          "description": "Number of failing evaluations."
+        },
+        {
+          "point": "required_coverage",
+          "description": "Mapping of required test cases to covering evaluations."
+        },
+        {
+          "point": "outcome",
+          "description": "Outcome classification of the baseline run."
+        }
+      ]
+    },
+    {
+      "event_name": "BaselineEvaluationTimeout",
+      "description": "Emitted when a baseline evaluation attempt exceeds its configured timeout.",
+      "layers_involved": [
+        "Backend",
+        "External"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "attempt",
+          "description": "Retry attempt number that timed out."
+        },
+        {
+          "point": "timeout_ms",
+          "description": "Timeout threshold in milliseconds."
+        }
+      ]
+    },
+    {
+      "event_name": "SelectRefinementAction",
+      "description": "Emitted when the planner selects an authorized next action or a stop decision.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "action",
+          "description": "Canonical selected action name or 'stop'."
+        },
+        {
+          "point": "rationale",
+          "description": "Reason for the selection."
+        },
+        {
+          "point": "requires_approval",
+          "description": "Whether human approval is required."
+        }
+      ]
+    },
+    {
+      "event_name": "RejectUnauthorizedAction",
+      "description": "Emitted when the planner produces an action outside the authorized set or with invalid formatting.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "proposed_action",
+          "description": "The action string that was rejected."
+        },
+        {
+          "point": "reason",
+          "description": "Why the action was rejected."
+        }
+      ]
+    },
+    {
+      "event_name": "StopRefinement",
+      "description": "Emitted when the planner selects the stop action due to limits, objective met, or no defensible action remaining.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "data_points": [
+        {
+          "point": "run_id",
+          "description": "Durable run identifier."
+        },
+        {
+          "point": "stop_reason",
+          "description": "Canonical reason for stopping."
+        },
+        {
+          "point": "remaining_budgets",
+          "description": "Snapshot of remaining token and iteration budgets."
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Validate preflight signal and active mutation lease before creating any progress record.",
+          "intent": "Where the information is available: the preflight result and lease manager are the source of truth for whether a run may safely begin."
+        },
+        {
+          "responsibility": "Resolve or generate durable run identity from the preflight target context and Cadence workflow run id.",
+          "intent": "Run identity must be stable across worker restarts and determined before storage access."
+        },
+        {
+          "responsibility": "Locate an existing progress record for the same run and schema version, or create a new one with initialized counters.",
+          "intent": "Resumption logic lives in the initialization Activity because it holds the preflight and workflow context."
+        },
+        {
+          "responsibility": "Run the complete baseline evaluation through the deterministic command and pinned provider.",
+          "intent": "The evaluation provider is an external dependency; the backend owns the invocation, timeout, and retry policy."
+        },
+        {
+          "responsibility": "Parse baseline output, validate it against the expected shape, and fail refinement if it is malformed or the suite is empty.",
+          "intent": "The backend is the defensible zone for interpreting external command output and enforcing stop conditions."
+        },
+        {
+          "responsibility": "Select exactly one authorized next action or a stop decision based on the progress record, baseline, required test cases, and budgets.",
+          "intent": "Planning is business logic and belongs in the backend."
+        },
+        {
+          "responsibility": "Validate the selected action name exactly against the canonical authorized taxonomy and required-test-case mapping.",
+          "intent": "Security and contract enforcement are backend responsibilities."
+        },
+        {
+          "responsibility": "Apply the configured retry policy for baseline evaluation timeouts and record each attempt.",
+          "intent": "Retry/timeout orchestration and persistence of attempts are backend concerns."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist the schema-versioned progress record under the target repository .process/edd/ tree keyed by run identity.",
+          "intent": "Storage is the data layer's responsibility; co-location with the target repo follows the existing sentinel/output contract conventions."
+        },
+        {
+          "responsibility": "Store baseline result artifacts and references separately or inline while maintaining data integrity.",
+          "intent": "Artifact persistence and references are storage concerns."
+        },
+        {
+          "responsibility": "Guarantee that no secrets, credentials, or sensitive environment values are written to the progress record or artifact files.",
+          "intent": "Data integrity includes redaction at the persistence boundary."
+        },
+        {
+          "responsibility": "Support atomic or idempotent write semantics for partially-written progress records during worker resumption.",
+          "intent": "Recovery from partial writes is a storage/integrity concern."
+        },
+        {
+          "responsibility": "Maintain counters for cumulative token usage and consecutive confirmed regressions.",
+          "intent": "Counters are stored in the progress record; the data layer owns durable state."
+        }
+      ]
+    },
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Render workflow progress and stop/approval prompts when the planning result requires human approval.",
+          "intent": "Display and user-facing sequencing are frontend concerns; no enforcement logic."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Schema-versioned, secret-free document that holds the durable run state for the EDD refinement workflow.",
+      "changes": {
+        "added": "schema_version, run_id, created_at, target_context, normalized_inputs, authorized_scope, limits, iteration_history, token_usage, consecutive_confirmed_regressions, baseline, planning_result",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "BaselineResult",
+      "description": "Snapshot of a complete evaluation suite execution against the target repository.",
+      "changes": {
+        "added": "passing, failing, total, percentage, required_test_case_coverage, failures, artifact_references, duration_ms, outcome, attempt, provider, command",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "PlanningResult",
+      "description": "Validated output of the planner selecting the next authorized action or a stop decision.",
+      "changes": {
+        "added": "action, rationale, evidence, intended_files, expected_effect, requires_approval, stop_recommendation, authorized_action_taxonomy_version",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "InitializeRun",
+      "description": "Cadence Activity contract that creates or resumes a progress record from a preflight result.",
+      "changes": {
+        "added": "input: PreflightResult, run_id, schema_version; output: ProgressRecord path",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RunBaselineEvaluation",
+      "description": "Cadence Activity contract that invokes the evaluation suite and returns a BaselineResult.",
+      "changes": {
+        "added": "input: ProgressRecord, deterministic_command, pinned_provider, timeout, retry_policy; output: BaselineResult",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "PlanRefinementAction",
+      "description": "Cadence Activity contract that selects and validates one authorized next action.",
+      "changes": {
+        "added": "input: ProgressRecord, latest BaselineResult, authorized_action_taxonomy, budgets; output: PlanningResult",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "SkillActivityWorkflowOrchestration",
+      "description": "Cadence workflow invokes Activities; each Activity runs a skill through the Devin harness and writes a .process/ sentinel. The new EDD Activities follow this pattern.",
+      "changes": {
+        "added": "initialize-run, run-baseline, plan-refinement Activities and corresponding skill definitions",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Persist the progress record and its artifacts under the target repository's .process/edd/<run_id>/ directory rather than the orchestration repository.",
+      "justification": "Colocating run state with the target repository keeps artifacts scoped to the worktree, supports resumption by workers operating on the same checkout, and aligns with the existing skill-output/sentinel conventions. It also makes the target context the natural scope for all operational side effects, consistent with ADR-018.",
+      "basis": "ADR-004, ADR-018, current-reality.audit.json",
+      "impact": "New ProgressRecordStore and artifact writer. All EDD paths are parameterized by target_context.repo_root.",
+      "answers_open_question": "Where is the schema-versioned progress record physically persisted, and how is the run identity mapped to the storage path or key?"
+    },
+    {
+      "decision": "Derive the run identity from a stable combination of the target repository starting revision and the Cadence workflow run id, then use it as the directory and document key.",
+      "justification": "The workflow run id is globally unique across Cadence, and the starting revision ties the run to a specific clean worktree. Together they produce a durable, reproducible identity that survives worker restart and is easy to locate.",
+      "basis": "Pattern seen in src/common/skill_activity.py and ADR-018",
+      "impact": "InitializeRun Activity must receive the workflow run id and target_context.starting_revision; no new ID generation service needed.",
+      "answers_open_question": "Where is the schema-versioned progress record physically persisted, and how is the run identity mapped to the storage path or key?"
+    },
+    {
+      "decision": "Use a schema-versioned JSON document with a hard-coded current schema version and fail-fast on mismatch, deferring automatic migration.",
+      "justification": "The project has no schema registry yet. Fail-fast is the safest first step: it prevents silent corruption and forces an explicit migration when the schema changes. A versioned document is still the data model foundation for future migration.",
+      "basis": "current-reality.audit.json, current-reality.audit.json dependencies and infrastructure notes",
+      "impact": "ProgressRecord contains schema_version. Resume path raises SchemaVersionMismatchError when an older record is encountered.",
+      "answers_open_question": "What is the schema migration strategy for progress records when the schema version changes?"
+    },
+    {
+      "decision": "Redact secrets by serializing only an explicit allow-list of fields and replacing all environment-variable values and credential-bearing paths with a sentinel token before writing the progress record.",
+      "justification": "Blacklisting is error-prone because secrets may be nested or obfuscated. An allow-list plus a credential-path redaction step keeps the persisted document minimal and safe. This satisfies the constraint acceptance criterion without requiring encryption in the first slice.",
+      "basis": "Edge cases in story analysis and current-reality.audit.json security question",
+      "impact": "ProgressRecord serializer with explicit field allow-list and env/credential redactor. Any sensitive fields must be opted in explicitly.",
+      "answers_open_question": "What specific redaction or encryption rules protect secrets, credentials, and sensitive environment values from being persisted?"
+    },
+    {
+      "decision": "Run the baseline evaluation through a Cadence Activity backed by the existing DevinHarness and skill-activity invocation configuration.",
+      "justification": "The harness already provides model/provider configuration, token accounting, and deterministic command execution. Reusing it avoids duplicating provider plumbing and keeps the baseline invocation in the same security/permission model as other skills.",
+      "basis": "ADR-012, src/common/skill_activity.py, src/common/harness.py",
+      "impact": "New run-baseline skill/Activity with deterministic command and pinned provider passed as invocation context. Uses harness usage for token accounting.",
+      "answers_open_question": "How is the deterministic evaluation command and pinned provider represented, versioned, and reproduced across workers?"
+    },
+    {
+      "decision": "Capture the effective evaluation provider, command, and timeout at Activity start and store them in the progress record and Cadence history for reproducibility.",
+      "justification": "Pinning the provider at Activity start means retries and resumption use the same configuration. Storing the snapshot in the progress record makes the baseline reproducible for debugging.",
+      "basis": "ADR-012 design refinement and current-reality.audit.json baseline reproducibility question",
+      "impact": "RunBaselineEvaluation input includes a resolved InvocationProfile; BaselineResult stores provider, command, and timeout.",
+      "answers_open_question": "How is the deterministic evaluation command and pinned provider represented, versioned, and reproduced across workers?"
+    },
+    {
+      "decision": "Apply the baseline timeout and retry policy inside the Activity using the Cadence retry policy for transient failures and an in-Activity timeout for the command itself.",
+      "justification": "Cadence retry handles worker/process failures and provider unavailability; the in-Activity timeout prevents a hanging command from blocking forever. The retry count is stored in the progress record so resumption does not reset it.",
+      "basis": "Non-functional and error-handling AC, current-reality.audit.json retry policy question",
+      "impact": "Activity config includes RetryPolicy; progress record tracks baseline_attempts. Each attempt is recorded even on timeout.",
+      "answers_open_question": "What is the exact retry policy for baseline evaluation timeouts, and where is the policy configured?"
+    },
+    {
+      "decision": "Track cumulative token usage from HarnessResult.usage and an iteration counter in the progress record; both are checked by the planner before selecting a non-stop action.",
+      "justification": "The harness already records token usage per invocation, so token accounting is a matter of summing usage into the progress record. Iteration counting is local state. Both are needed for the stop-when-budgets-exhausted rule.",
+      "basis": "src/common/harness.py, current-reality.audit.json budget tracking question",
+      "impact": "ProgressRecord.token_usage and ProgressRecord.iteration fields. InitializeRun sets them to zero; each Activity update increments them.",
+      "answers_open_question": "How are remaining token and iteration budgets tracked, decremented, and surfaced to the planning step?"
+    },
+    {
+      "decision": "Load the authorized action taxonomy and required-test-case mapping from a versioned configuration file or module constant, validating at runtime with exact string matching.",
+      "justification": "An explicit taxonomy prevents drift and makes the planning validator simple and secure. Exact matching (case and whitespace sensitive) rejects prompt-injection-style casing or whitespace tricks. Required-test-case mapping is co-located because coverage is a core ratchet input.",
+      "basis": "Constraint and edge-case AC, current-reality.audit.json taxonomy question",
+      "impact": "New authorized_action_taxonomy.json or module constant. PlanRefinementAction validates selected action and required mapping exactly.",
+      "answers_open_question": "What is the canonical format of the authorized action taxonomy, and how is it loaded and validated at runtime?"
+    },
+    {
+      "decision": "Record baseline artifact references (raw output, logs) under .process/edd/<run_id>/baseline-<attempt>.json and store only relative references in the progress record.",
+      "justification": "Large artifacts belong outside the main progress record to keep it compact and versionable. Relative references keep the record portable across worker file-system views.",
+      "basis": "current-reality.audit.json artifact linking question, ADR-004",
+      "impact": "BaselineResult.artifact_references list relative paths. Artifact writer creates files next to the progress record.",
+      "answers_open_question": "How are baseline failures and artifacts linked back to the run so they can be inspected by the requester?"
+    },
+    {
+      "decision": "Require human approval for the 'propose an evaluation expectation change' action and any future destructive actions; surface this as a boolean in PlanningResult.requires_approval.",
+      "justification": "Evaluation expectation changes alter the measurement contract and should not be applied autonomously. A boolean flag is the simplest contract for a workflow to block and await approval, which is the frontend's responsibility to display.",
+      "basis": "Business rule AC and current-reality.audit.json approval question",
+      "impact": "PlanningResult.requires_approval. The EDD workflow will branch on this field before invoking the next Activity.",
+      "answers_open_question": "Under what conditions does the planning step require human approval, and how is that requirement surfaced?"
+    },
+    {
+      "decision": "Verify the mutation lease is held by this run before writing or resuming a progress record, and before running baseline or planning, using the existing LeasePolicyHandler.",
+      "justification": "Lease verification protects against concurrent runs on the same worktree. Centralizing the check at the start of each mutating Activity keeps the safety boundary explicit.",
+      "basis": "src/common/preflight.py, src/common/mutation_lease_policy.py, ADR-018",
+      "impact": "InitializeRun, RunBaselineEvaluation, and PlanRefinementAction Activities call lease verification as a precondition.",
+      "answers_open_question": "How is the mutation lease verified and kept active during initialization, baseline, and planning?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Where is the schema-versioned progress record physically persisted, and how is the run identity mapped to the storage path or key?",
+      "answer": "Under the target repository's .process/edd/<run_id>/progress.json, where run_id is derived from the Cadence workflow run id and the target worktree starting revision.",
+      "justification": "This keeps operational artifacts scoped to the target worktree, supports resumption, and follows the existing skill-output convention.",
+      "basis": "ADR-018, ADR-004, current-reality.audit.json code audit"
+    },
+    {
+      "question": "How is the mutation lease verified and kept active during initialization, baseline, and planning?",
+      "answer": "Each mutating Activity (InitializeRun, RunBaselineEvaluation, PlanRefinementAction) calls LeasePolicyHandler with the target repo root and run id before its main work, failing fast if the lease is not held.",
+      "justification": "The existing preflight and lease policy already implement this pattern; the new Activities extend it to the new workflow steps.",
+      "basis": "src/common/preflight.py, src/common/mutation_lease_policy.py"
+    },
+    {
+      "question": "What is the schema migration strategy for progress records when the schema version changes?",
+      "answer": "Fail-fast on mismatch. The current schema version is hard-coded in the initializer, and resuming a record with a different version raises a SchemaVersionMismatchError.",
+      "justification": "The project has no schema registry yet. Fail-fast prevents silent corruption until migration is explicitly designed.",
+      "basis": "current-reality.audit.json infrastructure notes"
+    },
+    {
+      "question": "What specific redaction or encryption rules protect secrets, credentials, and sensitive environment values from being persisted?",
+      "answer": "The serializer writes only an explicit allow-list of fields and replaces any environment-variable values or credential-bearing paths with a sentinel token. No encryption in the first slice.",
+      "justification": "Allow-listing is safer than blacklisting for nested or obfuscated secrets and satisfies the constraint without adding key-management complexity.",
+      "basis": "Edge cases in story analysis about nested/obfuscated secrets"
+    },
+    {
+      "question": "How is the deterministic evaluation command and pinned provider represented, versioned, and reproduced across workers?",
+      "answer": "A resolved InvocationProfile, including provider, command, timeout, and retry settings, is captured at Activity start and stored in the progress record and Cadence history.",
+      "justification": "Pinning at Activity start makes the baseline deterministic for retries and resumption, and storing the profile supports debugging.",
+      "basis": "ADR-012, src/common/skill_activity.py"
+    },
+    {
+      "question": "What is the exact retry policy for baseline evaluation timeouts, and where is the policy configured?",
+      "answer": "The baseline command uses an in-Activity timeout; transient failures and timeouts are retried by the Cadence Activity retry policy, configured in src/orchestrator/devin_harness.config.json or the workflow's Activity options.",
+      "justification": "Combining in-Activity timeout with Cadence retry covers both hanging commands and worker/provider failures.",
+      "basis": "Non-functional and error-handling AC"
+    },
+    {
+      "question": "How are remaining token and iteration budgets tracked, decremented, and surfaced to the planning step?",
+      "answer": "Cumulative token usage is summed from HarnessResult.usage and stored in the progress record. Iteration count is incremented each planning step. The planner reads both before selecting an action.",
+      "justification": "The harness already produces usage, so the backend only needs to aggregate it; iteration counting is local state.",
+      "basis": "src/common/harness.py, AC about budgets"
+    },
+    {
+      "question": "What is the canonical format of the authorized action taxonomy, and how is it loaded and validated at runtime?",
+      "answer": "The taxonomy is a JSON or module constant listing canonical action names, each mapped to a set of required test cases. The planner returns one canonical name, and the validator checks exact string equality and required mapping presence.",
+      "justification": "Exact matching and co-located required-test-case mapping make the validator secure and the ratchet inputs explicit.",
+      "basis": "Constraint and edge-case AC about unauthorized or unmapped actions"
+    },
+    {
+      "question": "How are baseline failures and artifacts linked back to the run so they can be inspected by the requester?",
+      "answer": "Large artifacts are written next to the progress record under .process/edd/<run_id>/ and referenced by relative path in BaselineResult.artifact_references.",
+      "justification": "Separating artifacts from the versioned progress record keeps it compact while maintaining traceability.",
+      "basis": "current-reality.audit.json and ADR-004"
+    },
+    {
+      "question": "Under what conditions does the planning step require human approval, and how is that requirement surfaced?",
+      "answer": "Human approval is required for evaluation-expectation-change proposals and any future destructive actions. The requirement is surfaced as PlanningResult.requires_approval, which the workflow uses to branch.",
+      "justification": "Evaluation expectation changes alter the measurement contract and should not be autonomous.",
+      "basis": "Business rule AC and current-reality.audit.json approval question"
+    }
+  ]
+}
