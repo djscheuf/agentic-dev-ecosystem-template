@@ -10,5 +10,6 @@ The `edd_refinement_workflow` persists durable, schema-versioned run state in th
 - `BaselineResultParser` extracts and validates pass/fail/coverage metrics and failures from structured output.
 - `BaselineResultArtifactWriter` writes the baseline result to a repository-relative artifact file.
 - `PlanRefinementActivity` produces a `PlanningResult`, choosing `stop` when budgets or the regression limit is exhausted, validating proposed actions against the taxonomy and required-test-case mapping, and flagging `propose_evaluation_expectation_change` for human approval.
+- `EddRefinementWorkflow` and `WorkflowModuleSpec` register the workflow and the three Cadence Activities with the orchestrator.
 
 See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018-target-repository-context.md]] for background.
