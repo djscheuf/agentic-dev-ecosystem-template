@@ -95,7 +95,7 @@ def resolve_and_validate_target_repository(
         )
 
     store = MutationLeaseStore()
-    policy = MutationLeasePolicyHandler(store)
+    policy = MutationLeasePolicyHandler(store, on_event=on_event)
     try:
         with policy.lease(str(repo_root), run_id, lease_ttl):
             branch = subprocess.run(
@@ -110,7 +110,6 @@ def resolve_and_validate_target_repository(
                 text=True,
                 check=True,
             )
-            _emit("AcquireMutationLease", repo_key=str(repo_root), run_id=run_id)
             _emit(
                 "CompletePreflight",
                 outcome="success",
@@ -129,8 +128,5 @@ def resolve_and_validate_target_repository(
                 ),
             )
     except LeaseConflictError as exc:
-        _emit(
-            "AcquireMutationLease", repo_key=str(repo_root), run_id=run_id, error=str(exc)
-        )
-        _emit("CompletePreflight", outcome="failure")
+        _emit("CompletePreflight", outcome="failure", repo_root=str(repo_root))
         return PreflightResult(status="failure", failed_conditions=[str(exc)])
