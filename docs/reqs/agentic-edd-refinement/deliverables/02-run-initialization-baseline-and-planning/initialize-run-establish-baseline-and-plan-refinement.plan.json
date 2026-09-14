@@ -196,12 +196,12 @@
     {
       "description": "Wire the new Activities into the EDD Cadence workflow: sequence InitializeRun, RunBaselineEvaluation, and PlanRefinementAction after preflight, passing TargetRepositoryContext and emitting the instrumentation events",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Render workflow progress and stop/approval prompts in the frontend, driven by PlanningResult.requires_approval without enforcement logic",
       "layer": "ui",
-      "status": "pending"
+      "status": "in_progress"
     }
   ],
   "testing_strategy": {
