@@ -51,3 +51,7 @@ class ProgressRecordStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2, sort_keys=True))
         return record
+
+    def save(self, run_id: str, record: dict) -> None:
+        path = self._record_path(run_id)
+        path.write_text(json.dumps(record, indent=2, sort_keys=True))
