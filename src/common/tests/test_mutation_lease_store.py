@@ -24,3 +24,10 @@ def test_release_lease_makes_is_held_false() -> None:
     store.release(repo_key="repo", run_id="run-1")
 
     assert store.is_held("repo") is False
+
+
+def test_expired_lease_is_not_held() -> None:
+    store = MutationLeaseStore()
+    store.acquire(repo_key="repo", run_id="run-1", ttl=0)
+
+    assert store.is_held("repo") is False
