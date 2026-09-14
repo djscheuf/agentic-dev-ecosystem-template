@@ -1,0 +1,127 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/02-run-initialization-baseline-and-planning/story.md",
+  "title": "Initialize the Run, Establish the Baseline, and Plan Refinement",
+  "story": {
+    "so_that": "every refinement action begins from durable evidence and an explainable decision",
+    "as_a": "workflow requester and skill owner",
+    "i_want": "the workflow to initialize schema-versioned run state, establish a trustworthy baseline, and select one authorized next action"
+  },
+  "target_persona": {
+    "name": "Workflow Requester and Skill Owner",
+    "role": "Skill Owner / Workflow Requester",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "The target repository has passed preflight and the workflow holds an active mutation lease.",
+      "during": "The workflow creates or resumes a schema-versioned, secret-free progress record, runs the complete evaluation suite with a deterministic command and pinned provider, then chooses a single authorized next action.",
+      "after": "The workflow has a durable initial state, a recorded baseline, and one validated authorized action or an explicit stop decision to guide the rest of the refinement run."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Create or resume a schema-versioned, secret-free progress record; run a deterministic baseline evaluation; and select one authorized refinement action.",
+    "inputs": [
+      "Preflight success signal and active mutation lease",
+      "Resolved repository identity and normalized inputs",
+      "Authorized scope, limits, and remaining budgets",
+      "Deterministic evaluation command, pinned provider, timeout, and retry policy",
+      "Authorized action taxonomy and required-test-case mapping"
+    ],
+    "outputs": [
+      "Schema-versioned progress record with run identity and iteration history",
+      "Baseline metrics, failures, artifact references, duration, and outcome",
+      "Selected authorized action or stop decision with rationale, scope, expected effect, approval requirement, and stop recommendation"
+    ],
+    "state_changes": [
+      "Progress record created or resumed",
+      "Cumulative token usage and consecutive confirmed-regression counters initialized",
+      "Baseline evaluation results recorded in the progress record",
+      "Selected next action and supporting rationale recorded"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given preflight has succeeded for a run, when the workflow initializes, then a schema-versioned JSON progress record is created containing run identity, resolved repository identity, normalized inputs, authorized scope, limits, and an empty iteration history.",
+      "gherkin": "Given preflight has succeeded for a run When the workflow initializes Then a schema-versioned JSON progress record is created containing run identity, resolved repository identity, normalized inputs, authorized scope, limits, and an empty iteration history",
+      "type": "Functional",
+      "jtbd": "Initialize schema-versioned progress record",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the progress record is created, when it is inspected, then cumulative token usage and the consecutive confirmed-regression counter are initialized to zero.",
+      "gherkin": "Given the progress record is created When it is inspected Then cumulative token usage and the consecutive confirmed-regression counter are initialized to zero",
+      "type": "Functional",
+      "jtbd": "Track token and regression counters from the start",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the run has access to secrets, credentials, or sensitive environment values, when the progress record is written, then none of those values appear in the document.",
+      "gherkin": "Given the run has access to secrets, credentials, or sensitive environment values When the progress record is written Then none of those values appear in the document",
+      "type": "Constraint",
+      "jtbd": "Protect secrets from persistence",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given a worker restarts immediately after initialization, when the workflow resumes, then the same progress record is reused rather than duplicated or recreated.",
+      "gherkin": "Given a worker restarts immediately after initialization When the workflow resumes Then the same progress record is reused rather than duplicated or recreated",
+      "type": "Functional",
+      "jtbd": "Resume work after restart without duplication",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given a valid initialized run, when the workflow establishes its baseline, then it invokes the complete evaluation suite through the deterministic evaluation command and pinned provider.",
+      "gherkin": "Given a valid initialized run When the workflow establishes its baseline Then it invokes the complete evaluation suite through the deterministic evaluation command and pinned provider",
+      "type": "Functional",
+      "jtbd": "Run full baseline evaluation",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the baseline evaluation completes, when results are recorded, then passing, failing, total, percentage, and required-test-case coverage metrics, along with failures, artifact references, duration, and outcome, are stored in the progress record.",
+      "gherkin": "Given the baseline evaluation completes When results are recorded Then passing, failing, total, percentage, and required-test-case coverage metrics, along with failures, artifact references, duration, and outcome, are stored in the progress record",
+      "type": "Functional",
+      "jtbd": "Record baseline metrics and failures",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the baseline evaluation cannot be executed successfully, when the workflow checks the outcome, then refinement does not begin and the failure is recorded.",
+      "gherkin": "Given the baseline evaluation cannot be executed successfully When the workflow checks the outcome Then refinement does not begin and the failure is recorded",
+      "type": "Error handling",
+      "jtbd": "Stop refinement when baseline fails",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the baseline evaluation exceeds its configured timeout, when the timeout is reached, then the attempt is recorded and handled per the configured retry policy without silently proceeding to refinement.",
+      "gherkin": "Given the baseline evaluation exceeds its configured timeout When the timeout is reached Then the attempt is recorded and handled per the configured retry policy without silently proceeding to refinement",
+      "type": "Non-functional",
+      "jtbd": "Handle timeout without silent continuation",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given the current progress record, latest evaluation evidence, required test cases, and remaining budgets, when a planning step runs, then it selects exactly one action from the authorized set: add or extend coverage, repair scripted checks, refine the skill, refine supporting documents, propose an evaluation expectation change, or stop.",
+      "gherkin": "Given the current progress record, latest evaluation evidence, required test cases, and remaining budgets When a planning step runs Then it selects exactly one action from the authorized set: add or extend coverage, repair scripted checks, refine the skill, refine supporting documents, propose an evaluation expectation change, or stop",
+      "type": "Functional",
+      "jtbd": "Select one authorized refinement action",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given a planning step completes, when its result is recorded, then it includes rationale and evidence, intended files or file classes, expected effect, whether human approval is required, and a stop recommendation when applicable.",
+      "gherkin": "Given a planning step completes When its result is recorded Then it includes rationale and evidence, intended files or file classes, expected effect, whether human approval is required, and a stop recommendation when applicable",
+      "type": "Functional",
+      "jtbd": "Record planning result details",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given no defensible action remains, the objective is met, or a limit prevents another safe iteration, when planning runs, then the stop action is selected and no further refinement is scheduled.",
+      "gherkin": "Given no defensible action remains, the objective is met, or a limit prevents another safe iteration When planning runs Then the stop action is selected and no further refinement is scheduled",
+      "type": "Business rule",
+      "jtbd": "Stop when no safe action remains",
+      "persona_served": "Workflow Requester and Skill Owner"
+    },
+    {
+      "criterion": "Given a planning result names an action outside the authorized set, when the result is validated, then the iteration is rejected and no refinement Activity is invoked for it.",
+      "gherkin": "Given a planning result names an action outside the authorized set When the result is validated Then the iteration is rejected and no refinement Activity is invoked for it",
+      "type": "Constraint",
+      "jtbd": "Reject unauthorized actions",
+      "persona_served": "Workflow Requester and Skill Owner"
+    }
+  ]
+}
