@@ -186,17 +186,17 @@
     {
       "description": "Implement PlanRefinementAction Activity: load the authorized action taxonomy, read the latest baseline, budgets, and progress record, select exactly one authorized action or stop, and reject any non-exact or unmapped action",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement PlanningResult model and approval semantics: include rationale, evidence, intended files, expected effect, requires_approval flag, stop recommendation, and authorized taxonomy version",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Wire the new Activities into the EDD Cadence workflow: sequence InitializeRun, RunBaselineEvaluation, and PlanRefinementAction after preflight, passing TargetRepositoryContext and emitting the instrumentation events",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Render workflow progress and stop/approval prompts in the frontend, driven by PlanningResult.requires_approval without enforcement logic",
