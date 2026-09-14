@@ -164,17 +164,12 @@
     {
       "description": "Update SkillActivityInput/SkillActivityOutput to accept an optional TargetRepositoryContext and use it instead of an implicit REPO_ROOT",
       "layer": "api",
-      "status": "pending"
-    },
-    {
-      "description": "Render the preflight success/failure report in the UI and adapt the request form based on caller role",
-      "layer": "ui",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Instrument and emit ResolveTargetRepository, ValidateScopedPaths, CheckRepositoryStatus, AcquireMutationLease, ReleaseMutationLease, and CompletePreflight events",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     }
   ],
   "testing_strategy": {
