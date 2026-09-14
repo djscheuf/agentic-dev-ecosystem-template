@@ -16,6 +16,7 @@ class TargetRepositoryContext:
     repo_root: Path
     anchor_path: str
     explicit_root: Optional[str]
+    branch: str
     starting_revision: str
 
 
@@ -70,6 +71,12 @@ def resolve_and_validate_target_repository(
     policy = MutationLeasePolicyHandler(store)
     try:
         with policy.lease(str(repo_root), run_id, lease_ttl):
+            branch = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             rev = subprocess.run(
                 ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
                 capture_output=True,
@@ -82,6 +89,7 @@ def resolve_and_validate_target_repository(
                     repo_root=repo_root,
                     anchor_path=anchor_path,
                     explicit_root=explicit_root,
+                    branch=branch.stdout.strip(),
                     starting_revision=rev.stdout.strip(),
                 ),
             )
