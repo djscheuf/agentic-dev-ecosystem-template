@@ -35,7 +35,7 @@
     {
       "criterion": "Given the target skill does not exist, or exists but has no evaluation suite, in the target repository, when preflight runs, then the workflow rejects the request before refinement begins",
       "gherkin": "Given the target skill does not exist or exists without an evaluation suite in the target repository when preflight runs then the workflow rejects the request before refinement begins",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "criterion": "Given required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid, when preflight runs, then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
@@ -134,12 +134,12 @@
     {
       "description": "Implement RepositoryStatusInspector: call git status, classify changes, allow configured scratch globs when all unexpected changes are confined, and reject otherwise",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement SkillAndEvaluationDiscovery: verify the target skill directory and evaluation suite exist without parsing semantic content",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement MutationLeaseStore: persist leases keyed by repo_key and run_id with TTL, acquire, release, and is_held operations, and conflict detection",
