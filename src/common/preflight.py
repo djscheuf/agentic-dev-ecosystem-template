@@ -1,7 +1,8 @@
 import dataclasses
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from common.mutation_lease_policy import LeaseConflictError, MutationLeasePolicyHandler
 from common.mutation_lease_store import MutationLeaseStore
@@ -36,12 +37,21 @@ def resolve_and_validate_target_repository(
     run_id: str = "",
     lease_ttl: int = 60,
     scratch_globs: Optional[list[str]] = None,
+    on_event: Optional[Callable[..., None]] = None,
 ) -> PreflightResult:
+    def _emit(name: str, **data: Any) -> None:
+        if on_event is not None:
+            on_event(name, **data)
+
     resolver = TargetWorktreeResolver()
     try:
         repo_root = resolver.resolve(anchor_path, explicit_root)
     except TargetRepositoryResolutionError as exc:
+        _emit("ResolveTargetRepository", resolved=False, error=str(exc))
+        _emit("CompletePreflight", outcome="failure")
         return PreflightResult(status="failure", failed_conditions=[str(exc)])
+
+    _emit("ResolveTargetRepository", resolved=True, repo_root=str(repo_root))
 
     failed_conditions: list[str] = []
 
@@ -64,6 +74,12 @@ def resolve_and_validate_target_repository(
         failed_conditions.append("target skill or evaluation suite missing")
 
     if failed_conditions:
+        _emit(
+            "CompletePreflight",
+            outcome="failure",
+            repo_root=str(repo_root),
+            failed_conditions=failed_conditions,
+        )
         return PreflightResult(
             status="failure", failed_conditions=failed_conditions
         )
@@ -84,6 +100,14 @@ def resolve_and_validate_target_repository(
                 text=True,
                 check=True,
             )
+            _emit("AcquireMutationLease", repo_key=str(repo_root), run_id=run_id)
+            _emit(
+                "CompletePreflight",
+                outcome="success",
+                repo_root=str(repo_root),
+                branch=branch.stdout.strip(),
+                starting_revision=rev.stdout.strip(),
+            )
             return PreflightResult(
                 status="success",
                 target_context=TargetRepositoryContext(
@@ -95,4 +119,8 @@ def resolve_and_validate_target_repository(
                 ),
             )
     except LeaseConflictError as exc:
+        _emit(
+            "AcquireMutationLease", repo_key=str(repo_root), run_id=run_id, error=str(exc)
+        )
+        _emit("CompletePreflight", outcome="failure")
         return PreflightResult(status="failure", failed_conditions=[str(exc)])
