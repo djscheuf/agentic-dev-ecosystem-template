@@ -191,7 +191,7 @@
     {
       "description": "Implement PlanningResult model and approval semantics: include rationale, evidence, intended files, expected effect, requires_approval flag, stop recommendation, and authorized taxonomy version",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Wire the new Activities into the EDD Cadence workflow: sequence InitializeRun, RunBaselineEvaluation, and PlanRefinementAction after preflight, passing TargetRepositoryContext and emitting the instrumentation events",

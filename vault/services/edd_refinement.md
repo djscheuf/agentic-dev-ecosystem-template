@@ -9,5 +9,6 @@ The `edd_refinement_workflow` persists durable, schema-versioned run state in th
 - `RunBaselineEvaluationActivity` invokes a pinned evaluation profile through a pluggable harness and records each attempt in the progress record.
 - `BaselineResultParser` extracts and validates pass/fail/coverage metrics and failures from structured output.
 - `BaselineResultArtifactWriter` writes the baseline result to a repository-relative artifact file.
+- `PlanRefinementActivity` produces a `PlanningResult`, choosing `stop` when budgets or the regression limit is exhausted.
 
 See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018-target-repository-context.md]] for background.
