@@ -139,12 +139,12 @@
     {
       "description": "Implement SkillAndEvaluationDiscovery: verify the target skill directory and evaluation suite exist without parsing semantic content",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement MutationLeaseStore: persist leases keyed by repo_key and run_id with TTL, acquire, release, and is_held operations, and conflict detection",
       "layer": "database",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement MutationLeasePolicyHandler: apply immediate-reject policy, detect re-entrant same-run leases, and wrap acquisition in explicit release on terminal paths",
