@@ -57,6 +57,14 @@ def resolve_and_validate_target_repository(
 
     inspector = RepositoryStatusInspector()
     status = inspector.inspect(str(repo_root), scratch_globs=scratch_globs)
+    _emit(
+        "CheckRepositoryStatus",
+        repo_root=str(repo_root),
+        is_clean=status.is_clean,
+        staged=status.staged,
+        modified=status.modified,
+        untracked=status.untracked,
+    )
     if not status.is_clean:
         failed_conditions.append("target worktree has unexpected changes")
 
@@ -64,8 +72,10 @@ def resolve_and_validate_target_repository(
         validator = ScopedPathValidator()
         for path in scoped_paths:
             try:
-                validator.validate(path, str(repo_root))
+                validator.validate(str((repo_root / path).resolve()), str(repo_root))
+                _emit("ValidateScopedPaths", path=path, valid=True)
             except TargetScopeError as exc:
+                _emit("ValidateScopedPaths", path=path, valid=False, error=str(exc))
                 failed_conditions.append(str(exc))
 
     discovery = SkillAndEvaluationDiscovery()
