@@ -161,7 +161,7 @@
     {
       "description": "Implement ProgressRecord data model and schema-versioned ProgressRecordStore: persist secret-free JSON under the target repository .process/edd/<run_id>/ tree keyed by run identity, and support idempotent create/resume and atomic writes",
       "layer": "database",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement ProgressRecordSerializer: allow-list only declared fields, replace environment variables and credential-bearing paths with a sentinel token, and fail on schema version mismatch",
