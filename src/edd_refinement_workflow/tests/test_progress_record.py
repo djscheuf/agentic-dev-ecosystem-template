@@ -23,6 +23,28 @@ def test_serializer_enforces_schema_version_and_field_allow_list() -> None:
         serializer.serialize({"schema_version": 2, "run_id": "run-1"})
 
 
+def test_serializer_redacts_environment_variables_and_credential_paths() -> None:
+    serializer = ProgressRecordSerializer(
+        schema_version=1,
+        allowed_fields={"schema_version", "run_id", "payload"},
+    )
+    record = {
+        "schema_version": 1,
+        "run_id": "run-1",
+        "payload": {
+            "aws_path": "/home/user/.aws/credentials",
+            "token": "${GITHUB_TOKEN}",
+            "normal": "some-value",
+        },
+    }
+
+    serialized = serializer.serialize(record)
+
+    assert serialized["payload"]["aws_path"] == "[REDACTED]"
+    assert serialized["payload"]["token"] == "[REDACTED]"
+    assert serialized["payload"]["normal"] == "some-value"
+
+
 def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     record = {"schema_version": 1, "run_id": "run-1"}

@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 
@@ -6,15 +7,41 @@ class SchemaVersionMismatch(Exception):
     pass
 
 
+_REDACTED = "[REDACTED]"
+_CREDENTIAL_KEYWORDS = {"aws", "credential", "secret", "token", "password", "key", "private"}
+_ENV_VAR_PATTERN = re.compile(r"\$\{[A-Z_][A-Z0-9_]*\}")
+_PATH_PREFIXES = ("/", "~", "./")
+
+
 class ProgressRecordSerializer:
     def __init__(self, schema_version: int, allowed_fields: set) -> None:
         self.schema_version = schema_version
         self.allowed_fields = allowed_fields
 
+    def _is_credential_path(self, value: str) -> bool:
+        if not any(value.startswith(prefix) for prefix in _PATH_PREFIXES):
+            return False
+        return any(keyword in value.lower() for keyword in _CREDENTIAL_KEYWORDS)
+
+    def _redact(self, value):
+        if isinstance(value, dict):
+            return {k: self._redact(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._redact(v) for v in value]
+        if not isinstance(value, str):
+            return value
+        if _ENV_VAR_PATTERN.search(value) or self._is_credential_path(value):
+            return _REDACTED
+        return value
+
     def serialize(self, record: dict) -> dict:
         if record.get("schema_version") != self.schema_version:
             raise SchemaVersionMismatch
-        return {k: v for k, v in record.items() if k in self.allowed_fields}
+        return {
+            k: self._redact(v)
+            for k, v in record.items()
+            if k in self.allowed_fields
+        }
 
 
 class ProgressRecordAlreadyExists(Exception):
