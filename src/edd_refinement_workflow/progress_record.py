@@ -17,6 +17,26 @@ class ProgressRecordSerializer:
         return {k: v for k, v in record.items() if k in self.allowed_fields}
 
 
+class ProgressRecordAlreadyExists(Exception):
+    pass
+
+
+class ProgressRecordFactory:
+    def __init__(self, store) -> None:
+        self.store = store
+
+    def derive_run_id(self, workflow_run_id: str, starting_revision: str) -> str:
+        return f"{workflow_run_id}-{starting_revision[:7]}"
+
+    def create(self, run_id: str, record: dict) -> dict:
+        if self.store._record_path(run_id).exists():
+            raise ProgressRecordAlreadyExists
+        return self.store.create_or_resume(run_id, record)
+
+    def create_or_resume(self, run_id: str, record: dict) -> dict:
+        return self.store.create_or_resume(run_id, record)
+
+
 class ProgressRecordStore:
     def __init__(self, target_root: Path) -> None:
         self.target_root = Path(target_root)

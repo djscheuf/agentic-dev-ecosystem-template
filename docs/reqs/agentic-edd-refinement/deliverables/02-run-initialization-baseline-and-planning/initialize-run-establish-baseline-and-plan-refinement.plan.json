@@ -171,7 +171,7 @@
     {
       "description": "Implement InitializeRun Activity: verify preflight result and active mutation lease, derive run id from workflow run id and starting revision, locate or create the progress record, and emit InitializeRun/ResumeRun events",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement RunBaselineEvaluation Activity: verify lease, resolve a pinned InvocationProfile, invoke the deterministic command through the Devin harness, apply in-Activity timeout and Cadence retry policy, and record each attempt in the progress record",

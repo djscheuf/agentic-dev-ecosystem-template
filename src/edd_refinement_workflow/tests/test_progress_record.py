@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 from edd_refinement_workflow.progress_record import (
+    ProgressRecordAlreadyExists,
+    ProgressRecordFactory,
     ProgressRecordSerializer,
     ProgressRecordStore,
     SchemaVersionMismatch,
@@ -37,3 +39,21 @@ def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     )
     assert resumed == record
     assert progress_path.read_text() == progress_path.read_text()
+
+
+def test_factory_derives_run_id_and_refuses_duplicate_creation(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    factory = ProgressRecordFactory(store)
+
+    run_id = factory.derive_run_id("workflow-1", "abcdef123456")
+    assert run_id == "workflow-1-abcdef1"
+
+    record = {"schema_version": 1, "run_id": run_id}
+    created = factory.create_or_resume(run_id, record)
+    assert created == record
+
+    with pytest.raises(ProgressRecordAlreadyExists):
+        factory.create(run_id, record)
+
+    resumed = factory.create_or_resume(run_id, {"schema_version": 999, "run_id": run_id})
+    assert resumed == record
