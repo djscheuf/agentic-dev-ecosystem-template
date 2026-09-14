@@ -10,7 +10,7 @@
     {
       "criterion": "Given a repository anchor path and no explicit target repository root, when preflight runs, then the workflow resolves the nearest containing Git worktree root and records its canonical path and starting revision",
       "gherkin": "Given a repository anchor path and no explicit target repository root when preflight runs then the workflow resolves the nearest containing Git worktree root and records its canonical path and starting revision",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "criterion": "Given both an anchor-derived root and an explicit root are supplied and they identify different Git worktrees, when preflight runs, then the request is rejected before any agent is invoked",
@@ -35,7 +35,7 @@
     {
       "criterion": "Given the target skill does not exist, or exists but has no evaluation suite, in the target repository, when preflight runs, then the workflow rejects the request before refinement begins",
       "gherkin": "Given the target skill does not exist or exists without an evaluation suite in the target repository when preflight runs then the workflow rejects the request before refinement begins",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "criterion": "Given required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid, when preflight runs, then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
