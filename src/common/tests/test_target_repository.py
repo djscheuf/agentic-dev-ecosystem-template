@@ -1,7 +1,8 @@
 import subprocess
 from pathlib import Path
 
-from common.target_repository import TargetWorktreeResolver
+import pytest
+from common.target_repository import TargetRepositoryResolutionError, TargetWorktreeResolver
 
 
 def test_resolve_anchor_returns_canonical_worktree_root(tmp_path) -> None:
@@ -23,3 +24,14 @@ def test_resolve_anchor_returns_canonical_worktree_root(tmp_path) -> None:
     root = resolver.resolve(str(anchor))
 
     assert root == repo.resolve()
+
+
+def test_resolve_anchor_not_in_git_worktree_raises(tmp_path) -> None:
+    non_repo = tmp_path / "non_repo"
+    non_repo.mkdir()
+    anchor = non_repo / "anchor.json"
+    anchor.write_text("{}")
+
+    resolver = TargetWorktreeResolver()
+    with pytest.raises(TargetRepositoryResolutionError):
+        resolver.resolve(str(anchor))
