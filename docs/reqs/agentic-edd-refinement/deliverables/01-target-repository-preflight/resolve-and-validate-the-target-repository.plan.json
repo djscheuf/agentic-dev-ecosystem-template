@@ -169,7 +169,7 @@
     {
       "description": "Instrument and emit ResolveTargetRepository, ValidateScopedPaths, CheckRepositoryStatus, AcquireMutationLease, ReleaseMutationLease, and CompletePreflight events",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     }
   ],
   "testing_strategy": {
