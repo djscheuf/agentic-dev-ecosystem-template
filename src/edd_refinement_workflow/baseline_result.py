@@ -1,4 +1,6 @@
 import dataclasses
+import json
+from pathlib import Path
 
 
 class BaselineResultError(Exception):
@@ -39,3 +41,16 @@ class BaselineResultParser:
         return BaselineResult(
             **{field: raw[field] for field in _REQUIRED_FIELDS}
         )
+
+
+class BaselineResultArtifactWriter:
+    def __init__(self, target_root) -> None:
+        self.target_root = Path(target_root)
+
+    def write(self, run_id: str, result: BaselineResult) -> str:
+        path = self.target_root / ".process" / "edd" / run_id / "baseline.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(dataclasses.asdict(result), indent=2, sort_keys=True)
+        )
+        return str(path.relative_to(self.target_root))
