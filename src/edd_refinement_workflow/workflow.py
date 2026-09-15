@@ -98,6 +98,9 @@ class EddRefinementWorkflow:
             str(preflight_result.target_context.repo_root),
             start_to_close_timeout=timedelta(minutes=30),
         )
+        result["execution"] = execution
+        if execution.get("status") == "failed":
+            return result
         candidate = await execute_activity(
             "validate_candidate",
             dict,

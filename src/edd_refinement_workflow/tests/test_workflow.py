@@ -261,5 +261,47 @@ async def test_workflow_resumes_persisted_candidate_without_rerunning_harness(
     assert result["candidate"] == candidate
 
 
+@pytest.mark.asyncio
+async def test_workflow_creates_no_candidate_when_execution_fails(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {"run_id": "run-1"}
+        if name == "run_baseline_evaluation":
+            return {"passing": 5}
+        if name == "plan_refinement_action":
+            return {"action": "repair", "intended_files": ["src/skill.py"]}
+        return {"status": "failed", "failure_reason": "harness_failure:1"}
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+
+    result = await EddRefinementWorkflow().run(
+        preflight,
+        {
+            "workflow_run_id": "wf-1",
+            "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        },
+    )
+
+    assert calls[-1] == "execute_refinement_action"
+    assert "candidate" not in result
+
+
 async def _result(value):
     return value
