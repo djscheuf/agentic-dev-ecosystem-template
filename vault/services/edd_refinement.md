@@ -36,3 +36,12 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - `validate_candidate` rejects empty scope, no-op and out-of-scope diffs, malformed metrics, hash mismatches, and required-test weakening or ambiguous modifications.
 - Candidate validation results use stable run-and-diff identifiers and append to `candidate_history` under a per-activity persistence lock.
 - `EddRefinementWorkflow` resumes persisted candidates without rerunning the harness and exposes `get_candidate_status`.
+
+## Candidate evaluation and quality comparison (2026-09-15)
+
+- ProgressRecord schema version 4 stores the deterministic evaluation configuration, candidate metric attempts, and best accepted state.
+- Scope-valid candidates are evaluated with the baseline command, configuration, pinned provider version, timeout, measurement context, and target repository root.
+- Malformed metrics are rejected, while runner failures are recorded as infrastructure errors that are unusable for acceptance.
+- `compare_candidate_to_best` accepts absolute passing gains without coverage loss, accepts newly required coverage at a stable passing count, requests a rerun for apparent degradation, and keeps different measurement contexts incomparable.
+- `FinalizeRunActivity` atomically publishes an idempotent terminal report, restores the best accepted commit through an injected repository operation, and releases the mutation lease through an injected lease operation.
+- Cadence wiring for quality decisions and finalization, accepted-candidate commits, concrete regression reruns, and timeout-attempt persistence remain implementation work.

@@ -240,7 +240,7 @@
     {
       "description": "Implement finalize_run Activity to publish a schema-versioned terminal report, release the mutation lease, and restore the repository to the best accepted state, using a run-scoped idempotency key.",
       "layer": "backend",
-      "status": "completed"
+      "status": "in_progress"
     },
     {
       "description": "Add frontend views for the quality-ratchet comparison and the finalization and audit report.",
