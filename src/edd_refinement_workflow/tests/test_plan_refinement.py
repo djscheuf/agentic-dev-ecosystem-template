@@ -1,6 +1,8 @@
+import pytest
 from edd_refinement_workflow.plan_refinement import (
     PlanRefinementActivity,
     PlanningResult,
+    plan_refinement_action,
 )
 
 
@@ -70,6 +72,24 @@ def test_plan_refinement_does_not_gate_an_empty_evaluation_diff() -> None:
     )
 
     assert result.requires_approval is False
+
+
+@pytest.mark.asyncio
+async def test_plan_refinement_activity_entrypoint_returns_bound_approval() -> None:
+    result = await plan_refinement_action(
+        {
+            "budgets": {"remaining_iterations": 2},
+            "consecutive_confirmed_regressions": 0,
+        },
+        {"passing": 5},
+        "propose_evaluation_expectation_change",
+        "proposal-1",
+        "abc123",
+    )
+
+    assert result["requires_approval"] is True
+    assert result["proposal_id"] == "proposal-1"
+    assert result["proposed_diff_hash"] == "abc123"
 
 
 def test_plan_refinement_rejects_unauthorized_or_unmapped_action() -> None:

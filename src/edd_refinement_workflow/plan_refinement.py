@@ -98,5 +98,21 @@ async def plan_refinement_action(
     progress_record: dict,
     baseline: dict,
     proposed_action: str | None = None,
+    proposal_id: str | None = None,
+    proposed_diff_hash: str | None = None,
 ) -> dict:
-    raise NotImplementedError
+    mapping = {
+        "add_coverage": "required_test_case",
+        "propose_evaluation_expectation_change": "required_test_case",
+    }
+    result = PlanRefinementActivity(
+        taxonomy=[*mapping, "stop"],
+        required_test_case_mapping=mapping,
+    ).plan(
+        progress_record,
+        baseline,
+        proposed_action,
+        proposal_id,
+        proposed_diff_hash,
+    )
+    return dataclasses.asdict(result)
