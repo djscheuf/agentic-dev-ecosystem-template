@@ -55,3 +55,12 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Unchanged confirmation reruns persist separately in `confirmation_evaluations`.
 - The workflow module registers candidate commit, degraded rerun, and finalization Activity contracts.
 - Concrete deployed Cadence entrypoints, retry-policy configuration, confirmed-regression classification, terminal workflow routing, and frontend status/report views remain implementation work.
+
+## Retry and terminal routing (2026-09-15)
+
+> **Stale as of 2026-09-15:** Retry-policy configuration and terminal workflow routing in the preceding remaining-work list are now implemented.
+
+- Candidate evaluation scheduling converts the configured maximum attempts and initial interval into the Cadence Activity retry policy.
+- Apparent degradation routes to `rerun_degraded_candidate` with the unchanged candidate identifier and target repository context.
+- A terminal planning decision routes through `finalize_run` before the workflow returns its terminal result.
+- Concrete deployed Activity entrypoint dependencies, confirmed-regression classification after rerun, and frontend status/report views remain implementation work.
