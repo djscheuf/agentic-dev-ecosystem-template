@@ -158,7 +158,7 @@
         {
           "id": 16,
           "name": "Workflow_AcrossExecutionAndEvaluation_AccountsAndGatesEachStep",
-          "status": "pending",
+          "status": "passing",
           "description": "Execution and evaluation are each followed by accounting and a limit gate before further autonomous work.",
           "arrange": "Run a budgeted workflow with successful execution and evaluation results.",
           "act": "Execute the workflow.",

@@ -134,6 +134,17 @@ class EddRefinementWorkflow:
             start_to_close_timeout=timedelta(minutes=30),
         )
         result["execution"] = execution
+        if "budgets" in record:
+            limit_decision = await self._account_and_check_limits(
+                record["run_id"], execution, "execution",
+                str(preflight_result.target_context.repo_root),
+            )
+            if not limit_decision["schedule_next_step"]:
+                result["terminal_result"] = await execute_activity(
+                    "finalize_run", dict, record["run_id"], limit_decision["stop_reason"],
+                    str(preflight_result.target_context.repo_root), start_to_close_timeout=timedelta(minutes=5),
+                )
+                return result
         if execution.get("status") == "failed":
             return result
         candidate = await execute_activity(
@@ -173,6 +184,17 @@ class EddRefinementWorkflow:
             candidate=candidate,
             candidate_evaluation=candidate_evaluation,
         )
+        if "budgets" in record:
+            limit_decision = await self._account_and_check_limits(
+                record["run_id"], candidate_evaluation, "evaluation",
+                str(preflight_result.target_context.repo_root),
+            )
+            if not limit_decision["schedule_next_step"]:
+                result["terminal_result"] = await execute_activity(
+                    "finalize_run", dict, record["run_id"], limit_decision["stop_reason"],
+                    str(preflight_result.target_context.repo_root), start_to_close_timeout=timedelta(minutes=5),
+                )
+                return result
         best_state = record.get("best_accepted_state")
         if best_state is not None:
             comparison = compare_candidate_to_best(

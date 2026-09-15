@@ -529,5 +529,37 @@ async def test_workflow_after_token_consuming_steps_accounts_usage_and_regates(m
     assert result["schedule_next_step"] is False
 
 
+@pytest.mark.asyncio
+async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_step(tmp_path, monkeypatch) -> None:
+    calls = []
+    responses = {
+        "initialize_run": {"run_id": "run-1", "budgets": {"token_budget": 100}},
+        "check_refinement_limits": {"schedule_next_step": True, "stop_reason": "none"},
+        "run_baseline_evaluation": {"passing": 1},
+        "plan_refinement_action": {"action": "repair"},
+        "execute_refinement_action": {"status": "success", "usage_metrics": {"total_tokens": 5}},
+        "validate_candidate": {"status": "scope_valid", "candidate_id": "candidate-1"},
+        "evaluate_candidate": {"status": "success", "passing": 2, "usage_metrics": {"total_tokens": 6}},
+        "finalize_run": {"terminal_reason": "token_budget"},
+    }
+
+    async def mock_execute(name, result_type, *args, **kwargs):
+        return responses[name]
+
+    workflow = EddRefinementWorkflow()
+    async def account(run_id, result, step, repo_root):
+        calls.append(step)
+        return {"schedule_next_step": step != "evaluation", "stop_reason": "token_budget" if step == "evaluation" else "none"}
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr(workflow, "_account_and_check_limits", account)
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc"))
+
+    result = await workflow.run(preflight, {"workflow_run_id": "wf", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
+
+    assert calls == ["execution", "evaluation"]
+    assert result["terminal_result"]["terminal_reason"] == "token_budget"
+
+
 async def _result(value):
     return value
