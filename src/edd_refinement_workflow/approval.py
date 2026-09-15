@@ -74,3 +74,40 @@ class ApprovalService:
         record.setdefault("human_approved_evaluation_changes", []).append(applied_change)
         self.store.save(record["run_id"], record)
         return applied_change
+
+
+from datetime import datetime, timezone
+
+from cadence import activity
+
+from .progress_record import ProgressRecordStore
+
+
+@activity.defn(name="request_human_approval")
+async def request_human_approval_activity(
+    run_id: str, planning: dict, timeout_seconds: int, repo_root: str
+) -> dict:
+    store = ProgressRecordStore(repo_root)
+    record = store.create_or_resume(run_id, {})
+    return ApprovalService(store).request(
+        record,
+        planning["proposal_id"],
+        planning["proposed_diff_hash"],
+        timeout_seconds,
+        datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@activity.defn(name="record_human_approval_decision")
+async def record_human_approval_decision_activity(
+    run_id: str, proposal_id: str, decision: str, notes: str, repo_root: str
+) -> dict:
+    store = ProgressRecordStore(repo_root)
+    record = store.create_or_resume(run_id, {})
+    return ApprovalService(store).record_decision(
+        record,
+        proposal_id,
+        decision,
+        datetime.now(timezone.utc).isoformat(),
+        notes,
+    )

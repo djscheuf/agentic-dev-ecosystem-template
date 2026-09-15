@@ -33,6 +33,8 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "initialize_run",
         "run_baseline_evaluation",
         "plan_refinement_action",
+        "request_human_approval",
+        "record_human_approval_decision",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)
     assert [activity.name for activity in registry.activities] == list(

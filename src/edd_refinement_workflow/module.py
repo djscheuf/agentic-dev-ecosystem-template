@@ -2,6 +2,10 @@ from common import WorkflowModuleSpec
 
 from .activities.initialize_run import initialize_run_activity
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
+from .approval import (
+    record_human_approval_decision_activity,
+    request_human_approval_activity,
+)
 from .plan_refinement import plan_refinement_action
 from .workflow import EddRefinementWorkflow
 
@@ -10,11 +14,15 @@ ACTIVITY_TYPES = (
     "initialize_run",
     "run_baseline_evaluation",
     "plan_refinement_action",
+    "request_human_approval",
+    "record_human_approval_decision",
 )
 ACTIVITIES = (
     initialize_run_activity,
     run_baseline_evaluation_activity,
     plan_refinement_action,
+    request_human_approval_activity,
+    record_human_approval_decision_activity,
 )
 
 
