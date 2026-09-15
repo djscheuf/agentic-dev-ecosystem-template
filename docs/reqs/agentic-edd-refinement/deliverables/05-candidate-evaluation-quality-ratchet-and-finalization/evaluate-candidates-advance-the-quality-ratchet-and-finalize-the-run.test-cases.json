@@ -112,7 +112,7 @@
         {
           "id": 12,
           "name": "FinalizeRun_WithTerminalOutcome_PublishesOnceAndReleasesLease",
-          "status": "pending",
+          "status": "passing",
           "description": "Finalization restores the best state, publishes a complete report, and releases the lease idempotently.",
           "arrange": "Persist a run with baseline, best accepted state, candidate history, pending decisions, and flaky evidence.",
           "act": "Finalize the same run twice.",
