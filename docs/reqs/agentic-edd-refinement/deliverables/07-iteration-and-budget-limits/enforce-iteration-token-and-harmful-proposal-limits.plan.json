@@ -141,7 +141,7 @@
     {
       "description": "8. Add PublishHumanHandoff Activity to build the structured handoff report and record it in ProgressRecord; attempt human notification with best effort.",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "10. Register all new Activities in src/edd_refinement_workflow/module.py and update the orchestrator catalog as needed.",

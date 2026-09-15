@@ -2,6 +2,7 @@ import pytest
 
 from edd_refinement_workflow.activities.regression_recovery import (
     HumanHandoffActivity,
+    PublishHumanHandoffActivity,
     RecordRevertedProposalContextActivity,
     RevertRepositoryToBestActivity,
     classify_regression_evidence,
@@ -78,6 +79,34 @@ def test_regression_recovery_with_successful_proposal_resets_consecutive_counter
 
     assert result["consecutive_confirmed_regressions"] == 0
     assert store.create_or_resume("run-1", {})["consecutive_confirmed_regressions"] == 0
+
+
+def test_publish_human_handoff_at_regression_threshold_records_three_attempts(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    attempts = [{"candidate_id": f"candidate-{index}"} for index in range(1, 4)]
+    store.create_or_resume(
+        "run-1",
+        {
+            "best_accepted_state": {"commit": "best-1"},
+            "logical_iteration_count": 3,
+            "cumulative_token_usage": 90,
+            "consecutive_confirmed_regressions": 3,
+            "regression_evidence": attempts,
+            "human_handoff_records": [],
+        },
+    )
+
+    result = PublishHumanHandoffActivity(store, now=lambda: "2026-09-15T00:00:00Z").run(
+        "run-1", "regression_threshold"
+    )
+
+    assert result["stop_reason"] == "regression_threshold"
+    assert result["best_accepted_state"] == {"commit": "best-1"}
+    assert result["attempts"] == attempts
+    assert result["summary"]["consecutive_confirmed_regressions"] == 3
+    assert store.create_or_resume("run-1", {})["human_handoff_records"] == [result]
 
 
 def test_human_handoff_retries_notification_and_records_result(tmp_path) -> None:

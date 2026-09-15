@@ -7,6 +7,32 @@ from cadence import activity
 from ..progress_record import ProgressRecordSerializer
 
 
+class PublishHumanHandoffActivity:
+    def __init__(self, store, now: Callable[[], str] | None = None) -> None:
+        self.store = store
+        self.now = now or (lambda: datetime.now(UTC).isoformat())
+
+    def run(self, run_id: str, stop_reason: str) -> dict:
+        record = self.store.create_or_resume(run_id, {})
+        result = {
+            "run_id": run_id,
+            "stopped_at": self.now(),
+            "stop_reason": stop_reason,
+            "best_accepted_state": record.get("best_accepted_state"),
+            "summary": {
+                "logical_iterations": record.get("logical_iteration_count", 0),
+                "cumulative_tokens": record.get("cumulative_token_usage", 0),
+                "consecutive_confirmed_regressions": record.get(
+                    "consecutive_confirmed_regressions", 0
+                ),
+            },
+            "attempts": record.get("regression_evidence", [])[-3:],
+        }
+        record["human_handoff_records"] = record.get("human_handoff_records", []) + [result]
+        self.store.save(run_id, record)
+        return result
+
+
 class HumanHandoffActivity:
     def __init__(self, store, notify: Callable[[dict], bool]) -> None:
         self.store = store
@@ -122,6 +148,13 @@ async def verify_recovery_metrics_activity(recovery: dict, best: dict) -> dict:
 async def record_reverted_proposal_context_activity(run_id: str, context: dict, repo_root: str = ".") -> dict:
     from ..progress_record import ProgressRecordStore
     return RecordRevertedProposalContextActivity(ProgressRecordStore(repo_root)).run(run_id, context)
+
+
+@activity.defn(name="publish_human_handoff")
+async def publish_human_handoff_activity(run_id: str, stop_reason: str, repo_root: str = ".") -> dict:
+    from ..progress_record import ProgressRecordStore
+
+    return PublishHumanHandoffActivity(ProgressRecordStore(repo_root)).run(run_id, stop_reason)
 
 
 @activity.defn(name="human_handoff")

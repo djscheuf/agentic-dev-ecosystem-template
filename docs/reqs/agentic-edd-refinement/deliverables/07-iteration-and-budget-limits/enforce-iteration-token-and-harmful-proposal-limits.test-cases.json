@@ -81,7 +81,7 @@
         {
           "id": 8,
           "name": "PublishHumanHandoff_AtRegressionThreshold_RecordsThreeAttempts",
-          "status": "pending",
+          "status": "passing",
           "description": "Threshold termination publishes a structured report containing the harmful attempts.",
           "arrange": "Persist three confirmed harmful attempt records and best accepted state.",
           "act": "Publish the human handoff.",
