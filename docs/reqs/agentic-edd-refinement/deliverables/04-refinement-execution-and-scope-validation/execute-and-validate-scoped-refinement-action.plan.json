@@ -108,7 +108,7 @@
     {
       "description": "Extend ProgressRecord to schema version 3, adding candidate, candidate_history, and execution_artifacts fields",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement execute_refinement_action activity with approval gate, harness-backed skill execution, and a colocated config file enabling accept-edits",
@@ -162,7 +162,8 @@
       },
       {
         "description": "ProgressRecord schema version 3 serializes and deserializes candidate and candidate_history",
-        "layer": "database"
+        "layer": "database",
+        "status": "completed"
       }
     ],
     "integration_tests": [
