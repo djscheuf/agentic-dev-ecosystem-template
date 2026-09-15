@@ -15,9 +15,11 @@ class ValidateCandidateActivity:
         self,
         diff_provider: Callable[[], str] = lambda: "",
         store=None,
+        on_event: Callable[..., None] | None = None,
     ) -> None:
         self.diff_provider = diff_provider
         self.store = store
+        self.on_event = on_event
         self._store_lock = threading.Lock()
 
     def _test_change_reason(self, planning: dict, execution: ExecutionResult) -> str | None:
@@ -81,6 +83,13 @@ class ValidateCandidateActivity:
                 record["candidate"] = candidate
                 record["candidate_history"] = record.get("candidate_history", []) + [candidate]
                 self.store.save(run_id, record)
+        if self.on_event is not None:
+            self.on_event(
+                "CandidateRejected" if reason else "CandidateScopeValidated",
+                run_id=run_id,
+                candidate_id=result.candidate_id,
+                rejection_reason=reason,
+            )
         return result
 
 

@@ -122,3 +122,15 @@ def test_concurrent_validations_preserve_independent_candidate_history(tmp_path)
         "run-1-candidate-a",
         "run-1-candidate-b",
     }
+
+
+def test_validate_candidate_emits_rejection_event() -> None:
+    events = []
+    activity = ValidateCandidateActivity(
+        on_event=lambda name, **data: events.append((name, data))
+    )
+
+    activity.run("run-1", {"intended_files": ["src/skill.py"]}, _execution([]))
+
+    assert events[0][0] == "CandidateRejected"
+    assert events[0][1]["rejection_reason"] == "no_op"
