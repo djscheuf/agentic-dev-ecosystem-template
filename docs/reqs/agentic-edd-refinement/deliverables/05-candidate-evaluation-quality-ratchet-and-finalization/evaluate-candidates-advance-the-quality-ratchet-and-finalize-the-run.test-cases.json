@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "InitializeRun_WithEvaluationProfile_PersistsEvaluationConfiguration",
-          "status": "pending",
+          "status": "passing",
           "description": "New progress records carry the baseline evaluation configuration and candidate metric state.",
           "arrange": "Provide successful preflight context and a deterministic evaluation profile.",
           "act": "Initialize the EDD refinement run.",

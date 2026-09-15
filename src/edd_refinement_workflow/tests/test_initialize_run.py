@@ -25,7 +25,15 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
         ),
     )
 
-    record = activity.run("wf-1", preflight)
+    profile = {
+        "command": ["promptfoo", "eval", "-c", "promptfooconfig.yaml"],
+        "configuration": "promptfooconfig.yaml",
+        "provider": "openai:gpt-5@2026-08-07",
+        "timeout": 120,
+        "measurement_context": "baseline",
+    }
+
+    record = activity.run("wf-1", preflight, profile)
 
     assert record["run_id"] == "wf-1-abcdef1"
     assert record["workflow_run_id"] == "wf-1"
@@ -33,7 +41,16 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["token_usage"] == 0
     assert record["consecutive_confirmed_regressions"] == 0
     assert record["iteration_history"] == []
-    assert record["schema_version"] == 3
+    assert record["schema_version"] == 4
+    assert record["evaluation_configuration"] == {
+        "command": ["promptfoo", "eval", "-c", "promptfooconfig.yaml"],
+        "configuration": "promptfooconfig.yaml",
+        "pinned_provider_version": "openai:gpt-5@2026-08-07",
+        "timeout_seconds": 120,
+        "measurement_context": "baseline",
+    }
+    assert record["candidate_metrics"] == []
+    assert record["best_accepted_state"] is None
     assert record["approval_request"] is None
     assert record["approval_history"] == []
     assert record["candidate"] is None

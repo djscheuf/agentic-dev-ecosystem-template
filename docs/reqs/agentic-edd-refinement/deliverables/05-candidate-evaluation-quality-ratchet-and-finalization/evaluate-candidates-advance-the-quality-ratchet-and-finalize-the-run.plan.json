@@ -190,7 +190,7 @@
     {
       "description": "Add EvaluationRunConfiguration and CandidateMetricRecord data models to the progress record module, including measurement_context, pinned_provider_version, and artifact_references.",
       "layer": "database",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement the evaluate_candidate Activity in the backend with a deterministic command, configuration, and pinned provider; wrap it in the configured Activity timeout and retry policy.",
@@ -205,7 +205,7 @@
     {
       "description": "Bump the ProgressRecord schema version and ensure existing run records remain forward-compatible.",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Stub the compare_candidate_to_best service, commit_accepted_candidate Activity, rerun_degraded_candidate Activity, and finalize_run Activity for the first slice so the workflow remains compilable and the contracts are defined.",

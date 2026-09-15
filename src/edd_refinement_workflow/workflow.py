@@ -18,6 +18,7 @@ class EddRefinementWorkflow:
             dict,
             request["workflow_run_id"],
             preflight_result,
+            request["profile"],
             start_to_close_timeout=timedelta(minutes=5),
         )
         if record.get("candidate") is not None:
