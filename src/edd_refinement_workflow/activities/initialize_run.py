@@ -16,13 +16,15 @@ class InitializeRunActivity:
         run_id = self.factory.derive_run_id(workflow_run_id, starting_revision)
 
         record = {
-            "schema_version": 1,
+            "schema_version": 2,
             "run_id": run_id,
             "workflow_run_id": workflow_run_id,
             "starting_revision": starting_revision,
             "token_usage": 0,
             "consecutive_confirmed_regressions": 0,
             "iteration_history": [],
+            "approval_request": None,
+            "approval_history": [],
         }
 
         created = self.factory.create_or_resume(run_id, record)

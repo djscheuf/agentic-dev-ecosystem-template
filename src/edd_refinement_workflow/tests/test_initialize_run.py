@@ -33,6 +33,9 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["token_usage"] == 0
     assert record["consecutive_confirmed_regressions"] == 0
     assert record["iteration_history"] == []
+    assert record["schema_version"] == 2
+    assert record["approval_request"] is None
+    assert record["approval_history"] == []
     assert (
         tmp_path / ".process" / "edd" / record["run_id"] / "progress.json"
     ).exists()
