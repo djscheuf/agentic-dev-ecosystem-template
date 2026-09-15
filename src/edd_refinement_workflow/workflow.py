@@ -126,6 +126,13 @@ class EddRefinementWorkflow:
             result.update(execution=execution, candidate=candidate)
             self._candidate = candidate
             return result
+        retry_configuration = request["profile"].get("retry_policy", {})
+        retry_policy = {
+            "maximum_attempts": retry_configuration.get("maximum_attempts", 3),
+            "initial_interval": timedelta(
+                seconds=retry_configuration.get("initial_interval_seconds", 1)
+            ),
+        }
         candidate_evaluation = await execute_activity(
             "evaluate_candidate",
             dict,
@@ -135,6 +142,7 @@ class EddRefinementWorkflow:
             start_to_close_timeout=timedelta(
                 seconds=request["profile"]["timeout"]
             ),
+            retry_policy=retry_policy,
         )
         result.update(
             execution=execution,

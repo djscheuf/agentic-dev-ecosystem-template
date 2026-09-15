@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from common.preflight import PreflightResult, TargetRepositoryContext
 from edd_refinement_workflow.workflow import EddRefinementWorkflow
@@ -371,6 +373,35 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
     assert [name for name, _ in calls][-2:] == ["evaluate_candidate", "rerun_degraded_candidate"]
     assert calls[-1][1][1] == "candidate-1"
     assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
+
+
+@pytest.mark.asyncio
+async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path, monkeypatch) -> None:
+    options = {}
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        if name == "evaluate_candidate":
+            options.update(kwargs)
+        responses = {
+            "initialize_run": {"run_id": "run-1"},
+            "run_baseline_evaluation": {"passing": 5},
+            "plan_refinement_action": {"action": "repair"},
+            "execute_refinement_action": {"status": "success"},
+            "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
+            "evaluate_candidate": {"candidate_id": "candidate-1", "status": "success"},
+        }
+        return responses[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc123456"))
+
+    await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 30, "retry_policy": {"maximum_attempts": 3, "initial_interval_seconds": 2}}})
+
+    assert options["start_to_close_timeout"] == timedelta(seconds=30)
+    assert options["retry_policy"] == {
+        "maximum_attempts": 3,
+        "initial_interval": timedelta(seconds=2),
+    }
 
 
 async def _result(value):
