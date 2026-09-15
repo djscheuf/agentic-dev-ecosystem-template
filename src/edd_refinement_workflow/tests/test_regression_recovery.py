@@ -1,6 +1,7 @@
 import pytest
 
 from edd_refinement_workflow.activities.regression_recovery import (
+    RevertRepositoryToBestActivity,
     classify_regression_evidence,
     verify_recovery_metrics,
 )
@@ -35,3 +36,17 @@ def test_verify_recovery_metrics_reports_exact_matches_and_mismatches() -> None:
     assert matched == {"recovered": True, "matched_fields": ["passing", "failing", "total", "required_coverage", "percentage"], "mismatched_fields": [], "reason": "recovery metrics match"}
     assert mismatched["recovered"] is False
     assert mismatched["mismatched_fields"] == ["failing"]
+
+
+def test_revert_repository_to_best_requires_lease_and_clean_restore() -> None:
+    calls = []
+    activity = RevertRepositoryToBestActivity(
+        lease_held=lambda repo, run: True,
+        reset=lambda repo, commit: calls.append((repo, commit)),
+        is_clean=lambda repo: True,
+    )
+
+    result = activity.run("run-1", "/repo", {"commit": "accepted-1"})
+
+    assert calls == [("/repo", "accepted-1")]
+    assert result == {"restored_commit": "accepted-1", "repo_clean": True}

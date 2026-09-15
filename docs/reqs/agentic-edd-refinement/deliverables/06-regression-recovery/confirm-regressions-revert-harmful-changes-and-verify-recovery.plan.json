@@ -120,7 +120,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 3. Add the RevertRepositoryToBest Activity that holds the mutation lease, runs git reset --hard to the best accepted commit, and verifies a clean worktree.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 4. Reuse EvaluateCandidate to run the recovery evaluation of the restored state using the same deterministic baseline_evaluation_configuration and target_repository_context.",
