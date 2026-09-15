@@ -33,8 +33,10 @@ class PlanRefinementActivity:
             or progress_record.get("consecutive_confirmed_regressions", 0) >= 3
         )
 
-    def _requires_approval(self, action: str) -> bool:
-        return action == "propose_evaluation_expectation_change"
+    def _requires_approval(self, action: str, proposed_diff_hash: str | None) -> bool:
+        return action == "propose_evaluation_expectation_change" and bool(
+            proposed_diff_hash
+        )
 
     def _is_authorized(self, action: str) -> bool:
         return (
@@ -78,7 +80,9 @@ class PlanRefinementActivity:
         return PlanningResult(
             action=proposed_action,
             rationale=f"selected authorized action {proposed_action}",
-            requires_approval=self._requires_approval(proposed_action),
+            requires_approval=self._requires_approval(
+                proposed_action, proposed_diff_hash
+            ),
             stop_recommendation=False,
             taxonomy_version=self.taxonomy_version,
             proposal_id=proposal_id,

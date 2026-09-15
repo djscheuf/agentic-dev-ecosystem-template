@@ -37,7 +37,7 @@
     {
       "criterion": "Proposed diff is empty or does not change an evaluation expectation",
       "gherkin": "Given the selected action does not change an evaluation expectation when the workflow reaches the approval step then it does not pause for human approval and continues without requiring a decision",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Proposal identifier is not stable or not found on resume",

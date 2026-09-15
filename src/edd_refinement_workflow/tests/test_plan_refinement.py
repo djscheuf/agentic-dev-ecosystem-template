@@ -51,6 +51,27 @@ def test_plan_refinement_selects_authorized_action_and_sets_approval() -> None:
     assert result.stop_recommendation is False
 
 
+def test_plan_refinement_does_not_gate_an_empty_evaluation_diff() -> None:
+    activity = PlanRefinementActivity(
+        taxonomy=["propose_evaluation_expectation_change"],
+        required_test_case_mapping={"propose_evaluation_expectation_change": "tc2"},
+    )
+    progress_record = {
+        "budgets": {"remaining_iterations": 2},
+        "consecutive_confirmed_regressions": 0,
+    }
+
+    result = activity.plan(
+        progress_record,
+        {"passing": 5},
+        proposed_action="propose_evaluation_expectation_change",
+        proposal_id="proposal-1",
+        proposed_diff_hash="",
+    )
+
+    assert result.requires_approval is False
+
+
 def test_plan_refinement_rejects_unauthorized_or_unmapped_action() -> None:
     activity = PlanRefinementActivity(
         taxonomy=["add_coverage"],
