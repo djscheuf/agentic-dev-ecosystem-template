@@ -15,59 +15,59 @@
     {
       "criterion": "EDD-006-AC2: Given the refinement Activity completes, when its resulting diff is validated, then the workflow confirms the diff matches the approved action and stays within the authorized file scope.",
       "gherkin": "Given the refinement Activity completes When its resulting diff is validated Then the workflow confirms the diff matches the approved action and stays within the authorized file scope",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-006-AC3: Given an agent changes a file outside the authorized scope, when candidate validation runs, then the iteration is rejected and no refinement commit is created.",
       "gherkin": "Given an agent changes a file outside the authorized scope When candidate validation runs Then the iteration is rejected and no refinement commit is created",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-006-AC4: Given a refinement action would remove, skip, weaken, or rewrite a failing required test to improve its score, when candidate validation runs, then the change is rejected rather than accepted as a repair.",
       "gherkin": "Given a refinement action would remove, skip, weaken, or rewrite a failing required test to improve its score When candidate validation runs Then the change is rejected rather than accepted as a repair",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "edge_cases": [
     {
       "criterion": "Activity returns no changed files",
       "gherkin": "Given a refinement Activity runs and produces no changed files When candidate validation runs Then the candidate is rejected as a no-op",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Approval evidence is missing for an expectation-changing action",
       "gherkin": "Given a selected action changes evaluation expectations and no approval evidence exists When execution is attempted Then the workflow rejects the action before running it",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Authorized file scope is empty or undefined",
       "gherkin": "Given no authorized file scope is configured for a candidate When validation runs Then the workflow rejects the candidate to avoid unbounded changes",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Diff contains both approved-scope and out-of-scope changes",
       "gherkin": "Given a candidate diff changes files both inside and outside the authorized scope When validation runs Then the iteration is rejected",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Required test is modified but the change is ambiguous",
       "gherkin": "Given a candidate diff touches a required test in an ambiguous way When test-weakening validation runs Then the workflow conservatively rejects the change",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Activity runner or external VCS is unavailable",
       "gherkin": "Given the Activity runner or version control system is unavailable When the refinement Activity runs Then the workflow reports the failure and creates no candidate",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Multiple candidates are validated concurrently",
       "gherkin": "Given two refinement candidates are validated concurrently for the same skill When the workflow runs Then each candidate is evaluated independently and results are not conflated",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Usage metrics contract is malformed",
       "gherkin": "Given the refinement Activity returns usage metrics that do not match the structured contract When validation runs Then the workflow rejects the candidate and reports a contract violation",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "impacted_layers": {
@@ -133,12 +133,13 @@
     {
       "description": "Update frontend views to trigger execution and display candidate status, usage metrics, changed files, and rejection reasons",
       "layer": "ui",
-      "status": "pending"
+      "status": "not_applicable",
+      "notes": "The repository has no frontend application or UI test harness; workflow queries and structured results provide the backend contract for a future UI."
     },
     {
       "description": "Add and extend unit and integration tests for the new activities, ProgressRecord, validators, and workflow resumption",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "testing_strategy": {
@@ -189,15 +190,18 @@
     "e2e_tests": [
       {
         "description": "Owner triggers refinement execution and reviews structured usage metrics and changed files",
-        "layer": "ui"
+        "layer": "ui",
+        "status": "not_applicable"
       },
       {
         "description": "Owner sees a clear rejection reason for out-of-scope or test-weakening candidates",
-        "layer": "ui"
+        "layer": "ui",
+        "status": "not_applicable"
       },
       {
         "description": "Unapproved expectation-changing action is rejected before the harness runs",
-        "layer": "ui"
+        "layer": "ui",
+        "status": "not_applicable"
       }
     ]
   },

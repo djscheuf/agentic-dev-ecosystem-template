@@ -28,3 +28,11 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Empty evaluation diffs bypass the approval gate, while late decisions after timeout cannot replace the recorded result.
 - `python -m edd_refinement_workflow.approval_cli` provides `approve`, `reject`, and `status` commands with workflow, run, and proposal identifiers.
 - The `plan_refinement_action` Cadence entrypoint accepts and returns proposal identifiers and diff hashes instead of raising its former placeholder error.
+
+## Scoped candidate execution and validation (2026-09-15)
+
+- `execute_refinement_action` runs the selected action through `DevinHarness` with an explicitly colocated `accept-edits` configuration and returns usage, ATIF path, changed files, and a canonical diff hash.
+- Expectation-changing actions fail closed unless the approved hash matches the planned hash.
+- `validate_candidate` rejects empty scope, no-op and out-of-scope diffs, malformed metrics, hash mismatches, and required-test weakening or ambiguous modifications.
+- Candidate validation results use stable run-and-diff identifiers and append to `candidate_history` under a per-activity persistence lock.
+- `EddRefinementWorkflow` resumes persisted candidates without rerunning the harness and exposes `get_candidate_status`.
