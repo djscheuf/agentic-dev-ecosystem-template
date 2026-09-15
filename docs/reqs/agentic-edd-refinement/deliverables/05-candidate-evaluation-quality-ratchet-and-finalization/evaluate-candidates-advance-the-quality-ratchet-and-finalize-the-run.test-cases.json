@@ -76,7 +76,7 @@
         {
           "id": 8,
           "name": "CompareCandidateToBest_WithNewRequiredCoverage_AcceptsCandidate",
-          "status": "pending",
+          "status": "passing",
           "description": "Meaningful new required coverage qualifies while preserving absolute passing count.",
           "arrange": "Create a candidate with equal passing count and newly covered required case.",
           "act": "Compare the candidate to the best accepted state.",
