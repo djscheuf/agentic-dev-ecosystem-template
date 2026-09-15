@@ -1,6 +1,15 @@
+import asyncio
+import dataclasses
+import hashlib
+import subprocess
+import time
 from collections.abc import Callable
+from pathlib import Path
 
 from cadence import activity
+
+from common.devin_harness import DevinHarness
+from common.skill_activity_config import SkillActivityConfig
 
 from ..candidate_results import ExecutionResult, UsageMetrics
 
@@ -46,6 +55,60 @@ class ExecuteRefinementActionActivity:
         )
 
 
+class HarnessBackedRefinementRunner:
+    def __init__(self, harness=None) -> None:
+        self.harness = harness or DevinHarness()
+        self.config = SkillActivityConfig.load(
+            Path(__file__).with_suffix(".config.json")
+        ).harness
+
+    def __call__(self, *, run_id: str, planning: dict, repo_root: str) -> dict:
+        prompt = (
+            f"Execute refinement action '{planning['action']}' for run '{run_id}'. "
+            f"Only modify these files: {planning.get('intended_files', [])}."
+        )
+        started = time.monotonic()
+        harness_result = self.harness.run(
+            prompt,
+            cwd=Path(repo_root),
+            config=self.config,
+        )
+        if harness_result.exit_code:
+            raise RuntimeError(f"harness_failure:{harness_result.exit_code}")
+        diff = subprocess.run(
+            ["git", "diff", "--no-ext-diff", "--binary"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        changed_files = subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        usage = dataclasses.asdict(harness_result.usage) if harness_result.usage else {}
+        return {
+            "status": "success",
+            "observation": {
+                "usage": {
+                    "prompt_tokens": usage.get("prompt_tokens") or 0,
+                    "completion_tokens": usage.get("completion_tokens") or 0,
+                    "cost_usd": usage.get("cost_usd") or 0.0,
+                },
+                "atif_path": None,
+                "duration_ms": int((time.monotonic() - started) * 1000),
+            },
+            "changed_files": changed_files,
+            "diff_hash": hashlib.sha256(diff.encode()).hexdigest(),
+        }
+
+
+EXECUTION_ACTIVITY = ExecuteRefinementActionActivity(HarnessBackedRefinementRunner())
+
+
 @activity.defn(name="execute_refinement_action")
 async def execute_refinement_action_activity(
     run_id: str,
@@ -53,4 +116,11 @@ async def execute_refinement_action_activity(
     approved_diff_hash: str | None,
     repo_root: str,
 ) -> dict:
-    raise RuntimeError("execute_refinement_action runner is not configured")
+    result = await asyncio.to_thread(
+        EXECUTION_ACTIVITY.run,
+        run_id,
+        planning,
+        approved_diff_hash,
+        repo_root,
+    )
+    return dataclasses.asdict(result)

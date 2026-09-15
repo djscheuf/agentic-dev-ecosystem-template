@@ -1,8 +1,9 @@
 import pytest
 
-from edd_refinement_workflow.candidate_results import ExecutionResult
+from edd_refinement_workflow.candidate_results import ExecutionResult, UsageMetrics
 from edd_refinement_workflow.activities.execute_refinement_action import (
     ExecuteRefinementActionActivity,
+    execute_refinement_action_activity,
 )
 
 
@@ -73,3 +74,33 @@ def test_execute_refinement_action_returns_harness_usage_and_changed_files() -> 
     assert result.usage_metrics.total_tokens == 150
     assert result.changed_files == ["src/skill.py"]
     assert result.atif_path == ".process/edd/run-1/devin-trajectory.json"
+
+
+@pytest.mark.asyncio
+async def test_execute_refinement_action_entrypoint_runs_configured_activity(
+    monkeypatch,
+) -> None:
+    expected = ExecutionResult(
+        status="success",
+        usage_metrics=UsageMetrics(1, 1, 2, 0.01),
+        changed_files=["src/skill.py"],
+        diff_hash="abc123",
+        failure_reason=None,
+        atif_path=None,
+        duration_ms=1,
+    )
+
+    class FakeActivity:
+        def run(self, *args):
+            return expected
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.execute_refinement_action.EXECUTION_ACTIVITY",
+        FakeActivity(),
+    )
+
+    result = await execute_refinement_action_activity(
+        "run-1", {"action": "repair"}, None, "/repo"
+    )
+
+    assert result["diff_hash"] == "abc123"

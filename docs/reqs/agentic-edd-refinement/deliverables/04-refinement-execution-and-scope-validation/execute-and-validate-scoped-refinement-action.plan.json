@@ -10,7 +10,7 @@
     {
       "criterion": "EDD-006-AC1: Given a selected and, if required, approved action, when the corresponding refinement Activity runs, then it returns structured usage metrics and a list of changed files.",
       "gherkin": "Given a selected and, if required, approved action When the corresponding refinement Activity runs Then it returns structured usage metrics and a list of changed files",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-006-AC2: Given the refinement Activity completes, when its resulting diff is validated, then the workflow confirms the diff matches the approved action and stays within the authorized file scope.",
@@ -113,7 +113,7 @@
     {
       "description": "Implement execute_refinement_action activity with approval gate, harness-backed skill execution, and a colocated config file enabling accept-edits",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement validate_candidate activity to check diff hash, authorized file scope, and required-test weakening patterns",
