@@ -26,6 +26,7 @@ def check_refinement_limits(progress_record: dict, next_step_estimate: int = 0) 
             and progress_record.get("consecutive_confirmed_regressions", 0)
             >= budgets["regression_stop_threshold"],
         ),
+        ("pending_evidence", bool(progress_record.get("pending_evidence_flags"))),
     )
     stop_reason = next((reason for reason, reached in checks if reached), "none")
     return {

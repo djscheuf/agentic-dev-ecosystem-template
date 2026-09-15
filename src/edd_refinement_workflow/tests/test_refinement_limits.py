@@ -22,3 +22,20 @@ def test_check_refinement_limits_at_configured_boundary_blocks_with_reason(recor
         "stop_reason": reason,
         "best_accepted_state": {"commit": "best-1"},
     }
+
+
+def test_check_refinement_limits_with_pending_evidence_pauses_until_resolved() -> None:
+    record = {
+        "budgets": {"max_iterations": 2, "token_budget": 100},
+        "logical_iteration_count": 0,
+        "cumulative_token_usage": 0,
+        "pending_evidence_flags": ["inconclusive"],
+    }
+
+    blocked = check_refinement_limits(record)
+    record["pending_evidence_flags"] = []
+    resumed = check_refinement_limits(record)
+
+    assert blocked["stop_reason"] == "pending_evidence"
+    assert blocked["schedule_next_step"] is False
+    assert resumed["schedule_next_step"] is True

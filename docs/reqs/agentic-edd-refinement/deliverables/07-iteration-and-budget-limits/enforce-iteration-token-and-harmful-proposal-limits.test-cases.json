@@ -49,7 +49,7 @@
         {
           "id": 5,
           "name": "CheckRefinementLimits_WithPendingEvidence_PausesUntilResolved",
-          "status": "pending",
+          "status": "passing",
           "description": "Unresolved evidence blocks autonomous work and clearing it permits work.",
           "arrange": "Create otherwise in-budget records with pending evidence set and cleared.",
           "act": "Check refinement limits.",
