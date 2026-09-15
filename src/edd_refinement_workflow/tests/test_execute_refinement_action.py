@@ -134,3 +134,21 @@ def test_execute_refinement_action_emits_success_event() -> None:
             {"run_id": "run-1", "duration_ms": 2, "changed_files_count": 1},
         )
     ]
+
+
+def test_execute_refinement_action_reports_harness_failure_without_candidate() -> None:
+    def fail(**kwargs):
+        raise RuntimeError("harness_failure:1")
+
+    events = []
+    activity = ExecuteRefinementActionActivity(
+        harness_runner=fail,
+        on_event=lambda name, **data: events.append((name, data)),
+    )
+
+    result = activity.run("run-1", {"action": "repair"}, None, "/repo")
+
+    assert result.status == "failed"
+    assert result.changed_files == []
+    assert result.failure_reason == "harness_failure:1"
+    assert events[0][0] == "RefinementActivityFailed"

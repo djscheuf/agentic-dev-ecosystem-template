@@ -35,11 +35,29 @@ class ExecuteRefinementActionActivity:
                 raise ValueError("missing_approval")
             if approved_diff_hash != planning.get("proposed_diff_hash"):
                 raise ValueError("diff_hash_mismatch")
-        output = self.harness_runner(
-            run_id=run_id,
-            planning=planning,
-            repo_root=repo_root,
-        )
+        try:
+            output = self.harness_runner(
+                run_id=run_id,
+                planning=planning,
+                repo_root=repo_root,
+            )
+        except RuntimeError as exc:
+            result = ExecutionResult(
+                status="failed",
+                usage_metrics=UsageMetrics(0, 0, 0, 0.0),
+                changed_files=[],
+                diff_hash="",
+                failure_reason=str(exc),
+                atif_path=None,
+                duration_ms=0,
+            )
+            if self.on_event is not None:
+                self.on_event(
+                    "RefinementActivityFailed",
+                    run_id=run_id,
+                    failure_reason=result.failure_reason,
+                )
+            return result
         observation = output["observation"]
         usage = observation["usage"]
         prompt_tokens = usage["prompt_tokens"]
