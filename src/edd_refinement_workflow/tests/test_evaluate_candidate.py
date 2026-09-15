@@ -89,3 +89,17 @@ def test_evaluate_candidate_with_malformed_metrics_records_rejected_attempt(tmp_
     assert result["failure_reason"] == "malformed_metrics"
     assert result["usable_for_acceptance"] is False
     assert store.create_or_resume("run-1", {})["candidate_metrics"] == [result]
+
+
+def test_evaluate_candidate_with_infrastructure_error_records_non_regression_attempt(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"evaluation_configuration": {"command": ["eval"], "configuration": "config", "pinned_provider_version": "provider@1", "timeout_seconds": 10, "measurement_context": "baseline"}, "candidate_metrics": []})
+
+    def failing_harness(**kwargs):
+        raise RuntimeError("runner unavailable")
+
+    result = EvaluateCandidateActivity(store, failing_harness).run("run-1", "candidate-1", str(tmp_path))
+
+    assert result["status"] == "infra_error"
+    assert result["failure_reason"] == "runner unavailable"
+    assert result["usable_for_acceptance"] is False

@@ -44,7 +44,7 @@
         {
           "id": 5,
           "name": "EvaluateCandidate_WithInfrastructureError_RecordsNonRegressionAttempt",
-          "status": "pending",
+          "status": "passing",
           "description": "Infrastructure failures are recorded separately from product regressions.",
           "arrange": "Configure the evaluation harness to raise an infrastructure error.",
           "act": "Evaluate a scope-valid candidate.",

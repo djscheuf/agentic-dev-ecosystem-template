@@ -15,13 +15,18 @@ class EvaluateCandidateActivity:
     def run(self, run_id: str, candidate_id: str, repo_root: str) -> dict:
         record = self.store.create_or_resume(run_id, {})
         configuration = record["evaluation_configuration"]
-        result = self.harness(
-            command=configuration["command"],
-            configuration=configuration["configuration"],
-            provider=configuration["pinned_provider_version"],
-            cwd=repo_root,
-            timeout=configuration["timeout_seconds"],
-        )
+        infrastructure_error = None
+        try:
+            result = self.harness(
+                command=configuration["command"],
+                configuration=configuration["configuration"],
+                provider=configuration["pinned_provider_version"],
+                cwd=repo_root,
+                timeout=configuration["timeout_seconds"],
+            )
+        except RuntimeError as exc:
+            result = {}
+            infrastructure_error = str(exc)
         required_fields = {
             "passing",
             "failing",
@@ -44,9 +49,9 @@ class EvaluateCandidateActivity:
             pinned_provider_version=configuration["pinned_provider_version"],
             measurement_context=configuration["measurement_context"],
             evaluated_at=self.now(),
-            status="success" if valid else "rejected",
-            failure_reason=None if valid else "malformed_metrics",
-            usable_for_acceptance=valid,
+            status="infra_error" if infrastructure_error else "success" if valid else "rejected",
+            failure_reason=infrastructure_error or (None if valid else "malformed_metrics"),
+            usable_for_acceptance=valid and infrastructure_error is None,
         ).to_dict()
         record["candidate_metrics"] = record.get("candidate_metrics", []) + [metric]
         self.store.save(run_id, record)
