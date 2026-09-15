@@ -17,7 +17,7 @@
         {
           "id": 2,
           "name": "UpdateDurableCounters_WithRetry_TracksTokensWithoutIterationAdvance",
-          "status": "pending",
+          "status": "passing",
           "description": "Every attempt consumes observed tokens while retries do not create logical iterations.",
           "arrange": "Persist a run and create one normal attempt followed by a retry attempt.",
           "act": "Update durable counters for both attempts.",

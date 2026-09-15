@@ -126,7 +126,7 @@
     {
       "description": "5. Add UpdateDurableCounters Activity (or helper) to append attempt records, add token usage for every attempt (including retries), and advance logical_iteration_count only for non-retry attempts.",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "6. Update execute_refinement_action, evaluate_candidate, and regression_recovery to return UsageMetrics and is_retry context so UpdateDurableCounters can account for retries without inflating iterations.",
