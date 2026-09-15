@@ -4,6 +4,8 @@ from datetime import timedelta
 from cadence import workflow
 from cadence.workflow import execute_activity, sleep, wait_condition
 
+from .quality_ratchet import compare_candidate_to_best
+
 
 class EddRefinementWorkflow:
     def __init__(self) -> None:
@@ -131,6 +133,21 @@ class EddRefinementWorkflow:
             candidate=candidate,
             candidate_evaluation=candidate_evaluation,
         )
+        best_state = record.get("best_accepted_state")
+        if best_state is not None:
+            comparison = compare_candidate_to_best(
+                candidate_evaluation, best_state["metrics"]
+            )
+            result["comparison"] = comparison
+            if comparison["decision"] == "accept":
+                result["best_accepted_state"] = await execute_activity(
+                    "commit_accepted_candidate",
+                    dict,
+                    record["run_id"],
+                    candidate_evaluation,
+                    str(preflight_result.target_context.repo_root),
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
         self._candidate = candidate
         return result
 

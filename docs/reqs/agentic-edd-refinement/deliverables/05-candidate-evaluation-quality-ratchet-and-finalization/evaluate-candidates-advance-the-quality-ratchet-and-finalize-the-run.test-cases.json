@@ -162,7 +162,7 @@
         {
           "id": 17,
           "name": "Workflow_WithAcceptedComparison_CommitsCandidate",
-          "status": "pending",
+          "status": "passing",
           "description": "Workflow comparison routes accepted candidates to deterministic commit handling.",
           "arrange": "Mock a scope-valid candidate evaluation and an accepting comparison.",
           "act": "Run the refinement workflow.",

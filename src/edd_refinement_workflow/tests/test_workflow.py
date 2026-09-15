@@ -310,5 +310,36 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
     assert "candidate" not in result
 
 
+@pytest.mark.asyncio
+async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, monkeypatch) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append((name, args))
+        if name == "initialize_run":
+            return {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}}}
+        if name == "run_baseline_evaluation":
+            return {"passing": 5}
+        if name == "plan_refinement_action":
+            return {"action": "repair", "intended_files": ["src/skill.py"]}
+        if name == "execute_refinement_action":
+            return {"status": "success", "changed_files": ["src/skill.py"]}
+        if name == "validate_candidate":
+            return {"candidate_id": "candidate-1", "status": "scope_valid"}
+        if name == "evaluate_candidate":
+            return {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}
+        return {"candidate_id": "candidate-1", "commit": "commit-1"}
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr("edd_refinement_workflow.workflow.compare_candidate_to_best", lambda candidate, best: {"decision": "accept"})
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc123456"))
+
+    result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
+
+    assert [name for name, _ in calls][-2:] == ["evaluate_candidate", "commit_accepted_candidate"]
+    assert result["comparison"]["decision"] == "accept"
+    assert result["best_accepted_state"]["commit"] == "commit-1"
+
+
 async def _result(value):
     return value
