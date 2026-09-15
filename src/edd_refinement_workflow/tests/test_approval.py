@@ -1,4 +1,5 @@
-from edd_refinement_workflow.approval import ApprovalService
+import pytest
+from edd_refinement_workflow.approval import ApprovalService, DiffIntegrityError
 from edd_refinement_workflow.progress_record import ProgressRecordStore
 
 
@@ -28,3 +29,20 @@ def test_approval_service_persists_first_decision_and_history(tmp_path) -> None:
     assert decided["status"] == "decided"
     assert record["approval_history"] == [decided]
     assert store.create_or_resume("run-1", {})["approval_request"] == decided
+
+
+def test_approval_service_rejects_changed_diff_and_classifies_matching_diff(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    record = {"schema_version": 2, "run_id": "run-1", "approval_history": []}
+    store.create_or_resume("run-1", record)
+    service = ApprovalService(store)
+    service.request(record, "proposal-1", "abc123", 60, "requested")
+    service.record_decision(record, "proposal-1", "approve", "decided")
+
+    with pytest.raises(DiffIntegrityError):
+        service.record_applied_change(record, "different", "applied")
+
+    applied = service.record_applied_change(record, "abc123", "applied")
+
+    assert applied["approval_context"] == "human_approved_evaluation_change"
+    assert applied["applied_diff_hash"] == "abc123"

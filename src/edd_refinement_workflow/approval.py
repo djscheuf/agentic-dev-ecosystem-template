@@ -1,3 +1,7 @@
+class DiffIntegrityError(Exception):
+    pass
+
+
 class ApprovalService:
     def __init__(self, store) -> None:
         self.store = store
@@ -51,3 +55,22 @@ class ApprovalService:
         record.setdefault("approval_history", []).append(dict(approval_request))
         self.store.save(record["run_id"], record)
         return approval_request
+
+    def record_applied_change(
+        self, record: dict, applied_diff_hash: str, applied_at: str
+    ) -> dict:
+        approval_request = record["approval_request"]
+        if approval_request.get("decision") != "approve":
+            raise DiffIntegrityError("evaluation change has not been approved")
+        if approval_request["proposed_diff_hash"] != applied_diff_hash:
+            raise DiffIntegrityError("applied diff does not match approved diff")
+        applied_change = {
+            "approval_request_id": approval_request["approval_request_id"],
+            "proposal_id": approval_request["proposal_id"],
+            "applied_diff_hash": applied_diff_hash,
+            "applied_at": applied_at,
+            "approval_context": "human_approved_evaluation_change",
+        }
+        record.setdefault("human_approved_evaluation_changes", []).append(applied_change)
+        self.store.save(record["run_id"], record)
+        return applied_change
