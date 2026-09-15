@@ -64,3 +64,37 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
         tmp_path / ".process" / "edd" / record["run_id"] / "progress.json"
     ).exists()
     assert any(name == "InitializeRun" for name, _ in events)
+
+
+def test_initialize_run_with_limit_configuration_seeds_durable_limit_state(tmp_path) -> None:
+    activity = InitializeRunActivity(ProgressRecordFactory(ProgressRecordStore(tmp_path)))
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abcdef123456",
+        ),
+    )
+    profile = {
+        "command": ["promptfoo", "eval"],
+        "configuration": "promptfooconfig.yaml",
+        "provider": "provider@version",
+        "timeout": 120,
+        "limits": {
+            "max_iterations": 4,
+            "token_budget": 1000,
+            "hard_token_limit": 1200,
+            "regression_stop_threshold": 3,
+        },
+    }
+
+    record = activity.run("wf-1", preflight, profile)
+
+    assert record["budgets"] == profile["limits"]
+    assert record["logical_iteration_count"] == 0
+    assert record["cumulative_token_usage"] == 0
+    assert record["pending_evidence_flags"] == []
+    assert record["attempt_records"] == []

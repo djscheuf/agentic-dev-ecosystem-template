@@ -1,0 +1,102 @@
+{
+  "target_story": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.analysis.json",
+  "source_workstream": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Durable limits and attempt accounting",
+      "tests": [
+        {
+          "id": 1,
+          "name": "InitializeRun_WithLimitConfiguration_SeedsDurableLimitState",
+          "status": "passing",
+          "description": "A new run persists configured budgets and zero-valued counters.",
+          "arrange": "Provide successful preflight context and a profile containing refinement limits.",
+          "act": "Initialize the EDD refinement run.",
+          "assert": "Budgets, logical iteration count, cumulative usage, pending flags, attempts, and handoffs are initialized."
+        },
+        {
+          "id": 2,
+          "name": "UpdateDurableCounters_WithRetry_TracksTokensWithoutIterationAdvance",
+          "status": "pending",
+          "description": "Every attempt consumes observed tokens while retries do not create logical iterations.",
+          "arrange": "Persist a run and create one normal attempt followed by a retry attempt.",
+          "act": "Update durable counters for both attempts.",
+          "assert": "Both attempt token totals accumulate and only the normal attempt advances the logical iteration."
+        },
+        {
+          "id": 3,
+          "name": "UpdateDurableCounters_WithMissingUsage_RecordsZeroAndMarker",
+          "status": "pending",
+          "description": "Missing usage is auditable without inflating the token budget.",
+          "arrange": "Persist a run and provide an attempt with no usage metrics.",
+          "act": "Update durable counters.",
+          "assert": "Zero tokens are added and the attempt is marked as missing usage."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Pre-scheduling limit gate",
+      "tests": [
+        {
+          "id": 4,
+          "name": "CheckRefinementLimits_AtConfiguredBoundary_BlocksWithReason",
+          "status": "pending",
+          "description": "Iteration, token, hard-token, and regression boundaries stop scheduling deterministically.",
+          "arrange": "Create records at each configured boundary and one record below every boundary.",
+          "act": "Check refinement limits.",
+          "assert": "Each boundary returns its stable stop reason while the below-limit record schedules."
+        },
+        {
+          "id": 5,
+          "name": "CheckRefinementLimits_WithPendingEvidence_PausesUntilResolved",
+          "status": "pending",
+          "description": "Unresolved evidence blocks autonomous work and clearing it permits work.",
+          "arrange": "Create otherwise in-budget records with pending evidence set and cleared.",
+          "act": "Check refinement limits.",
+          "assert": "Pending evidence blocks with its stop reason and the cleared record schedules."
+        },
+        {
+          "id": 6,
+          "name": "Workflow_BeforeAgenticStep_UsesLimitGateAndFinalizesWhenBlocked",
+          "status": "pending",
+          "description": "The workflow does not schedule planning or later agentic work after the centralized gate blocks.",
+          "arrange": "Mock initialization and a blocking limit decision containing the best accepted state.",
+          "act": "Run the workflow.",
+          "assert": "The gate runs before planning, finalization receives the stop reason, and no planning step is scheduled."
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Regression stop and worker contracts",
+      "tests": [
+        {
+          "id": 7,
+          "name": "RegressionRecovery_WithSuccessfulProposal_ResetsConsecutiveCounter",
+          "status": "pending",
+          "description": "A successful accepted proposal breaks the consecutive harmful-proposal sequence.",
+          "arrange": "Persist a nonzero confirmed-regression count.",
+          "act": "Record a successful proposal outcome.",
+          "assert": "The consecutive confirmed-regression counter becomes zero."
+        },
+        {
+          "id": 8,
+          "name": "PublishHumanHandoff_AtRegressionThreshold_RecordsThreeAttempts",
+          "status": "pending",
+          "description": "Threshold termination publishes a structured report containing the harmful attempts.",
+          "arrange": "Persist three confirmed harmful attempt records and best accepted state.",
+          "act": "Publish the human handoff.",
+          "assert": "A structured report with stop reason, counters, best state, and three attempts is persisted."
+        },
+        {
+          "id": 9,
+          "name": "WorkflowModule_WithLimitActivities_RegistersContracts",
+          "status": "pending",
+          "description": "Workers register the new limit, counter, and handoff Activity contracts.",
+          "arrange": "Load the EDD refinement module specification.",
+          "act": "Inspect and register the module.",
+          "assert": "All new Activity names and callable entrypoints are declared and registered."
+        }
+      ]
+    }
+  ]
+}

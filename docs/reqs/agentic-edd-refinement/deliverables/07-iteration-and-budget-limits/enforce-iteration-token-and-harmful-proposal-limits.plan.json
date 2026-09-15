@@ -111,7 +111,7 @@
     {
       "description": "2. Update initialize_run to populate budgets and RefinementLimits from run configuration, and seed all durable counters to zero.",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "3. Add CheckRefinementLimits Activity that evaluates iteration budget, token budget, hard pre-scheduling limit, consecutive-regression threshold, and pending-evidence flags before any next-step scheduling.",
@@ -141,11 +141,6 @@
     {
       "description": "8. Add PublishHumanHandoff Activity to build the structured handoff report and record it in ProgressRecord; attempt human notification with best effort.",
       "layer": "api",
-      "status": "pending"
-    },
-    {
-      "description": "9. Update the UI to render the workflow stop reason, pending-evidence state, and human handoff report from the ProgressRecord.",
-      "layer": "ui",
       "status": "pending"
     },
     {
