@@ -10,6 +10,7 @@ from cadence import activity
 
 from common.devin_harness import DevinHarness
 from common.skill_activity_config import SkillActivityConfig
+from common.workflow_logger import get_activity_artifact_dir
 
 from ..candidate_results import ExecutionResult, UsageMetrics
 
@@ -121,6 +122,7 @@ class HarnessBackedRefinementRunner:
             text=True,
         ).stdout.splitlines()
         usage = dataclasses.asdict(harness_result.usage) if harness_result.usage else {}
+        artifact_dir = get_activity_artifact_dir()
         return {
             "status": "success",
             "observation": {
@@ -129,7 +131,9 @@ class HarnessBackedRefinementRunner:
                     "completion_tokens": usage.get("completion_tokens") or 0,
                     "cost_usd": usage.get("cost_usd") or 0.0,
                 },
-                "atif_path": None,
+                "atif_path": str(artifact_dir / "devin-trajectory.json")
+                if harness_result.usage is not None and artifact_dir is not None
+                else None,
                 "duration_ms": int((time.monotonic() - started) * 1000),
             },
             "changed_files": changed_files,

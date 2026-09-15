@@ -1,8 +1,10 @@
 import pytest
 
+from common.harness import HarnessResult, HarnessUsage
 from edd_refinement_workflow.candidate_results import ExecutionResult, UsageMetrics
 from edd_refinement_workflow.activities.execute_refinement_action import (
     ExecuteRefinementActionActivity,
+    HarnessBackedRefinementRunner,
     execute_refinement_action_activity,
 )
 
@@ -152,3 +154,41 @@ def test_execute_refinement_action_reports_harness_failure_without_candidate() -
     assert result.changed_files == []
     assert result.failure_reason == "harness_failure:1"
     assert events[0][0] == "RefinementActivityFailed"
+
+
+def test_harness_runner_reports_atif_usage_artifact(tmp_path, monkeypatch) -> None:
+    artifact_dir = tmp_path / ".process" / "edd" / "run-1"
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(
+                exit_code=0,
+                stdout="",
+                stderr="",
+                usage=HarnessUsage(prompt_tokens=2, completion_tokens=3, cost_usd=0.1),
+            )
+
+    class Completed:
+        def __init__(self, stdout):
+            self.stdout = stdout
+
+    outputs = iter([Completed("diff"), Completed("src/skill.py\n")])
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.execute_refinement_action.subprocess.run",
+        lambda *args, **kwargs: next(outputs),
+    )
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.execute_refinement_action.get_activity_artifact_dir",
+        lambda: artifact_dir,
+        raising=False,
+    )
+
+    result = HarnessBackedRefinementRunner(FakeHarness())(
+        run_id="run-1",
+        planning={"action": "repair", "intended_files": ["src/skill.py"]},
+        repo_root=str(tmp_path),
+    )
+
+    assert result["observation"]["atif_path"] == str(
+        artifact_dir / "devin-trajectory.json"
+    )
