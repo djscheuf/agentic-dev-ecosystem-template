@@ -64,3 +64,28 @@ def test_evaluate_candidate_with_successful_result_records_structured_metrics(tm
         "usable_for_acceptance": True,
     }
     assert store.create_or_resume("run-1", {})["candidate_metrics"] == [result]
+
+
+def test_evaluate_candidate_with_malformed_metrics_records_rejected_attempt(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "evaluation_configuration": {
+                "command": ["promptfoo", "eval"],
+                "configuration": "promptfooconfig.yaml",
+                "pinned_provider_version": "openai:gpt-5@2026-08-07",
+                "timeout_seconds": 120,
+                "measurement_context": "baseline",
+            },
+            "candidate_metrics": [],
+        },
+    )
+    activity = EvaluateCandidateActivity(store, lambda **kwargs: {"passing": 1})
+
+    result = activity.run("run-1", "candidate-1", str(tmp_path))
+
+    assert result["status"] == "rejected"
+    assert result["failure_reason"] == "malformed_metrics"
+    assert result["usable_for_acceptance"] is False
+    assert store.create_or_resume("run-1", {})["candidate_metrics"] == [result]

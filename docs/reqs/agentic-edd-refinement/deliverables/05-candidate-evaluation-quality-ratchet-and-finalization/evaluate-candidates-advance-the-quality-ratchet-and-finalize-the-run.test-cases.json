@@ -35,7 +35,7 @@
         {
           "id": 4,
           "name": "EvaluateCandidate_WithMalformedMetrics_RecordsRejectedAttempt",
-          "status": "pending",
+          "status": "passing",
           "description": "Malformed evaluation output cannot become acceptance evidence.",
           "arrange": "Configure a harness result missing required metrics.",
           "act": "Evaluate a scope-valid candidate.",

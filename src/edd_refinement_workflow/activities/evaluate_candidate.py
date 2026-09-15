@@ -22,22 +22,31 @@ class EvaluateCandidateActivity:
             cwd=repo_root,
             timeout=configuration["timeout_seconds"],
         )
+        required_fields = {
+            "passing",
+            "failing",
+            "total",
+            "percentage",
+            "required_coverage",
+            "artifact_references",
+        }
+        valid = required_fields <= result.keys()
         metric = CandidateMetricRecord(
             candidate_id=candidate_id,
             run_id=run_id,
             attempt_number=len(record.get("candidate_metrics", [])) + 1,
-            passing=result["passing"],
-            failing=result["failing"],
-            total=result["total"],
-            percentage=result["percentage"],
-            required_coverage=result["required_coverage"],
-            artifact_references=result["artifact_references"],
+            passing=result.get("passing", 0),
+            failing=result.get("failing", 0),
+            total=result.get("total", 0),
+            percentage=result.get("percentage", 0.0),
+            required_coverage=result.get("required_coverage", {}),
+            artifact_references=result.get("artifact_references", []),
             pinned_provider_version=configuration["pinned_provider_version"],
             measurement_context=configuration["measurement_context"],
             evaluated_at=self.now(),
-            status="success",
-            failure_reason=None,
-            usable_for_acceptance=True,
+            status="success" if valid else "rejected",
+            failure_reason=None if valid else "malformed_metrics",
+            usable_for_acceptance=valid,
         ).to_dict()
         record["candidate_metrics"] = record.get("candidate_metrics", []) + [metric]
         self.store.save(run_id, record)
