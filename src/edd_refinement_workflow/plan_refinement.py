@@ -11,6 +11,8 @@ class PlanningResult:
     requires_approval: bool = False
     stop_recommendation: bool = False
     taxonomy_version: int = 1
+    proposal_id: str | None = None
+    proposed_diff_hash: str | None = None
 
 
 class PlanRefinementActivity:
@@ -46,6 +48,8 @@ class PlanRefinementActivity:
         progress_record: dict,
         baseline: dict,
         proposed_action: str | None = None,
+        proposal_id: str | None = None,
+        proposed_diff_hash: str | None = None,
     ) -> PlanningResult:
         if self._budget_exhausted(progress_record):
             return PlanningResult(
@@ -77,6 +81,8 @@ class PlanRefinementActivity:
             requires_approval=self._requires_approval(proposed_action),
             stop_recommendation=False,
             taxonomy_version=self.taxonomy_version,
+            proposal_id=proposal_id,
+            proposed_diff_hash=proposed_diff_hash,
         )
 
 

@@ -40,10 +40,14 @@ def test_plan_refinement_selects_authorized_action_and_sets_approval() -> None:
         progress_record,
         baseline,
         proposed_action="propose_evaluation_expectation_change",
+        proposal_id="proposal-1",
+        proposed_diff_hash="abc123",
     )
 
     assert result.action == "propose_evaluation_expectation_change"
     assert result.requires_approval is True
+    assert result.proposal_id == "proposal-1"
+    assert result.proposed_diff_hash == "abc123"
     assert result.stop_recommendation is False
 
 
