@@ -1,9 +1,13 @@
 import dataclasses
+import subprocess
 import threading
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from ..candidate_results import CandidateValidationResult, ExecutionResult
+from cadence import activity
+
+from ..candidate_results import CandidateValidationResult, ExecutionResult, UsageMetrics
+from ..progress_record import ProgressRecordStore
 
 
 class ValidateCandidateActivity:
@@ -78,3 +82,32 @@ class ValidateCandidateActivity:
                 record["candidate_history"] = record.get("candidate_history", []) + [candidate]
                 self.store.save(run_id, record)
         return result
+
+
+@activity.defn(name="validate_candidate")
+async def validate_candidate_activity(
+    run_id: str,
+    planning: dict,
+    execution: dict,
+    approved_diff_hash: str | None,
+    repo_root: str,
+) -> dict:
+    usage = execution["usage_metrics"]
+    execution_result = ExecutionResult(
+        **{
+            **execution,
+            "usage_metrics": UsageMetrics(**usage),
+        }
+    )
+    diff_provider = lambda: subprocess.run(
+        ["git", "diff", "--no-ext-diff"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    result = ValidateCandidateActivity(
+        diff_provider=diff_provider,
+        store=ProgressRecordStore(repo_root),
+    ).run(run_id, planning, execution_result, approved_diff_hash)
+    return dataclasses.asdict(result)

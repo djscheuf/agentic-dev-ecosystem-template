@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "execute-refinement-action",
+    "output_path_key": "execution_result_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

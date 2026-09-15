@@ -1,5 +1,7 @@
 from collections.abc import Callable
 
+from cadence import activity
+
 from ..candidate_results import ExecutionResult, UsageMetrics
 
 
@@ -42,3 +44,13 @@ class ExecuteRefinementActionActivity:
             atif_path=observation.get("atif_path"),
             duration_ms=observation["duration_ms"],
         )
+
+
+@activity.defn(name="execute_refinement_action")
+async def execute_refinement_action_activity(
+    run_id: str,
+    planning: dict,
+    approved_diff_hash: str | None,
+    repo_root: str,
+) -> dict:
+    raise RuntimeError("execute_refinement_action runner is not configured")

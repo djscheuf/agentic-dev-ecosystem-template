@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from common import WorkflowModuleSpec
+from common.skill_activity_config import SkillActivityConfig
 
 
 def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
@@ -36,9 +39,22 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "request_human_approval",
         "record_human_approval_decision",
         "record_human_approved_evaluation_change",
+        "execute_refinement_action",
+        "validate_candidate",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)
     assert [activity.name for activity in registry.activities] == list(
         SPEC.activity_types
     )
     assert SPEC.register is register
+
+
+def test_execute_refinement_action_config_explicitly_accepts_edits() -> None:
+    config = SkillActivityConfig.load(
+        Path(__file__).parents[1]
+        / "activities"
+        / "execute_refinement_action.config.json"
+    )
+
+    assert config.skill_name == "execute-refinement-action"
+    assert config.harness["devin"]["permission_mode"] == "accept-edits"
