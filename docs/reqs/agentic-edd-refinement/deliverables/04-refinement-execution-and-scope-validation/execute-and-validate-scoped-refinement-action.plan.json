@@ -151,7 +151,7 @@
       {
         "description": "ExecutionResult populates usage metrics from the harness observation and ATIF usage export",
         "layer": "api",
-        "status": "in_progress"
+        "status": "completed"
       },
       {
         "description": "validate_candidate rejects no-op, out-of-scope, and mixed-scope candidates",

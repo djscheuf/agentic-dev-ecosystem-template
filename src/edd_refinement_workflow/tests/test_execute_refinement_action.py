@@ -1,5 +1,6 @@
 import pytest
 
+from edd_refinement_workflow.candidate_results import ExecutionResult
 from edd_refinement_workflow.activities.execute_refinement_action import (
     ExecuteRefinementActionActivity,
 )
@@ -41,3 +42,34 @@ def test_execute_refinement_action_rejects_approval_diff_hash_mismatch() -> None
         activity.run("run-1", planning, "different", "/repo")
 
     assert harness_calls == []
+
+
+def test_execute_refinement_action_returns_harness_usage_and_changed_files() -> None:
+    activity = ExecuteRefinementActionActivity(
+        harness_runner=lambda **kwargs: {
+            "status": "success",
+            "observation": {
+                "usage": {
+                    "prompt_tokens": 120,
+                    "completion_tokens": 30,
+                    "cost_usd": 0.02,
+                },
+                "atif_path": ".process/edd/run-1/devin-trajectory.json",
+                "duration_ms": 250,
+            },
+            "changed_files": ["src/skill.py"],
+            "diff_hash": "abc123",
+        }
+    )
+
+    result = activity.run(
+        "run-1",
+        {"action": "repair", "intended_files": ["src/skill.py"]},
+        None,
+        "/repo",
+    )
+
+    assert isinstance(result, ExecutionResult)
+    assert result.usage_metrics.total_tokens == 150
+    assert result.changed_files == ["src/skill.py"]
+    assert result.atif_path == ".process/edd/run-1/devin-trajectory.json"
