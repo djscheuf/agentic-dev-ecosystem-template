@@ -1,3 +1,5 @@
+import dataclasses
+
 import pytest
 
 from edd_refinement_workflow.activities.validate_candidate import ValidateCandidateActivity
@@ -62,3 +64,26 @@ def test_validate_candidate_rejects_required_test_changes(
 
     assert result.status == "rejected"
     assert result.rejection_reason == reason
+
+
+def test_validate_candidate_rejects_diff_mismatch_and_malformed_metrics() -> None:
+    activity = ValidateCandidateActivity()
+    execution = _execution(["src/skill.py"])
+
+    mismatch = activity.run(
+        "run-1",
+        {"intended_files": ["src/skill.py"]},
+        execution,
+        approved_diff_hash="different",
+    )
+    malformed = activity.run(
+        "run-1",
+        {"intended_files": ["src/skill.py"]},
+        dataclasses.replace(
+            execution,
+            usage_metrics=UsageMetrics(1, 1, 99, 0.01),
+        ),
+    )
+
+    assert mismatch.rejection_reason == "diff_mismatch"
+    assert malformed.rejection_reason == "malformed_metrics"

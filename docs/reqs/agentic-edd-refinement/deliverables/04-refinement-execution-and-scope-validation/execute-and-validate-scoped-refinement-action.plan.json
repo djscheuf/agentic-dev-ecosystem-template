@@ -118,7 +118,7 @@
     {
       "description": "Implement validate_candidate activity to check diff hash, authorized file scope, and required-test weakening patterns",
       "layer": "api",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Wire execute_refinement_action and validate_candidate into EddRefinementWorkflow and emit the defined instrumentation events",

@@ -28,9 +28,23 @@ class ValidateCandidateActivity:
         run_id: str,
         planning: dict,
         execution: ExecutionResult,
+        approved_diff_hash: str | None = None,
     ) -> CandidateValidationResult:
         intended_files = planning.get("intended_files") or []
-        if not intended_files:
+        metrics = execution.usage_metrics
+        metric_values = (
+            metrics.input_tokens,
+            metrics.output_tokens,
+            metrics.total_tokens,
+            metrics.cost_usd,
+        )
+        if approved_diff_hash is not None and approved_diff_hash != execution.diff_hash:
+            reason = "diff_mismatch"
+        elif not all(isinstance(value, (int, float)) and value >= 0 for value in metric_values):
+            reason = "malformed_metrics"
+        elif metrics.total_tokens != metrics.input_tokens + metrics.output_tokens:
+            reason = "malformed_metrics"
+        elif not intended_files:
             reason = "empty_scope"
         elif not execution.changed_files:
             reason = "no_op"
