@@ -103,7 +103,7 @@
         {
           "id": 11,
           "name": "CompareCandidateToBest_WithDifferentMeasurementContext_Escalates",
-          "status": "pending",
+          "status": "passing",
           "description": "Metrics from different human-approved expectation contexts are not directly compared.",
           "arrange": "Create best and candidate metrics with different measurement contexts.",
           "act": "Compare the candidate to the best accepted state.",

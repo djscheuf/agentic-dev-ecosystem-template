@@ -5,6 +5,13 @@ def compare_candidate_to_best(candidate: dict, best: dict) -> dict:
         for case, count in candidate["required_coverage"].items()
         if count != best["required_coverage"].get(case, 0)
     }
+    if candidate["measurement_context"] != best["measurement_context"]:
+        return {
+            "decision": "escalate",
+            "reason": "measurement_context_changed",
+            "passing_delta": passing_delta,
+            "coverage_delta": coverage_delta,
+        }
     if any(delta < 0 for delta in coverage_delta.values()):
         return {
             "decision": "reject",

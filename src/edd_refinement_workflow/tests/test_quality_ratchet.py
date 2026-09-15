@@ -65,3 +65,17 @@ def test_compare_candidate_to_best_with_degradation_requests_rerun() -> None:
         "passing_delta": -1,
         "coverage_delta": {},
     }
+
+
+def test_compare_candidate_to_best_with_different_measurement_context_escalates() -> None:
+    best = metric(5, 6, {"required-1": 1})
+    candidate = metric(6, 7, {"required-1": 1}, "human-approved-change-1")
+
+    result = compare_candidate_to_best(candidate, best)
+
+    assert result == {
+        "decision": "escalate",
+        "reason": "measurement_context_changed",
+        "passing_delta": 1,
+        "coverage_delta": {},
+    }
