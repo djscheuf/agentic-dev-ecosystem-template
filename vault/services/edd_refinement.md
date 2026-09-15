@@ -64,3 +64,13 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Apparent degradation routes to `rerun_degraded_candidate` with the unchanged candidate identifier and target repository context.
 - A terminal planning decision routes through `finalize_run` before the workflow returns its terminal result.
 - Concrete deployed Activity entrypoint dependencies, confirmed-regression classification after rerun, and frontend status/report views remain implementation work.
+
+## Concrete ratchet Activities (2026-09-15)
+
+> **Stale as of 2026-09-15:** Concrete Activity dependencies and confirmed-regression classification in the preceding remaining-work list are now implemented.
+
+- `evaluate_candidate` executes the persisted deterministic command in the target repository and parses structured JSON output.
+- `commit_accepted_candidate` stages and commits the target repository, then records the resulting revision as best accepted state.
+- `rerun_degraded_candidate` uses the same evaluation command and classifies repeated passing-count degradation as a confirmed regression while incrementing the consecutive counter.
+- `finalize_run` restores the accepted revision, attempts lease release, and publishes the idempotent terminal result through repository-scoped dependencies.
+- Frontend status and terminal-report views remain implementation work.
