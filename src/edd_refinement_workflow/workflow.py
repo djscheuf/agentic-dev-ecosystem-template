@@ -112,7 +112,25 @@ class EddRefinementWorkflow:
             str(preflight_result.target_context.repo_root),
             start_to_close_timeout=timedelta(minutes=5),
         )
-        result.update(execution=execution, candidate=candidate)
+        if candidate.get("status") != "scope_valid":
+            result.update(execution=execution, candidate=candidate)
+            self._candidate = candidate
+            return result
+        candidate_evaluation = await execute_activity(
+            "evaluate_candidate",
+            dict,
+            record["run_id"],
+            candidate["candidate_id"],
+            str(preflight_result.target_context.repo_root),
+            start_to_close_timeout=timedelta(
+                seconds=request["profile"]["timeout"]
+            ),
+        )
+        result.update(
+            execution=execution,
+            candidate=candidate,
+            candidate_evaluation=candidate_evaluation,
+        )
         self._candidate = candidate
         return result
 

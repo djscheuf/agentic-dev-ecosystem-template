@@ -180,7 +180,7 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_workflow_executes_and_validates_selected_candidate(
+async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
     tmp_path, monkeypatch
 ) -> None:
     preflight = PreflightResult(
@@ -205,7 +205,9 @@ async def test_workflow_executes_and_validates_selected_candidate(
             return {"action": "repair", "intended_files": ["src/skill.py"]}
         if name == "execute_refinement_action":
             return {"status": "success", "changed_files": ["src/skill.py"]}
-        return {"candidate_id": "candidate-1", "status": "scope_valid"}
+        if name == "validate_candidate":
+            return {"candidate_id": "candidate-1", "status": "scope_valid"}
+        return {"candidate_id": "candidate-1", "status": "success", "passing": 6}
 
     monkeypatch.setattr(
         "edd_refinement_workflow.workflow.execute_activity", mock_execute
@@ -220,8 +222,13 @@ async def test_workflow_executes_and_validates_selected_candidate(
         },
     )
 
-    assert calls[-2:] == ["execute_refinement_action", "validate_candidate"]
+    assert calls[-3:] == [
+        "execute_refinement_action",
+        "validate_candidate",
+        "evaluate_candidate",
+    ]
     assert result["candidate"]["status"] == "scope_valid"
+    assert result["candidate_evaluation"]["passing"] == 6
 
 
 @pytest.mark.asyncio

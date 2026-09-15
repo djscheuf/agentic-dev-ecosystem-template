@@ -1,5 +1,6 @@
 from common import WorkflowModuleSpec
 
+from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.execute_refinement_action import execute_refinement_action_activity
 from .activities.initialize_run import initialize_run_activity
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
@@ -22,6 +23,7 @@ ACTIVITY_TYPES = (
     "record_human_approved_evaluation_change",
     "execute_refinement_action",
     "validate_candidate",
+    "evaluate_candidate",
 )
 ACTIVITIES = (
     initialize_run_activity,
@@ -32,6 +34,7 @@ ACTIVITIES = (
     record_human_approved_evaluation_change_activity,
     execute_refinement_action_activity,
     validate_candidate_activity,
+    evaluate_candidate_activity,
 )
 
 

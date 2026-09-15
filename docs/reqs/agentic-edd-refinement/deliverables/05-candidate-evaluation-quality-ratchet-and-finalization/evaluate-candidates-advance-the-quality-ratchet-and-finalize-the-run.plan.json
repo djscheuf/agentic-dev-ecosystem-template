@@ -215,7 +215,7 @@
     {
       "description": "Wire the candidate evaluation path into the EDD refinement workflow so it is invoked after scope validation and stores the CandidateMetricRecord in the ProgressRecord.",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Add frontend status display for evaluation trigger, in-progress state, attempt count, and timeout/retry state.",

@@ -53,7 +53,7 @@
         {
           "id": 6,
           "name": "Workflow_WithValidCandidate_InvokesCandidateEvaluation",
-          "status": "pending",
+          "status": "passing",
           "description": "The workflow evaluates a candidate only after execution and scope validation succeed.",
           "arrange": "Mock successful initialization, baseline, planning, execution, validation, and evaluation Activities.",
           "act": "Run the EDD refinement workflow.",
