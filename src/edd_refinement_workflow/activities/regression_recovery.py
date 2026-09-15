@@ -4,6 +4,24 @@ from datetime import UTC, datetime
 from ..progress_record import ProgressRecordSerializer
 
 
+class HumanHandoffActivity:
+    def __init__(self, store, notify: Callable[[dict], bool]) -> None:
+        self.store = store
+        self.notify = notify
+
+    def run(self, run_id: str, reason: str, evidence: dict, maximum_attempts: int = 1) -> dict:
+        notified = False
+        attempts = 0
+        while attempts < maximum_attempts and not notified:
+            attempts += 1
+            notified = self.notify(evidence)
+        result = {"handoff_reason": reason, "evidence_summary": evidence, "notified": notified, "retry_count": attempts - 1}
+        record = self.store.create_or_resume(run_id, {})
+        record["human_handoff_records"] = record.get("human_handoff_records", []) + [result]
+        self.store.save(run_id, record)
+        return result
+
+
 class RecordRevertedProposalContextActivity:
     def __init__(self, store, now: Callable[[], str] | None = None) -> None:
         self.store = store

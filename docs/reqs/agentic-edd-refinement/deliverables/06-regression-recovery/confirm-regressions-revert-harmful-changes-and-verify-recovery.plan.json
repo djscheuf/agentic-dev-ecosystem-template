@@ -140,7 +140,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 7. Add the HumanHandoff Activity that records the handoff reason and evidence summary, attempts to notify a human, and supports a configured retry policy.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 8. Wire the workflow to rerun the degraded candidate unchanged, classify the combined evidence, and route to revert/recovery or human handoff based on the classification.",

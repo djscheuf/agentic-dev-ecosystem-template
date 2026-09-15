@@ -1,6 +1,7 @@
 import pytest
 
 from edd_refinement_workflow.activities.regression_recovery import (
+    HumanHandoffActivity,
     RecordRevertedProposalContextActivity,
     RevertRepositoryToBestActivity,
     classify_regression_evidence,
@@ -64,3 +65,18 @@ def test_record_reverted_proposal_appends_redacted_context(tmp_path) -> None:
 
     assert result["change_summary"] == "[REDACTED]"
     assert store.create_or_resume("run-1", {})["reverted_proposals"] == [result]
+
+
+def test_human_handoff_retries_notification_and_records_result(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"human_handoff_records": []})
+    attempts = []
+    activity = HumanHandoffActivity(store, notify=lambda summary: attempts.append(summary) or len(attempts) == 2)
+
+    result = activity.run("run-1", "unstable", {"candidate_id": "candidate-1"}, maximum_attempts=2)
+
+    assert result["notified"] is True
+    assert result["retry_count"] == 1
+    assert store.create_or_resume("run-1", {})["human_handoff_records"] == [result]
