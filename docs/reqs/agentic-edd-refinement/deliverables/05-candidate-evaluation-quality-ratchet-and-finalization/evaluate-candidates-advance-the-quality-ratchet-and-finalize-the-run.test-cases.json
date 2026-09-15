@@ -153,7 +153,7 @@
         {
           "id": 16,
           "name": "RerunDegradedCandidate_WithUnchangedCandidate_RecordsConfirmation",
-          "status": "pending",
+          "status": "passing",
           "description": "A degraded candidate is reevaluated unchanged using baseline configuration.",
           "arrange": "Persist candidate evaluation configuration and inject a complete-suite runner.",
           "act": "Rerun the degraded candidate.",
