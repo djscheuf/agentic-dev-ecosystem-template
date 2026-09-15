@@ -25,7 +25,7 @@ class InitializeRunActivity:
         )
 
         record = {
-            "schema_version": 4,
+            "schema_version": 5,
             "run_id": run_id,
             "workflow_run_id": workflow_run_id,
             "starting_revision": starting_revision,
@@ -40,6 +40,10 @@ class InitializeRunActivity:
             "evaluation_configuration": evaluation_configuration.to_dict(),
             "candidate_metrics": [],
             "best_accepted_state": None,
+            "regression_evidence": [],
+            "reverted_proposals": [],
+            "recovery_results": [],
+            "human_handoff_records": [],
         }
 
         created = self.factory.create_or_resume(run_id, record)

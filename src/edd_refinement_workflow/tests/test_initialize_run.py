@@ -41,7 +41,11 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["token_usage"] == 0
     assert record["consecutive_confirmed_regressions"] == 0
     assert record["iteration_history"] == []
-    assert record["schema_version"] == 4
+    assert record["schema_version"] == 5
+    assert record["regression_evidence"] == []
+    assert record["reverted_proposals"] == []
+    assert record["recovery_results"] == []
+    assert record["human_handoff_records"] == []
     assert record["evaluation_configuration"] == {
         "command": ["promptfoo", "eval", "-c", "promptfooconfig.yaml"],
         "configuration": "promptfooconfig.yaml",

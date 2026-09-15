@@ -110,7 +110,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 1. Upgrade the ProgressRecord schema to v5, adding regression_evidence, reverted_proposals, recovery_results, and human_handoff_records fields, and migrate existing persisted runs.",
       "layer": "database",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 2. Add the ClassifyRegressionEvidence Activity that consumes the original and confirmation CandidateMetricRecords and the best accepted state and emits one of confirmed_regression, unstable_result, suspected_flakiness, or inconclusive.",
