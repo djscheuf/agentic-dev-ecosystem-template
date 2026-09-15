@@ -1,0 +1,523 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/confirm-regressions-revert-harmful-changes-and-verify-recovery.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "ApparentRegressionObserved: the quality ratchet has declared an apparent regression against the current best accepted state. The workflow now holds the original degraded metric record and must decide whether the regression is real, flaky, unstable, or inconclusive.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Data",
+          "to_layer": "Backend",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, candidate_history, best_accepted_state, baseline_evaluation_configuration, target_repository_context, consecutive_confirmed_regressions, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "ConfirmationRerunScheduled: the workflow invokes rerun_degraded_candidate with the exact same command, configuration, pinned provider, and target repository context that produced the original evaluation. The candidate is unchanged.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "RerunDegradedCandidate",
+          "data_shape": "{run_id, candidate_id, repo_root, target_repository_context, baseline_evaluation_configuration, is_confirmation_rerun: true} -> CandidateMetricRecord"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "ConfirmationResultReturned: the unchanged-candidate rerun returns a second CandidateMetricRecord (success, timeout, or infrastructure error). The workflow records this as a confirmation evaluation in the progress record.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, confirmation_evaluations: [{candidate_id, attempt_number, status, metric_record, evaluated_at}], schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "RegressionEvidenceClassified: the combined original and confirmation evidence is classified as confirmed_regression, unstable_result, suspected_flakiness, or inconclusive. Confirmed regression proceeds to revert and recovery; all other outcomes stop and hand off to a human.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "ClassifyRegressionEvidence",
+          "data_shape": "{run_id, candidate_id, original_metric_record, confirmation_metric_record, best_accepted_state} -> {classification: 'confirmed_regression'|'unstable_result'|'suspected_flakiness'|'inconclusive', reason}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "ConfirmedRegressionRecorded: on confirmed regression, the workflow records the degraded evidence, the candidate change summary, and increments the consecutive-regression counter. If the counter reaches the configured stop threshold, the workflow stops for human review immediately.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, regression_evidence: {candidate_id, degraded_metrics, confirmation_result, change_summary, affected_files, observed_degradation, confirmation_result, classification}, consecutive_confirmed_regressions, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "RepositoryRestoredToBestAccepted: the workflow reverts the target repository to the best accepted commit while holding the mutation lease. Any uncommitted, staged, or untracked changes are discarded and the repository is made clean.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "RevertRepositoryToBest",
+          "data_shape": "{run_id, repo_root, target_repository_context, best_accepted_state: {accepted_commit_hash}, mutation_lease} -> {restored_commit, repo_clean}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "RecoveryEvaluationRequested: the workflow evaluates the restored accepted state with the same deterministic command, configuration, pinned provider, and target repository context used for the baseline.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "EvaluateCandidate",
+          "data_shape": "{run_id, candidate_id: 'best_accepted_recovery', repo_root, target_repository_context, baseline_evaluation_configuration} -> CandidateMetricRecord"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "RecoveryResultCompared: the recovery metrics are compared to the previously recorded best accepted metrics. A successful recovery matches the accepted passing count, failing count, total, percentage, and required coverage within the configured tolerance.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "VerifyRecoveryMetrics",
+          "data_shape": "{run_id, recovery_metric_record, best_accepted_state.metrics, recovery_tolerance} -> {recovered: true|false, reason, matched_fields, mismatched_fields}"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "RevertedProposalContextPersisted: the reverted proposal's change summary, affected files, rationale, observed degradation, confirmation result, and recovery result are written to the progress record so future planning can learn from the failure.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, reverted_proposals: [{candidate_id, change_summary, affected_files, rationale, observed_degradation, confirmation_result, recovery_result, reverted_at}], schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "RunResumesOrHumanHandoff: if recovery is verified and the stop threshold is not reached, the workflow allows the next planning step. If recovery fails or the counter is at the stop threshold, the workflow stops and hands off to a human.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "HumanHandoff",
+          "data_shape": "{run_id, handoff_reason: 'unstable'|'flaky'|'inconclusive'|'recovery_failure'|'stop_threshold', evidence_summary, notification_config} -> {handoff_recorded, notified}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "ClassifyRegressionEvidence",
+      "description": "Emitted when the original and confirmation evaluation records are combined and classified.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "classification", "description": "One of confirmed_regression, unstable_result, suspected_flakiness, inconclusive." },
+        { "point": "reason", "description": "Human-readable classification rationale." }
+      ]
+    },
+    {
+      "event_name": "RecordConfirmedRegression",
+      "description": "Emitted when the evidence is classified as a confirmed regression and the counter is incremented.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "consecutive_confirmed_regressions", "description": "Updated consecutive-regression counter." },
+        { "point": "degraded_metrics", "description": "Snapshot of the worse metric record." }
+      ]
+    },
+    {
+      "event_name": "RevertRepositoryToBestAccepted",
+      "description": "Emitted when the target repository is reset to the best accepted commit after a confirmed regression.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "best_accepted_commit", "description": "Commit hash restored." },
+        { "point": "repo_root", "description": "Target repository root." },
+        { "point": "lease_held", "description": "Whether the mutation lease was held during the revert." }
+      ]
+    },
+    {
+      "event_name": "RunRecoveryEvaluation",
+      "description": "Emitted when the restored accepted state is evaluated to verify it reproduces the previously recorded performance.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Candidate identifier of the original reverted proposal." },
+        { "point": "baseline_evaluation_configuration", "description": "Deterministic command, configuration, and pinned provider used." }
+      ]
+    },
+    {
+      "event_name": "VerifyRecoveryMetrics",
+      "description": "Emitted when the recovery metric record is compared against the recorded best accepted metrics.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Candidate identifier of the original reverted proposal." },
+        { "point": "recovered", "description": "Whether the recovery metrics matched the best accepted metrics." },
+        { "point": "mismatched_fields", "description": "Fields that did not match." }
+      ]
+    },
+    {
+      "event_name": "RecordRevertedProposalContext",
+      "description": "Emitted when the reverted proposal context is persisted for future planning.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "affected_files", "description": "List of files touched by the reverted proposal." },
+        { "point": "recovery_result", "description": "Result of the recovery evaluation." }
+      ]
+    },
+    {
+      "event_name": "EscalateNonRegressionEvidence",
+      "description": "Emitted when the combined evidence is unstable, flaky, inconclusive, or recovery fails and the workflow escalates to a human.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "escalation_reason", "description": "unstable, flaky, inconclusive, or recovery_failure." },
+        { "point": "evidence_summary", "description": "Summary of the original and confirmation records." }
+      ]
+    },
+    {
+      "event_name": "RecordHumanHandoff",
+      "description": "Emitted when the workflow attempts to notify a human and record the handoff in the progress record.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "handoff_reason", "description": "Reason the human is being asked to review." },
+        { "point": "notified", "description": "Whether the notification channel succeeded." },
+        { "point": "retry_count", "description": "Current retry attempt for notification." }
+      ]
+    },
+    {
+      "event_name": "CheckRegressionStopThreshold",
+      "description": "Emitted when the consecutive-regression counter is checked against the configured stop threshold.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "consecutive_confirmed_regressions", "description": "Current counter value." },
+        { "point": "stop_threshold", "description": "Configured threshold." },
+        { "point": "threshold_reached", "description": "Whether the workflow must stop." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Display the regression confirmation and re-evaluation status, including classification, current counter, and recovery progress.",
+          "intent": "Status and outcome transparency is a presentation concern; the frontend does not drive the classification."
+        },
+        {
+          "responsibility": "Render the reverted-proposal context view with change summary, affected files, rationale, observed degradation, confirmation result, and recovery result.",
+          "intent": "Future planning and human review need a readable, structured summary of what was reverted."
+        },
+        {
+          "responsibility": "Show human handoff and recovery failure notifications with the reason and evidence summary.",
+          "intent": "Human escalation is a status-presentation concern; the frontend surfaces it but does not decide when to stop."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Classify the original and confirmation evidence as confirmed_regression, unstable_result, suspected_flakiness, or inconclusive.",
+          "intent": "Evidence classification is a business rule that must be enforced in the defensible backend zone."
+        },
+        {
+          "responsibility": "Increment the consecutive-regression counter and check the stop threshold on confirmed regression.",
+          "intent": "Counter and threshold semantics are business logic per ADR-017."
+        },
+        {
+          "responsibility": "Revert the target repository to the best accepted commit while holding the mutation lease and ensure a clean worktree.",
+          "intent": "Repository state restoration is a side effect that must be controlled and protected."
+        },
+        {
+          "responsibility": "Run a recovery evaluation of the restored state with the same deterministic configuration used for the baseline and confirmation.",
+          "intent": "Recovery verification is business logic that guards whether refinement can continue."
+        },
+        {
+          "responsibility": "Compare recovery metrics to the recorded best accepted metrics and decide whether the restored state is verified.",
+          "intent": "Metric comparison tolerance and success criteria are business rules."
+        },
+        {
+          "responsibility": "Record and hand off to a human for unstable, flaky, inconclusive, failed recovery, or stop-threshold outcomes.",
+          "intent": "Autonomous mutation must stop when evidence is not a confirmed regression."
+        },
+        {
+          "responsibility": "Preserve the reverted proposal context in the durable progress record for future planning.",
+          "intent": "Future planning needs an auditable, retrievable record of failed proposals."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist regression evidence, confirmation results, reverted-proposal context, and recovery results in the schema-versioned ProgressRecord.",
+          "intent": "Colocated durable state supports resumption, audit, and future planning."
+        },
+        {
+          "responsibility": "Maintain the consecutive-regression counter and best-accepted-state with stable identifiers and idempotent updates.",
+          "intent": "Data integrity and concurrency safety are storage concerns."
+        },
+        {
+          "responsibility": "Redact credentials, paths, and environment variables before writing regression and recovery records.",
+          "intent": "Security of persisted artifacts is a data-integrity concern."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "RegressionEvidence",
+      "description": "A durable record of the original and confirmation degradation evidence and its classification.",
+      "changes": {
+        "added": "candidate_id, original_metric_record, confirmation_metric_record, classification, reason, observed_degradation, degraded_at",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "RevertedProposalContext",
+      "description": "Context about a reverted proposal that is retained for future planning and audit.",
+      "changes": {
+        "added": "candidate_id, change_summary, affected_files, rationale, observed_degradation, confirmation_result, recovery_result, reverted_at",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "RecoveryResult",
+      "description": "Result of evaluating the restored best accepted state and comparing it to the recorded accepted metrics.",
+      "changes": {
+        "added": "run_id, candidate_id, recovery_metric_record, best_accepted_metrics, matched_fields, mismatched_fields, recovered, reason",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Existing EDD progress record is extended to carry regression evidence, reverted proposal context, and recovery results.",
+      "changes": {
+        "added": "regression_evidence, reverted_proposals, recovery_results, human_handoff_records",
+        "modified": "schema_version: bump to 5",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ClassifyRegressionEvidence",
+      "description": "Activity or service that classifies original and confirmation evidence.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, original_metric_record, confirmation_metric_record, best_accepted_state}; output: {classification, reason}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RevertRepositoryToBest",
+      "description": "Activity that resets the target repository to the best accepted commit and ensures a clean worktree.",
+      "changes": {
+        "added": "input: {run_id, repo_root, target_repository_context, best_accepted_state}; output: {restored_commit, repo_clean}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "VerifyRecoveryMetrics",
+      "description": "Activity or service that compares the recovery metric record to the recorded best accepted metrics.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, recovery_metric_record, best_accepted_state.metrics, recovery_tolerance}; output: {recovered, matched_fields, mismatched_fields, reason}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RecordRevertedProposalContext",
+      "description": "Activity that records the reverted proposal context in the progress record.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, change_summary, affected_files, rationale, observed_degradation, confirmation_result, recovery_result}; output: updated ProgressRecord",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "HumanHandoff",
+      "description": "Activity that records the handoff and attempts to notify a human for non-regression or terminal outcomes.",
+      "changes": {
+        "added": "input: {run_id, handoff_reason, evidence_summary, notification_config}; output: {handoff_recorded, notified, retry_count}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "IdempotentRepositoryReset",
+      "description": "Repository reset to the best accepted commit is performed while holding the mutation lease and is idempotent for the run.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/revert_to_best.py with explicit target_repository_context and lease check",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "ConfirmationBeforeRevert",
+      "description": "The workflow never reverts on a single degraded result; a second unchanged-candidate run must confirm the regression first.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/classify_regression_evidence.py called after rerun_degraded_candidate",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "RecoveryBeforeContinuation",
+      "description": "After a confirmed regression is reverted, the workflow runs a recovery evaluation and verifies the restored state matches the previously recorded accepted performance before allowing the next proposal.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/verify_recovery.py and workflow routing before the next planning step",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Use a dedicated classification step after the unchanged-candidate rerun to distinguish confirmed_regression, unstable_result, suspected_flakiness, and inconclusive evidence.",
+      "justification": "The story requires multiple distinct outcomes (regression, unstable, flaky, inconclusive) with different autonomous and human-handoff paths. A single classification service keeps the rule in one defensible place.",
+      "basis": "Story analysis core_action and acceptance criteria; current-reality audit rerun_degraded_candidate.py",
+      "impact": "A new ClassifyRegressionEvidence Activity is added between rerun and workflow routing. rerun_degraded_candidate continues to run the evaluation and returns the second metric record.",
+      "answers_open_question": "What is the exact classification logic for distinguishing confirmed regression, unstable result, suspected flakiness, and inconclusive evidence?"
+    },
+    {
+      "decision": "Revert the target repository to the best accepted commit with git reset --hard, not a sequence of git revert commits.",
+      "justification": "The best accepted state is a known-good commit. Resetting is faster, keeps the target history clean, and matches the existing finalize_run restore pattern.",
+      "basis": "ADR-018: Explicit Target Repository Context for Agentic Workflows; src/edd_refinement_workflow/activities/finalize_run.py",
+      "impact": "RevertRepositoryToBest uses the same repository-scoped dependency and target_repository_context as finalize_run but is invoked mid-run after confirmed regression.",
+      "answers_open_question": "How is the last accepted repository state identified and restored safely, including any uncommitted or staged changes?"
+    },
+    {
+      "decision": "Run the recovery evaluation with the exact same EvaluationRunConfiguration as the baseline and confirmation, and compare absolute passing count, failing count, total, percentage, and required coverage.",
+      "justification": "Recovery must prove the restored state reproduces the previously accepted performance. The same deterministic configuration and the same metric comparison rules prevent provider or command drift from masquerading as a recovery failure.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet; src/edd_refinement_workflow/activities/evaluate_candidate.py; src/edd_refinement_workflow/baseline_result.py",
+      "impact": "EvaluateCandidate is reused for recovery. VerifyRecoveryMetrics compares the recovery metric record against the recorded best accepted state using the same fields.",
+      "answers_open_question": "What matching criteria does the recovery evaluation use to verify the restored state matches its previously recorded performance?"
+    },
+    {
+      "decision": "Require an exact match on structured recovery metrics, with zero tolerance for passing and failing counts and required coverage; percentage is a derived value and must also match within floating-point rounding.",
+      "justification": "The best accepted state was produced deterministically from the same command. Any difference in absolute counts or required coverage signals a non-reproducible environment. Percentage follows from the counts and needs only rounding tolerance.",
+      "basis": "Story analysis acceptance criteria; src/edd_refinement_workflow/baseline_result.py",
+      "impact": "VerifyRecoveryMetrics treats any passing, failing, total, or coverage mismatch as a failed recovery that stops and hands off.",
+      "answers_open_question": "What tolerance is allowed when comparing recovery results to the prior accepted state?"
+    },
+    {
+      "decision": "Preserve reverted-proposal context under a new reverted_proposals array in the ProgressRecord.",
+      "justification": "Future planning must see what was tried, why it failed, which files were affected, and what the recovery result was. Colocating this with the durable run state keeps it visible to the next planning step.",
+      "basis": "Story analysis acceptance criteria; ADR-017; vault/services/edd_refinement.md",
+      "impact": "ProgressRecord schema version 5 adds regression_evidence, reverted_proposals, recovery_results, and human_handoff_records.",
+      "answers_open_question": "How is reverted-proposal context structured and linked to future planning steps?"
+    },
+    {
+      "decision": "Hand off to a human for unstable, suspected flakiness, inconclusive, failed recovery, and stop-threshold outcomes, and stop autonomous mutation.",
+      "justification": "Autonomous revert and continuation are only safe when a regression is confirmed and the restored state is verified. All other evidence is too uncertain for an autonomous mutation decision.",
+      "basis": "Story analysis acceptance criteria and edge cases; ADR-017",
+      "impact": "The workflow routes each non-confirmed or failed-recovery outcome through HumanHandoff before terminal or resume. The run can be resumed after human review.",
+      "answers_open_question": "What human handoff path and notification content are used for unstable, flaky, inconclusive, and failed recovery outcomes?"
+    },
+    {
+      "decision": "Check the consecutive-regression stop threshold immediately after incrementing the counter, before any revert.",
+      "justification": "If the threshold has already been reached, the workflow should not perform more repository mutations; it should stop and escalate. This protects against repeated harmful proposals exhausting budget or worktree state.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet; story analysis edge cases",
+      "impact": "ConfirmedRegressionRecorded increments the counter and checks the threshold; if reached, the workflow hands off before revert.",
+      "answers_open_question": "How is the regression threshold and stop-threshold defined?"
+    },
+    {
+      "decision": "Keep the unchanged-candidate re-evaluation in the existing rerun_degraded_candidate Activity and add new Activities for classification, revert, recovery verification, and reverted-proposal recording.",
+      "justification": "The existing rerun Activity already produces the second metric record. Splitting the new concerns into separate Activities follows the three-layer module pattern and keeps each Activity testable and mockable.",
+      "basis": "ADR-013: Three-Layer Workflow Module Architecture; current-reality audit",
+      "impact": "New Activity files: classify_regression_evidence.py, revert_to_best.py, verify_recovery.py, record_reverted_proposal.py, and human_handoff.py. rerun_degraded_candidate is reused.",
+      "answers_open_question": "How is the second unchanged-candidate evaluation invoked and guaranteed to use the exact same code, configuration, and provider as the first evaluation?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "How is the second unchanged-candidate evaluation invoked and guaranteed to use the exact same code, configuration, and provider as the first evaluation?",
+      "answer": "The workflow reuses the existing rerun_degraded_candidate Activity with the candidate_id, the exact baseline_evaluation_configuration from the ProgressRecord, and the target_repository_context. This configuration is locked at run initialization and contains the command, configuration, pinned provider, and timeout. The Activity passes these to EvaluateCandidate, which runs the same deterministic command.",
+      "justification": "Colocating the deterministic configuration in the ProgressRecord and reusing the existing evaluation path keeps the confirmation run comparable to the original.",
+      "basis": "vault/services/edd_refinement.md; src/edd_refinement_workflow/activities/evaluate_candidate.py; ADR-017"
+    },
+    {
+      "question": "What is the exact classification logic for distinguishing confirmed regression, unstable result, suspected flakiness, and inconclusive evidence?",
+      "answer": "confirmed_regression: the second unchanged run is also worse than the best accepted state. unstable_result: the second run equals or exceeds the best accepted state. suspected_flakiness: the second run errors, times out, or is incomparable due to provider/configuration deviation. inconclusive: the second run does not clearly establish equivalence, improvement, or regression and no error was raised.",
+      "justification": "These rules match the acceptance criteria and edge cases in the story analysis and prevent over- or under-reaction to a single degraded evaluation.",
+      "basis": "Story analysis acceptance criteria and edge cases; ADR-017"
+    },
+    {
+      "question": "How is the last accepted repository state identified and restored safely, including any uncommitted or staged changes?",
+      "answer": "The best accepted state is stored in the ProgressRecord as a commit hash. The RevertRepositoryToBest Activity holds the repository mutation lease, runs git reset --hard <accepted_commit>, and then verifies the worktree is clean. Any uncommitted, staged, or untracked changes are discarded.",
+      "justification": "The lease and clean-worktree requirements from ADR-018 protect unrelated changes and concurrent runs. git reset --hard is used because the target commit is known-good.",
+      "basis": "ADR-018; src/edd_refinement_workflow/finalize_run.py"
+    },
+    {
+      "question": "What matching criteria does the recovery evaluation use to verify the restored state matches its previously recorded performance?",
+      "answer": "The restored state is evaluated with the same EvaluationRunConfiguration. Recovery is verified only if the recovery metric record exactly matches the recorded best accepted metrics for passing, failing, total, and required_coverage. The percentage is derived and must also match within floating-point rounding.",
+      "justification": "The best accepted state was produced deterministically from the same configuration. Exact absolute matches are the strongest evidence that the restore was correct.",
+      "basis": "src/edd_refinement_workflow/baseline_result.py; ADR-017"
+    },
+    {
+      "question": "How is reverted-proposal context structured and linked to future planning steps?",
+      "answer": "A RevertedProposalContext data model is added under the reverted_proposals array in the ProgressRecord. It contains candidate_id, change_summary, affected_files, rationale, observed_degradation, confirmation_result, recovery_result, and reverted_at. The planning Activity can query this array by run_id.",
+      "justification": "Colocating the context in the durable run state makes it available to planning without requiring a separate service.",
+      "basis": "Story analysis acceptance criteria; vault/services/edd_refinement.md"
+    },
+    {
+      "question": "What human handoff path and notification content are used for unstable, flaky, inconclusive, and failed recovery outcomes?",
+      "answer": "The HumanHandoff Activity records a handoff record with the run_id, handoff_reason, evidence_summary, and original/confirmation metric records. It attempts to send a notification through the configured channel and records success/failure. The workflow stops and leaves the run in a pending_human_review state. Notification retries follow a configured policy, but the run does not continue autonomously.",
+      "justification": "Human review is required for uncertain evidence. Recording the handoff durably and retrying the notification ensures the human is eventually reached.",
+      "basis": "Story analysis acceptance criteria and edge cases; ADR-017"
+    }
+  ]
+}

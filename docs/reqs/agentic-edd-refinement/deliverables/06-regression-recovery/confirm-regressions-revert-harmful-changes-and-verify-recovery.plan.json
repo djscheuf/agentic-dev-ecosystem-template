@@ -1,0 +1,236 @@
+{
+  "source_story": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/confirm-regressions-revert-harmful-changes-and-verify-recovery.analysis.json",
+  "overall_design": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/confirm-regressions-revert-harmful-changes-and-verify-recovery.design.json",
+  "story": {
+    "so_that": "flaky evidence cannot discard useful work and confirmed harmful changes cannot leave the repository degraded",
+    "as_a": "Skill Owner",
+    "i_want": "an apparently worse candidate re-evaluated unchanged, a confirmed regression reverted, and the restored accepted state verified before refinement continues"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a second evaluation run against the unchanged candidate also performs worse than the current best state, when the regression is confirmed, then both degraded results and the change summary are recorded, the consecutive-regression counter increments, the last accepted state is restored, and the suite is rerun to verify recovery.",
+      "gherkin": "Given a second evaluation run against the unchanged candidate also performs worse than the current best state when the regression is confirmed then both degraded results and the change summary are recorded the consecutive-regression counter increments the last accepted state is restored and the suite is rerun to verify recovery",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given the second evaluation run returns to or exceeds the current best state, when results are compared, then the result is treated as unstable, a human is notified, and no autonomous commit or revert decision is made.",
+      "gherkin": "Given the second evaluation run returns to or exceeds the current best state when results are compared then the result is treated as unstable a human is notified and no autonomous commit or revert decision is made",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given the second evaluation run errors, times out, or otherwise fails to establish stable equivalence, improvement, or regression, when results are classified, then the evidence is recorded as suspected flakiness, a human is notified, and autonomous refinement does not continue.",
+      "gherkin": "Given the second evaluation run errors times out or otherwise fails to establish stable equivalence improvement or regression when results are classified then the evidence is recorded as suspected flakiness a human is notified and autonomous refinement does not continue",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given a confirmed regression has been reverted, when the recovery evaluation runs, then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed.",
+      "gherkin": "Given a confirmed regression has been reverted when the recovery evaluation runs then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given the recovery evaluation cannot verify the restored performance, when recovery fails, then autonomous refinement stops and hands off to a human.",
+      "gherkin": "Given the recovery evaluation cannot verify the restored performance when recovery fails then autonomous refinement stops and hands off to a human",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given a proposal is reverted, when it is recorded, then its change summary, affected files, rationale, observed degradation, confirmation result, and recovery result remain visible to future planning steps.",
+      "gherkin": "Given a proposal is reverted when it is recorded then its change summary affected files rationale observed degradation confirmation result and recovery result remain visible to future planning steps",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Second evaluation produces identical metrics to the first worse run",
+      "status": "pending"
+    },
+    {
+      "criterion": "Second evaluation returns exactly to the current best state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Second evaluation errors or times out",
+      "status": "pending"
+    },
+    {
+      "criterion": "Evaluation provider or configuration changes between first and second run",
+      "status": "pending"
+    },
+    {
+      "criterion": "Current best accepted state is missing or corrupted",
+      "status": "pending"
+    },
+    {
+      "criterion": "Repository reset fails after regression confirmation",
+      "status": "pending"
+    },
+    {
+      "criterion": "Recovery evaluation shows a different result from the previously recorded best state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Human notification channel is unavailable",
+      "status": "pending"
+    },
+    {
+      "criterion": "Reverted proposal spans many files or multiple commits",
+      "status": "pending"
+    },
+    {
+      "criterion": "Consecutive regression counter is already at a stop threshold",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "ui": [
+      "Regression confirmation and re-evaluation status view",
+      "Reverted-proposal context and history view",
+      "Human handoff notification and recovery result view"
+    ],
+    "api": [
+      "Unchanged-candidate re-evaluation Activity",
+      "Regression classification and evidence recording Activity",
+      "Repository revert and accepted-state restore Activity",
+      "Recovery evaluation and verification Activity",
+      "Human handoff and notification Activity",
+      "Reverted-proposal context recording Activity"
+    ],
+    "database": [
+      "ProgressRecord schema v5",
+      "Best accepted state and metrics",
+      "Consecutive-regression counter and durable history"
+    ],
+    "external_services": [
+      "Version control system for revert and restore",
+      "Evaluation provider or runner for re-evaluation and recovery",
+      "Workflow or Activity orchestration engine",
+      "Human notification channel"
+    ]
+  },
+  "steps": [
+    {
+      "description": "IMPLEMENTATION PLAN: 1. Upgrade the ProgressRecord schema to v5, adding regression_evidence, reverted_proposals, recovery_results, and human_handoff_records fields, and migrate existing persisted runs.",
+      "layer": "database",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 2. Add the ClassifyRegressionEvidence Activity that consumes the original and confirmation CandidateMetricRecords and the best accepted state and emits one of confirmed_regression, unstable_result, suspected_flakiness, or inconclusive.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 3. Add the RevertRepositoryToBest Activity that holds the mutation lease, runs git reset --hard to the best accepted commit, and verifies a clean worktree.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 4. Reuse EvaluateCandidate to run the recovery evaluation of the restored state using the same deterministic baseline_evaluation_configuration and target_repository_context.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 5. Add the VerifyRecoveryMetrics Activity that compares the recovery metric record to the recorded best accepted metrics for passing, failing, total, and required coverage, allowing only floating-point rounding on the percentage.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 6. Add the RecordRevertedProposalContext Activity that appends the reverted proposal context to the durable ProgressRecord for future planning.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 7. Add the HumanHandoff Activity that records the handoff reason and evidence summary, attempts to notify a human, and supports a configured retry policy.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 8. Wire the workflow to rerun the degraded candidate unchanged, classify the combined evidence, and route to revert/recovery or human handoff based on the classification.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 9. Implement the stop-threshold check so that the consecutive-regression counter is incremented and checked immediately after confirmation and before any repository mutation.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "IMPLEMENTATION PLAN: 10. Add frontend views for regression confirmation status, reverted-proposal context, and human handoff notifications.",
+      "layer": "ui",
+      "status": "pending"
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "ClassifyRegressionEvidence returns each of the four classifications for matching, improving, errored, and inconclusive confirmation outcomes",
+        "layer": "api"
+      },
+      {
+        "description": "VerifyRecoveryMetrics accepts only exact absolute matches on passing, failing, total, and required coverage and rejects any mismatch",
+        "layer": "api"
+      },
+      {
+        "description": "RevertRepositoryToBest holds the mutation lease, resets to the accepted commit, and verifies a clean worktree",
+        "layer": "api"
+      },
+      {
+        "description": "RecordRevertedProposalContext appends an entry to the ProgressRecord and redacts sensitive fields",
+        "layer": "api"
+      },
+      {
+        "description": "HumanHandoff records the handoff and follows the configured retry policy",
+        "layer": "api"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "Rerun-to-classify-to-revert-to-recovery flow produces a verified recovery and continues refinement",
+        "layer": "api"
+      },
+      {
+        "description": "Suspected flakiness, unstable, inconclusive, and failed-recovery outcomes record the handoff and stop the workflow",
+        "layer": "api"
+      },
+      {
+        "description": "ProgressRecord schema v5 persistently stores regression evidence, reverted proposals, recovery results, and handoff records",
+        "layer": "database"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "A confirmed regression is reverted, the accepted state is recovered, and the next planning step is allowed",
+        "layer": "ui"
+      },
+      {
+        "description": "An inconclusive re-evaluation surfaces a human handoff notification with the evidence summary",
+        "layer": "ui"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "A flaky or transient run is misclassified as a confirmed regression, causing an unnecessary revert",
+      "mitigation": "Use a dedicated classification step with explicit rules and a second unchanged-candidate confirmation before any mutation",
+      "layer": "api"
+    },
+    {
+      "risk": "Git reset --hard discards uncommitted or staged work from other runs",
+      "mitigation": "Require and verify the mutation lease, enforce a clean worktree, and only reset after a confirmed regression",
+      "layer": "api"
+    },
+    {
+      "risk": "Recovery evaluation fails due to provider or environment drift rather than a real regression",
+      "mitigation": "Run recovery with the same pinned baseline_evaluation_configuration and compare exact absolute metrics",
+      "layer": "api"
+    },
+    {
+      "risk": "The consecutive-regression stop threshold is exceeded but the workflow continues mutating",
+      "mitigation": "Increment and check the threshold immediately after confirming a regression, before revert, and hand off if reached",
+      "layer": "api"
+    },
+    {
+      "risk": "Human handoff notification is lost or undelivered",
+      "mitigation": "Persist handoff records durably and retry according to a configured notification policy",
+      "layer": "api"
+    }
+  ]
+}
