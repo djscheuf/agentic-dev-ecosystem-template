@@ -200,7 +200,7 @@
     {
       "description": "Record structured passing, failing, total, percentage, required-coverage metrics and artifact references for each completed evaluation attempt, including timeout and infrastructure status.",
       "layer": "backend",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Bump the ProgressRecord schema version and ensure existing run records remain forward-compatible.",

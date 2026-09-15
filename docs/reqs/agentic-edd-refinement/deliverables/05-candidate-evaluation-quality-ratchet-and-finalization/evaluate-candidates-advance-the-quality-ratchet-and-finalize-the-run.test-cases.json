@@ -135,7 +135,7 @@
         {
           "id": 14,
           "name": "EvaluateCandidate_WithTimeout_RecordsAttemptWithoutIterationAdvance",
-          "status": "pending",
+          "status": "passing",
           "description": "A timed-out evaluation attempt is durable but does not advance the logical iteration.",
           "arrange": "Persist a run and configure the evaluation harness to time out.",
           "act": "Evaluate the candidate.",

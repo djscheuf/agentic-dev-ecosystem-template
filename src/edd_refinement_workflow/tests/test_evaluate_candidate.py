@@ -103,3 +103,35 @@ def test_evaluate_candidate_with_infrastructure_error_records_non_regression_att
     assert result["status"] == "infra_error"
     assert result["failure_reason"] == "runner unavailable"
     assert result["usable_for_acceptance"] is False
+
+
+def test_evaluate_candidate_with_timeout_records_attempt_without_iteration_advance(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "evaluation_configuration": {
+                "command": ["eval"],
+                "configuration": "config",
+                "pinned_provider_version": "provider@1",
+                "timeout_seconds": 10,
+                "measurement_context": "baseline",
+            },
+            "candidate_metrics": [],
+            "iteration_history": [{"iteration": 1}],
+        },
+    )
+
+    def timed_out_harness(**kwargs):
+        raise TimeoutError
+
+    result = EvaluateCandidateActivity(store, timed_out_harness).run(
+        "run-1", "candidate-1", str(tmp_path)
+    )
+
+    record = store.create_or_resume("run-1", {})
+    assert result["status"] == "timeout"
+    assert result["failure_reason"] == "evaluation_timeout"
+    assert result["usable_for_acceptance"] is False
+    assert record["candidate_metrics"] == [result]
+    assert record["iteration_history"] == [{"iteration": 1}]

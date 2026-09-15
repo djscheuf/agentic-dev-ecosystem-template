@@ -16,6 +16,7 @@ class EvaluateCandidateActivity:
         record = self.store.create_or_resume(run_id, {})
         configuration = record["evaluation_configuration"]
         infrastructure_error = None
+        timed_out = False
         try:
             result = self.harness(
                 command=configuration["command"],
@@ -24,6 +25,9 @@ class EvaluateCandidateActivity:
                 cwd=repo_root,
                 timeout=configuration["timeout_seconds"],
             )
+        except TimeoutError:
+            result = {}
+            timed_out = True
         except RuntimeError as exc:
             result = {}
             infrastructure_error = str(exc)
@@ -49,9 +53,9 @@ class EvaluateCandidateActivity:
             pinned_provider_version=configuration["pinned_provider_version"],
             measurement_context=configuration["measurement_context"],
             evaluated_at=self.now(),
-            status="infra_error" if infrastructure_error else "success" if valid else "rejected",
-            failure_reason=infrastructure_error or (None if valid else "malformed_metrics"),
-            usable_for_acceptance=valid and infrastructure_error is None,
+            status="timeout" if timed_out else "infra_error" if infrastructure_error else "success" if valid else "rejected",
+            failure_reason="evaluation_timeout" if timed_out else infrastructure_error or (None if valid else "malformed_metrics"),
+            usable_for_acceptance=valid and not timed_out and infrastructure_error is None,
         ).to_dict()
         record["candidate_metrics"] = record.get("candidate_metrics", []) + [metric]
         self.store.save(run_id, record)
