@@ -55,6 +55,54 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+async def test_workflow_before_agentic_step_uses_limit_gate_and_finalizes_when_blocked(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {
+                "run_id": "run-1",
+                "budgets": {"max_iterations": 0},
+                "best_accepted_state": {"commit": "best-1"},
+            }
+        if name == "check_refinement_limits":
+            return {
+                "schedule_next_step": False,
+                "stop_reason": "iteration_budget",
+                "best_accepted_state": {"commit": "best-1"},
+            }
+        if name == "finalize_run":
+            return {"terminal_reason": "iteration_budget"}
+        raise AssertionError(f"unexpected activity: {name}")
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+
+    result = await EddRefinementWorkflow().run(
+        preflight,
+        {
+            "workflow_run_id": "wf-1",
+            "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        },
+    )
+
+    assert calls == ["initialize_run", "check_refinement_limits", "finalize_run"]
+    assert result["limit_decision"]["best_accepted_state"] == {"commit": "best-1"}
+
+
+@pytest.mark.asyncio
 async def test_workflow_requires_explicit_approval_and_records_timeout(
     tmp_path, monkeypatch
 ) -> None:

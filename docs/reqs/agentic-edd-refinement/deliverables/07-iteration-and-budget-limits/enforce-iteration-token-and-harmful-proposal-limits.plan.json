@@ -121,7 +121,7 @@
     {
       "description": "4. Wire CheckRefinementLimits into the EDD workflow loop before each plan, execute, or evaluate step; stop the run and preserve best accepted state when the gate blocks.",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "5. Add UpdateDurableCounters Activity (or helper) to append attempt records, add token usage for every attempt (including retries), and advance logical_iteration_count only for non-retry attempts.",

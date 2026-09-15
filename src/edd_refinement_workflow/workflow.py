@@ -28,6 +28,29 @@ class EddRefinementWorkflow:
             self._candidate = record["candidate"]
             return {"record": record, "candidate": record["candidate"]}
 
+        if "budgets" in record:
+            limit_decision = await execute_activity(
+                "check_refinement_limits",
+                dict,
+                record,
+                request.get("next_step_token_estimate", 0),
+                start_to_close_timeout=timedelta(minutes=5),
+            )
+            if not limit_decision["schedule_next_step"]:
+                terminal_result = await execute_activity(
+                    "finalize_run",
+                    dict,
+                    record["run_id"],
+                    limit_decision["stop_reason"],
+                    str(preflight_result.target_context.repo_root),
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                return {
+                    "record": record,
+                    "limit_decision": limit_decision,
+                    "terminal_result": terminal_result,
+                }
+
         baseline = await execute_activity(
             "run_baseline_evaluation",
             dict,

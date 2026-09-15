@@ -58,7 +58,7 @@
         {
           "id": 6,
           "name": "Workflow_BeforeAgenticStep_UsesLimitGateAndFinalizesWhenBlocked",
-          "status": "pending",
+          "status": "passing",
           "description": "The workflow does not schedule planning or later agentic work after the centralized gate blocks.",
           "arrange": "Mock initialization and a blocking limit decision containing the best accepted state.",
           "act": "Run the workflow.",
