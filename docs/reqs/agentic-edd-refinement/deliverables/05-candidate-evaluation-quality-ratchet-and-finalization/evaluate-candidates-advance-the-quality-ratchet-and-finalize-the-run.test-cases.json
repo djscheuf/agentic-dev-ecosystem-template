@@ -94,7 +94,7 @@
         {
           "id": 10,
           "name": "CompareCandidateToBest_WithDegradation_RequestsRerun",
-          "status": "pending",
+          "status": "passing",
           "description": "An apparent product regression requires an unchanged full-suite rerun.",
           "arrange": "Create a comparable candidate with fewer passing evaluations.",
           "act": "Compare the candidate to the best accepted state.",

@@ -51,3 +51,17 @@ def test_compare_candidate_to_best_with_coverage_loss_rejects_candidate() -> Non
         "passing_delta": 1,
         "coverage_delta": {"required-2": -1},
     }
+
+
+def test_compare_candidate_to_best_with_degradation_requests_rerun() -> None:
+    best = metric(5, 6, {"required-1": 1})
+    candidate = metric(4, 6, {"required-1": 1})
+
+    result = compare_candidate_to_best(candidate, best)
+
+    assert result == {
+        "decision": "rerun",
+        "reason": "apparent_regression",
+        "passing_delta": -1,
+        "coverage_delta": {},
+    }

@@ -26,4 +26,11 @@ def compare_candidate_to_best(candidate: dict, best: dict) -> dict:
             "passing_delta": passing_delta,
             "coverage_delta": coverage_delta,
         }
+    if passing_delta < 0:
+        return {
+            "decision": "rerun",
+            "reason": "apparent_regression",
+            "passing_delta": passing_delta,
+            "coverage_delta": coverage_delta,
+        }
     raise NotImplementedError
