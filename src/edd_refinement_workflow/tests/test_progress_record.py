@@ -45,6 +45,30 @@ def test_serializer_redacts_environment_variables_and_credential_paths() -> None
     assert serialized["payload"]["normal"] == "some-value"
 
 
+def test_serializer_schema_version_two_preserves_approval_state() -> None:
+    serializer = ProgressRecordSerializer(
+        schema_version=2,
+        allowed_fields={"schema_version", "run_id", "approval_request", "approval_history"},
+    )
+    approval_request = {
+        "approval_request_id": "approval-1",
+        "proposal_id": "proposal-1",
+        "proposed_diff_hash": "abc123",
+        "status": "pending",
+    }
+    record = {
+        "schema_version": 2,
+        "run_id": "run-1",
+        "approval_request": approval_request,
+        "approval_history": [],
+    }
+
+    serialized = serializer.serialize(record)
+    restored = serializer.deserialize(serialized)
+
+    assert restored == record
+
+
 def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     record = {"schema_version": 1, "run_id": "run-1"}

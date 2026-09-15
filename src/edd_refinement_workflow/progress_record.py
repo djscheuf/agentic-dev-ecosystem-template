@@ -43,6 +43,9 @@ class ProgressRecordSerializer:
             if k in self.allowed_fields
         }
 
+    def deserialize(self, record: dict) -> dict:
+        return self.serialize(record)
+
 
 class ProgressRecordAlreadyExists(Exception):
     pass
