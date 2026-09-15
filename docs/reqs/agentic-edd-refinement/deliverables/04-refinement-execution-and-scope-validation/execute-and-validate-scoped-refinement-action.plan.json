@@ -173,7 +173,7 @@
       {
         "description": "Workflow schedules execution, then validation, and persists a scope-valid or rejected candidate",
         "layer": "api",
-        "status": "in_progress"
+        "status": "completed"
       },
       {
         "description": "Worker resumption reloads the candidate and approval context without re-running the harness",
@@ -182,7 +182,8 @@
       },
       {
         "description": "Concurrent validations for the same run do not conflate candidate state",
-        "layer": "api"
+        "layer": "api",
+        "status": "completed"
       }
     ],
     "e2e_tests": [
