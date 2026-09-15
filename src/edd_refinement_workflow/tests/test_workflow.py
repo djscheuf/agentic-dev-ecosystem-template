@@ -46,3 +46,59 @@ async def test_workflow_sequences_activities_in_order(tmp_path, monkeypatch) -> 
     assert result["record"]["run_id"] == "wf-1-abc1234"
     assert result["baseline"]["passing"] == 5
     assert result["planning"]["action"] == "stop"
+
+
+@pytest.mark.asyncio
+async def test_workflow_requires_explicit_approval_and_records_timeout(
+    tmp_path, monkeypatch
+) -> None:
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+    request = {
+        "workflow_run_id": "wf-1",
+        "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        "proposed_action": "propose_evaluation_expectation_change",
+        "proposal_id": "proposal-1",
+        "proposed_diff_hash": "abc123",
+        "approval_timeout_seconds": 60,
+    }
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {"run_id": "run-1"}
+        if name == "run_baseline_evaluation":
+            return {"passing": 5}
+        if name == "plan_refinement_action":
+            return {
+                "action": "propose_evaluation_expectation_change",
+                "requires_approval": True,
+                "proposal_id": "proposal-1",
+                "proposed_diff_hash": "abc123",
+            }
+        if name == "request_human_approval":
+            return {"proposal_id": "proposal-1", "status": "pending"}
+        return {"proposal_id": "proposal-1", "status": "decided", "decision": "timeout"}
+
+    workflow = EddRefinementWorkflow()
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr(workflow, "_await_approval", lambda timeout: _result("timeout"))
+
+    result = await workflow.run(preflight, request)
+
+    assert calls[-2:] == ["request_human_approval", "record_human_approval_decision"]
+    assert result["approval"]["decision"] == "timeout"
+    assert result["approved"] is False
+
+
+async def _result(value):
+    return value
