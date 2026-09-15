@@ -155,7 +155,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 10. Add frontend views for regression confirmation status, reverted-proposal context, and human handoff notifications.",
       "layer": "ui",
-      "status": "pending"
+      "status": "passing"
     }
   ],
   "testing_strategy": {

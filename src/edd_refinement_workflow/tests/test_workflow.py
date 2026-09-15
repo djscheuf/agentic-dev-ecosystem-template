@@ -107,6 +107,13 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
     assert result["next_state"] == "planning"
 
 
+def test_regression_status_query_exposes_recovery_and_handoff_context() -> None:
+    workflow = EddRefinementWorkflow()
+    workflow._regression_status = {"classification": "unstable_result", "next_state": "pending_human_review", "human_handoff": {"notified": True}}
+
+    assert workflow.get_regression_status() == workflow._regression_status
+
+
 def test_candidate_status_query_returns_current_candidate() -> None:
     workflow = EddRefinementWorkflow()
     workflow._candidate = {
