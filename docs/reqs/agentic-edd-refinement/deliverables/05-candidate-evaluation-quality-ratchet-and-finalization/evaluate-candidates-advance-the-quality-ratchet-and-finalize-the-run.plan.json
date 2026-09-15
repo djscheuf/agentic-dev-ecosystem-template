@@ -225,7 +225,7 @@
     {
       "description": "Implement the compare_candidate_to_best service using absolute passing count and required-coverage rules, with separate measurement contexts for human-approved expectation changes.",
       "layer": "backend",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement commit_accepted_candidate Activity to commit the accepted candidate, update the best accepted state, and reset the consecutive-regression counter.",

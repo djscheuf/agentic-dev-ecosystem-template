@@ -67,7 +67,7 @@
         {
           "id": 7,
           "name": "CompareCandidateToBest_WithPassingIncrease_AcceptsCandidate",
-          "status": "pending",
+          "status": "passing",
           "description": "An absolute passing-count increase qualifies when required coverage does not decrease.",
           "arrange": "Create comparable best and candidate metric records with higher candidate passing count.",
           "act": "Compare the candidate to the best accepted state.",
