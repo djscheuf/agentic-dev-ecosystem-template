@@ -1,0 +1,243 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/04-refinement-execution-and-scope-validation/story.md",
+  "title": "Execute and Validate a Scoped Refinement Action",
+  "story": {
+    "so_that": "automated changes remain inside the owner's authorized boundary and cannot game required evaluations",
+    "as_a": "skill owner",
+    "i_want": "each selected refinement action executed as a traceable candidate and validated against its approved intent and file scope"
+  },
+  "target_persona": {
+    "role": "Owner or maintainer of a skill",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "A refinement action has been selected and, when it changes evaluation expectations, has received explicit human approval. The owner is ready to execute it.",
+      "during": "The owner triggers the refinement Activity execution and reviews the returned usage metrics and changed-file evidence.",
+      "after": "The owner receives either a scope-valid candidate with structured evidence, or a clear rejection with no refinement commit created."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Execute a selected refinement action as a traceable candidate and validate the resulting diff against the approved action and authorized file scope.",
+    "inputs": [
+      "A selected and, if required, approved refinement action",
+      "Repository context",
+      "Authorized file-scope rules",
+      "Structured Activity usage and changed-file contracts",
+      "Diff produced by the candidate changes"
+    ],
+    "outputs": [
+      "Structured usage metrics",
+      "List of changed files",
+      "Scope-valid candidate or rejection decision"
+    ],
+    "state_changes": [
+      "The candidate is marked as scope-valid or rejected",
+      "No refinement commit is created for rejected iterations"
+    ],
+    "affected_components": {
+      "ui": [
+        "Refinement execution trigger",
+        "Candidate validation result view",
+        "Rejection reason display"
+      ],
+      "api": [
+        "Refinement Activity execution endpoint",
+        "Candidate validation endpoint",
+        "Usage metrics and changed-files contract"
+      ],
+      "database": [
+        "Candidate status tracking",
+        "Refinement action and approval evidence records"
+      ],
+      "external_services": [
+        "Version control system for diff retrieval",
+        "Activity runner or workflow engine"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a selected and, if required, approved action, when the corresponding refinement Activity runs, then it returns structured usage metrics and a list of changed files.",
+      "gherkin": "Given a selected and, if required, approved action When the corresponding refinement Activity runs Then it returns structured usage metrics and a list of changed files",
+      "type": "functional",
+      "jtbd": "Run refinement Activity and receive structured evidence",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the refinement Activity completes, when its resulting diff is validated, then the workflow confirms the diff matches the approved action and stays within the authorized file scope.",
+      "gherkin": "Given the refinement Activity completes When its resulting diff is validated Then the workflow confirms the diff matches the approved action and stays within the authorized file scope",
+      "type": "functional",
+      "jtbd": "Confirm candidate matches approved scope",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given an agent changes a file outside the authorized scope, when candidate validation runs, then the iteration is rejected and no refinement commit is created.",
+      "gherkin": "Given an agent changes a file outside the authorized scope When candidate validation runs Then the iteration is rejected and no refinement commit is created",
+      "type": "constraint",
+      "jtbd": "Reject out-of-scope changes",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given a refinement action would remove, skip, weaken, or rewrite a failing required test to improve its score, when candidate validation runs, then the change is rejected rather than accepted as a repair.",
+      "gherkin": "Given a refinement action would remove, skip, weaken, or rewrite a failing required test to improve its score When candidate validation runs Then the change is rejected rather than accepted as a repair",
+      "type": "business rule",
+      "jtbd": "Prevent gaming of required tests",
+      "persona_served": "Skill Owner"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Activity returns no changed files",
+      "gherkin": "Given a refinement Activity runs and produces no changed files When candidate validation runs Then the candidate is rejected as a no-op",
+      "type": "Edge case",
+      "jtbd": "Handle empty refinement result",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Approval evidence is missing for an expectation-changing action",
+      "gherkin": "Given a selected action changes evaluation expectations and no approval evidence exists When execution is attempted Then the workflow rejects the action before running it",
+      "type": "Edge case",
+      "jtbd": "Prevent unapproved expectation changes",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Authorized file scope is empty or undefined",
+      "gherkin": "Given no authorized file scope is configured for a candidate When validation runs Then the workflow rejects the candidate to avoid unbounded changes",
+      "type": "Edge case",
+      "jtbd": "Avoid unscoped execution",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Diff contains both approved-scope and out-of-scope changes",
+      "gherkin": "Given a candidate diff changes files both inside and outside the authorized scope When validation runs Then the iteration is rejected",
+      "type": "Edge case",
+      "jtbd": "Reject mixed-scope diffs",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Required test is modified but the change is ambiguous",
+      "gherkin": "Given a candidate diff touches a required test in an ambiguous way When test-weakening validation runs Then the workflow conservatively rejects the change",
+      "type": "Edge case",
+      "jtbd": "Avoid accepting suspicious test edits",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Activity runner or external VCS is unavailable",
+      "gherkin": "Given the Activity runner or version control system is unavailable When the refinement Activity runs Then the workflow reports the failure and creates no candidate",
+      "type": "Edge case",
+      "jtbd": "Handle execution infrastructure failure",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Multiple candidates are validated concurrently",
+      "gherkin": "Given two refinement candidates are validated concurrently for the same skill When the workflow runs Then each candidate is evaluated independently and results are not conflated",
+      "type": "Edge case",
+      "jtbd": "Support concurrent candidate validation",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Usage metrics contract is malformed",
+      "gherkin": "Given the refinement Activity returns usage metrics that do not match the structured contract When validation runs Then the workflow rejects the candidate and reports a contract violation",
+      "type": "Edge case",
+      "jtbd": "Enforce usage metrics contract",
+      "persona_served": "Skill Owner"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the exact schema and required fields for the structured usage metrics?",
+      "impacts": [
+        "Activity contract design",
+        "Validation logic",
+        "Database schema"
+      ]
+    },
+    {
+      "question": "How is the authorized file scope represented and enforced?",
+      "impacts": [
+        "File-scope validation",
+        "Skill ownership model",
+        "Security boundary"
+      ]
+    },
+    {
+      "question": "What is the precise definition of 'weakening' a required test?",
+      "impacts": [
+        "Test-weakening detection algorithm",
+        "Business rule implementation",
+        "Rejection messaging"
+      ]
+    },
+    {
+      "question": "How is approval evidence cryptographically tied to the selected action?",
+      "impacts": [
+        "Approval verification",
+        "Audit trail",
+        "Security"
+      ]
+    },
+    {
+      "question": "Should rejected candidates be persisted for audit, or discarded?",
+      "impacts": [
+        "Database schema",
+        "Rejection workflow",
+        "Audit and compliance"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Refinement action selection workflow",
+        "Activity execution framework",
+        "Skill ownership and authorization model",
+        "Git diff inspection utilities"
+      ],
+      "new_code": [
+        "Candidate validation service",
+        "Test-weakening detection logic",
+        "Structured usage metrics parser",
+        "Scope-valid candidate tracker"
+      ],
+      "infrastructure": [
+        "Candidate state store",
+        "Repository access",
+        "Activity runner"
+      ],
+      "external_services": [
+        "Version control system provider",
+        "Activity runner or workflow engine"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Select a refinement action",
+        "Approve expectation-changing refinement actions"
+      ],
+      "blocks": [
+        "Evaluate and accept a scope-valid candidate",
+        "Commit or revert a refinement candidate"
+      ],
+      "related": [
+        "EDD-006 refinement execution and scope validation",
+        "Authorize file-scope rules for a skill"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Skill owner authorization boundaries",
+        "Required test definition and evaluation rules",
+        "Refinement action approval workflow"
+      ],
+      "technical_knowledge": [
+        "Activity contract schema",
+        "Git diff parsing and change classification",
+        "Test code mutation detection techniques"
+      ],
+      "stakeholder_questions": [
+        "What fields must the structured usage metrics contain?",
+        "Who defines and maintains the authorized file scope?",
+        "How are edge cases of test weakening reviewed and escalated?"
+      ]
+    }
+  }
+}
