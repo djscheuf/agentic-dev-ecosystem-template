@@ -136,7 +136,7 @@
     {
       "description": "7. Update regression_recovery to set/clear pending_evidence flags, increment/reset the consecutive confirmed regression counter, and invoke the handoff path when the threshold is reached.",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "8. Add PublishHumanHandoff Activity to build the structured handoff report and record it in ProgressRecord; attempt human notification with best effort.",

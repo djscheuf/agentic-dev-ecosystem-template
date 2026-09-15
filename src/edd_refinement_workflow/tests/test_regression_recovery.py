@@ -5,6 +5,7 @@ from edd_refinement_workflow.activities.regression_recovery import (
     RecordRevertedProposalContextActivity,
     RevertRepositoryToBestActivity,
     classify_regression_evidence,
+    record_successful_proposal,
     verify_recovery_metrics,
 )
 
@@ -65,6 +66,18 @@ def test_record_reverted_proposal_appends_redacted_context(tmp_path) -> None:
 
     assert result["change_summary"] == "[REDACTED]"
     assert store.create_or_resume("run-1", {})["reverted_proposals"] == [result]
+
+
+def test_regression_recovery_with_successful_proposal_resets_consecutive_counter(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"consecutive_confirmed_regressions": 2})
+
+    result = record_successful_proposal(store, "run-1")
+
+    assert result["consecutive_confirmed_regressions"] == 0
+    assert store.create_or_resume("run-1", {})["consecutive_confirmed_regressions"] == 0
 
 
 def test_human_handoff_retries_notification_and_records_result(tmp_path) -> None:

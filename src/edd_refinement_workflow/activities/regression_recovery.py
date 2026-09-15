@@ -71,6 +71,13 @@ def classify_regression_evidence(original: dict, confirmation: dict, best_state:
     return {"classification": classification, "reason": f"confirmation classified as {classification}"}
 
 
+def record_successful_proposal(store, run_id: str) -> dict:
+    record = store.create_or_resume(run_id, {})
+    record["consecutive_confirmed_regressions"] = 0
+    store.save(run_id, record)
+    return record
+
+
 def verify_recovery_metrics(recovery: dict, best: dict) -> dict:
     fields = ["passing", "failing", "total", "required_coverage", "percentage"]
     mismatched = [field for field in fields if (abs(recovery.get(field, 0) - best.get(field, 0)) > 1e-6 if field == "percentage" else recovery.get(field) != best.get(field))]

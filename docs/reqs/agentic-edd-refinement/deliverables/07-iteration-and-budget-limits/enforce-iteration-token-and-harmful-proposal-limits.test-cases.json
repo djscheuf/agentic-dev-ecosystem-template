@@ -72,7 +72,7 @@
         {
           "id": 7,
           "name": "RegressionRecovery_WithSuccessfulProposal_ResetsConsecutiveCounter",
-          "status": "pending",
+          "status": "passing",
           "description": "A successful accepted proposal breaks the consecutive harmful-proposal sequence.",
           "arrange": "Persist a nonzero confirmed-regression count.",
           "act": "Record a successful proposal outcome.",
