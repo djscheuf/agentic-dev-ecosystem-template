@@ -69,6 +69,16 @@ class EddRefinementWorkflow:
         )
         self._approval_request = approval
         result.update(approval=approval, approved=decision == "approve")
+        if decision == "approve":
+            applied_change = await execute_activity(
+                "record_human_approved_evaluation_change",
+                dict,
+                record["run_id"],
+                request["executed_diff_hash"],
+                str(preflight_result.target_context.repo_root),
+                start_to_close_timeout=timedelta(minutes=5),
+            )
+            result["applied_change"] = applied_change
         return result
 
     async def _await_approval(self, timeout: timedelta) -> str:

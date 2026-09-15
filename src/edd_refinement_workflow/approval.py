@@ -98,6 +98,17 @@ async def request_human_approval_activity(
     )
 
 
+@activity.defn(name="record_human_approved_evaluation_change")
+async def record_human_approved_evaluation_change_activity(
+    run_id: str, applied_diff_hash: str, repo_root: str
+) -> dict:
+    store = ProgressRecordStore(repo_root)
+    record = store.create_or_resume(run_id, {})
+    return ApprovalService(store).record_applied_change(
+        record, applied_diff_hash, datetime.now(timezone.utc).isoformat()
+    )
+
+
 @activity.defn(name="record_human_approval_decision")
 async def record_human_approval_decision_activity(
     run_id: str, proposal_id: str, decision: str, notes: str, repo_root: str

@@ -4,6 +4,7 @@ from .activities.initialize_run import initialize_run_activity
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
 from .approval import (
     record_human_approval_decision_activity,
+    record_human_approved_evaluation_change_activity,
     request_human_approval_activity,
 )
 from .plan_refinement import plan_refinement_action
@@ -16,6 +17,7 @@ ACTIVITY_TYPES = (
     "plan_refinement_action",
     "request_human_approval",
     "record_human_approval_decision",
+    "record_human_approved_evaluation_change",
 )
 ACTIVITIES = (
     initialize_run_activity,
@@ -23,6 +25,7 @@ ACTIVITIES = (
     plan_refinement_action,
     request_human_approval_activity,
     record_human_approval_decision_activity,
+    record_human_approved_evaluation_change_activity,
 )
 
 
