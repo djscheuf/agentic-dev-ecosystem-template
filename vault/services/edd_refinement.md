@@ -96,3 +96,9 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Regression evidence flags are durable and clear only after resolution.
 - The third confirmed regression routes directly to structured handoff publication without another restore or evaluation.
 - Counter updates on a shared Activity instance are serialized so concurrent completions do not corrupt or lose attempt state.
+
+## Workflow-wide limit enforcement (2026-09-15)
+
+- Candidate evaluation propagates provider usage, retry identity, and logical iteration context into its durable metric result when the provider reports them.
+- The workflow accounts execution and evaluation results, then reruns the centralized limit gate before scheduling subsequent autonomous work.
+- A post-Activity limit stop finalizes with the preserved best accepted state and does not schedule the next step.
