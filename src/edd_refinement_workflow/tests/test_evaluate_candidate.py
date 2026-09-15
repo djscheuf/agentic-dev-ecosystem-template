@@ -70,6 +70,16 @@ def test_evaluate_candidate_with_successful_result_records_structured_metrics(tm
     assert store.create_or_resume("run-1", {})["candidate_metrics"] == [result]
 
 
+def test_evaluate_candidate_with_usage_and_retry_context_returns_accounting_fields(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"evaluation_configuration": {"command": ["eval"], "configuration": "config", "pinned_provider_version": "v1", "timeout_seconds": 10, "measurement_context": "baseline"}, "candidate_metrics": []})
+    result = EvaluateCandidateActivity(store, lambda **kwargs: {"passing": 1, "failing": 0, "total": 1, "percentage": 100.0, "required_coverage": {}, "artifact_references": [], "usage_metrics": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}, "is_retry": True, "logical_iteration_number": 2}).run("run-1", "candidate-1", str(tmp_path))
+
+    assert result["usage_metrics"] == {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}
+    assert result["is_retry"] is True
+    assert result["logical_iteration_number"] == 2
+
+
 def test_evaluate_candidate_with_malformed_metrics_records_rejected_attempt(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     store.create_or_resume(

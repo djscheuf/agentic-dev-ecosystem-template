@@ -145,6 +145,24 @@
           "arrange": "Create one run and synchronize two concurrent counter updates.",
           "act": "Complete both updates concurrently.",
           "assert": "Both attempts and token totals persist with the correct logical iteration count."
+        },
+        {
+          "id": 15,
+          "name": "EvaluateCandidate_WithUsageAndRetryContext_ReturnsAccountingFields",
+          "status": "passing",
+          "description": "Evaluation results expose observable usage and retry identity for durable accounting.",
+          "arrange": "Run candidate evaluation with usage metrics and retry context.",
+          "act": "Evaluate the candidate.",
+          "assert": "The result includes normalized usage metrics, logical iteration number, and retry status."
+        },
+        {
+          "id": 16,
+          "name": "Workflow_AcrossExecutionAndEvaluation_AccountsAndGatesEachStep",
+          "status": "pending",
+          "description": "Execution and evaluation are each followed by accounting and a limit gate before further autonomous work.",
+          "arrange": "Run a budgeted workflow with successful execution and evaluation results.",
+          "act": "Execute the workflow.",
+          "assert": "Accounting and limit checks occur after execution and evaluation, and a blocked gate terminates before the next step."
         }
       ]
     }

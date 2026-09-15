@@ -59,6 +59,9 @@ class EvaluateCandidateActivity:
             failure_reason="evaluation_timeout" if timed_out else infrastructure_error or (None if valid else "malformed_metrics"),
             usable_for_acceptance=valid and not timed_out and infrastructure_error is None,
         ).to_dict()
+        for field in ("usage_metrics", "is_retry", "logical_iteration_number"):
+            if field in result:
+                metric[field] = result[field]
         record["candidate_metrics"] = record.get("candidate_metrics", []) + [metric]
         self.store.save(run_id, record)
         return metric
