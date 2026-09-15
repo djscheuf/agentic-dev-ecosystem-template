@@ -119,6 +119,65 @@
           "assert": "One terminal report is published, repository state matches the best commit, and the lease is released once."
         }
       ]
+    },
+    {
+      "description": "Priority 3: Complete backend orchestration contracts",
+      "tests": [
+        {
+          "id": 13,
+          "name": "CompareCandidateToBest_WithNoQualifyingValue_RejectsCandidate",
+          "status": "passing",
+          "description": "An equal passing count without new required coverage is rejected deterministically.",
+          "arrange": "Create comparable best and candidate metrics with no passing or coverage gain.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is reject with a no-qualifying-value reason."
+        },
+        {
+          "id": 14,
+          "name": "EvaluateCandidate_WithTimeout_RecordsAttemptWithoutIterationAdvance",
+          "status": "pending",
+          "description": "A timed-out evaluation attempt is durable but does not advance the logical iteration.",
+          "arrange": "Persist a run and configure the evaluation harness to time out.",
+          "act": "Evaluate the candidate.",
+          "assert": "A timeout metric attempt is persisted and iteration history is unchanged."
+        },
+        {
+          "id": 15,
+          "name": "CommitAcceptedCandidate_WithAcceptedMetrics_UpdatesBestState",
+          "status": "pending",
+          "description": "Acceptance commits the candidate and advances durable best state.",
+          "arrange": "Persist a candidate and accepted metric record with a nonzero regression counter.",
+          "act": "Commit the accepted candidate.",
+          "assert": "The commit hash and metrics become best accepted state and the regression counter resets."
+        },
+        {
+          "id": 16,
+          "name": "RerunDegradedCandidate_WithUnchangedCandidate_RecordsConfirmation",
+          "status": "pending",
+          "description": "A degraded candidate is reevaluated unchanged using baseline configuration.",
+          "arrange": "Persist candidate evaluation configuration and inject a complete-suite runner.",
+          "act": "Rerun the degraded candidate.",
+          "assert": "The same candidate and configuration are used and confirmation evidence is persisted."
+        },
+        {
+          "id": 17,
+          "name": "Workflow_WithAcceptedComparison_CommitsCandidate",
+          "status": "pending",
+          "description": "Workflow comparison routes accepted candidates to deterministic commit handling.",
+          "arrange": "Mock a scope-valid candidate evaluation and an accepting comparison.",
+          "act": "Run the refinement workflow.",
+          "assert": "Comparison follows evaluation and commit_accepted_candidate receives the accepted evidence."
+        },
+        {
+          "id": 18,
+          "name": "WorkflowModule_WithTerminalActivities_RegistersContracts",
+          "status": "pending",
+          "description": "Workers can execute commit, rerun, and finalization Activities.",
+          "arrange": "Load the EDD refinement workflow module specification.",
+          "act": "Register the module.",
+          "assert": "Commit, rerun, and finalization Activity contracts are declared and registered."
+        }
+      ]
     }
   ]
 }

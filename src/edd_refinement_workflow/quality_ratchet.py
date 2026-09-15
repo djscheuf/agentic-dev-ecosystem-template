@@ -40,4 +40,9 @@ def compare_candidate_to_best(candidate: dict, best: dict) -> dict:
             "passing_delta": passing_delta,
             "coverage_delta": coverage_delta,
         }
-    raise NotImplementedError
+    return {
+        "decision": "reject",
+        "reason": "no_qualifying_value",
+        "passing_delta": passing_delta,
+        "coverage_delta": coverage_delta,
+    }

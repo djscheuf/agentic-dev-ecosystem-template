@@ -79,3 +79,17 @@ def test_compare_candidate_to_best_with_different_measurement_context_escalates(
         "passing_delta": 1,
         "coverage_delta": {},
     }
+
+
+def test_compare_candidate_to_best_with_no_qualifying_value_rejects_candidate() -> None:
+    best = metric(5, 6, {"required-1": 1})
+    candidate = metric(5, 7, {"required-1": 1})
+
+    result = compare_candidate_to_best(candidate, best)
+
+    assert result == {
+        "decision": "reject",
+        "reason": "no_qualifying_value",
+        "passing_delta": 0,
+        "coverage_delta": {},
+    }
