@@ -144,7 +144,7 @@
         {
           "id": 15,
           "name": "CommitAcceptedCandidate_WithAcceptedMetrics_UpdatesBestState",
-          "status": "pending",
+          "status": "passing",
           "description": "Acceptance commits the candidate and advances durable best state.",
           "arrange": "Persist a candidate and accepted metric record with a nonzero regression counter.",
           "act": "Commit the accepted candidate.",
