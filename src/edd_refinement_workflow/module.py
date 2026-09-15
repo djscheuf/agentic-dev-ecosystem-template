@@ -1,5 +1,6 @@
 from common import WorkflowModuleSpec
 
+from .activities.check_refinement_limits import check_refinement_limits_activity
 from .activities.commit_accepted_candidate import commit_accepted_candidate_activity
 from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.execute_refinement_action import execute_refinement_action_activity
@@ -8,12 +9,14 @@ from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activi
 from .activities.regression_recovery import (
     classify_regression_evidence_activity,
     human_handoff_activity,
+    publish_human_handoff_activity,
     record_confirmed_regression_activity,
     record_reverted_proposal_context_activity,
     revert_repository_to_best_activity,
     verify_recovery_metrics_activity,
 )
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
+from .activities.update_durable_counters import update_durable_counters_activity
 from .activities.validate_candidate import validate_candidate_activity
 from .approval import (
     record_human_approval_decision_activity,
@@ -28,6 +31,8 @@ WORKFLOW_TYPE = "EddRefinementWorkflow"
 ACTIVITY_TYPES = (
     "initialize_run",
     "run_baseline_evaluation",
+    "check_refinement_limits",
+    "update_durable_counters",
     "plan_refinement_action",
     "request_human_approval",
     "record_human_approval_decision",
@@ -42,12 +47,15 @@ ACTIVITY_TYPES = (
     "revert_repository_to_best",
     "verify_recovery_metrics",
     "record_reverted_proposal_context",
+    "publish_human_handoff",
     "human_handoff",
     "finalize_run",
 )
 ACTIVITIES = (
     initialize_run_activity,
     run_baseline_evaluation_activity,
+    check_refinement_limits_activity,
+    update_durable_counters_activity,
     plan_refinement_action,
     request_human_approval_activity,
     record_human_approval_decision_activity,
@@ -62,6 +70,7 @@ ACTIVITIES = (
     revert_repository_to_best_activity,
     verify_recovery_metrics_activity,
     record_reverted_proposal_context_activity,
+    publish_human_handoff_activity,
     human_handoff_activity,
     finalize_run_activity,
 )

@@ -35,6 +35,8 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
     assert SPEC.activity_types == (
         "initialize_run",
         "run_baseline_evaluation",
+        "check_refinement_limits",
+        "update_durable_counters",
         "plan_refinement_action",
         "request_human_approval",
         "record_human_approval_decision",
@@ -49,6 +51,7 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "revert_repository_to_best",
         "verify_recovery_metrics",
         "record_reverted_proposal_context",
+        "publish_human_handoff",
         "human_handoff",
         "finalize_run",
     )

@@ -90,7 +90,7 @@
         {
           "id": 9,
           "name": "WorkflowModule_WithLimitActivities_RegistersContracts",
-          "status": "pending",
+          "status": "passing",
           "description": "Workers register the new limit, counter, and handoff Activity contracts.",
           "arrange": "Load the EDD refinement module specification.",
           "act": "Inspect and register the module.",
