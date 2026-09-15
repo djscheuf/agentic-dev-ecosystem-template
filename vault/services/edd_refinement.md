@@ -14,3 +14,10 @@ The `edd_refinement_workflow` persists durable, schema-versioned run state in th
 - `EddRefinementWorkflow.run` sequences `initialize_run`, `run_baseline_evaluation`, and `plan_refinement_action`, carrying the `TargetRepositoryContext` and run id through each step.
 
 See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018-target-repository-context.md]] for background.
+
+## Evaluation expectation approvals (2026-09-14)
+
+- `ProgressRecord` schema version 2 persists the pending approval request and decision history.
+- `EddRefinementWorkflow` gates evaluation expectation changes on the first valid matching Cadence signal and treats timeout as no approval.
+- Approval decisions bind a stable proposal id to an exact diff hash; only matching approved hashes receive the `human_approved_evaluation_change` context.
+- Client helpers send `approve_evaluation_change` and query `get_approval_status`.
