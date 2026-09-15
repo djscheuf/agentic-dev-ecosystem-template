@@ -1,0 +1,124 @@
+{
+  "target_story": "docs/reqs/agentic-edd-refinement/deliverables/05-candidate-evaluation-quality-ratchet-and-finalization/evaluate-candidates-advance-the-quality-ratchet-and-finalize-the-run.analysis.json",
+  "source_workstream": "docs/reqs/agentic-edd-refinement/deliverables/05-candidate-evaluation-quality-ratchet-and-finalization/evaluate-candidates-advance-the-quality-ratchet-and-finalize-the-run.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Deterministic candidate evaluation and metric recording",
+      "tests": [
+        {
+          "id": 1,
+          "name": "CandidateMetricRecord_WithCompleteMetrics_SerializesAllFields",
+          "status": "passing",
+          "description": "Candidate evaluation configuration and metric records preserve deterministic evaluation and audit fields.",
+          "arrange": "Create an evaluation configuration and successful candidate metric record with coverage and artifacts.",
+          "act": "Convert both records to dictionaries.",
+          "assert": "All command, provider, measurement-context, metric, coverage, status, and artifact fields are retained."
+        },
+        {
+          "id": 2,
+          "name": "InitializeRun_WithEvaluationProfile_PersistsEvaluationConfiguration",
+          "status": "pending",
+          "description": "New progress records carry the baseline evaluation configuration and candidate metric state.",
+          "arrange": "Provide successful preflight context and a deterministic evaluation profile.",
+          "act": "Initialize the EDD refinement run.",
+          "assert": "The schema version is advanced and evaluation configuration, candidate metrics, and best accepted state are initialized."
+        },
+        {
+          "id": 3,
+          "name": "EvaluateCandidate_WithSuccessfulResult_RecordsStructuredMetrics",
+          "status": "pending",
+          "description": "Candidate evaluation reuses baseline configuration and records complete structured metrics.",
+          "arrange": "Persist baseline configuration and configure a harness to return valid metrics and artifacts.",
+          "act": "Evaluate a scope-valid candidate.",
+          "assert": "The exact baseline command and pinned provider are used and a successful CandidateMetricRecord is persisted."
+        },
+        {
+          "id": 4,
+          "name": "EvaluateCandidate_WithMalformedMetrics_RecordsRejectedAttempt",
+          "status": "pending",
+          "description": "Malformed evaluation output cannot become acceptance evidence.",
+          "arrange": "Configure a harness result missing required metrics.",
+          "act": "Evaluate a scope-valid candidate.",
+          "assert": "A rejected attempt with a stable malformed-metrics reason is persisted."
+        },
+        {
+          "id": 5,
+          "name": "EvaluateCandidate_WithInfrastructureError_RecordsNonRegressionAttempt",
+          "status": "pending",
+          "description": "Infrastructure failures are recorded separately from product regressions.",
+          "arrange": "Configure the evaluation harness to raise an infrastructure error.",
+          "act": "Evaluate a scope-valid candidate.",
+          "assert": "An infra_error attempt is persisted and marked unusable for acceptance."
+        },
+        {
+          "id": 6,
+          "name": "Workflow_WithValidCandidate_InvokesCandidateEvaluation",
+          "status": "pending",
+          "description": "The workflow evaluates a candidate only after execution and scope validation succeed.",
+          "arrange": "Mock successful initialization, baseline, planning, execution, validation, and evaluation Activities.",
+          "act": "Run the EDD refinement workflow.",
+          "assert": "evaluate_candidate is scheduled after validate_candidate with the target repository context."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Quality ratchet and finalization",
+      "tests": [
+        {
+          "id": 7,
+          "name": "CompareCandidateToBest_WithPassingIncrease_AcceptsCandidate",
+          "status": "pending",
+          "description": "An absolute passing-count increase qualifies when required coverage does not decrease.",
+          "arrange": "Create comparable best and candidate metric records with higher candidate passing count.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is accept with passing and coverage deltas."
+        },
+        {
+          "id": 8,
+          "name": "CompareCandidateToBest_WithNewRequiredCoverage_AcceptsCandidate",
+          "status": "pending",
+          "description": "Meaningful new required coverage qualifies while preserving absolute passing count.",
+          "arrange": "Create a candidate with equal passing count and newly covered required case.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is accept even when the percentage is lower."
+        },
+        {
+          "id": 9,
+          "name": "CompareCandidateToBest_WithCoverageLoss_RejectsCandidate",
+          "status": "pending",
+          "description": "Required coverage loss blocks acceptance despite other metric gains.",
+          "arrange": "Create a candidate with higher passing count and reduced required coverage.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is reject with a coverage-loss reason."
+        },
+        {
+          "id": 10,
+          "name": "CompareCandidateToBest_WithDegradation_RequestsRerun",
+          "status": "pending",
+          "description": "An apparent product regression requires an unchanged full-suite rerun.",
+          "arrange": "Create a comparable candidate with fewer passing evaluations.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is rerun rather than reject or revert."
+        },
+        {
+          "id": 11,
+          "name": "CompareCandidateToBest_WithDifferentMeasurementContext_Escalates",
+          "status": "pending",
+          "description": "Metrics from different human-approved expectation contexts are not directly compared.",
+          "arrange": "Create best and candidate metrics with different measurement contexts.",
+          "act": "Compare the candidate to the best accepted state.",
+          "assert": "The decision is escalate without an acceptance classification."
+        },
+        {
+          "id": 12,
+          "name": "FinalizeRun_WithTerminalOutcome_PublishesOnceAndReleasesLease",
+          "status": "pending",
+          "description": "Finalization restores the best state, publishes a complete report, and releases the lease idempotently.",
+          "arrange": "Persist a run with baseline, best accepted state, candidate history, pending decisions, and flaky evidence.",
+          "act": "Finalize the same run twice.",
+          "assert": "One terminal report is published, repository state matches the best commit, and the lease is released once."
+        }
+      ]
+    }
+  ]
+}

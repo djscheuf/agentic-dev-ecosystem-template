@@ -190,7 +190,7 @@
     {
       "description": "Add EvaluationRunConfiguration and CandidateMetricRecord data models to the progress record module, including measurement_context, pinned_provider_version, and artifact_references.",
       "layer": "database",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement the evaluate_candidate Activity in the backend with a deterministic command, configuration, and pinned provider; wrap it in the configured Activity timeout and retry policy.",
