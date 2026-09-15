@@ -1,0 +1,604 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/05-candidate-evaluation-quality-ratchet-and-finalization/evaluate-candidates-advance-the-quality-ratchet-and-finalize-the-run.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/05-candidate-evaluation-quality-ratchet-and-finalization/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "CandidateScopeValidated: the workflow has a scope-valid candidate with an approved diff hash, changed files, and a planning result. It is now ready to compare the candidate against the current best accepted state.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Data",
+          "to_layer": "Backend",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, candidate, candidate_history, best_accepted_state, baseline_evaluation_configuration, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "CandidateEvaluationRequested: the workflow schedules evaluate_candidate with the same deterministic command, configuration, pinned provider, and target repository context that were used for the baseline. The Activity runs the evaluation runner and records every attempt.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "EvaluateCandidate",
+          "data_shape": "{run_id, candidate_id, repo_root, baseline_evaluation_configuration: {command, configuration, pinned_provider}, target_repository_context}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "CandidateEvaluationCompleted: the evaluation Activity returns a CandidateMetricRecord with passing, failing, total, percentage, required-coverage, and artifact references. If the Activity times out or encounters an infrastructure error, the attempt is recorded and retried without counting as an additional logical iteration.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "CandidateMetricRecord",
+          "data_shape": "{candidate_id, run_id, attempt_number, passing, failing, total, percentage, required_coverage, artifact_references, pinned_provider_version, evaluated_at, status: 'success'|'timeout'|'infra_error'}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "QualityRatchetCompared: the backend compares the candidate metrics to the best accepted metrics. It accepts an increased absolute passing count that does not reduce required coverage, or meaningful new required-coverage that preserves the prior passing count, and rejects candidates that only inflate the total. Degraded candidates are queued for an unchanged rerun before classification as a regression.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "CompareCandidateToBest",
+          "data_shape": "{run_id, candidate_metric_record, best_accepted_metrics, required_coverage_map, human_approved_change_context} -> {decision: 'accept'|'reject'|'rerun'|'escalate', reason, passing_delta, coverage_delta}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "BestAcceptedStateUpdated: on acceptance, the candidate is committed, the consecutive-regression counter is reset, and the best accepted state is updated with the new commit hash and metrics.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "BestAcceptedState",
+          "data_shape": "{run_id, accepted_candidate_id, accepted_commit_hash, accepted_metrics, accepted_at, consecutive_confirmed_regressions: 0}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, best_accepted_state, candidate_history, schema_version} -> updated durable state"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "RejectedCandidateRecorded: on rejection the candidate is not committed; the reason it added no qualifying value is recorded in the candidate history for audit.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, rejected_candidate_id, rejection_reason, candidate_history, schema_version} -> updated durable state"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "RegressionRerunRequested: when a candidate first appears degraded, the workflow reruns the complete evaluation suite against the unchanged candidate. If the rerun still shows degradation, the candidate is classified as a confirmed regression; if it recovers, the evidence is escalated as flaky.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "RerunDegradedCandidate",
+          "data_shape": "{run_id, candidate_id, repo_root, baseline_evaluation_configuration, is_confirmation_rerun: true} -> CandidateMetricRecord"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "RunFinalized: on any terminal outcome the workflow publishes a terminal progress record and workflow result, releases the repository mutation lease, and restores the repository to the best accepted commit. Finalization is idempotent so concurrent or repeated attempts publish and release exactly once.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "TerminalWorkflowResult",
+          "data_shape": "{run_id, terminal_reason, baseline_metrics, final_metrics, absolute_changes, accepted_candidate_id, accepted_commit, rejected_or_reverted_summaries, pending_human_items, flaky_evidence, target_repo, final_commit, lease_released_at}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, terminal_report_path, lease_released, schema_version} -> updated durable state"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "TerminalReportPublished: the atomic, schema-versioned terminal report is written to the run artifact directory and its path is returned in the workflow result.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PublishTerminalReport",
+          "data_shape": "{run_id, terminal_progress_record} -> {report_path, report_schema_version}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "RequestCandidateEvaluation",
+      "description": "Emitted when the workflow invokes the deterministic candidate evaluation Activity with the baseline configuration and target repository context.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the validated candidate." },
+        { "point": "repo_root", "description": "Target repository root used for the evaluation." },
+        { "point": "pinned_provider", "description": "Pinned provider name and version used for the evaluation." }
+      ]
+    },
+    {
+      "event_name": "RecordCandidateMetric",
+      "description": "Emitted when the evaluation Activity returns or records structured passing, failing, total, percentage, required-coverage metrics and artifact references.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "passing", "description": "Absolute number of passing evaluations." },
+        { "point": "total", "description": "Total number of evaluations." },
+        { "point": "percentage", "description": "Computed pass percentage." },
+        { "point": "required_coverage", "description": "Map of required test cases to evaluation counts." },
+        { "point": "artifact_references", "description": "Paths or identifiers for the produced evaluation artifacts." }
+      ]
+    },
+    {
+      "event_name": "RecordEvaluationTimeout",
+      "description": "Emitted when a candidate evaluation exceeds the configured Activity timeout. The attempt is recorded and the retry policy is applied without advancing the logical iteration count.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "attempt_number", "description": "Index of the timed-out attempt." },
+        { "point": "timeout_ms", "description": "Configured Activity timeout." }
+      ]
+    },
+    {
+      "event_name": "RecordEvaluationInfraError",
+      "description": "Emitted when the evaluation Activity fails for an infrastructure reason. The failure is recorded but is not treated as product-regression evidence.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "failure_reason", "description": "Category of infrastructure failure." },
+        { "point": "attempt_number", "description": "Index of the failing attempt." }
+      ]
+    },
+    {
+      "event_name": "CompareCandidateToBest",
+      "description": "Emitted when the quality ratchet compares candidate metrics against the current best accepted metrics.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "passing_delta", "description": "Absolute change in passing count." },
+        { "point": "coverage_delta", "description": "Required-coverage change." },
+        { "point": "measurement_context", "description": "Baseline or human-approved-change context." }
+      ]
+    },
+    {
+      "event_name": "AcceptCandidate",
+      "description": "Emitted when the candidate is accepted, committed, and becomes the new best accepted state.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "accepted_commit", "description": "Commit hash of the accepted state." },
+        { "point": "passing_count", "description": "New absolute passing count." },
+        { "point": "required_coverage", "description": "New required-coverage map." }
+      ]
+    },
+    {
+      "event_name": "RejectCandidate",
+      "description": "Emitted when a candidate does not add qualifying value and is recorded without a commit.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "rejection_reason", "description": "Why the candidate was rejected." },
+        { "point": "rejection_basis", "description": "The rule or contract that was violated." }
+      ]
+    },
+    {
+      "event_name": "RerunDegradedCandidate",
+      "description": "Emitted when a candidate first appears degraded and the workflow reruns the complete suite against the unchanged candidate.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "baseline_commit", "description": "Best accepted commit used for comparison." },
+        { "point": "rerun_number", "description": "Confirmation rerun index." }
+      ]
+    },
+    {
+      "event_name": "ConfirmRegression",
+      "description": "Emitted when a confirmation rerun still shows degradation and the candidate is classified as a regression.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "consecutive_confirmed_regressions", "description": "Updated consecutive-regression counter." },
+        { "point": "revert_commit", "description": "Commit hash restored after the regression." }
+      ]
+    },
+    {
+      "event_name": "FinalizeRun",
+      "description": "Emitted when the workflow reaches a terminal outcome and begins finalization.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "terminal_reason", "description": "Reason the run is ending." },
+        { "point": "accepted_commit", "description": "Best accepted commit, or null if none." },
+        { "point": "target_repo", "description": "Target repository for the run." }
+      ]
+    },
+    {
+      "event_name": "ReleaseMutationLease",
+      "description": "Emitted when the repository mutation lease is released at finalization.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "target_repo", "description": "Repository whose lease is released." },
+        { "point": "released_at", "description": "Timestamp of the release." }
+      ]
+    },
+    {
+      "event_name": "RestoreBestAcceptedState",
+      "description": "Emitted when the repository is restored to the best accepted commit during finalization.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "final_commit", "description": "Commit hash restored." },
+        { "point": "target_repo", "description": "Repository restored." }
+      ]
+    },
+    {
+      "event_name": "PublishTerminalReport",
+      "description": "Emitted when the atomic, schema-versioned terminal report is written to the run artifact directory.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "report_path", "description": "Filesystem path to the published report." },
+        { "point": "schema_version", "description": "Version of the terminal report schema." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Display the candidate evaluation trigger, in-progress status, attempt count, and timeout/retry state.",
+          "intent": "Evaluation status is a presentation concern; the frontend does not trigger or enforce evaluation logic."
+        },
+        {
+          "responsibility": "Render the quality-ratchet comparison view with baseline and candidate metrics, absolute changes, required-coverage changes, and the acceptance decision reason.",
+          "intent": "The comparison is for human review and trust; display belongs to the frontend."
+        },
+        {
+          "responsibility": "Show the finalization and audit report view, including baseline and final metrics, accepted/rejected iteration summaries, pending human items, flaky evidence, and final commit information.",
+          "intent": "The terminal report is for human audit; rendering is a frontend responsibility."
+        },
+        {
+          "responsibility": "Surface warnings when the candidate is queued for a rerun or escalated for human review.",
+          "intent": "Human escalation is a status-presentation concern."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Invoke the deterministic candidate evaluation with the same command, configuration, and pinned provider as the baseline.",
+          "intent": "Evaluation reproducibility is a backend business-logic concern; the frontend only observes."
+        },
+        {
+          "responsibility": "Apply the configured Activity timeout and retry policy, and ensure timeout/infrastructure attempts do not count as additional logical iterations.",
+          "intent": "The retry and iteration-counting rules are business logic that must be enforced in the defensible backend zone."
+        },
+        {
+          "responsibility": "Record structured passing, failing, total, percentage, required-coverage metrics and artifact references for every completed candidate evaluation.",
+          "intent": "Metric capture is a backend responsibility that feeds the quality ratchet and audit report."
+        },
+        {
+          "responsibility": "Compare candidate metrics to the best accepted state using absolute passing count and required-coverage rules, not pass percentage alone.",
+          "intent": "The quality-ratchet business rules (ADR-017) must be enforced in the backend."
+        },
+        {
+          "responsibility": "Rerun an apparently degraded candidate unchanged before classifying it as a regression, and enforce the three-strikes consecutive-regression stop condition.",
+          "intent": "Flaky evaluation handling and regression confirmation are backend business rules."
+        },
+        {
+          "responsibility": "Commit accepted candidates, update the best accepted state, and reset the consecutive-regression counter.",
+          "intent": "Mutation of repository state and durable run state is a backend responsibility."
+        },
+        {
+          "responsibility": "Publish a terminal progress record and workflow result on every terminal path, including unrecoverable errors before any commit.",
+          "intent": "Run finalization and reporting are backend responsibilities."
+        },
+        {
+          "responsibility": "Release the repository mutation lease and restore the repository to the best accepted commit on every terminal path, idempotently.",
+          "intent": "Repository safety and lease lifecycle must be enforced in the backend per ADR-018."
+        },
+        {
+          "responsibility": "Keep before-change and after-change measurement contexts separate when human-approved evaluation expectation changes exist.",
+          "intent": "Comparability is a business rule; the backend must enforce separate measurement contexts."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist candidate metric records, evaluation attempts, baseline and best-accepted metrics, and quality-ratchet decisions in the schema-versioned ProgressRecord.",
+          "intent": "Colocated durable state supports worker resumption and audit."
+        },
+        {
+          "responsibility": "Store the terminal progress record and workflow result atomically under the run artifact directory.",
+          "intent": "Atomic, schema-versioned reporting is the data layer's responsibility."
+        },
+        {
+          "responsibility": "Maintain the best-accepted-state and mutation-lease state with stable identifiers and idempotent updates.",
+          "intent": "Data integrity and concurrency safety are storage concerns."
+        },
+        {
+          "responsibility": "Redact credentials, paths, and environment variables before writing metric, attempt, and terminal records.",
+          "intent": "Security of persisted artifacts is a data-integrity concern shared with the serializer."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "EvaluationRunConfiguration",
+      "description": "The deterministic command, configuration, and pinned provider used for both baseline and candidate evaluations.",
+      "changes": {
+        "added": "command, configuration, pinned_provider: {name, version}, required_coverage_map",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "CandidateMetricRecord",
+      "description": "Structured metrics produced by a single deterministic candidate evaluation attempt.",
+      "changes": {
+        "added": "candidate_id, run_id, attempt_number, passing, failing, total, percentage, required_coverage, artifact_references, pinned_provider_version, command, configuration, evaluated_at, status",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "QualityRatchetDecision",
+      "description": "Result of comparing a candidate to the current best accepted metrics.",
+      "changes": {
+        "added": "candidate_id, run_id, decision: 'accept'|'reject'|'rerun'|'escalate', reason, baseline_metrics, candidate_metrics, passing_delta, coverage_delta, consecutive_confirmed_regressions_after",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "BestAcceptedState",
+      "description": "The commit and metrics that represent the highest-quality state the run has achieved.",
+      "changes": {
+        "added": "run_id, accepted_candidate_id, accepted_commit_hash, accepted_metrics, accepted_at, consecutive_confirmed_regressions",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "TerminalWorkflowResult",
+      "description": "The published workflow result for a terminal run outcome.",
+      "changes": {
+        "added": "run_id, terminal_reason, baseline_metrics, final_metrics, absolute_changes, accepted_candidate_id, accepted_commit, rejected_or_reverted_summaries, pending_human_items, flaky_evidence, target_repo, final_commit, lease_released_at, report_path",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Existing EDD progress record is extended to carry candidate metric records, best accepted state, and terminal report references.",
+      "changes": {
+        "added": "best_accepted_state, candidate_metric_records, candidate_history.rejection_reason, terminal_report",
+        "modified": "schema_version: bump to 4",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "EvaluateCandidate",
+      "description": "Activity that invokes the deterministic candidate evaluation and returns a CandidateMetricRecord.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, repo_root, target_repository_context, baseline_evaluation_configuration}; output: CandidateMetricRecord",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "CompareCandidateToBest",
+      "description": "Activity or service that compares a candidate metric record to the current best accepted state and returns a QualityRatchetDecision.",
+      "changes": {
+        "added": "input: {run_id, candidate_metric_record, best_accepted_metrics, required_coverage_map, human_approved_change_context}; output: QualityRatchetDecision",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "CommitAcceptedCandidate",
+      "description": "Activity that commits the accepted candidate, updates the best accepted state, and resets the consecutive-regression counter.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, repo_root, candidate_metric_record}; output: BestAcceptedState",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RerunDegradedCandidate",
+      "description": "Activity that reruns the complete evaluation suite against the unchanged degraded candidate for confirmation.",
+      "changes": {
+        "added": "input: {run_id, candidate_id, repo_root, baseline_evaluation_configuration, is_confirmation_rerun: true}; output: CandidateMetricRecord",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "FinalizeRun",
+      "description": "Activity that publishes the terminal report, releases the mutation lease, and restores the repository to the best accepted commit.",
+      "changes": {
+        "added": "input: {run_id, repo_root, target_repository_context, best_accepted_state, candidate_history, terminal_reason}; output: TerminalWorkflowResult",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "GetRunStatusQuery",
+      "description": "Cadence Query that returns the current run status, best accepted state, and pending/human-review items.",
+      "changes": {
+        "added": "query name 'get_run_status' returning {run_id, best_accepted_state, terminal_report_path, lease_released, pending_human_items}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "DeterministicEvaluationWithTimeoutRetry",
+      "description": "The candidate evaluation Activity reuses the baseline command, configuration, and pinned provider and is wrapped in a configured Activity timeout and retry policy. Timeout and infrastructure errors are recorded as non-iteration attempts.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/evaluate_candidate.py with adjacent evaluate_candidate.config.json",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "IdempotentRunFinalization",
+      "description": "Run finalization uses a run-scoped idempotency key to publish the terminal record and release the mutation lease exactly once, even if multiple finalization attempts run concurrently.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/finalize_run.py with idempotent lease release and report publication",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Evaluate every candidate with the same deterministic command, configuration, and pinned provider that produced the baseline.",
+      "justification": "Comparability requires a stable measurement context. Reusing the baseline configuration prevents version drift and command drift from masquerading as quality changes.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet; current-reality audit",
+      "impact": "EvaluateCandidate receives an EvaluationRunConfiguration extracted from the progress record; deviations are recorded and the result is not used for acceptance.",
+      "answers_open_question": "Where and in what format are the deterministic command, configuration, and pinned provider stored and retrieved during the run?"
+    },
+    {
+      "decision": "Keep all quality-ratchet acceptance logic in the backend and base it on absolute passing count and required-coverage rules.",
+      "justification": "Pass percentage alone is misleading; the frontend displays results but must not enforce business rules. ADR-017 defines the exact acceptance rules.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet",
+      "impact": "CompareCandidateToBest and CommitAcceptedCandidate live in the EDD workflow; acceptance follows absolute-passing and meaningful-coverage rules only.",
+      "answers_open_question": "How are 'qualifying value' and 'meaningful coverage' precisely defined for acceptance decisions?"
+    },
+    {
+      "decision": "Treat Activity timeout and infrastructure errors as non-regression attempts that do not count as logical iterations.",
+      "justification": "A failed Activity is not by itself evidence that the product under refinement regressed. Recording it separately preserves the iteration budget and the quality ratchet's integrity.",
+      "basis": "Story acceptance criteria and edge cases; ADR-017",
+      "impact": "CandidateMetricRecord includes status and attempt_number; the workflow distinguishes product, timeout, and infra outcomes in the progress record.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Rerun an apparently degraded candidate unchanged before classifying it as a regression.",
+      "justification": "LLM-backed evaluations can be flaky. ADR-017 requires one confirmation rerun before a regression is confirmed.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet",
+      "impact": "A new RerunDegradedCandidate Activity is added; the consecutive-regression counter only increments after a confirmed rerun.",
+      "answers_open_question": "What is the rerun path for degraded candidates and how many reruns are permitted before classification as a regression?"
+    },
+    {
+      "decision": "Maintain separate measurement contexts for before-change and after-change scores when a human-approved evaluation expectation change is in effect.",
+      "justification": "Approval of an expectation change creates a new measurement context. Mixing the old and new contexts would make the quality ratchet compare incomparable metrics.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet; vault/services/edd_refinement.md",
+      "impact": "Each candidate metric record and best accepted state carries a measurement_context identifier. Comparisons use the same context.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Publish one atomic, schema-versioned terminal report per run and idempotently release the mutation lease on every terminal path.",
+      "justification": "ADR-016 defines atomic, schema-versioned reporting. ADR-018 requires explicit target repository context and lease release on terminal paths. Combining both in one finalization Activity keeps repository state and reporting consistent.",
+      "basis": "ADR-016: Consolidated Story Analysis Run Reporting; ADR-018: Explicit Target Repository Context for Agentic Workflows",
+      "impact": "FinalizeRun publishes a TerminalWorkflowResult, releases the lease, and restores the repository; concurrent finalization is safe through an idempotency key.",
+      "answers_open_question": "What is the exact schema of the terminal progress record and workflow result, and which fields are mandatory for each terminal reason?"
+    },
+    {
+      "decision": "The initial implementation slice is deterministic candidate evaluation and metric recording only; quality-ratchet comparison/acceptance and run finalization are explicitly out of scope for the first delivery.",
+      "justification": "The story analysis explicitly names the minimal first slice and the out-of-scope items. Delivering the slice first lets downstream design and planning validate the deterministic evaluation contract before wiring acceptance and finalization.",
+      "basis": "Story analysis core_action; current-reality audit",
+      "impact": "Only evaluate_candidate, CandidateMetricRecord, and the EvaluationRunConfiguration are implemented first. CompareCandidateToBest, CommitAcceptedCandidate, RerunDegradedCandidate, and FinalizeRun are stubbed or deferred.",
+      "answers_open_question": "Which single concern (candidate evaluation, quality-ratchet decision, or run finalization) is the thinnest possible first slice, and what are the explicit out-of-scope items for the initial delivery?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the exact schema of the terminal progress record and workflow result, and which fields are mandatory for each terminal reason?",
+      "answer": "The terminal record is a schema-versioned JSON document with run_id, target_repo, final_commit, baseline_metrics, final_metrics, absolute_changes, accepted_candidate_id (null if none), accepted_commit (null if none), rejected_or_reverted_summaries, pending_human_items, flaky_evidence, lease_released_at, terminal_reason, and report_path. Every terminal reason requires run_id, target_repo, terminal_reason, final_commit, baseline_metrics, final_metrics, and lease_released_at. accepted_* fields are null when no candidate was accepted. rejected_or_reverted_summaries and pending_human_items default to empty arrays. flaky_evidence defaults to an empty array and is populated when confirmation reruns are inconclusive.",
+      "justification": "This mirrors the consolidated reporting pattern from ADR-016 and keeps the report complete even when the run terminates without an accepted commit.",
+      "basis": "ADR-016: Consolidated Story Analysis Run Reporting; story analysis acceptance criteria"
+    },
+    {
+      "question": "How are 'qualifying value' and 'meaningful coverage' precisely defined for acceptance decisions?",
+      "answer": "A candidate qualifies if it (1) increases the absolute passing count while not reducing required test-case coverage, or (2) covers at least one previously uncovered required test case while preserving the prior absolute passing count, even if the pass percentage falls. A candidate does not qualify if it only increases the total evaluation count while all required test cases are already covered, or if it reduces required coverage, or if it improves the percentage while losing an absolute passing case.",
+      "justification": "These rules implement ADR-017 and prevent percentage-only or suite-inflation 'improvements' from being committed.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet; story analysis acceptance criteria"
+    },
+    {
+      "question": "Where and in what format are the deterministic command, configuration, and pinned provider stored and retrieved during the run?",
+      "answer": "The deterministic evaluation configuration is stored as an EvaluationRunConfiguration inside the durable ProgressRecord when the baseline is established. It is locked for the run and reused for every candidate evaluation. EvaluateCandidate reads it from the ProgressRecord and fails closed if it is missing or if the candidate attempt deviates from it.",
+      "justification": "Colocating the configuration with the durable run state keeps baseline and candidate evaluations comparable and supports worker resumption.",
+      "basis": "vault/services/edd_refinement.md; ADR-018: Explicit Target Repository Context for Agentic Workflows"
+    },
+    {
+      "question": "How is the mutation lease tied to the repository and best-accepted-state commit, and how is it released idempotently?",
+      "answer": "The mutation lease is keyed by the target repository root acquired during preflight. The best accepted commit is stored in the ProgressRecord. FinalizeRun releases the lease using the target repository context and an idempotency key derived from the run_id; if the lease is already released it records the state and proceeds. The repository is then restored to the best accepted commit.",
+      "justification": "Releasing by repository and run identity makes lease release idempotent and decouples it from the current worker process.",
+      "basis": "ADR-018: Explicit Target Repository Context for Agentic Workflows; current-reality audit"
+    },
+    {
+      "question": "What is the rerun path for degraded candidates and how many reruns are permitted before classification as a regression?",
+      "answer": "An apparently degraded candidate is rererun once, unchanged, against the complete suite. If the rerun still shows degradation, the candidate is classified as a confirmed regression. The consecutive-regression counter increments and the workflow reverts to the best accepted state. The workflow stops after three consecutive confirmed-regression proposals.",
+      "justification": "One confirmation rerun balances flaky-evaluation tolerance with the need to remove repeatable regressions, matching the three-strikes rule in ADR-017.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet"
+    },
+    {
+      "question": "How is flaky-result evidence captured, linked to a candidate, and represented in the terminal report?",
+      "answer": "When a confirmation rerun produces different or inconclusive results, the workflow records flaky_evidence on the candidate metric record in the ProgressRecord. The evidence includes the original and rerun metric records, the candidate_id, and the reason the result was considered inconclusive. FinalizeRun includes this evidence in the terminal report's flaky_evidence array without making an autonomous commit or revert decision.",
+      "justification": "Capturing flaky evidence in the durable record and terminal report preserves human-review context and prevents silent dropping.",
+      "basis": "Story analysis acceptance criteria; vault/services/edd_refinement.md"
+    },
+    {
+      "question": "Which single concern (candidate evaluation, quality-ratchet decision, or run finalization) is the thinnest possible first slice, and what are the explicit out-of-scope items for the initial delivery?",
+      "answer": "The thinnest first slice is deterministic candidate evaluation and metric recording. The quality-ratchet comparison/acceptance decision and the run finalization/audit report are explicitly out of scope for the initial delivery and are planned for subsequent iterations.",
+      "justification": "The story analysis explicitly calls out this minimal first slice, which lets the team validate the deterministic evaluation contract and metric schema before building the acceptance and finalization paths.",
+      "basis": "Story analysis core_action and in_sprint_assumptions"
+    }
+  ]
+}
