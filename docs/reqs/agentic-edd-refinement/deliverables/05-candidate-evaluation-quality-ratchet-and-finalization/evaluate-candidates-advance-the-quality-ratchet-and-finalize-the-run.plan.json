@@ -195,12 +195,12 @@
     {
       "description": "Implement the evaluate_candidate Activity in the backend with a deterministic command, configuration, and pinned provider; wrap it in the configured Activity timeout and retry policy.",
       "layer": "backend",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Record structured passing, failing, total, percentage, required-coverage metrics and artifact references for each completed evaluation attempt, including timeout and infrastructure status.",
       "layer": "backend",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Bump the ProgressRecord schema version and ensure existing run records remain forward-compatible.",

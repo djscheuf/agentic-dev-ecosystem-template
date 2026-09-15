@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "EvaluateCandidate_WithSuccessfulResult_RecordsStructuredMetrics",
-          "status": "pending",
+          "status": "passing",
           "description": "Candidate evaluation reuses baseline configuration and records complete structured metrics.",
           "arrange": "Persist baseline configuration and configure a harness to return valid metrics and artifacts.",
           "act": "Evaluate a scope-valid candidate.",
