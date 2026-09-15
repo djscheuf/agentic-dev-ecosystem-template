@@ -1,6 +1,9 @@
 import pytest
 
-from edd_refinement_workflow.activities.regression_recovery import classify_regression_evidence
+from edd_refinement_workflow.activities.regression_recovery import (
+    classify_regression_evidence,
+    verify_recovery_metrics,
+)
 
 
 @pytest.mark.parametrize(
@@ -21,3 +24,14 @@ def test_classify_regression_evidence_routes_confirmation_outcomes(confirmation,
     )
 
     assert result["classification"] == expected
+
+
+def test_verify_recovery_metrics_reports_exact_matches_and_mismatches() -> None:
+    best = {"passing": 5, "failing": 1, "total": 6, "percentage": 83.333333, "required_coverage": {"r1": 1}}
+
+    matched = verify_recovery_metrics(best | {"percentage": 83.3333334}, best)
+    mismatched = verify_recovery_metrics(best | {"failing": 2}, best)
+
+    assert matched == {"recovered": True, "matched_fields": ["passing", "failing", "total", "required_coverage", "percentage"], "mismatched_fields": [], "reason": "recovery metrics match"}
+    assert mismatched["recovered"] is False
+    assert mismatched["mismatched_fields"] == ["failing"]

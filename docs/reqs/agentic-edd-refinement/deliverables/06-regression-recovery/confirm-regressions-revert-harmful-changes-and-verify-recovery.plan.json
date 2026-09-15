@@ -130,7 +130,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 5. Add the VerifyRecoveryMetrics Activity that compares the recovery metric record to the recorded best accepted metrics for passing, failing, total, and required coverage, allowing only floating-point rounding on the percentage.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 6. Add the RecordRevertedProposalContext Activity that appends the reverted proposal context to the durable ProgressRecord for future planning.",
