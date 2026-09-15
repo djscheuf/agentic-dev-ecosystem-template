@@ -116,7 +116,7 @@
     {
       "description": "3. Add CheckRefinementLimits Activity that evaluates iteration budget, token budget, hard pre-scheduling limit, consecutive-regression threshold, and pending-evidence flags before any next-step scheduling.",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "4. Wire CheckRefinementLimits into the EDD workflow loop before each plan, execute, or evaluate step; stop the run and preserve best accepted state when the gate blocks.",

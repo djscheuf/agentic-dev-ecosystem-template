@@ -40,7 +40,7 @@
         {
           "id": 4,
           "name": "CheckRefinementLimits_AtConfiguredBoundary_BlocksWithReason",
-          "status": "pending",
+          "status": "passing",
           "description": "Iteration, token, hard-token, and regression boundaries stop scheduling deterministically.",
           "arrange": "Create records at each configured boundary and one record below every boundary.",
           "act": "Check refinement limits.",
