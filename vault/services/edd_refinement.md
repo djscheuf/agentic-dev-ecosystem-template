@@ -45,3 +45,13 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - `compare_candidate_to_best` accepts absolute passing gains without coverage loss, accepts newly required coverage at a stable passing count, requests a rerun for apparent degradation, and keeps different measurement contexts incomparable.
 - `FinalizeRunActivity` atomically publishes an idempotent terminal report, restores the best accepted commit through an injected repository operation, and releases the mutation lease through an injected lease operation.
 - Cadence wiring for quality decisions and finalization, accepted-candidate commits, concrete regression reruns, and timeout-attempt persistence remain implementation work.
+
+## Ratchet orchestration contracts (2026-09-15)
+
+> **Stale as of 2026-09-15:** The final bullet in the preceding section predates the orchestration-contract slice below.
+
+- Timeout attempts persist as non-acceptance evidence without changing `iteration_history`.
+- No-value candidates are rejected deterministically; accepted comparisons route to `commit_accepted_candidate` and update durable best state while resetting the confirmed-regression counter.
+- Unchanged confirmation reruns persist separately in `confirmation_evaluations`.
+- The workflow module registers candidate commit, degraded rerun, and finalization Activity contracts.
+- Concrete deployed Cadence entrypoints, retry-policy configuration, confirmed-regression classification, terminal workflow routing, and frontend status/report views remain implementation work.
