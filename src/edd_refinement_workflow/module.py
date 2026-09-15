@@ -5,6 +5,14 @@ from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.execute_refinement_action import execute_refinement_action_activity
 from .activities.initialize_run import initialize_run_activity
 from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activity
+from .activities.regression_recovery import (
+    classify_regression_evidence_activity,
+    human_handoff_activity,
+    record_confirmed_regression_activity,
+    record_reverted_proposal_context_activity,
+    revert_repository_to_best_activity,
+    verify_recovery_metrics_activity,
+)
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
 from .activities.validate_candidate import validate_candidate_activity
 from .approval import (
@@ -29,6 +37,12 @@ ACTIVITY_TYPES = (
     "evaluate_candidate",
     "commit_accepted_candidate",
     "rerun_degraded_candidate",
+    "classify_regression_evidence",
+    "record_confirmed_regression",
+    "revert_repository_to_best",
+    "verify_recovery_metrics",
+    "record_reverted_proposal_context",
+    "human_handoff",
     "finalize_run",
 )
 ACTIVITIES = (
@@ -43,6 +57,12 @@ ACTIVITIES = (
     evaluate_candidate_activity,
     commit_accepted_candidate_activity,
     rerun_degraded_candidate_activity,
+    classify_regression_evidence_activity,
+    record_confirmed_regression_activity,
+    revert_repository_to_best_activity,
+    verify_recovery_metrics_activity,
+    record_reverted_proposal_context_activity,
+    human_handoff_activity,
     finalize_run_activity,
 )
 
