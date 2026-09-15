@@ -74,3 +74,10 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - `rerun_degraded_candidate` uses the same evaluation command and classifies repeated passing-count degradation as a confirmed regression while incrementing the consecutive counter.
 - `finalize_run` restores the accepted revision, attempts lease release, and publishes the idempotent terminal result through repository-scoped dependencies.
 - Frontend status and terminal-report views remain implementation work.
+
+## Regression recovery (2026-09-15)
+
+- ProgressRecord schema version 5 initializes regression evidence, reverted proposal, recovery result, and human handoff collections.
+- Dedicated recovery Activities classify confirmation evidence, restore the accepted revision, verify exact recovery metrics, persist redacted reverted-proposal context, and record notification attempts.
+- Confirmed regressions increment and check the stop threshold before restore; non-confirmed evidence routes to human review.
+- The workflow exposes `get_regression_status` with classification, recovery, reverted-proposal, and handoff state for presentation clients.
