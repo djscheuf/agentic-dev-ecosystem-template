@@ -1,0 +1,240 @@
+{
+  "source_story": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.analysis.json",
+  "overall_design": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.design.json",
+  "story": {
+    "so_that": "agentic refinement remains bounded in cost and execution regardless of agent behavior",
+    "as_a": "workflow requester",
+    "i_want": "the workflow to enforce iteration and token limits, account for retry usage, and stop after repeated confirmed harmful proposals"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given the cumulative token budget or maximum iteration count has been reached, when the workflow checks its limits, then it schedules no further refinement step and exits with the best accepted state.",
+      "gherkin": "Given the cumulative token budget or maximum iteration count has been reached When the workflow checks its limits Then it schedules no further refinement step and exits with the best accepted state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given three consecutive proposed changes have each produced a confirmed regression, when the third revert and recovery check complete, then the workflow stops immediately regardless of remaining iteration or token budget and publishes a human handoff report of the three attempts.",
+      "gherkin": "Given three consecutive proposed changes have each produced a confirmed regression When the third revert and recovery check completes Then the workflow stops immediately regardless of remaining budget or iterations and publishes a human handoff report of the three attempts",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given scheduling another agentic or evaluation step would exceed a known hard limit, when the workflow checks before scheduling, then that step is not scheduled.",
+      "gherkin": "Given scheduling another agentic or evaluation step would exceed a known hard limit When the workflow checks before scheduling Then that step is not scheduled",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given an Activity is retried after a timeout or worker restart, when token usage is tallied, then the retry does not count as an additional logical iteration, but its observable token usage still counts toward the cumulative budget.",
+      "gherkin": "Given an Activity is retried after a timeout or worker restart When token usage is tallied Then the retry does not count as an additional logical iteration but its observable token usage still counts toward the cumulative budget",
+      "status": "pending"
+    },
+    {
+      "criterion": "Given unresolved flaky or inconclusive evaluation evidence, or an unverified recovery, is pending, when the workflow checks limits, then it does not schedule another autonomous refinement step until the pending condition is resolved.",
+      "gherkin": "Given unresolved flaky or inconclusive evaluation evidence or an unverified recovery is pending When the workflow checks limits Then it does not schedule another autonomous refinement step until the pending condition is resolved",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Token usage or iteration count is exactly at the configured limit",
+      "gherkin": "Given the cumulative token usage equals the budget or the iteration count equals the maximum When the workflow checks limits Then it schedules no further refinement step and exits with the best accepted state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Configured limits are zero or negative",
+      "gherkin": "Given the maximum iteration limit or token budget is zero or negative When the workflow starts Then it does not schedule any refinement steps and exits with the initial best accepted state",
+      "status": "pending"
+    },
+    {
+      "criterion": "Token usage observation is missing for an Activity attempt",
+      "gherkin": "Given token usage for an Activity attempt is not observed When the workflow tallies usage Then it treats the missing value as zero and continues without over-budgeting",
+      "status": "pending"
+    },
+    {
+      "criterion": "First iteration with all counters at zero",
+      "gherkin": "Given the workflow has no previous refinement attempts When it checks limits Then it schedules the first step because all counters are within bounds",
+      "status": "pending"
+    },
+    {
+      "criterion": "Activity retry after worker restart",
+      "gherkin": "Given an Activity is retried because of a worker restart When the retry completes Then the token usage is added to the cumulative budget but the logical iteration count is unchanged",
+      "status": "pending"
+    },
+    {
+      "criterion": "Pending flaky evidence becomes resolved",
+      "gherkin": "Given unresolved flaky evidence was blocking scheduling When the evidence is resolved Then the workflow resumes autonomous refinement if other limits are not exceeded",
+      "status": "pending"
+    },
+    {
+      "criterion": "Concurrent attempt to update durable counters",
+      "gherkin": "Given two workflow branches attempt to update the same durable counter When the limit check runs Then the durable counter remains consistent and no step is over-scheduled",
+      "status": "pending"
+    },
+    {
+      "criterion": "Confirmed regression counter is reset by a successful recovery",
+      "gherkin": "Given two consecutive confirmed regressions followed by a successful proposal When the next proposal is checked Then the consecutive regression count has been reset",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "ui": [
+      "Workflow status / stop-reason panel",
+      "Human handoff report display",
+      "Pending-evidence blocking indicator"
+    ],
+    "api": [
+      "src/edd_refinement_workflow/activities/check_refinement_limits.py",
+      "src/edd_refinement_workflow/activities/update_durable_counters.py",
+      "src/edd_refinement_workflow/activities/publish_human_handoff.py",
+      "src/edd_refinement_workflow/activities/initialize_run.py",
+      "src/edd_refinement_workflow/activities/execute_refinement_action.py",
+      "src/edd_refinement_workflow/activities/evaluate_candidate.py",
+      "src/edd_refinement_workflow/activities/regression_recovery.py",
+      "src/edd_refinement_workflow/workflow.py",
+      "src/edd_refinement_workflow/plan_refinement.py",
+      "src/edd_refinement_workflow/module.py"
+    ],
+    "database": [
+      "src/edd_refinement_workflow/progress_record.py",
+      "ProgressRecord v5 schema: budgets, logical_iteration_count, cumulative_token_usage, consecutive_confirmed_regressions, pending_evidence_flags, attempt_records, human_handoff_records"
+    ],
+    "external_services": [
+      "LLM / model provider for token usage observation",
+      "Observability / metrics for Activity attempts and retries"
+    ]
+  },
+  "steps": [
+    {
+      "description": "1. Extend ProgressRecord v5 to store budgets (max_iterations, token_budget, hard_token_limit, regression_stop_threshold), logical_iteration_count, cumulative_token_usage, consecutive_confirmed_regressions, pending_evidence_flags, attempt_records, and human_handoff_records.",
+      "layer": "database",
+      "status": "pending"
+    },
+    {
+      "description": "2. Update initialize_run to populate budgets and RefinementLimits from run configuration, and seed all durable counters to zero.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "3. Add CheckRefinementLimits Activity that evaluates iteration budget, token budget, hard pre-scheduling limit, consecutive-regression threshold, and pending-evidence flags before any next-step scheduling.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "4. Wire CheckRefinementLimits into the EDD workflow loop before each plan, execute, or evaluate step; stop the run and preserve best accepted state when the gate blocks.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "5. Add UpdateDurableCounters Activity (or helper) to append attempt records, add token usage for every attempt (including retries), and advance logical_iteration_count only for non-retry attempts.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "6. Update execute_refinement_action, evaluate_candidate, and regression_recovery to return UsageMetrics and is_retry context so UpdateDurableCounters can account for retries without inflating iterations.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "7. Update regression_recovery to set/clear pending_evidence flags, increment/reset the consecutive confirmed regression counter, and invoke the handoff path when the threshold is reached.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "8. Add PublishHumanHandoff Activity to build the structured handoff report and record it in ProgressRecord; attempt human notification with best effort.",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "9. Update the UI to render the workflow stop reason, pending-evidence state, and human handoff report from the ProgressRecord.",
+      "layer": "ui",
+      "status": "pending"
+    },
+    {
+      "description": "10. Register all new Activities in src/edd_refinement_workflow/module.py and update the orchestrator catalog as needed.",
+      "layer": "api",
+      "status": "pending"
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "CheckRefinementLimits returns schedule_next_step=false with correct stop reason for iteration, token, hard, regression, and pending-evidence limits.",
+        "layer": "api"
+      },
+      {
+        "description": "UpdateDurableCounters advances logical iteration only for non-retries and still adds retry tokens to cumulative usage.",
+        "layer": "api"
+      },
+      {
+        "description": "UpdateDurableCounters treats missing UsageMetrics as zero and records a missing marker.",
+        "layer": "api"
+      },
+      {
+        "description": "ProgressRecord v5 serialization and redaction include new counters and attempt records.",
+        "layer": "database"
+      },
+      {
+        "description": "Regression counter increments on confirmed regression and resets on accepted/successful recovery.",
+        "layer": "api"
+      },
+      {
+        "description": "PublishHumanHandoff builds the expected HumanHandoffReport schema and records it in the ProgressRecord.",
+        "layer": "api"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "The EDD workflow stops with the best accepted state when the token budget is exhausted across multiple Activities.",
+        "layer": "api"
+      },
+      {
+        "description": "The workflow stops and publishes a handoff report after three consecutive confirmed regressions.",
+        "layer": "api"
+      },
+      {
+        "description": "Pending flaky/inconclusive evidence pauses scheduling and resumes after the flag is cleared.",
+        "layer": "api"
+      },
+      {
+        "description": "Retry after simulated worker restart adds tokens but does not advance the logical iteration counter.",
+        "layer": "api"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "An end-to-end run with low max-iterations and token budget stops cleanly and displays the stop reason and best accepted state in the UI.",
+        "layer": "ui"
+      },
+      {
+        "description": "A run that produces three confirmed harmful proposals hands off with the full report rendered in the UI.",
+        "layer": "ui"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Token usage observation may be missing, delayed, or inconsistent between harness calls and workflow counters.",
+      "mitigation": "Treat missing UsageMetrics as zero, record the missing marker, and only accumulate newly returned metrics; never retroactively rewrite the durable history.",
+      "layer": "api"
+    },
+    {
+      "risk": "Retry detection may be ambiguous, causing logical iteration over-counting or token under-counting.",
+      "mitigation": "Explicitly pass an is_retry flag and logical_iteration_number in every attempt record; rely on Cadence activity context for retry identification.",
+      "layer": "api"
+    },
+    {
+      "risk": "ProgressRecord v5 schema change may break existing in-flight or serialized runs.",
+      "mitigation": "Bump schema_version, support backward-compatible reads, and validate with existing progress_record tests before deploying.",
+      "layer": "database"
+    },
+    {
+      "risk": "A single centralized gate could become a bottleneck or hide workflow-specific scheduling rules.",
+      "mitigation": "Keep CheckRefinementLimits focused purely on the configured limits; leave per-step business logic to the existing plan/execute/evaluate Activities.",
+      "layer": "api"
+    },
+    {
+      "risk": "Human handoff report structure may not match downstream UI/consumer expectations.",
+      "mitigation": "Define and validate the HumanHandoffReport schema in the design, add a contract test, and keep presentation formatting in the UI layer.",
+      "layer": "ui"
+    }
+  ]
+}

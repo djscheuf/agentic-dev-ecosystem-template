@@ -1,0 +1,433 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "DurableCountersLoaded: before scheduling the next refinement step, the workflow reads the current logical iteration count, cumulative token usage, consecutive confirmed-regression count, pending evidence flags, and best accepted state from the ProgressRecord.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Data",
+          "to_layer": "Backend",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, logical_iteration_count, cumulative_token_usage, consecutive_confirmed_regressions, best_accepted_state, pending_evidence_flags, budgets, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "RefinementLimitsChecked: the new CheckRefinementLimits Activity evaluates iteration budget, token budget, hard pre-scheduling limits, consecutive-regression threshold, and pending evidence. It returns a scheduling decision and the current best accepted state.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "CheckRefinementLimits",
+          "data_shape": "{run_id, logical_iteration_count, max_iterations, cumulative_token_usage, token_budget, pending_evidence, consecutive_confirmed_regressions, stop_threshold, next_step_estimate} -> {schedule_next_step: true|false, stop_reason: 'iteration_budget'|'token_budget'|'hard_limit'|'regression_threshold'|'pending_evidence'|'none', best_accepted_state}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "NextStepScheduledOrRunStopped: when the limit check allows continuation, the workflow schedules the next planning, execution, or evaluation Activity. When the check blocks, the workflow prepares the terminal result and, if required, a human handoff report.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PlanRefinementAction",
+          "data_shape": "{run_id, target_repository_context, budgets, best_accepted_state} -> {next_action: 'execute'|'evaluate'|'plan'|'finalize', action_input} or terminal result"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "ActivityAttemptCompleted: the Activity returns UsageMetrics and a result status. The workflow adds the observed tokens to the cumulative budget regardless of whether the attempt was a retry or a new logical iteration.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, attempt_record: {attempt_id, logical_iteration_number, is_retry, prompt_tokens, completion_tokens, total_tokens, status}, cumulative_token_usage, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "LogicalIterationAdvanced: only when the completed Activity represents a new refinement or evaluation cycle (not a framework-level retry) is the logical iteration counter advanced. Retry attempts are recorded separately and do not increment the counter.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, logical_iteration_count, attempt_record: {is_retry, logical_iteration_number}, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "RegressionCounterUpdated: if the candidate is confirmed as a regression, the consecutive-regression counter is incremented. If a successful recovery or accepted proposal follows, the counter is reset to zero.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, consecutive_confirmed_regressions, regression_evidence: {candidate_id, classification, reset_at}, schema_version}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "HumanHandoffPublished: when the regression stop threshold or any hard limit is reached, the workflow records the best accepted state, stop reason, and a handoff report in the ProgressRecord and attempts to notify a human.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, best_accepted_state, stop_reason, handoff_report: {run_id, stopped_at, reason, summary, attempts}, schema_version}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "HumanHandoff",
+          "data_shape": "{run_id, handoff_reason, evidence_summary, notification_config} -> {handoff_recorded, notified}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "RunExitsWithBestState: the workflow terminates with the best accepted state preserved and the stop reason captured. The UI can surface the stop reason and the handoff report.",
+      "layers_involved": ["Backend", "Frontend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "WorkflowStatus",
+          "data_shape": "{run_id, status: 'completed'|'handoff', stop_reason, best_accepted_state, handoff_report, cumulative_token_usage, logical_iteration_count, consecutive_confirmed_regressions}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "CheckRefinementLimits",
+      "description": "Emitted when the limit gate evaluates the run before scheduling the next step.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "logical_iteration_count", "description": "Current logical iteration counter." },
+        { "point": "cumulative_token_usage", "description": "Current cumulative token budget consumption." },
+        { "point": "stop_reason", "description": "Reason the gate blocked scheduling, or none." },
+        { "point": "schedule_next_step", "description": "Whether the gate allowed scheduling." }
+      ]
+    },
+    {
+      "event_name": "AdvanceDurableCounters",
+      "description": "Emitted when logical iteration and token counters are updated after an Activity attempt.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "logical_iteration_count", "description": "Updated logical iteration counter." },
+        { "point": "cumulative_token_usage", "description": "Updated cumulative token counter." },
+        { "point": "attempt_id", "description": "Stable identifier for the Activity attempt." }
+      ]
+    },
+    {
+      "event_name": "CountRetryTokens",
+      "description": "Emitted when a retried Activity contributes token usage without advancing the logical iteration counter.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "attempt_id", "description": "Retry attempt identifier." },
+        { "point": "logical_iteration_number", "description": "Original iteration number the retry belongs to." },
+        { "point": "total_tokens", "description": "Tokens consumed by the retry." }
+      ]
+    },
+    {
+      "event_name": "RecordPendingEvidence",
+      "description": "Emitted when the limit gate blocks because of unresolved flaky, inconclusive, or unverified recovery evidence.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "pending_type", "description": "flaky, inconclusive, or unverified_recovery." },
+        { "point": "evidence_id", "description": "Reference to the evidence blocking scheduling." }
+      ]
+    },
+    {
+      "event_name": "ConfirmRegressionIncrementsCounter",
+      "description": "Emitted when a confirmed regression increments the consecutive-regression counter or is reset by a successful recovery.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "consecutive_confirmed_regressions", "description": "Updated counter value." },
+        { "point": "reset", "description": "Whether the counter was reset by a successful proposal." }
+      ]
+    },
+    {
+      "event_name": "StopOnLimitExceeded",
+      "description": "Emitted when the workflow stops because a budget, iteration, hard, or regression limit was reached.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "stop_reason", "description": "iteration_budget, token_budget, hard_limit, or regression_threshold." },
+        { "point": "best_accepted_state", "description": "State the workflow preserves on exit." }
+      ]
+    },
+    {
+      "event_name": "PublishHumanHandoffReport",
+      "description": "Emitted when the workflow records and attempts to publish a human handoff report.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "stop_reason", "description": "Reason the run is being handed off." },
+        { "point": "notified", "description": "Whether the notification channel reported success." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Display the workflow stop reason and the limit that caused the run to stop.",
+          "intent": "The human requester needs an understandable status for iteration, token, regression-threshold, and pending-evidence stops."
+        },
+        {
+          "responsibility": "Render the human handoff report, including the best accepted state, attempt summary, and the three harmful proposals when the regression threshold was reached.",
+          "intent": "The handoff report is a presentation artifact; the frontend does not decide its content."
+        },
+        {
+          "responsibility": "Show pending-evidence blocking state so the requester can see why autonomous refinement is paused.",
+          "intent": "Status transparency for the 'awaiting human/confirmation' state is a UI concern."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Enforce all limits before scheduling any planning, execution, or evaluation step.",
+          "intent": "Limit enforcement is a business rule that must execute in the defensible backend zone."
+        },
+        {
+          "responsibility": "Update durable counters for logical iterations, cumulative token usage, and consecutive confirmed regressions after each Activity attempt.",
+          "intent": "Counters are stateful business facts and must be protected by the backend."
+        },
+        {
+          "responsibility": "Distinguish retries from new logical iterations and account token usage for both without over-counting iterations.",
+          "intent": "Retry semantics and token accounting are workflow rules."
+        },
+        {
+          "responsibility": "Check the configured three-strike regression stop threshold immediately after each confirmed regression.",
+          "intent": "Prevents repeated harmful proposals per ADR-017."
+        },
+        {
+          "responsibility": "Block scheduling while unresolved flaky, inconclusive, or unverified recovery evidence is pending.",
+          "intent": "Protects autonomous mutation from acting on unstable evidence."
+        },
+        {
+          "responsibility": "Publish the human handoff report and terminal best accepted state when any stop condition is reached.",
+          "intent": "Escalation is a backend decision; the frontend only displays it."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist the durable iteration, token, regression, and pending-evidence counters in the schema-versioned ProgressRecord.",
+          "intent": "Colocated durable state supports resumption, audit, and the limit gate."
+        },
+        {
+          "responsibility": "Store the attempt-level token usage records and retry flags so the backend can distinguish new iterations from retries.",
+          "intent": "Data integrity for token and iteration semantics is a storage concern."
+        },
+        {
+          "responsibility": "Redact credentials, paths, and environment variables from persisted token and attempt records.",
+          "intent": "Security of persisted artifacts is a data-integrity concern."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Existing EDD progress record is extended to carry the durable limit counters and attempt-level token usage.",
+      "changes": {
+        "added": "budgets: {max_iterations, token_budget, hard_token_limit, regression_stop_threshold}, logical_iteration_count, cumulative_token_usage, consecutive_confirmed_regressions, pending_evidence_flags, attempt_records: [{attempt_id, logical_iteration_number, is_retry, prompt_tokens, completion_tokens, total_tokens, status}]",
+        "modified": "schema_version: bump to 5",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "RefinementLimits",
+      "description": "Run-level configuration that bounds iterations, token budget, and the regression stop threshold.",
+      "changes": {
+        "added": "{max_iterations, token_budget, hard_token_limit, regression_stop_threshold, missing_token_default}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HumanHandoffReport",
+      "description": "Structured record produced when the run stops for human review.",
+      "changes": {
+        "added": "{run_id, stopped_at, stop_reason, best_accepted_state, summary: {logical_iterations, cumulative_tokens, consecutive_confirmed_regressions}, attempts: [{candidate_id, change_summary, regression_evidence, recovery_result, tokens_used}]}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "CheckRefinementLimits",
+      "description": "Activity that evaluates all configured limits before scheduling the next step.",
+      "changes": {
+        "added": "input: {run_id, logical_iteration_count, max_iterations, cumulative_token_usage, token_budget, hard_token_limit, pending_evidence, consecutive_confirmed_regressions, stop_threshold, next_step_estimate}; output: {schedule_next_step, stop_reason, best_accepted_state}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "UpdateDurableCounters",
+      "description": "Activity or helper that writes the updated iteration, token, and regression counters to the ProgressRecord.",
+      "changes": {
+        "added": "input: {run_id, attempt_record, current_logical_iteration_count, current_cumulative_token_usage, current_consecutive_confirmed_regressions}; output: updated ProgressRecord",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "PublishHumanHandoff",
+      "description": "Activity that records the handoff and attempts to notify a human when a limit is reached.",
+      "changes": {
+        "added": "input: {run_id, handoff_reason, best_accepted_state, handoff_report, notification_config}; output: {handoff_recorded, notified}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PreScheduleLimitGate",
+      "description": "Every planning, execution, and evaluation step is preceded by a CheckRefinementLimits Activity. If the gate returns schedule_next_step=false, the workflow stops before scheduling the step.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/check_refinement_limits.py and a call in the main workflow loop before each next-step scheduling decision",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "TokenAccountingPerAttempt",
+      "description": "Each Activity that may consume tokens returns UsageMetrics. The workflow accumulates the total_tokens into cumulative_token_usage after every attempt, including retries, but only advances logical_iteration_count for non-retries.",
+      "changes": {
+        "added": "UpdateDurableCounters called after each Activity attempt with UsageMetrics; retry detection supplied by the Cadence Activity context or an explicit is_retry flag",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PendingEvidenceBlocksScheduling",
+      "description": "When regression recovery, evaluation, or confirmation evidence is unresolved, the ProgressRecord carries a pending_evidence flag. The limit gate refuses to schedule until the flag is cleared.",
+      "changes": {
+        "added": "pending_evidence_flags in ProgressRecord and a 'pending_evidence' stop reason in CheckRefinementLimits",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Use a single CheckRefinementLimits Activity invoked before every next-step scheduling decision.",
+      "justification": "Iteration budget, token budget, hard pre-scheduling limits, regression threshold, and pending evidence are all scheduling concerns. A single gate prevents partial enforcement and keeps the stop logic in one defensible place.",
+      "basis": "Story analysis acceptance criteria; current-reality audit plan_refinement.py; ADR-017: Agentic EDD Quality Ratchet",
+      "impact": "A new Activity src/edd_refinement_workflow/activities/check_refinement_limits.py is added. The existing _budget_exhausted check in plan_refinement is superseded by this gate.",
+      "answers_open_question": "What is the required schema and format for the human handoff report?"
+    },
+    {
+      "decision": "Persist the new durable counters inside the existing schema-versioned ProgressRecord.",
+      "justification": "The ProgressRecord is already the durable, redacted, resumable state for an EDD run. Colocating iteration, token, regression, and pending-evidence counters keeps the run state consistent and avoids a separate storage dependency.",
+      "basis": "Current-reality audit progress_record.py; ADR-004: Skill Output Contracts & Sentinel Files; ADR-013: Three-Layer Workflow Module Architecture",
+      "impact": "ProgressRecord v5 adds budgets, logical_iteration_count, cumulative_token_usage, attempt_records, and pending_evidence_flags. The initialize_run Activity will populate budgets from run configuration.",
+      "answers_open_question": "Where are durable counters persisted and how is consistency guaranteed across worker restarts?"
+    },
+    {
+      "decision": "Advance the logical iteration counter only for non-retry Activity attempts, while always adding observed token usage to the cumulative budget.",
+      "justification": "Retries caused by worker restarts or timeouts are not new autonomous steps. Counting their tokens keeps the cost accounting accurate, but not incrementing the iteration count preserves the intended semantics.",
+      "basis": "Story analysis acceptance criterion on retries; current-reality audit execute_refinement_action.py; ADR-015: Devin Cost Metric Capture Scope",
+      "impact": "UpdateDurableCounters receives an is_retry flag and the logical iteration number. Retried attempts are appended to attempt_records without updating logical_iteration_count.",
+      "answers_open_question": "How is token usage observed and associated with the original Activity attempt for retries?"
+    },
+    {
+      "decision": "Set the consecutive-regression stop threshold to 3 by default and allow it to be overridden per run in the evaluation configuration.",
+      "justification": "ADR-017 establishes the three-strike rule. Making it configurable lets advanced operators tune sensitivity without changing code, while 3 remains the safe default.",
+      "basis": "ADR-017; story analysis open question on threshold configuration",
+      "impact": "RefinementLimits includes regression_stop_threshold, initialized by initialize_run. CheckRefinementLimits compares the counter to this threshold.",
+      "answers_open_question": "Is the three-consecutive-regression threshold fixed or configurable per workflow?"
+    },
+    {
+      "decision": "Treat missing token usage observations as zero and continue the run.",
+      "justification": "Missing telemetry should not block autonomous refinement or cause an over-budget decision. A zero default is conservative and keeps the workflow safe when observability is incomplete.",
+      "basis": "Story analysis edge case; current-reality audit execute_refinement_action.py",
+      "impact": "UpdateDurableCounters uses 0 when UsageMetrics are absent or null. A missing-token usage metric is still recorded so the run history is auditable.",
+      "answers_open_question": "What happens if token usage data is delayed or lost for one or more Activity attempts?"
+    },
+    {
+      "decision": "Block scheduling when any flaky, inconclusive, or unverified recovery evidence is pending and clear the block only when the recovery or confirmation is resolved.",
+      "justification": "The story requires the workflow not to schedule another autonomous step until pending conditions are resolved. A dedicated pending_evidence flag in the ProgressRecord makes this state explicit and durable.",
+      "basis": "Story analysis acceptance criterion on unresolved evidence; current-reality audit regression_recovery.py",
+      "impact": "CheckRefinementLimits returns stop_reason='pending_evidence' while the flag is set. Activities that create unresolved evidence set the flag; Activities that resolve it clear the flag.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Keep the handoff report as a structured JSON document inside the ProgressRecord rather than a rendered message.",
+      "justification": "A structured report lets the UI and downstream consumers render, search, and summarize handoffs without parsing free text. The report schema can evolve with the ProgressRecord schema.",
+      "basis": "Story analysis acceptance criterion on human handoff report; vault/services/edd_refinement.md",
+      "impact": "ProgressRecord.human_handoff_records stores HumanHandoffReport objects. The HumanHandoff Activity populates them. UI formats them for the requester.",
+      "answers_open_question": "What is the required schema and format for the human handoff report?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Is the three-consecutive-regression threshold fixed or configurable per workflow?",
+      "answer": "It is configurable per run. The default is 3, matching ADR-017, and is stored in RefinementLimits.regression_stop_threshold. Advanced requesters can override it in the run configuration.",
+      "justification": "A default protects the typical case, while configurability supports different risk appetites without code changes.",
+      "basis": "ADR-017; story analysis questions"
+    },
+    {
+      "question": "What is the required schema and format for the human handoff report?",
+      "answer": "A structured JSON object stored in ProgressRecord.human_handoff_records with fields: run_id, stopped_at, stop_reason, best_accepted_state, summary (logical_iterations, cumulative_tokens, consecutive_confirmed_regressions), and attempts (candidate_id, change_summary, regression_evidence, recovery_result, tokens_used). The UI renders this object.",
+      "justification": "A structured schema is easier to validate, render, and extend than a prose report and stays consistent with the durable run state.",
+      "basis": "Story analysis acceptance criteria; vault/services/edd_refinement.md; current-reality audit regression_recovery.py"
+    },
+    {
+      "question": "How is token usage observed and associated with the original Activity attempt for retries?",
+      "answer": "Every token-consuming Activity returns UsageMetrics (prompt_tokens, completion_tokens, total_tokens). UpdateDurableCounters receives an attempt record that includes attempt_id, logical_iteration_number, and is_retry. Retries share the same logical_iteration_number. The tokens are added to cumulative_token_usage regardless of is_retry, but logical_iteration_count only advances for is_retry=false.",
+      "justification": "This matches the story's requirement that retry cost be counted but not inflate the iteration count.",
+      "basis": "Current-reality audit candidate_results.py and execute_refinement_action.py; story analysis acceptance criterion on retries"
+    },
+    {
+      "question": "Where are durable counters persisted and how is consistency guaranteed across worker restarts?",
+      "answer": "Counters live in the schema-versioned ProgressRecord. They are updated by write-through Activities from the Cadence workflow. Because the workflow is deterministic and single-threaded per run, it is the sole writer; worker restarts resume from the persisted ProgressRecord.",
+      "justification": "Cadence determinism and a single run-scoped ProgressRecord avoid concurrent counter updates and keep the state recoverable after restarts.",
+      "basis": "Current-reality audit progress_record.py; ADR-013; ADR-004"
+    },
+    {
+      "question": "What happens if token usage data is delayed or lost for one or more Activity attempts?",
+      "answer": "Missing UsageMetrics are treated as zero and recorded with a missing marker. The run continues; cumulative accounting does not block. If delayed metrics arrive later, they are not retroactively added to avoid rewriting durable history; only newly returned metrics are accumulated.",
+      "justification": "Safety favors continuing with a conservative zero value rather than blocking on missing telemetry or retroactively altering counters.",
+      "basis": "Story analysis edge case; ADR-015"
+    }
+  ]
+}
