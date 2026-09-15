@@ -171,7 +171,7 @@
         {
           "id": 18,
           "name": "WorkflowModule_WithTerminalActivities_RegistersContracts",
-          "status": "pending",
+          "status": "passing",
           "description": "Workers can execute commit, rerun, and finalization Activities.",
           "arrange": "Load the EDD refinement workflow module specification.",
           "act": "Register the module.",

@@ -210,7 +210,7 @@
     {
       "description": "Stub the compare_candidate_to_best service, commit_accepted_candidate Activity, rerun_degraded_candidate Activity, and finalize_run Activity for the first slice so the workflow remains compilable and the contracts are defined.",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Wire the candidate evaluation path into the EDD refinement workflow so it is invoked after scope validation and stores the CandidateMetricRecord in the ProgressRecord.",

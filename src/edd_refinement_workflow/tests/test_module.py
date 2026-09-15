@@ -42,6 +42,9 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "execute_refinement_action",
         "validate_candidate",
         "evaluate_candidate",
+        "commit_accepted_candidate",
+        "rerun_degraded_candidate",
+        "finalize_run",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)
     assert [activity.name for activity in registry.activities] == list(

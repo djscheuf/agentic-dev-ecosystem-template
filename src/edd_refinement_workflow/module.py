@@ -1,8 +1,10 @@
 from common import WorkflowModuleSpec
 
+from .activities.commit_accepted_candidate import commit_accepted_candidate_activity
 from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.execute_refinement_action import execute_refinement_action_activity
 from .activities.initialize_run import initialize_run_activity
+from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activity
 from .activities.run_baseline_evaluation import run_baseline_evaluation_activity
 from .activities.validate_candidate import validate_candidate_activity
 from .approval import (
@@ -10,6 +12,7 @@ from .approval import (
     record_human_approved_evaluation_change_activity,
     request_human_approval_activity,
 )
+from .finalize_run import finalize_run_activity
 from .plan_refinement import plan_refinement_action
 from .workflow import EddRefinementWorkflow
 
@@ -24,6 +27,9 @@ ACTIVITY_TYPES = (
     "execute_refinement_action",
     "validate_candidate",
     "evaluate_candidate",
+    "commit_accepted_candidate",
+    "rerun_degraded_candidate",
+    "finalize_run",
 )
 ACTIVITIES = (
     initialize_run_activity,
@@ -35,6 +41,9 @@ ACTIVITIES = (
     execute_refinement_action_activity,
     validate_candidate_activity,
     evaluate_candidate_activity,
+    commit_accepted_candidate_activity,
+    rerun_degraded_candidate_activity,
+    finalize_run_activity,
 )
 
 

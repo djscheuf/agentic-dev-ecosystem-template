@@ -2,6 +2,8 @@ import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from cadence import activity
+
 
 class FinalizeRunActivity:
     def __init__(
@@ -59,3 +61,10 @@ class FinalizeRunActivity:
         record["terminal_report_path"] = report_path
         self.store.save(run_id, record)
         return result
+
+
+@activity.defn(name="finalize_run")
+async def finalize_run_activity(
+    run_id: str, terminal_reason: str, repo_root: str
+) -> dict:
+    raise NotImplementedError
