@@ -101,6 +101,20 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
     assert result["next_state"] == "planning"
 
 
+def test_workflow_ignores_decisions_after_approval_is_decided() -> None:
+    workflow = EddRefinementWorkflow()
+    workflow._approval_request = {
+        "proposal_id": "proposal-1",
+        "status": "decided",
+        "decision": "timeout",
+    }
+
+    workflow.approve_evaluation_change("approve", "proposal-1")
+
+    assert workflow._pending_approval_decision is None
+    assert workflow.get_approval_status()["decision"] == "timeout"
+
+
 @pytest.mark.asyncio
 async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypatch) -> None:
     preflight = PreflightResult(

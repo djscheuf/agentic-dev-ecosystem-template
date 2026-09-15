@@ -47,7 +47,7 @@
     {
       "criterion": "Approval decision is received after timeout",
       "gherkin": "Given the approval request has already timed out when a late approve or reject decision is recorded then the decision is ignored and the timeout path has already been taken",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Multiple approval decisions are submitted for the same proposal",

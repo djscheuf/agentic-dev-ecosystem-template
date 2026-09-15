@@ -103,6 +103,8 @@ class EddRefinementWorkflow:
     ) -> None:
         if self._pending_approval_decision is not None:
             return
+        if self._approval_request and self._approval_request.get("status") != "pending":
+            return
         if decision not in {"approve", "reject"}:
             raise ValueError("invalid approval decision")
         if not self._approval_request or self._approval_request["proposal_id"] != proposal_id:
