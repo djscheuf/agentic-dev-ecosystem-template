@@ -15,8 +15,13 @@ from ..candidate_results import ExecutionResult, UsageMetrics
 
 
 class ExecuteRefinementActionActivity:
-    def __init__(self, harness_runner: Callable[..., object]) -> None:
+    def __init__(
+        self,
+        harness_runner: Callable[..., object],
+        on_event: Callable[..., None] | None = None,
+    ) -> None:
         self.harness_runner = harness_runner
+        self.on_event = on_event
 
     def run(
         self,
@@ -39,7 +44,7 @@ class ExecuteRefinementActionActivity:
         usage = observation["usage"]
         prompt_tokens = usage["prompt_tokens"]
         completion_tokens = usage["completion_tokens"]
-        return ExecutionResult(
+        result = ExecutionResult(
             status=output["status"],
             usage_metrics=UsageMetrics(
                 input_tokens=prompt_tokens,
@@ -53,6 +58,14 @@ class ExecuteRefinementActionActivity:
             atif_path=observation.get("atif_path"),
             duration_ms=observation["duration_ms"],
         )
+        if self.on_event is not None:
+            self.on_event(
+                "RefinementActivitySucceeded",
+                run_id=run_id,
+                duration_ms=result.duration_ms,
+                changed_files_count=len(result.changed_files),
+            )
+        return result
 
 
 class HarnessBackedRefinementRunner:

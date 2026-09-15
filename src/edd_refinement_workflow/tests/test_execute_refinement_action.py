@@ -104,3 +104,33 @@ async def test_execute_refinement_action_entrypoint_runs_configured_activity(
     )
 
     assert result["diff_hash"] == "abc123"
+
+
+def test_execute_refinement_action_emits_success_event() -> None:
+    events = []
+    activity = ExecuteRefinementActionActivity(
+        harness_runner=lambda **kwargs: {
+            "status": "success",
+            "observation": {
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "cost_usd": 0.01,
+                },
+                "atif_path": None,
+                "duration_ms": 2,
+            },
+            "changed_files": ["src/skill.py"],
+            "diff_hash": "abc123",
+        },
+        on_event=lambda name, **data: events.append((name, data)),
+    )
+
+    activity.run("run-1", {"action": "repair"}, None, "/repo")
+
+    assert events == [
+        (
+            "RefinementActivitySucceeded",
+            {"run_id": "run-1", "duration_ms": 2, "changed_files_count": 1},
+        )
+    ]
