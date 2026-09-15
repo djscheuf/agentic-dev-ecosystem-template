@@ -113,7 +113,7 @@
     {
       "description": "Implement execute_refinement_action activity with approval gate, harness-backed skill execution, and a colocated config file enabling accept-edits",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Implement validate_candidate activity to check diff hash, authorized file scope, and required-test weakening patterns",
@@ -145,7 +145,8 @@
     "unit_tests": [
       {
         "description": "execute_refinement_action rejects unapproved expectation-changing actions and diff hash mismatches",
-        "layer": "api"
+        "layer": "api",
+        "status": "in_progress"
       },
       {
         "description": "ExecutionResult populates usage metrics from the harness observation and ATIF usage export",
