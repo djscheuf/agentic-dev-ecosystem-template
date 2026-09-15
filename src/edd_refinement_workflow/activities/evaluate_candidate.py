@@ -1,3 +1,5 @@
+import json
+import subprocess
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -62,6 +64,22 @@ class EvaluateCandidateActivity:
         return metric
 
 
+def _run_evaluation_command(**kwargs) -> dict:
+    completed = subprocess.run(
+        kwargs["command"],
+        cwd=kwargs["cwd"],
+        capture_output=True,
+        text=True,
+        timeout=kwargs["timeout"],
+        check=True,
+    )
+    return json.loads(completed.stdout)
+
+
 @activity.defn(name="evaluate_candidate")
 async def evaluate_candidate_activity(run_id: str, candidate_id: str, repo_root: str) -> dict:
-    raise NotImplementedError
+    from ..progress_record import ProgressRecordStore
+
+    return EvaluateCandidateActivity(
+        ProgressRecordStore(repo_root), _run_evaluation_command
+    ).run(run_id, candidate_id, repo_root)

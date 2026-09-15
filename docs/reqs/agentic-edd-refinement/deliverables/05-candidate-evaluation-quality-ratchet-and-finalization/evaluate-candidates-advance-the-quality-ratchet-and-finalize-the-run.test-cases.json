@@ -210,6 +210,47 @@
           "assert": "evaluate_candidate receives the configured timeout and retry policy."
         }
       ]
+    },
+    {
+      "description": "Priority 5: Complete concrete backend Activities",
+      "tests": [
+        {
+          "id": 22,
+          "name": "EvaluateCandidateActivity_UsesRepositoryDependencies_ReturnsMetrics",
+          "status": "passing",
+          "description": "The deployed evaluation entrypoint constructs repository-scoped dependencies and executes the persisted configuration.",
+          "arrange": "Persist evaluation configuration and replace the command runner with deterministic output.",
+          "act": "Invoke the Cadence Activity entrypoint.",
+          "assert": "Structured successful candidate metrics are returned and persisted."
+        },
+        {
+          "id": 23,
+          "name": "CommitAcceptedCandidateActivity_UsesTargetGitRepository_UpdatesState",
+          "status": "pending",
+          "description": "The deployed acceptance entrypoint commits in the target repository and updates progress.",
+          "arrange": "Persist candidate state and replace the Git commit operation.",
+          "act": "Invoke the Cadence Activity entrypoint.",
+          "assert": "The target-scoped commit hash becomes the best accepted state."
+        },
+        {
+          "id": 24,
+          "name": "RerunDegradedCandidate_WithRepeatedDegradation_ConfirmsRegression",
+          "status": "pending",
+          "description": "A confirmation rerun that remains below best state is classified as a confirmed regression.",
+          "arrange": "Persist best metrics and return degraded confirmation metrics.",
+          "act": "Rerun the unchanged candidate.",
+          "assert": "Confirmation evidence records confirmed_regression classification."
+        },
+        {
+          "id": 25,
+          "name": "FinalizeRunActivity_UsesTargetDependencies_PublishesTerminalResult",
+          "status": "pending",
+          "description": "The deployed finalization entrypoint restores and releases through target-scoped dependencies.",
+          "arrange": "Persist terminal state and replace repository and lease operations.",
+          "act": "Invoke the Cadence Activity entrypoint.",
+          "assert": "The terminal result is published and dependency operations execute once."
+        }
+      ]
     }
   ]
 }

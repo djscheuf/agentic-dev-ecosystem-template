@@ -1,4 +1,8 @@
-from edd_refinement_workflow.activities.evaluate_candidate import EvaluateCandidateActivity
+import pytest
+from edd_refinement_workflow.activities.evaluate_candidate import (
+    EvaluateCandidateActivity,
+    evaluate_candidate_activity,
+)
 from edd_refinement_workflow.progress_record import ProgressRecordStore
 
 
@@ -135,3 +139,15 @@ def test_evaluate_candidate_with_timeout_records_attempt_without_iteration_advan
     assert result["usable_for_acceptance"] is False
     assert record["candidate_metrics"] == [result]
     assert record["iteration_history"] == [{"iteration": 1}]
+
+
+@pytest.mark.asyncio
+async def test_evaluate_candidate_activity_executes_persisted_configuration(tmp_path, monkeypatch) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"evaluation_configuration": {"command": ["eval"], "configuration": "config", "pinned_provider_version": "provider@1", "timeout_seconds": 10, "measurement_context": "baseline"}, "candidate_metrics": []})
+    monkeypatch.setattr("edd_refinement_workflow.activities.evaluate_candidate._run_evaluation_command", lambda **kwargs: {"passing": 1, "failing": 0, "total": 1, "percentage": 100.0, "required_coverage": {}, "artifact_references": []})
+
+    result = await evaluate_candidate_activity("run-1", "candidate-1", str(tmp_path))
+
+    assert result["status"] == "success"
+    assert result["candidate_id"] == "candidate-1"
