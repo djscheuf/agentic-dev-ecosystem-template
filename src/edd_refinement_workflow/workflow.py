@@ -69,6 +69,8 @@ class EddRefinementWorkflow:
         )
         self._approval_request = approval
         result.update(approval=approval, approved=decision == "approve")
+        if decision != "approve":
+            result["next_state"] = request.get("approval_rejection_policy", "planning")
         if decision == "approve":
             applied_change = await execute_activity(
                 "record_human_approved_evaluation_change",

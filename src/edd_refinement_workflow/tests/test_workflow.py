@@ -98,6 +98,7 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
     assert calls[-2:] == ["request_human_approval", "record_human_approval_decision"]
     assert result["approval"]["decision"] == "timeout"
     assert result["approved"] is False
+    assert result["next_state"] == "planning"
 
 
 @pytest.mark.asyncio
