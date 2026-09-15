@@ -162,8 +162,54 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
 
     result = await workflow.run(preflight, request)
 
-    assert calls[-1] == "record_human_approved_evaluation_change"
+    assert "record_human_approved_evaluation_change" in calls
+    assert calls[-2:] == ["execute_refinement_action", "validate_candidate"]
     assert result["applied_change"]["applied_diff_hash"] == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_workflow_executes_and_validates_selected_candidate(
+    tmp_path, monkeypatch
+) -> None:
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {"run_id": "run-1"}
+        if name == "run_baseline_evaluation":
+            return {"passing": 5}
+        if name == "plan_refinement_action":
+            return {"action": "repair", "intended_files": ["src/skill.py"]}
+        if name == "execute_refinement_action":
+            return {"status": "success", "changed_files": ["src/skill.py"]}
+        return {"candidate_id": "candidate-1", "status": "scope_valid"}
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+
+    result = await EddRefinementWorkflow().run(
+        preflight,
+        {
+            "workflow_run_id": "wf-1",
+            "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+            "proposed_action": "repair",
+        },
+    )
+
+    assert calls[-2:] == ["execute_refinement_action", "validate_candidate"]
+    assert result["candidate"]["status"] == "scope_valid"
 
 
 async def _result(value):

@@ -41,37 +41,40 @@ class EddRefinementWorkflow:
         )
 
         result = {"record": record, "baseline": baseline, "planning": planning}
-        if not planning.get("requires_approval"):
+        if planning.get("action") == "stop":
             return result
 
-        timeout_seconds = request.get("approval_timeout_seconds", 3600)
-        self._approval_request = await execute_activity(
-            "request_human_approval",
-            dict,
-            record["run_id"],
-            planning,
-            timeout_seconds,
-            str(preflight_result.target_context.repo_root),
-            start_to_close_timeout=timedelta(minutes=5),
-        )
-        decision = await self._await_approval(timedelta(seconds=timeout_seconds))
-        approval = await execute_activity(
-            "record_human_approval_decision",
-            dict,
-            record["run_id"],
-            planning["proposal_id"],
-            decision,
-            self._pending_approval_decision.get("notes", "")
-            if self._pending_approval_decision
-            else "",
-            str(preflight_result.target_context.repo_root),
-            start_to_close_timeout=timedelta(minutes=5),
-        )
-        self._approval_request = approval
-        result.update(approval=approval, approved=decision == "approve")
-        if decision != "approve":
-            result["next_state"] = request.get("approval_rejection_policy", "planning")
-        if decision == "approve":
+        approved_diff_hash = None
+        if planning.get("requires_approval"):
+            timeout_seconds = request.get("approval_timeout_seconds", 3600)
+            self._approval_request = await execute_activity(
+                "request_human_approval",
+                dict,
+                record["run_id"],
+                planning,
+                timeout_seconds,
+                str(preflight_result.target_context.repo_root),
+                start_to_close_timeout=timedelta(minutes=5),
+            )
+            decision = await self._await_approval(timedelta(seconds=timeout_seconds))
+            approval = await execute_activity(
+                "record_human_approval_decision",
+                dict,
+                record["run_id"],
+                planning["proposal_id"],
+                decision,
+                self._pending_approval_decision.get("notes", "")
+                if self._pending_approval_decision
+                else "",
+                str(preflight_result.target_context.repo_root),
+                start_to_close_timeout=timedelta(minutes=5),
+            )
+            self._approval_request = approval
+            result.update(approval=approval, approved=decision == "approve")
+            if decision != "approve":
+                result["next_state"] = request.get("approval_rejection_policy", "planning")
+                return result
+            approved_diff_hash = planning["proposed_diff_hash"]
             applied_change = await execute_activity(
                 "record_human_approved_evaluation_change",
                 dict,
@@ -81,6 +84,28 @@ class EddRefinementWorkflow:
                 start_to_close_timeout=timedelta(minutes=5),
             )
             result["applied_change"] = applied_change
+
+        execution = await execute_activity(
+            "execute_refinement_action",
+            dict,
+            record["run_id"],
+            planning,
+            approved_diff_hash,
+            str(preflight_result.target_context.repo_root),
+            start_to_close_timeout=timedelta(minutes=30),
+        )
+        candidate = await execute_activity(
+            "validate_candidate",
+            dict,
+            record["run_id"],
+            planning,
+            execution,
+            approved_diff_hash,
+            str(preflight_result.target_context.repo_root),
+            start_to_close_timeout=timedelta(minutes=5),
+        )
+        result.update(execution=execution, candidate=candidate)
+        self._candidate = candidate
         return result
 
     async def _await_approval(self, timeout: timedelta) -> str:

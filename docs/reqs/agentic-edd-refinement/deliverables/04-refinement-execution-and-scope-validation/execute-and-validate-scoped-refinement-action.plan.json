@@ -123,7 +123,7 @@
     {
       "description": "Wire execute_refinement_action and validate_candidate into EddRefinementWorkflow and emit the defined instrumentation events",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Add get_candidate_status query and expose it through the workflow module",
@@ -172,7 +172,8 @@
     "integration_tests": [
       {
         "description": "Workflow schedules execution, then validation, and persists a scope-valid or rejected candidate",
-        "layer": "api"
+        "layer": "api",
+        "status": "in_progress"
       },
       {
         "description": "Worker resumption reloads the candidate and approval context without re-running the harness",
