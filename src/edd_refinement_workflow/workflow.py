@@ -49,6 +49,14 @@ class EddRefinementWorkflow:
 
         result = {"record": record, "baseline": baseline, "planning": planning}
         if planning.get("action") == "stop":
+            result["terminal_result"] = await execute_activity(
+                "finalize_run",
+                dict,
+                record["run_id"],
+                planning.get("reason", "planning_stopped"),
+                str(preflight_result.target_context.repo_root),
+                start_to_close_timeout=timedelta(minutes=5),
+            )
             return result
 
         approved_diff_hash = None

@@ -194,7 +194,7 @@
         {
           "id": 20,
           "name": "Workflow_WithStopPlan_FinalizesRun",
-          "status": "pending",
+          "status": "passing",
           "description": "A terminal planning decision publishes the terminal result before returning.",
           "arrange": "Mock initialization, baseline evaluation, a stop plan, and finalization.",
           "act": "Run the refinement workflow.",

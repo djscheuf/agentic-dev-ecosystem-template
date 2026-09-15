@@ -4,7 +4,7 @@ from edd_refinement_workflow.workflow import EddRefinementWorkflow
 
 
 @pytest.mark.asyncio
-async def test_workflow_sequences_activities_in_order(tmp_path, monkeypatch) -> None:
+async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> None:
     preflight = PreflightResult(
         status="success",
         target_context=TargetRepositoryContext(
@@ -29,7 +29,9 @@ async def test_workflow_sequences_activities_in_order(tmp_path, monkeypatch) -> 
         if name == "run_baseline_evaluation":
             return {"passing": 5}
         if name == "plan_refinement_action":
-            return {"action": "stop"}
+            return {"action": "stop", "reason": "budget_exhausted"}
+        if name == "finalize_run":
+            return {"terminal_reason": "budget_exhausted", "report_path": "terminal.json"}
         return {}
 
     monkeypatch.setattr(
@@ -42,10 +44,12 @@ async def test_workflow_sequences_activities_in_order(tmp_path, monkeypatch) -> 
         "initialize_run",
         "run_baseline_evaluation",
         "plan_refinement_action",
+        "finalize_run",
     ]
     assert result["record"]["run_id"] == "wf-1-abc1234"
     assert result["baseline"]["passing"] == 5
     assert result["planning"]["action"] == "stop"
+    assert result["terminal_result"]["terminal_reason"] == "budget_exhausted"
 
 
 @pytest.mark.asyncio
