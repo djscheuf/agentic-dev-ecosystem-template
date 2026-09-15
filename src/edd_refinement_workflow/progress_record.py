@@ -14,6 +14,23 @@ _PATH_PREFIXES = ("/", "~", "./")
 
 
 class ProgressRecordSerializer:
+    @classmethod
+    def for_v5(cls):
+        return cls(
+            schema_version=5,
+            allowed_fields={
+                "schema_version",
+                "run_id",
+                "budgets",
+                "logical_iteration_count",
+                "cumulative_token_usage",
+                "consecutive_confirmed_regressions",
+                "pending_evidence_flags",
+                "attempt_records",
+                "human_handoff_records",
+            },
+        )
+
     def __init__(self, schema_version: int, allowed_fields: set) -> None:
         self.schema_version = schema_version
         self.allowed_fields = allowed_fields

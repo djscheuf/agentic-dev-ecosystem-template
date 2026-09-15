@@ -106,7 +106,7 @@
     {
       "description": "1. Extend ProgressRecord v5 to store budgets (max_iterations, token_budget, hard_token_limit, regression_stop_threshold), logical_iteration_count, cumulative_token_usage, consecutive_confirmed_regressions, pending_evidence_flags, attempt_records, and human_handoff_records.",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "2. Update initialize_run to populate budgets and RefinementLimits from run configuration, and seed all durable counters to zero.",

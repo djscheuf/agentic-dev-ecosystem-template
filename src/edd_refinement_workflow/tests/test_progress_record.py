@@ -69,6 +69,40 @@ def test_serializer_schema_version_two_preserves_approval_state() -> None:
     assert restored == record
 
 
+def test_progress_record_v5_with_limit_state_serializes_and_redacts() -> None:
+    record = {
+        "schema_version": 5,
+        "run_id": "run-1",
+        "budgets": {"max_iterations": 3, "token_budget": 100},
+        "logical_iteration_count": 1,
+        "cumulative_token_usage": 25,
+        "consecutive_confirmed_regressions": 0,
+        "pending_evidence_flags": ["inconclusive"],
+        "attempt_records": [
+            {
+                "attempt_id": "attempt-1",
+                "total_tokens": 25,
+                "artifact_path": "/home/user/private/token-cache.json",
+            }
+        ],
+        "human_handoff_records": [],
+    }
+
+    restored = ProgressRecordSerializer.for_v5().deserialize(
+        ProgressRecordSerializer.for_v5().serialize(record)
+    )
+
+    assert restored == record | {
+        "attempt_records": [
+            {
+                "attempt_id": "attempt-1",
+                "total_tokens": 25,
+                "artifact_path": "[REDACTED]",
+            }
+        ]
+    }
+
+
 def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     record = {"schema_version": 1, "run_id": "run-1"}

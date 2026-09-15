@@ -97,6 +97,56 @@
           "assert": "All new Activity names and callable entrypoints are declared and registered."
         }
       ]
+    },
+    {
+      "description": "Priority 4: Completion coverage for durable orchestration",
+      "tests": [
+        {
+          "id": 10,
+          "name": "ProgressRecordV5_WithLimitState_SerializesAndRedacts",
+          "status": "passing",
+          "description": "Schema-v5 limit state survives serialization while sensitive attempt data is redacted.",
+          "arrange": "Create a complete schema-v5 record containing budgets, counters, pending flags, attempts, and handoffs with sensitive values.",
+          "act": "Serialize and deserialize the record.",
+          "assert": "All limit fields remain present and sensitive nested attempt values are redacted."
+        },
+        {
+          "id": 11,
+          "name": "Workflow_AfterTokenConsumingSteps_AccountsUsageAndRegates",
+          "status": "pending",
+          "description": "The workflow accounts each token-consuming result and checks limits again before subsequent autonomous work.",
+          "arrange": "Mock an in-budget run, execution usage, updated durable records, and a gate that blocks before evaluation.",
+          "act": "Run the workflow.",
+          "assert": "Counter updates follow token-consuming steps and the blocking gate prevents evaluation."
+        },
+        {
+          "id": 12,
+          "name": "RegressionRecovery_WithUnresolvedAndRecoveredEvidence_UpdatesPendingFlags",
+          "status": "pending",
+          "description": "Regression evidence blocks autonomous work until recovery is verified.",
+          "arrange": "Persist a run, record inconclusive evidence, then record successful recovery.",
+          "act": "Update the durable pending-evidence state for both outcomes.",
+          "assert": "The flag is added while unresolved and removed after verified recovery."
+        },
+        {
+          "id": 13,
+          "name": "Workflow_AtThirdConfirmedRegression_PublishesStructuredHandoff",
+          "status": "pending",
+          "description": "The third confirmed harmful proposal stops recovery work and publishes the structured three-attempt report.",
+          "arrange": "Mock confirmed evidence and a threshold-reaching regression record.",
+          "act": "Handle the regression.",
+          "assert": "Structured handoff publication occurs immediately and no restore or evaluation is scheduled."
+        },
+        {
+          "id": 14,
+          "name": "UpdateDurableCounters_WithConcurrentAttempts_PreservesEveryUpdate",
+          "status": "pending",
+          "description": "Concurrent attempt completion cannot lose token or iteration updates.",
+          "arrange": "Create one run and synchronize two concurrent counter updates.",
+          "act": "Complete both updates concurrently.",
+          "assert": "Both attempts and token totals persist with the correct logical iteration count."
+        }
+      ]
     }
   ]
 }
