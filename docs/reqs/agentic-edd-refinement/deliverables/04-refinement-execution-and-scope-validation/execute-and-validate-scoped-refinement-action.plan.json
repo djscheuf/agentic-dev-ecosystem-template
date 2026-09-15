@@ -118,7 +118,7 @@
     {
       "description": "Implement validate_candidate activity to check diff hash, authorized file scope, and required-test weakening patterns",
       "layer": "api",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "description": "Wire execute_refinement_action and validate_candidate into EddRefinementWorkflow and emit the defined instrumentation events",
@@ -155,7 +155,8 @@
       },
       {
         "description": "validate_candidate rejects no-op, out-of-scope, and mixed-scope candidates",
-        "layer": "api"
+        "layer": "api",
+        "status": "completed"
       },
       {
         "description": "validate_candidate detects remove, skip, weaken, rewrite, and ambiguous required-test modifications",
