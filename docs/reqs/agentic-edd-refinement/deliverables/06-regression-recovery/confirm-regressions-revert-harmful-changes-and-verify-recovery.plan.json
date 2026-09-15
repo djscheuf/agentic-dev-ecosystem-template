@@ -115,7 +115,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 2. Add the ClassifyRegressionEvidence Activity that consumes the original and confirmation CandidateMetricRecords and the best accepted state and emits one of confirmed_regression, unstable_result, suspected_flakiness, or inconclusive.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 3. Add the RevertRepositoryToBest Activity that holds the mutation lease, runs git reset --hard to the best accepted commit, and verifies a clean worktree.",
