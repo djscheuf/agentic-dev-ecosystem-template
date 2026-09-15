@@ -1,6 +1,7 @@
 import pytest
 
 from edd_refinement_workflow.activities.regression_recovery import (
+    RecordRevertedProposalContextActivity,
     RevertRepositoryToBestActivity,
     classify_regression_evidence,
     verify_recovery_metrics,
@@ -50,3 +51,16 @@ def test_revert_repository_to_best_requires_lease_and_clean_restore() -> None:
 
     assert calls == [("/repo", "accepted-1")]
     assert result == {"restored_commit": "accepted-1", "repo_clean": True}
+
+
+def test_record_reverted_proposal_appends_redacted_context(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"reverted_proposals": []})
+    activity = RecordRevertedProposalContextActivity(store, now=lambda: "2026-09-15T00:00:00Z")
+
+    result = activity.run("run-1", {"candidate_id": "candidate-1", "change_summary": "uses ${API_TOKEN}", "affected_files": ["src/a.py"]})
+
+    assert result["change_summary"] == "[REDACTED]"
+    assert store.create_or_resume("run-1", {})["reverted_proposals"] == [result]

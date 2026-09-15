@@ -1,4 +1,21 @@
 from collections.abc import Callable
+from datetime import UTC, datetime
+
+from ..progress_record import ProgressRecordSerializer
+
+
+class RecordRevertedProposalContextActivity:
+    def __init__(self, store, now: Callable[[], str] | None = None) -> None:
+        self.store = store
+        self.now = now or (lambda: datetime.now(UTC).isoformat())
+
+    def run(self, run_id: str, context: dict) -> dict:
+        record = self.store.create_or_resume(run_id, {})
+        redacted = ProgressRecordSerializer(1, {"schema_version", "context"}).serialize({"schema_version": 1, "context": context})["context"]
+        result = redacted | {"reverted_at": self.now()}
+        record["reverted_proposals"] = record.get("reverted_proposals", []) + [result]
+        self.store.save(run_id, record)
+        return result
 
 
 class RevertRepositoryToBestActivity:

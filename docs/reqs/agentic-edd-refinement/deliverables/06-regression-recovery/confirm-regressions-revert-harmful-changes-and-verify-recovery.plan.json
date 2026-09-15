@@ -135,7 +135,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 6. Add the RecordRevertedProposalContext Activity that appends the reverted proposal context to the durable ProgressRecord for future planning.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 7. Add the HumanHandoff Activity that records the handoff reason and evidence summary, attempts to notify a human, and supports a configured retry policy.",
