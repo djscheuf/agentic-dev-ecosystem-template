@@ -36,3 +36,29 @@ def test_validate_candidate_rejects_invalid_file_scope(
 
     assert result.status == "rejected"
     assert result.rejection_reason == reason
+
+
+@pytest.mark.parametrize(
+    ("diff", "reason"),
+    [
+        ("deleted file mode 100644", "test_weakening"),
+        ("+@pytest.mark.skip", "test_weakening"),
+        ("-    assert result == 1\n+    assert True", "test_weakening"),
+        ("-def test_required():\n+def test_rewritten():", "test_weakening"),
+        ("@@ -1 +1 @@\n-old expectation\n+new expectation", "ambiguous_test_change"),
+    ],
+)
+def test_validate_candidate_rejects_required_test_changes(
+    diff: str, reason: str
+) -> None:
+    result = ValidateCandidateActivity(diff_provider=lambda: diff).run(
+        "run-1",
+        {
+            "intended_files": ["tests/test_required.py"],
+            "required_test_files": ["tests/test_required.py"],
+        },
+        _execution(["tests/test_required.py"]),
+    )
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == reason
