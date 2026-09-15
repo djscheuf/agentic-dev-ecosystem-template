@@ -96,52 +96,52 @@
     {
       "description": "Extend PlanningResult to carry proposal_id and proposed_diff_hash",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Add approval gate to EddRefinementWorkflow for propose_evaluation_expectation_change actions",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Define ApprovalRequest data model and persist it in ProgressRecord",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement RequestHumanApproval activity to write the durable approval request",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement _await_approval bounded wait using wait_condition and sleep",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Add approve_evaluation_change signal and get_approval_status query",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Validate executed diff hash against the approved diff hash before application",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Record HumanApprovedEvaluationChange with approval_context 'human_approved_evaluation_change'",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Route rejection or timeout to planning or stop according to policy",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Write Human approve_evaluation_change signal script, support getting approval status, and ids. Follow helper script pattern",
       "layer": "support",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "testing_strategy": {
