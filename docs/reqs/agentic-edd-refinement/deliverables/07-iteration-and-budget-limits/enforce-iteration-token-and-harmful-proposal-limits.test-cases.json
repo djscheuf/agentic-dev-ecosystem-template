@@ -122,7 +122,7 @@
         {
           "id": 12,
           "name": "RegressionRecovery_WithUnresolvedAndRecoveredEvidence_UpdatesPendingFlags",
-          "status": "pending",
+          "status": "passing",
           "description": "Regression evidence blocks autonomous work until recovery is verified.",
           "arrange": "Persist a run, record inconclusive evidence, then record successful recovery.",
           "act": "Update the durable pending-evidence state for both outcomes.",

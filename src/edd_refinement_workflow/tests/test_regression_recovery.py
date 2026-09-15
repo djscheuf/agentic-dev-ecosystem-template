@@ -7,6 +7,7 @@ from edd_refinement_workflow.activities.regression_recovery import (
     RevertRepositoryToBestActivity,
     classify_regression_evidence,
     record_successful_proposal,
+    update_pending_evidence,
     verify_recovery_metrics,
 )
 
@@ -79,6 +80,19 @@ def test_regression_recovery_with_successful_proposal_resets_consecutive_counter
 
     assert result["consecutive_confirmed_regressions"] == 0
     assert store.create_or_resume("run-1", {})["consecutive_confirmed_regressions"] == 0
+
+
+def test_regression_recovery_with_unresolved_and_recovered_evidence_updates_pending_flags(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"pending_evidence_flags": []})
+
+    blocked = update_pending_evidence(store, "run-1", "inconclusive", resolved=False)
+    recovered = update_pending_evidence(store, "run-1", "inconclusive", resolved=True)
+
+    assert blocked["pending_evidence_flags"] == ["inconclusive"]
+    assert recovered["pending_evidence_flags"] == []
 
 
 def test_publish_human_handoff_at_regression_threshold_records_three_attempts(tmp_path) -> None:

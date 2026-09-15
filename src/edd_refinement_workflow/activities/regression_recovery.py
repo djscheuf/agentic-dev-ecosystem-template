@@ -97,6 +97,15 @@ def classify_regression_evidence(original: dict, confirmation: dict, best_state:
     return {"classification": classification, "reason": f"confirmation classified as {classification}"}
 
 
+def update_pending_evidence(store, run_id: str, evidence: str, resolved: bool) -> dict:
+    record = store.create_or_resume(run_id, {})
+    flags = set(record.get("pending_evidence_flags", []))
+    flags.discard(evidence) if resolved else flags.add(evidence)
+    record["pending_evidence_flags"] = sorted(flags)
+    store.save(run_id, record)
+    return record
+
+
 def record_successful_proposal(store, run_id: str) -> dict:
     record = store.create_or_resume(run_id, {})
     record["consecutive_confirmed_regressions"] = 0
