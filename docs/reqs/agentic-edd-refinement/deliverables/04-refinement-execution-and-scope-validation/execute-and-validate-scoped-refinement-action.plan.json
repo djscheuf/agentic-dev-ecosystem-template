@@ -128,7 +128,7 @@
     {
       "description": "Add get_candidate_status query and expose it through the workflow module",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update frontend views to trigger execution and display candidate status, usage metrics, changed files, and rejection reasons",

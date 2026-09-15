@@ -101,6 +101,18 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
     assert result["next_state"] == "planning"
 
 
+def test_candidate_status_query_returns_current_candidate() -> None:
+    workflow = EddRefinementWorkflow()
+    workflow._candidate = {
+        "candidate_id": "candidate-1",
+        "status": "rejected",
+        "changed_files": ["README.md"],
+        "rejection_reason": "out_of_scope",
+    }
+
+    assert workflow.get_candidate_status() == workflow._candidate
+
+
 def test_workflow_ignores_decisions_after_approval_is_decided() -> None:
     workflow = EddRefinementWorkflow()
     workflow._approval_request = {

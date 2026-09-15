@@ -9,6 +9,7 @@ class EddRefinementWorkflow:
     def __init__(self) -> None:
         self._approval_request = None
         self._pending_approval_decision = None
+        self._candidate = None
 
     @workflow.run
     async def run(self, preflight_result, request: dict):
@@ -110,6 +111,10 @@ class EddRefinementWorkflow:
         result.update(execution=execution, candidate=candidate)
         self._candidate = candidate
         return result
+
+    @workflow.query(name="get_candidate_status")
+    def get_candidate_status(self):
+        return self._candidate
 
     async def _await_approval(self, timeout: timedelta) -> str:
         wait_task = asyncio.ensure_future(
