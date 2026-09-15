@@ -67,7 +67,7 @@
     {
       "criterion": "Concurrent attempt to update durable counters",
       "gherkin": "Given two workflow branches attempt to update the same durable counter When the limit check runs Then the durable counter remains consistent and no step is over-scheduled",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Confirmed regression counter is reset by a successful recovery",

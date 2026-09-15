@@ -140,7 +140,7 @@
         {
           "id": 14,
           "name": "UpdateDurableCounters_WithConcurrentAttempts_PreservesEveryUpdate",
-          "status": "pending",
+          "status": "passing",
           "description": "Concurrent attempt completion cannot lose token or iteration updates.",
           "arrange": "Create one run and synchronize two concurrent counter updates.",
           "act": "Complete both updates concurrently.",

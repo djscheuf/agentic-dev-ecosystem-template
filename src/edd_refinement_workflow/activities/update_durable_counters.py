@@ -1,11 +1,18 @@
+from threading import Lock
+
 from cadence import activity
 
 
 class UpdateDurableCountersActivity:
     def __init__(self, store) -> None:
         self.store = store
+        self._lock = Lock()
 
     def run(self, run_id: str, attempt_record: dict) -> dict:
+        with self._lock:
+            return self._run(run_id, attempt_record)
+
+    def _run(self, run_id: str, attempt_record: dict) -> dict:
         record = self.store.create_or_resume(run_id, {})
         usage = attempt_record.get("usage_metrics") or {
             "prompt_tokens": 0,
