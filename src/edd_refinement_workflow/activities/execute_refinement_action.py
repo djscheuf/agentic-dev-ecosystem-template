@@ -12,8 +12,11 @@ class ExecuteRefinementActionActivity:
         approved_diff_hash: str | None,
         repo_root: str,
     ):
-        if planning.get("requires_approval") and approved_diff_hash is None:
-            raise ValueError("missing_approval")
+        if planning.get("requires_approval"):
+            if approved_diff_hash is None:
+                raise ValueError("missing_approval")
+            if approved_diff_hash != planning.get("proposed_diff_hash"):
+                raise ValueError("diff_hash_mismatch")
         return self.harness_runner(
             run_id=run_id,
             planning=planning,
