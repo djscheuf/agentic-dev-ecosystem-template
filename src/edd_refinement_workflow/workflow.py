@@ -208,6 +208,24 @@ class EddRefinementWorkflow:
         self._candidate = candidate
         return result
 
+    async def _account_and_check_limits(self, run_id, result, step, repo_root):
+        usage = result.get("usage_metrics")
+        attempt = {
+            "attempt_id": f"{step}-{run_id}",
+            "logical_iteration_number": result.get("logical_iteration_number", 0),
+            "is_retry": result.get("is_retry", False),
+            "usage_metrics": usage,
+            "status": result.get("status", "success"),
+        }
+        record = await execute_activity(
+            "update_durable_counters", dict, run_id, attempt, repo_root,
+            start_to_close_timeout=timedelta(minutes=5),
+        )
+        return await execute_activity(
+            "check_refinement_limits", dict, record, 0,
+            start_to_close_timeout=timedelta(minutes=5),
+        )
+
     async def _handle_regression(self, run_id, candidate_id, original, confirmation, best_state, repo_root, stop_threshold):
         classification = await execute_activity("classify_regression_evidence", dict, original, confirmation, best_state, start_to_close_timeout=timedelta(minutes=5))
         if classification["classification"] != "confirmed_regression":

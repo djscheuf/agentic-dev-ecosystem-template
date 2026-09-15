@@ -488,5 +488,24 @@ async def test_confirmed_regression_restores_and_verifies_before_continuing(monk
     assert result["next_state"] == "planning"
 
 
+@pytest.mark.asyncio
+async def test_workflow_after_token_consuming_steps_accounts_usage_and_regates(monkeypatch) -> None:
+    calls = []
+
+    async def mock_execute(name, result_type, *args, **kwargs):
+        calls.append((name, args))
+        if name == "update_durable_counters":
+            return {"budgets": {"token_budget": 10}, "cumulative_token_usage": 10}
+        return {"schedule_next_step": False, "stop_reason": "token_budget"}
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    result = await EddRefinementWorkflow()._account_and_check_limits(
+        "run-1", {"usage_metrics": {"total_tokens": 10}}, "execute", "/repo"
+    )
+
+    assert [name for name, _ in calls] == ["update_durable_counters", "check_refinement_limits"]
+    assert result["schedule_next_step"] is False
+
+
 async def _result(value):
     return value

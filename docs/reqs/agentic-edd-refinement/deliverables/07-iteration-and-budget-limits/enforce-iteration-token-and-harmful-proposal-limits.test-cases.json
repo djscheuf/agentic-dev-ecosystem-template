@@ -113,7 +113,7 @@
         {
           "id": 11,
           "name": "Workflow_AfterTokenConsumingSteps_AccountsUsageAndRegates",
-          "status": "pending",
+          "status": "passing",
           "description": "The workflow accounts each token-consuming result and checks limits again before subsequent autonomous work.",
           "arrange": "Mock an in-budget run, execution usage, updated durable records, and a gate that blocks before evaluation.",
           "act": "Run the workflow.",
