@@ -1,0 +1,218 @@
+{
+  "source_story": "docs/reqs/agentic-edd-refinement/deliverables/03-evaluation-expectation-approval/require-human-approval-for-evaluation-expectation-changes.analysis.json",
+  "overall_design": "docs/reqs/agentic-edd-refinement/deliverables/03-evaluation-expectation-approval/require-human-approval-for-evaluation-expectation-changes.design.json",
+  "story": {
+    "so_that": "automated refinement never silently redefines what passing means",
+    "as_a": "human approver",
+    "i_want": "every proposed evaluation expectation change to be bound to an explicit, durable approval decision before it is applied"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "EDD-005-AC1: Given the selected action proposes changing an evaluation expectation, including an LLM rubric, when the workflow reaches the approval step, then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier.",
+      "gherkin": "Given the selected action proposes changing an evaluation expectation including an LLM rubric when the workflow reaches the approval step then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier",
+      "status": "pending"
+    },
+    {
+      "criterion": "EDD-005-AC2: Given an approval request is pending, when no decision is received before the configured approval timeout, then the workflow treats the absence of a decision as no approval, never as implicit approval.",
+      "gherkin": "Given an approval request is pending when no decision is received before the configured approval timeout then the workflow treats the absence of a decision as no approval and never as implicit approval",
+      "status": "pending"
+    },
+    {
+      "criterion": "EDD-005-AC3: Given a human rejects the proposed evaluation change, when the rejection is recorded, then the workflow returns to planning or stops according to policy, and the change is not applied.",
+      "gherkin": "Given a human rejects the proposed evaluation change when the rejection is recorded then the workflow returns to planning or stops according to policy and the change is not applied",
+      "status": "pending"
+    },
+    {
+      "criterion": "EDD-005-AC4: Given a human approves the exact proposed diff, when execution proceeds, then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change.",
+      "gherkin": "Given a human approves the exact proposed diff when execution proceeds then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change",
+      "status": "pending"
+    },
+    {
+      "criterion": "EDD-005-AC5: Given a worker restarts while a run is waiting for approval, when the workflow resumes, then it continues waiting on the same pending approval without losing the proposal context.",
+      "gherkin": "Given a worker restarts while a run is waiting for approval when the workflow resumes then it continues waiting on the same pending approval without losing the proposal context",
+      "status": "pending"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Proposed diff is empty or does not change an evaluation expectation",
+      "gherkin": "Given the selected action does not change an evaluation expectation when the workflow reaches the approval step then it does not pause for human approval and continues without requiring a decision",
+      "status": "pending"
+    },
+    {
+      "criterion": "Proposal identifier is not stable or not found on resume",
+      "gherkin": "Given the stable proposal identifier cannot be resolved when the workflow resumes then the workflow treats it as a failed approval and routes to planning or stops",
+      "status": "pending"
+    },
+    {
+      "criterion": "Approval decision is received after timeout",
+      "gherkin": "Given the approval request has already timed out when a late approve or reject decision is recorded then the decision is ignored and the timeout path has already been taken",
+      "status": "pending"
+    },
+    {
+      "criterion": "Multiple approval decisions are submitted for the same proposal",
+      "gherkin": "Given multiple approval decisions are submitted for the same proposal identifier when the workflow processes them then only the first valid decision is recorded and subsequent decisions are rejected",
+      "status": "pending"
+    },
+    {
+      "criterion": "Workflow resumes on a different worker after restart",
+      "gherkin": "Given a worker process restarts while a run is waiting for approval when a different worker picks up the workflow then it resumes in the same waiting state and continues from the same proposal context",
+      "status": "pending"
+    },
+    {
+      "criterion": "Approval channel is unavailable",
+      "gherkin": "Given the human approval channel is unavailable when the workflow attempts to create the approval request then the workflow fails without treating the unnotified request as approved",
+      "status": "pending"
+    },
+    {
+      "criterion": "Approved diff differs from the originally proposed diff",
+      "gherkin": "Given the diff bound to the approval record differs from the diff being executed when the workflow attempts to apply the change then execution is rejected and the change is not applied",
+      "status": "pending"
+    }
+  ],
+  "impacted_layers": {
+    "ui": [
+      "Approval review interface for proposed evaluation expectation diffs",
+      "Approval history and measurement context viewer"
+    ],
+    "api": [
+      "EddRefinementWorkflow approval gate and bounded wait loop",
+      "ApproveEvaluationChangeSignal handler",
+      "GetApprovalStatusQuery",
+      "RequestHumanApproval and RecordHumanApprovalDecision activities",
+      "DiffIntegrityCheck activity"
+    ],
+    "database": [
+      "ApprovalRequest record",
+      "ProgressRecord schema version 2",
+      "HumanApprovedEvaluationChange audit record"
+    ],
+    "external_services": [
+      "Cadence workflow engine",
+      "Trusted human decision channel / notification system"
+    ]
+  },
+  "steps": [
+    {
+      "description": "Extend PlanningResult to carry proposal_id and proposed_diff_hash",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Add approval gate to EddRefinementWorkflow for propose_evaluation_expectation_change actions",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Define ApprovalRequest data model and persist it in ProgressRecord",
+      "layer": "database",
+      "status": "pending"
+    },
+    {
+      "description": "Implement RequestHumanApproval activity to write the durable approval request",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Implement _await_approval bounded wait using wait_condition and sleep",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Add approve_evaluation_change signal and get_approval_status query",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Validate executed diff hash against the approved diff hash before application",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Record HumanApprovedEvaluationChange with approval_context 'human_approved_evaluation_change'",
+      "layer": "database",
+      "status": "pending"
+    },
+    {
+      "description": "Route rejection or timeout to planning or stop according to policy",
+      "layer": "api",
+      "status": "pending"
+    },
+    {
+      "description": "Write Human approve_evaluation_change signal script, support getting approval status, and ids. Follow helper script pattern",
+      "layer": "support",
+      "status": "pending"
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      {
+        "description": "Approval gate branches only for propose_evaluation_expectation_change",
+        "layer": "api"
+      },
+      {
+        "description": "Timeout is treated as no approval",
+        "layer": "api"
+      },
+      {
+        "description": "Diff hash mismatch rejects execution",
+        "layer": "api"
+      },
+      {
+        "description": "ProgressRecord schema version 2 serializes and deserializes approval state",
+        "layer": "database"
+      }
+    ],
+    "integration_tests": [
+      {
+        "description": "End-to-end approval wait with signal vs. timeout",
+        "layer": "api"
+      },
+      {
+        "description": "ProgressRecord persistence and resume across worker restart",
+        "layer": "database"
+      },
+      {
+        "description": "Signal delivery and GetApprovalStatus query",
+        "layer": "api"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "description": "Human approver reviews, approves, and sees the approved change recorded",
+        "layer": "ui"
+      },
+      {
+        "description": "Rejection returns the workflow to planning",
+        "layer": "ui"
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Cadence wait implementation could introduce non-determinism",
+      "mitigation": "Reuse the existing story_analysis_workflow wait_condition/sleep race pattern",
+      "layer": "api"
+    },
+    {
+      "risk": "Worker restart loses pending approval state or proposal context",
+      "mitigation": "Persist the approval request in ProgressRecord and reload via create_or_resume",
+      "layer": "database"
+    },
+    {
+      "risk": "Approved diff is silently mutated after approval",
+      "mitigation": "Recompute and compare the diff hash before application; reject on mismatch",
+      "layer": "api"
+    },
+    {
+      "risk": "Implicit approval from timeout or channel failure",
+      "mitigation": "Treat timeout and missing decisions as no approval; fail the workflow if the approval request cannot be created",
+      "layer": "api"
+    },
+    {
+      "risk": "Human-approved changes are conflated with skill-behavior changes in audit",
+      "mitigation": "Record with approval_context 'human_approved_evaluation_change'",
+      "layer": "database"
+    }
+  ]
+}

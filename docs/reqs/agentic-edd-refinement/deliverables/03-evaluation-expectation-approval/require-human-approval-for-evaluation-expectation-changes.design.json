@@ -1,0 +1,405 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/03-evaluation-expectation-approval/require-human-approval-for-evaluation-expectation-changes.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/03-evaluation-expectation-approval/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "PlanningCompleted: the planning activity returns a PlanningResult with requires_approval=true for a propose_evaluation_expectation_change action. This is the current-reality end state; the workflow now branches instead of returning.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "PlanningResult",
+          "data_shape": "{action, rationale, evidence, intended_files, expected_effect, requires_approval: true, stop_recommendation, proposal_id, proposed_diff_hash}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "ApprovalRequestCreated: the workflow persists a durable approval request into the progress record, binding the proposal identifier and the exact proposed diff hash to the run. The workflow transitions to a waiting-for-approval state.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ApprovalRequest",
+          "data_shape": "{approval_request_id, proposal_id, proposed_diff_hash, requested_at, timeout_seconds, status: 'pending'}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "HumanApprovalWaitStarted: the workflow opens a bounded Cadence wait by racing a wait_condition for the approval signal against a sleep timer. The workflow state exposes the pending approval via query.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "CadenceWaitRace",
+          "data_shape": "{wait_condition: approval_signal_received, sleep: approval_timeout_seconds}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "HumanDecisionReceived or ApprovalTimedOut: a human sends an approve/reject signal, or the sleep timer fires. The workflow records the decision and persists it, binding it to the same approval request and proposal context.",
+      "layers_involved": ["Frontend", "Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "ApproveEvaluationChangeSignal",
+          "data_shape": "{decision: 'approve'|'reject', proposal_id, notes}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ApprovalRequest",
+          "data_shape": "{approval_request_id, proposal_id, decision: 'approve'|'reject'|'timeout', decided_at, status: 'decided'}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "ApprovedDiffIntegrityVerified: on approve, the workflow compares the executed diff hash with the originally proposed diff hash. If they differ, the execution is rejected and the change is not applied.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "DiffIntegrityCheck",
+          "data_shape": "{proposed_diff_hash, executed_diff_hash, matched: bool}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "HumanApprovedEvaluationChangeApplied or RejectionRouted: if approved and the diff matches, the workflow records the change as human-approved and proceeds to apply it in a distinct measurement context. If rejected or timed out, the workflow routes to planning or stops per policy.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "HumanApprovedEvaluationChange",
+          "data_shape": "{approval_request_id, proposal_id, applied_diff_hash, applied_at, approval_context: 'human_approved_evaluation_change'}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "WorkerResumptionPreservedContext: if a worker restarts or fails over while waiting for approval, the resumed workflow reloads the progress record and continues from the same pending approval and proposal context.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, approval_request, schema_version} -> resumed state"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "RequestHumanApproval",
+      "description": "Emitted when the workflow creates a durable approval request after planning selects a propose_evaluation_expectation_change action.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "Stable id for this approval request." },
+        { "point": "proposal_id", "description": "Stable identifier or canonical hash for the proposed evaluation change." },
+        { "point": "proposed_diff_hash", "description": "Canonical hash of the exact proposed diff." },
+        { "point": "timeout_seconds", "description": "Configured approval timeout before the request is treated as no approval." }
+      ]
+    },
+    {
+      "event_name": "ReceiveHumanApprovalSignal",
+      "description": "Emitted when an approve or reject signal is delivered to the waiting workflow.",
+      "layers_involved": ["Frontend", "Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval request the signal targets." },
+        { "point": "decision", "description": "approve or reject." },
+        { "point": "notes", "description": "Optional human-provided notes." }
+      ]
+    },
+    {
+      "event_name": "ApprovalTimeout",
+      "description": "Emitted when the approval wait timer fires before a human decision is received.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval request that timed out." },
+        { "point": "timeout_seconds", "description": "Configured timeout that elapsed." }
+      ]
+    },
+    {
+      "event_name": "RecordApprovalDecision",
+      "description": "Emitted when the workflow persists an approval, rejection, or timeout decision in the progress record.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval request that was decided." },
+        { "point": "decision", "description": "approve, reject, or timeout." },
+        { "point": "proposed_diff_hash", "description": "Canonical hash of the diff bound to this decision." }
+      ]
+    },
+    {
+      "event_name": "RejectDiffMismatch",
+      "description": "Emitted when the executed diff does not match the proposed diff hash bound to the approval.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval request being validated." },
+        { "point": "proposed_diff_hash", "description": "Expected diff hash from the approval." },
+        { "point": "executed_diff_hash", "description": "Actual diff hash seen at execution." }
+      ]
+    },
+    {
+      "event_name": "ApplyHumanApprovedEvaluationChange",
+      "description": "Emitted when the workflow applies a diff that has been approved and whose hash matches the approved proposal.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval that authorized the change." },
+        { "point": "applied_diff_hash", "description": "Canonical hash of the applied diff." },
+        { "point": "approval_context", "description": "human_approved_evaluation_change to distinguish from skill-behavior changes." }
+      ]
+    },
+    {
+      "event_name": "RejectEvaluationChangeReroute",
+      "description": "Emitted when a rejection or timeout causes the workflow to return to planning or stop.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "approval_request_id", "description": "The approval request that was rejected or timed out." },
+        { "point": "decision", "description": "reject or timeout." },
+        { "point": "next_state", "description": "planning or stopped." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Display the proposed evaluation expectation diff or stable proposal identifier to the human approver.",
+          "intent": "Display of what the user is approving is a frontend concern; no enforcement logic lives here."
+        },
+        {
+          "responsibility": "Present approve, reject, and optional notes controls, and send the decision through the trusted human decision channel.",
+          "intent": "Human interaction controls are presentation and interaction concerns."
+        },
+        {
+          "responsibility": "Show approval history and measurement context, including the status and decision of pending or completed approval requests.",
+          "intent": "Observability of the durable state is a display concern."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Detect when a planning result requires human approval because it proposes an evaluation expectation change, and branch the workflow into the durable approval wait.",
+          "intent": "This is core business logic: only the backend can decide when the story's approval gate applies."
+        },
+        {
+          "responsibility": "Run the bounded Cadence wait race (wait_condition for approval signal vs. sleep timer) and treat timeout as no approval.",
+          "intent": "Durable, fault-oblivious waiting is the workflow's defensible zone; the backend owns the orchestration semantics."
+        },
+        {
+          "responsibility": "Validate the exact diff hash or proposal identifier bound to the approval against the diff being executed, and reject execution on mismatch.",
+          "intent": "Security and integrity enforcement belong in the backend; the frontend only sees the proposal."
+        },
+        {
+          "responsibility": "Apply only the approved diff and record the change as a human-approved evaluation change distinct from skill-behavior changes.",
+          "intent": "The backend owns the measurement context and audit classification."
+        },
+        {
+          "responsibility": "Route rejection or timeout to planning or stop according to the configured policy.",
+          "intent": "Action selection and routing are backend business logic."
+        },
+        {
+          "responsibility": "Expose a query for the current approval status so the frontend can poll without mutating state.",
+          "intent": "Read-only status observability is a backend query concern."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist the approval request, proposal context, timeout, and final decision inside the schema-versioned progress record under .process/edd/<run_id>/.",
+          "intent": "Storage of durable state is the data layer's responsibility; colocation with the target repo supports worker resumption and failover."
+        },
+        {
+          "responsibility": "Guarantee that the approved diff hash stored in the approval request cannot be silently altered.",
+          "intent": "Data integrity for the exact approved diff is a storage concern."
+        },
+        {
+          "responsibility": "Redact any credentials, paths, or environment variables before writing approval-related records.",
+          "intent": "Security of persisted artifacts is a data-integrity concern shared with the existing ProgressRecordSerializer."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ApprovalRequest",
+      "description": "Durable record of a single human-approval request for a proposed evaluation expectation change.",
+      "changes": {
+        "added": "approval_request_id, run_id, proposal_id, proposed_diff_hash, requested_at, timeout_seconds, status, decision, decided_at, notes",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Existing EDD progress record is extended to carry the current approval request and history of approval decisions.",
+      "changes": {
+        "added": "approval_request, approval_history",
+        "modified": "schema_version: bump to 2",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HumanApprovedEvaluationChange",
+      "description": "Audit record for a human-approved evaluation expectation change, kept distinct from skill-behavior changes.",
+      "changes": {
+        "added": "approval_request_id, proposal_id, applied_diff_hash, applied_at, approval_context='human_approved_evaluation_change'",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RequestHumanApproval",
+      "description": "Workflow-internal activity or pure workflow logic that writes a new ApprovalRequest into the progress record and emits the corresponding event.",
+      "changes": {
+        "added": "input: PlanningResult; output: ApprovalRequest",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ApproveEvaluationChangeSignal",
+      "description": "Cadence Signal sent by the human decision channel to approve or reject a specific pending proposal.",
+      "changes": {
+        "added": "signal name 'approve_evaluation_change' with payload {decision: 'approve'|'reject', proposal_id, notes}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "GetApprovalStatusQuery",
+      "description": "Cadence Query that returns the current approval request status, proposal identifier, and timeout.",
+      "changes": {
+        "added": "query name 'get_approval_status' returning {approval_request_id, proposal_id, status, requested_at, timeout_seconds, decision}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "RecordHumanApprovalDecision",
+      "description": "Workflow step that persists the approval, rejection, or timeout decision and updates the progress record.",
+      "changes": {
+        "added": "input: ApprovalRequest, decision; output: updated ApprovalRequest",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "BoundedDurableApprovalWait",
+      "description": "Cadence workflow waits for a signal using a wait_condition/sleep race, then records and acts on the first valid decision. Reuses the pattern from story_analysis_workflow._await_human_response.",
+      "changes": {
+        "added": "EddRefinementWorkflow implements _await_approval using wait_condition and sleep",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Reuse the existing story_analysis_workflow wait_condition/sleep race for the durable human-approval wait.",
+      "justification": "The cadence-python-client lacks a Go-style Selector, and the story analysis workflow already contains a working, tested pattern for bounded signal-or-timer waits. Reusing it avoids introducing a new workflow primitive and keeps EDD workflow code consistent with the reference implementation.",
+      "basis": "Pattern seen in src/story_analysis_workflow/workflow.py",
+      "impact": "EddRefinementWorkflow gains a _await_approval method and an approve_evaluation_change signal; no new Cadence client feature is required.",
+      "answers_open_question": "Does the human decision channel use Temporal signals, a message queue, or a direct UI write?"
+    },
+    {
+      "decision": "Persist the approval request and decision inside the existing ProgressRecord under the target repository .process/edd/<run_id>/progress.json.",
+      "justification": "Colocating approval state with the run's durable state supports worker resumption, failover, and recovery without a separate storage service. It also follows the existing EDD ProgressRecord conventions and ADR-018's target-context principle.",
+      "basis": "ADR-004, ADR-018, pattern seen in src/edd_refinement_workflow/progress_record.py",
+      "impact": "ProgressRecord schema is bumped to version 2 with approval_request and approval_history fields; ProgressRecordSerializer allow-list is extended.",
+      "answers_open_question": "What happens to an in-flight run when the worker restarts mid-approval?"
+    },
+    {
+      "decision": "Treat an absent human decision before the configured timeout as a rejection and never as implicit approval.",
+      "justification": "The story explicitly states this as a business rule (EDD-005-AC2). Defaulting to no approval is the only safe behavior for evaluation expectation changes that affect the measurement context.",
+      "basis": "Explicit Architectural Change from Story (EDD-005-AC2)",
+      "impact": "Workflow timeout branch routes to planning or stop, not apply; the approval request is recorded with decision='timeout'.",
+      "answers_open_question": "What is the approval timeout policy value and can it vary by proposal type?"
+    },
+    {
+      "decision": "Use a canonical diff hash or stable proposal identifier as the binding key between the approval request and the executed diff.",
+      "justification": "This ensures the exact diff the human approved is the only diff applied. If the diff is later mutated, the hash mismatch fails the integrity check before application, satisfying EDD-005-AC4 and the approved-diff-mismatch edge case.",
+      "basis": "Pattern implied by PlanningResult.proposed_diff_hash; explicit requirement from EDD-005-AC4",
+      "impact": "PlanningResult must carry a stable proposal_id and proposed_diff_hash; the workflow validates the hash before any application activity.",
+      "answers_open_question": "How is the exact diff or stable proposal identifier canonicalized to avoid mismatches?"
+    },
+    {
+      "decision": "Record human-approved evaluation expectation changes in a separate measurement context from skill-behavior changes.",
+      "justification": "ADR-017 requires human-approved evaluation changes to be recorded in a separate measurement context so the quality ratchet compares against the right baseline. Distinct audit records avoid conflating automatic skill changes with human-approved rubric changes.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet",
+      "impact": "A new HumanApprovedEvaluationChange record type is introduced; apply step tags the measurement context as human_approved_evaluation_change.",
+      "answers_open_question": "What distinguishes a human-approved evaluation change from a skill-behavior change in the audit log?"
+    },
+    {
+      "decision": "Keep the approval state machine and decision logic inside the EddRefinementWorkflow rather than a separate skill Activity.",
+      "justification": "The approval gate is part of the EDD workflow's business logic, not an independently composable skill. It needs direct access to workflow signals, queries, and durable workflow state. However, the exact diff validation and progress-record writes are delegated to Activities to preserve determinism and testability.",
+      "basis": "ADR-003: Skills-Based Architecture; ADR-013: Three-Layer Workflow Module Architecture",
+      "impact": "EddRefinementWorkflow grows signal handlers and a query; a new validation Activity may be added for diff-integrity checks.",
+      "answers_open_question": ""
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the approval timeout policy value and can it vary by proposal type?",
+      "answer": "A single per-run timeout is read from the skill-activity invocation configuration (or a default) and passed into the EddRefinementWorkflow at startup. It does not vary by proposal type in the initial implementation.",
+      "justification": "This is the smallest change from the existing invocation-config pattern used by baseline and planning activities, and the story does not require proposal-type-specific timeouts.",
+      "basis": "ADR-012: Skill Activity Invocation Configuration, pattern seen in src/edd_refinement_workflow/workflow.py request.get('proposed_action')"
+    },
+    {
+      "question": "Does the human decision channel use Temporal signals, a message queue, or a direct UI write?",
+      "answer": "The human decision channel uses a Cadence Signal named approve_evaluation_change, sent via a client helper similar to src/story_analysis_workflow/signals.py.",
+      "justification": "Cadence is the durable workflow engine already in use, and a Signal is the correct primitive for out-of-band human decisions that must be replay-safe.",
+      "basis": "Pattern seen in src/story_analysis_workflow/signals.py and src/story_analysis_workflow/workflow.py"
+    },
+    {
+      "question": "How is the exact diff or stable proposal identifier canonicalized to avoid mismatches?",
+      "answer": "The planning activity produces a stable proposal_id and a canonical proposed_diff_hash. The approval request stores both; before application, the workflow recomputes the hash of the diff to be executed and rejects any mismatch.",
+      "justification": "A hash is deterministic and compact, making it easy to persist and compare without storing the full diff twice. The proposal_id gives humans a stable reference for signals and UIs.",
+      "basis": "Functional Alchemy: derive a stable identifier once and store it; pattern implied by PlanningResult fields"
+    },
+    {
+      "question": "What distinguishes a human-approved evaluation change from a skill-behavior change in the audit log?",
+      "answer": "The audit log uses a new approval_context value of 'human_approved_evaluation_change', recorded alongside the applied_diff_hash and the linked approval_request_id.",
+      "justification": "This provides an explicit, queryable tag that measurement and reporting can use to isolate the human-approved measurement context from autonomously applied skill-behavior changes.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet"
+    },
+    {
+      "question": "What happens to an in-flight run when the worker restarts mid-approval?",
+      "answer": "The resumed worker re-executes the workflow from the Cadence event history, reloads the progress record through the existing create_or_resume mechanism, and continues waiting on the same approval_request_id without re-creating it.",
+      "justification": "Cadence's deterministic replay preserves the in-flight wait, and the ProgressRecord is the durable source of truth for the pending approval state.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/progress_record.py and src/edd_refinement_workflow/activities/initialize_run.py"
+    }
+  ]
+}
