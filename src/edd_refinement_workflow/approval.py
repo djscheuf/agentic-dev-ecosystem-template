@@ -14,6 +14,14 @@ class ApprovalService:
         timeout_seconds: int,
         requested_at: str,
     ) -> dict:
+        existing = record.get("approval_request")
+        if existing and existing.get("status") == "pending":
+            if (
+                existing.get("proposal_id") != proposal_id
+                or existing.get("proposed_diff_hash") != proposed_diff_hash
+            ):
+                raise ValueError("pending approval does not match proposal context")
+            return existing
         approval_request = {
             "approval_request_id": f"approval-{proposal_id}",
             "run_id": record["run_id"],

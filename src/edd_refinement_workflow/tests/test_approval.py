@@ -31,6 +31,19 @@ def test_approval_service_persists_first_decision_and_history(tmp_path) -> None:
     assert store.create_or_resume("run-1", {})["approval_request"] == decided
 
 
+def test_approval_service_resumes_the_same_pending_request(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    record = {"schema_version": 2, "run_id": "run-1", "approval_history": []}
+    store.create_or_resume("run-1", record)
+    service = ApprovalService(store)
+    original = service.request(record, "proposal-1", "abc123", 60, "requested")
+
+    resumed = service.request(record, "proposal-1", "abc123", 60, "later")
+
+    assert resumed == original
+    assert resumed["requested_at"] == "requested"
+
+
 def test_approval_service_rejects_changed_diff_and_classifies_matching_diff(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     record = {"schema_version": 2, "run_id": "run-1", "approval_history": []}

@@ -10,27 +10,27 @@
     {
       "criterion": "EDD-005-AC1: Given the selected action proposes changing an evaluation expectation, including an LLM rubric, when the workflow reaches the approval step, then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier.",
       "gherkin": "Given the selected action proposes changing an evaluation expectation including an LLM rubric when the workflow reaches the approval step then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-005-AC2: Given an approval request is pending, when no decision is received before the configured approval timeout, then the workflow treats the absence of a decision as no approval, never as implicit approval.",
       "gherkin": "Given an approval request is pending when no decision is received before the configured approval timeout then the workflow treats the absence of a decision as no approval and never as implicit approval",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-005-AC3: Given a human rejects the proposed evaluation change, when the rejection is recorded, then the workflow returns to planning or stops according to policy, and the change is not applied.",
       "gherkin": "Given a human rejects the proposed evaluation change when the rejection is recorded then the workflow returns to planning or stops according to policy and the change is not applied",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-005-AC4: Given a human approves the exact proposed diff, when execution proceeds, then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change.",
       "gherkin": "Given a human approves the exact proposed diff when execution proceeds then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "EDD-005-AC5: Given a worker restarts while a run is waiting for approval, when the workflow resumes, then it continues waiting on the same pending approval without losing the proposal context.",
       "gherkin": "Given a worker restarts while a run is waiting for approval when the workflow resumes then it continues waiting on the same pending approval without losing the proposal context",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "edge_cases": [
