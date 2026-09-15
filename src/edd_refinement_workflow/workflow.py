@@ -188,18 +188,18 @@ class EddRefinementWorkflow:
     async def _handle_regression(self, run_id, candidate_id, original, confirmation, best_state, repo_root, stop_threshold):
         classification = await execute_activity("classify_regression_evidence", dict, original, confirmation, best_state, start_to_close_timeout=timedelta(minutes=5))
         if classification["classification"] != "confirmed_regression":
-            handoff = await execute_activity("human_handoff", dict, run_id, classification["classification"], {"original": original, "confirmation": confirmation}, start_to_close_timeout=timedelta(minutes=5))
+            handoff = await execute_activity("human_handoff", dict, run_id, classification["classification"], {"original": original, "confirmation": confirmation}, repo_root, start_to_close_timeout=timedelta(minutes=5))
             self._regression_status = {"classification": classification, "human_handoff": handoff, "next_state": "pending_human_review"}
             return self._regression_status
         regression = await execute_activity("record_confirmed_regression", dict, run_id, candidate_id, original, confirmation, stop_threshold, repo_root, start_to_close_timeout=timedelta(minutes=5))
         if regression["threshold_reached"]:
-            handoff = await execute_activity("human_handoff", dict, run_id, "stop_threshold", regression, start_to_close_timeout=timedelta(minutes=5))
+            handoff = await execute_activity("human_handoff", dict, run_id, "stop_threshold", regression, repo_root, start_to_close_timeout=timedelta(minutes=5))
             self._regression_status = {"classification": classification, "regression": regression, "human_handoff": handoff, "next_state": "pending_human_review"}
             return self._regression_status
         restored = await execute_activity("revert_repository_to_best", dict, run_id, repo_root, best_state, start_to_close_timeout=timedelta(minutes=5))
         recovery_metrics = await execute_activity("evaluate_candidate", dict, run_id, "best_accepted_recovery", repo_root, start_to_close_timeout=timedelta(minutes=30))
         recovery = await execute_activity("verify_recovery_metrics", dict, recovery_metrics, best_state["metrics"], start_to_close_timeout=timedelta(minutes=5))
-        context = await execute_activity("record_reverted_proposal_context", dict, run_id, {"candidate_id": candidate_id, "observed_degradation": original, "confirmation_result": confirmation, "recovery_result": recovery}, start_to_close_timeout=timedelta(minutes=5))
+        context = await execute_activity("record_reverted_proposal_context", dict, run_id, {"candidate_id": candidate_id, "observed_degradation": original, "confirmation_result": confirmation, "recovery_result": recovery}, repo_root, start_to_close_timeout=timedelta(minutes=5))
         self._regression_status = {"classification": classification, "regression": regression, "restored": restored, "recovery": recovery, "reverted_proposal": context, "next_state": "planning" if recovery["recovered"] else "pending_human_review"}
         return self._regression_status
 

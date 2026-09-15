@@ -383,6 +383,7 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
     assert calls[-3][1][1] == "candidate-1"
     assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
     assert result["regression_recovery"]["next_state"] == "pending_human_review"
+    assert calls[-1][1][-1] == str(tmp_path)
 
 
 @pytest.mark.asyncio
