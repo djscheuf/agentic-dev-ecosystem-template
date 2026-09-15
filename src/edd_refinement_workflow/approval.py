@@ -14,6 +14,8 @@ class ApprovalService:
         timeout_seconds: int,
         requested_at: str,
     ) -> dict:
+        if not proposal_id or not proposed_diff_hash:
+            raise ValueError("approval requires stable proposal context")
         existing = record.get("approval_request")
         if existing and existing.get("status") == "pending":
             if (

@@ -42,7 +42,7 @@
     {
       "criterion": "Proposal identifier is not stable or not found on resume",
       "gherkin": "Given the stable proposal identifier cannot be resolved when the workflow resumes then the workflow treats it as a failed approval and routes to planning or stops",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Approval decision is received after timeout",
@@ -52,22 +52,22 @@
     {
       "criterion": "Multiple approval decisions are submitted for the same proposal",
       "gherkin": "Given multiple approval decisions are submitted for the same proposal identifier when the workflow processes them then only the first valid decision is recorded and subsequent decisions are rejected",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Workflow resumes on a different worker after restart",
       "gherkin": "Given a worker process restarts while a run is waiting for approval when a different worker picks up the workflow then it resumes in the same waiting state and continues from the same proposal context",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Approval channel is unavailable",
       "gherkin": "Given the human approval channel is unavailable when the workflow attempts to create the approval request then the workflow fails without treating the unnotified request as approved",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Approved diff differs from the originally proposed diff",
       "gherkin": "Given the diff bound to the approval record differs from the diff being executed when the workflow attempts to apply the change then execution is rejected and the change is not applied",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "impacted_layers": {
