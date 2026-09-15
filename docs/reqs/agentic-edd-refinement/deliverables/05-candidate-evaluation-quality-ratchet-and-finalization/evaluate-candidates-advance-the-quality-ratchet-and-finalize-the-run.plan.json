@@ -230,7 +230,7 @@
     {
       "description": "Implement commit_accepted_candidate Activity to commit the accepted candidate, update the best accepted state, and reset the consecutive-regression counter.",
       "layer": "backend",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "description": "Implement rerun_degraded_candidate Activity to rerun the complete suite unchanged and classify confirmed regressions.",

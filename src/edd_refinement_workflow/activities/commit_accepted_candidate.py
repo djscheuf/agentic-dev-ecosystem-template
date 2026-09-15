@@ -1,3 +1,4 @@
+import subprocess
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -38,6 +39,23 @@ class CommitAcceptedCandidateActivity:
         return best_state
 
 
+def _commit_repository(repo_root: str, message: str) -> str:
+    subprocess.run(["git", "-C", repo_root, "add", "-A"], check=True)
+    subprocess.run(["git", "-C", repo_root, "commit", "-m", message], check=True)
+    completed = subprocess.run(
+        ["git", "-C", repo_root, "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return completed.stdout.strip()
+
+
 @activity.defn(name="commit_accepted_candidate")
 async def commit_accepted_candidate_activity(run_id: str, metric: dict, repo_root: str) -> dict:
-    raise NotImplementedError
+    from ..progress_record import ProgressRecordStore
+
+    return CommitAcceptedCandidateActivity(
+        ProgressRecordStore(repo_root),
+        commit=lambda message: _commit_repository(repo_root, message),
+    ).run(run_id, metric)

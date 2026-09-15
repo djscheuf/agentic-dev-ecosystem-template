@@ -226,7 +226,7 @@
         {
           "id": 23,
           "name": "CommitAcceptedCandidateActivity_UsesTargetGitRepository_UpdatesState",
-          "status": "pending",
+          "status": "passing",
           "description": "The deployed acceptance entrypoint commits in the target repository and updates progress.",
           "arrange": "Persist candidate state and replace the Git commit operation.",
           "act": "Invoke the Cadence Activity entrypoint.",
