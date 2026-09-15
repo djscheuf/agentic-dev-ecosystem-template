@@ -234,7 +234,7 @@ class EddRefinementWorkflow:
             return self._regression_status
         regression = await execute_activity("record_confirmed_regression", dict, run_id, candidate_id, original, confirmation, stop_threshold, repo_root, start_to_close_timeout=timedelta(minutes=5))
         if regression["threshold_reached"]:
-            handoff = await execute_activity("human_handoff", dict, run_id, "stop_threshold", regression, repo_root, start_to_close_timeout=timedelta(minutes=5))
+            handoff = await execute_activity("publish_human_handoff", dict, run_id, "regression_threshold", repo_root, start_to_close_timeout=timedelta(minutes=5))
             self._regression_status = {"classification": classification, "regression": regression, "human_handoff": handoff, "next_state": "pending_human_review"}
             return self._regression_status
         restored = await execute_activity("revert_repository_to_best", dict, run_id, repo_root, best_state, start_to_close_timeout=timedelta(minutes=5))

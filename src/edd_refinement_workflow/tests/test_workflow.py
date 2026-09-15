@@ -489,6 +489,28 @@ async def test_confirmed_regression_restores_and_verifies_before_continuing(monk
 
 
 @pytest.mark.asyncio
+async def test_workflow_at_third_confirmed_regression_publishes_structured_handoff(monkeypatch) -> None:
+    calls = []
+
+    async def mock_execute(name, result_type, *args, **kwargs):
+        calls.append(name)
+        return {
+            "classify_regression_evidence": {"classification": "confirmed_regression"},
+            "record_confirmed_regression": {"consecutive_confirmed_regressions": 3, "threshold_reached": True},
+            "publish_human_handoff": {"stop_reason": "regression_threshold", "attempts": [{}, {}, {}]},
+        }[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    result = await EddRefinementWorkflow()._handle_regression(
+        "run-1", "candidate-3", {"passing": 4}, {"passing": 4},
+        {"commit": "best", "metrics": {"passing": 5}}, "/repo", 3,
+    )
+
+    assert calls == ["classify_regression_evidence", "record_confirmed_regression", "publish_human_handoff"]
+    assert result["human_handoff"]["stop_reason"] == "regression_threshold"
+
+
+@pytest.mark.asyncio
 async def test_workflow_after_token_consuming_steps_accounts_usage_and_regates(monkeypatch) -> None:
     calls = []
 

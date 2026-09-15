@@ -131,7 +131,7 @@
         {
           "id": 13,
           "name": "Workflow_AtThirdConfirmedRegression_PublishesStructuredHandoff",
-          "status": "pending",
+          "status": "passing",
           "description": "The third confirmed harmful proposal stops recovery work and publishes the structured three-attempt report.",
           "arrange": "Mock confirmed evidence and a threshold-reaching regression record.",
           "act": "Handle the regression.",
