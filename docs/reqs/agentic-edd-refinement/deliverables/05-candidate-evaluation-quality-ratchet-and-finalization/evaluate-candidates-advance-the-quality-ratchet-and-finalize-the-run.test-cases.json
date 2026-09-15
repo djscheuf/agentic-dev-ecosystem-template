@@ -178,6 +178,38 @@
           "assert": "Commit, rerun, and finalization Activity contracts are declared and registered."
         }
       ]
+    },
+    {
+      "description": "Priority 4: Terminal and retry orchestration",
+      "tests": [
+        {
+          "id": 19,
+          "name": "Workflow_WithDegradedComparison_RerunsCandidate",
+          "status": "passing",
+          "description": "An apparent degradation routes to an unchanged confirmation rerun.",
+          "arrange": "Mock a scope-valid degraded evaluation and rerun comparison decision.",
+          "act": "Run the refinement workflow.",
+          "assert": "rerun_degraded_candidate follows comparison and receives the same candidate identifier."
+        },
+        {
+          "id": 20,
+          "name": "Workflow_WithStopPlan_FinalizesRun",
+          "status": "pending",
+          "description": "A terminal planning decision publishes the terminal result before returning.",
+          "arrange": "Mock initialization, baseline evaluation, a stop plan, and finalization.",
+          "act": "Run the refinement workflow.",
+          "assert": "finalize_run is called with the terminal reason and its result is returned."
+        },
+        {
+          "id": 21,
+          "name": "Workflow_WhenEvaluatingCandidate_AppliesRetryPolicy",
+          "status": "pending",
+          "description": "Candidate evaluation uses the configured Activity retry policy without changing logical iterations.",
+          "arrange": "Mock workflow Activities through a scope-valid candidate.",
+          "act": "Run the refinement workflow.",
+          "assert": "evaluate_candidate receives the configured timeout and retry policy."
+        }
+      ]
     }
   ]
 }

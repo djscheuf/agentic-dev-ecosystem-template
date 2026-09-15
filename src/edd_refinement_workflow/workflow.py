@@ -148,6 +148,17 @@ class EddRefinementWorkflow:
                     str(preflight_result.target_context.repo_root),
                     start_to_close_timeout=timedelta(minutes=5),
                 )
+            elif comparison["decision"] == "rerun":
+                result["confirmation_rerun"] = await execute_activity(
+                    "rerun_degraded_candidate",
+                    dict,
+                    record["run_id"],
+                    candidate["candidate_id"],
+                    str(preflight_result.target_context.repo_root),
+                    start_to_close_timeout=timedelta(
+                        seconds=request["profile"]["timeout"]
+                    ),
+                )
         self._candidate = candidate
         return result
 

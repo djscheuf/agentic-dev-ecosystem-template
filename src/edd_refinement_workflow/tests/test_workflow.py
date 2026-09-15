@@ -341,5 +341,33 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
     assert result["best_accepted_state"]["commit"] == "commit-1"
 
 
+@pytest.mark.asyncio
+async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monkeypatch) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append((name, args))
+        responses = {
+            "initialize_run": {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}}},
+            "run_baseline_evaluation": {"passing": 5},
+            "plan_refinement_action": {"action": "repair"},
+            "execute_refinement_action": {"status": "success"},
+            "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
+            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
+            "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
+        }
+        return responses[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr("edd_refinement_workflow.workflow.compare_candidate_to_best", lambda candidate, best: {"decision": "rerun"})
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc123456"))
+
+    result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
+
+    assert [name for name, _ in calls][-2:] == ["evaluate_candidate", "rerun_degraded_candidate"]
+    assert calls[-1][1][1] == "candidate-1"
+    assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
+
+
 async def _result(value):
     return value
