@@ -361,6 +361,8 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
+            "classify_regression_evidence": {"classification": "unstable_result"},
+            "human_handoff": {"notified": True},
         }
         return responses[name]
 
@@ -370,9 +372,10 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
 
     result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
 
-    assert [name for name, _ in calls][-2:] == ["evaluate_candidate", "rerun_degraded_candidate"]
-    assert calls[-1][1][1] == "candidate-1"
+    assert [name for name, _ in calls][-4:] == ["evaluate_candidate", "rerun_degraded_candidate", "classify_regression_evidence", "human_handoff"]
+    assert calls[-3][1][1] == "candidate-1"
     assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
+    assert result["regression_recovery"]["next_state"] == "pending_human_review"
 
 
 @pytest.mark.asyncio
@@ -402,6 +405,31 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
         "maximum_attempts": 3,
         "initial_interval": timedelta(seconds=2),
     }
+
+
+@pytest.mark.asyncio
+async def test_confirmed_regression_restores_and_verifies_before_continuing(monkeypatch) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        return {
+            "classify_regression_evidence": {"classification": "confirmed_regression"},
+            "record_confirmed_regression": {"consecutive_confirmed_regressions": 1, "threshold_reached": False},
+            "revert_repository_to_best": {"repo_clean": True},
+            "evaluate_candidate": {"passing": 5},
+            "verify_recovery_metrics": {"recovered": True},
+            "record_reverted_proposal_context": {"candidate_id": "candidate-1"},
+        }[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    result = await EddRefinementWorkflow()._handle_regression(
+        "run-1", "candidate-1", {"passing": 4}, {"result": {"passing": 4}},
+        {"commit": "best-1", "metrics": {"passing": 5}}, "/repo", 3,
+    )
+
+    assert calls == ["classify_regression_evidence", "record_confirmed_regression", "revert_repository_to_best", "evaluate_candidate", "verify_recovery_metrics", "record_reverted_proposal_context"]
+    assert result["next_state"] == "planning"
 
 
 async def _result(value):

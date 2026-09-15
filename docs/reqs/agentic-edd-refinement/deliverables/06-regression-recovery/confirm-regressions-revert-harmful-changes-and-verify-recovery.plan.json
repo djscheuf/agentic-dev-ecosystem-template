@@ -125,7 +125,7 @@
     {
       "description": "IMPLEMENTATION PLAN: 4. Reuse EvaluateCandidate to run the recovery evaluation of the restored state using the same deterministic baseline_evaluation_configuration and target_repository_context.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 5. Add the VerifyRecoveryMetrics Activity that compares the recovery metric record to the recorded best accepted metrics for passing, failing, total, and required coverage, allowing only floating-point rounding on the percentage.",
@@ -145,12 +145,12 @@
     {
       "description": "IMPLEMENTATION PLAN: 8. Wire the workflow to rerun the degraded candidate unchanged, classify the combined evidence, and route to revert/recovery or human handoff based on the classification.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 9. Implement the stop-threshold check so that the consecutive-regression counter is incremented and checked immediately after confirmation and before any repository mutation.",
       "layer": "api",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "description": "IMPLEMENTATION PLAN: 10. Add frontend views for regression confirmation status, reverted-proposal context, and human handoff notifications.",
