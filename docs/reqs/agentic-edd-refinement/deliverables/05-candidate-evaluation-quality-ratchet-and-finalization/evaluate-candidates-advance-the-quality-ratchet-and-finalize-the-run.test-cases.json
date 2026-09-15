@@ -85,7 +85,7 @@
         {
           "id": 9,
           "name": "CompareCandidateToBest_WithCoverageLoss_RejectsCandidate",
-          "status": "pending",
+          "status": "passing",
           "description": "Required coverage loss blocks acceptance despite other metric gains.",
           "arrange": "Create a candidate with higher passing count and reduced required coverage.",
           "act": "Compare the candidate to the best accepted state.",

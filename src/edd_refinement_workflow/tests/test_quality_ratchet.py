@@ -37,3 +37,17 @@ def test_compare_candidate_to_best_with_new_required_coverage_accepts_candidate(
         "passing_delta": 0,
         "coverage_delta": {"required-2": 1},
     }
+
+
+def test_compare_candidate_to_best_with_coverage_loss_rejects_candidate() -> None:
+    best = metric(5, 6, {"required-1": 1, "required-2": 1})
+    candidate = metric(6, 7, {"required-1": 1, "required-2": 0})
+
+    result = compare_candidate_to_best(candidate, best)
+
+    assert result == {
+        "decision": "reject",
+        "reason": "required_coverage_reduced",
+        "passing_delta": 1,
+        "coverage_delta": {"required-2": -1},
+    }
