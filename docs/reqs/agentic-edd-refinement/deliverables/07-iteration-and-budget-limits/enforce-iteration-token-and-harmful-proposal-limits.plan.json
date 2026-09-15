@@ -10,59 +10,59 @@
     {
       "criterion": "Given the cumulative token budget or maximum iteration count has been reached, when the workflow checks its limits, then it schedules no further refinement step and exits with the best accepted state.",
       "gherkin": "Given the cumulative token budget or maximum iteration count has been reached When the workflow checks its limits Then it schedules no further refinement step and exits with the best accepted state",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given three consecutive proposed changes have each produced a confirmed regression, when the third revert and recovery check complete, then the workflow stops immediately regardless of remaining iteration or token budget and publishes a human handoff report of the three attempts.",
       "gherkin": "Given three consecutive proposed changes have each produced a confirmed regression When the third revert and recovery check completes Then the workflow stops immediately regardless of remaining budget or iterations and publishes a human handoff report of the three attempts",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given scheduling another agentic or evaluation step would exceed a known hard limit, when the workflow checks before scheduling, then that step is not scheduled.",
       "gherkin": "Given scheduling another agentic or evaluation step would exceed a known hard limit When the workflow checks before scheduling Then that step is not scheduled",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given an Activity is retried after a timeout or worker restart, when token usage is tallied, then the retry does not count as an additional logical iteration, but its observable token usage still counts toward the cumulative budget.",
       "gherkin": "Given an Activity is retried after a timeout or worker restart When token usage is tallied Then the retry does not count as an additional logical iteration but its observable token usage still counts toward the cumulative budget",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given unresolved flaky or inconclusive evaluation evidence, or an unverified recovery, is pending, when the workflow checks limits, then it does not schedule another autonomous refinement step until the pending condition is resolved.",
       "gherkin": "Given unresolved flaky or inconclusive evaluation evidence or an unverified recovery is pending When the workflow checks limits Then it does not schedule another autonomous refinement step until the pending condition is resolved",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "edge_cases": [
     {
       "criterion": "Token usage or iteration count is exactly at the configured limit",
       "gherkin": "Given the cumulative token usage equals the budget or the iteration count equals the maximum When the workflow checks limits Then it schedules no further refinement step and exits with the best accepted state",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Configured limits are zero or negative",
       "gherkin": "Given the maximum iteration limit or token budget is zero or negative When the workflow starts Then it does not schedule any refinement steps and exits with the initial best accepted state",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Token usage observation is missing for an Activity attempt",
       "gherkin": "Given token usage for an Activity attempt is not observed When the workflow tallies usage Then it treats the missing value as zero and continues without over-budgeting",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "First iteration with all counters at zero",
       "gherkin": "Given the workflow has no previous refinement attempts When it checks limits Then it schedules the first step because all counters are within bounds",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Activity retry after worker restart",
       "gherkin": "Given an Activity is retried because of a worker restart When the retry completes Then the token usage is added to the cumulative budget but the logical iteration count is unchanged",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Pending flaky evidence becomes resolved",
       "gherkin": "Given unresolved flaky evidence was blocking scheduling When the evidence is resolved Then the workflow resumes autonomous refinement if other limits are not exceeded",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Concurrent attempt to update durable counters",
@@ -72,7 +72,7 @@
     {
       "criterion": "Confirmed regression counter is reset by a successful recovery",
       "gherkin": "Given two consecutive confirmed regressions followed by a successful proposal When the next proposal is checked Then the consecutive regression count has been reset",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "impacted_layers": {

@@ -90,3 +90,9 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - The workflow checks configured limits before its first agentic step and finalizes immediately when blocked.
 - Structured regression-threshold handoff reports include the best accepted state, durable counter summary, and the three latest regression attempts.
 - The limit, counter, and structured handoff Activities are registered in the EDD refinement worker module.
+
+## Limit completion coverage (2026-09-15)
+
+- Regression evidence flags are durable and clear only after resolution.
+- The third confirmed regression routes directly to structured handoff publication without another restore or evaluation.
+- Counter updates on a shared Activity instance are serialized so concurrent completions do not corrupt or lose attempt state.
