@@ -81,3 +81,12 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Dedicated recovery Activities classify confirmation evidence, restore the accepted revision, verify exact recovery metrics, persist redacted reverted-proposal context, and record notification attempts.
 - Confirmed regressions increment and check the stop threshold before restore; non-confirmed evidence routes to human review.
 - The workflow exposes `get_regression_status` with classification, recovery, reverted-proposal, and handoff state for presentation clients.
+
+## Durable refinement limits (2026-09-15)
+
+- New runs persist configured iteration, token, hard-token, and regression budgets with zeroed logical-iteration, cumulative-token, pending-evidence, and attempt state.
+- `check_refinement_limits` returns stable iteration, token, hard-limit, regression-threshold, and pending-evidence scheduling decisions while preserving the best accepted state.
+- `update_durable_counters` records every Activity attempt and its token usage, including retries, while only non-retries advance the logical iteration count; missing usage is recorded as zero with an explicit marker.
+- The workflow checks configured limits before its first agentic step and finalizes immediately when blocked.
+- Structured regression-threshold handoff reports include the best accepted state, durable counter summary, and the three latest regression attempts.
+- The limit, counter, and structured handoff Activities are registered in the EDD refinement worker module.
