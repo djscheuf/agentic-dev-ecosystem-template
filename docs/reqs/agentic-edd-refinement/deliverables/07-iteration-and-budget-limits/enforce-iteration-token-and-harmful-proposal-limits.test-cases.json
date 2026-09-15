@@ -26,7 +26,7 @@
         {
           "id": 3,
           "name": "UpdateDurableCounters_WithMissingUsage_RecordsZeroAndMarker",
-          "status": "pending",
+          "status": "passing",
           "description": "Missing usage is auditable without inflating the token budget.",
           "arrange": "Persist a run and provide an attempt with no usage metrics.",
           "act": "Update durable counters.",

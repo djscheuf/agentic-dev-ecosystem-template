@@ -41,3 +41,29 @@ def test_update_durable_counters_with_retry_tracks_tokens_without_iteration_adva
         "attempt-1",
         "attempt-2",
     ]
+
+
+def test_update_durable_counters_with_missing_usage_records_zero_and_marker(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "logical_iteration_count": 0,
+            "cumulative_token_usage": 0,
+            "attempt_records": [],
+        },
+    )
+
+    result = UpdateDurableCountersActivity(store).run(
+        "run-1",
+        {
+            "attempt_id": "attempt-1",
+            "logical_iteration_number": 1,
+            "is_retry": False,
+            "status": "timeout",
+        },
+    )
+
+    assert result["cumulative_token_usage"] == 0
+    assert result["attempt_records"][0]["usage_missing"] is True
+    assert result["attempt_records"][0]["total_tokens"] == 0
