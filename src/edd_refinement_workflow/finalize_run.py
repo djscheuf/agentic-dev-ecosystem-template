@@ -1,4 +1,5 @@
 import json
+import subprocess
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -63,8 +64,28 @@ class FinalizeRunActivity:
         return result
 
 
+def _restore_repository(repo_root: str, commit: str) -> None:
+    subprocess.run(
+        ["git", "-C", repo_root, "reset", "--hard", commit], check=True
+    )
+
+
+def _release_lease(repo_root: str, run_id: str) -> None:
+    from common.mutation_lease_store import MutationLeaseStore
+
+    MutationLeaseStore().release(repo_root, run_id)
+
+
 @activity.defn(name="finalize_run")
 async def finalize_run_activity(
     run_id: str, terminal_reason: str, repo_root: str
 ) -> dict:
-    raise NotImplementedError
+    from .progress_record import ProgressRecordStore
+
+    return FinalizeRunActivity(
+        ProgressRecordStore(repo_root),
+        restore=lambda commit: _restore_repository(repo_root, commit),
+        release_lease=lambda current_run_id: _release_lease(
+            repo_root, current_run_id
+        ),
+    ).run(run_id, terminal_reason)

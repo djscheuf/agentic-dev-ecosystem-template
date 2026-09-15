@@ -1,6 +1,7 @@
 import json
 
-from edd_refinement_workflow.finalize_run import FinalizeRunActivity
+import pytest
+from edd_refinement_workflow.finalize_run import FinalizeRunActivity, finalize_run_activity
 from edd_refinement_workflow.progress_record import ProgressRecordStore
 
 
@@ -46,3 +47,19 @@ def test_finalize_run_with_terminal_outcome_publishes_once_and_releases_lease(tm
     assert first["flaky_evidence"] == [{"candidate_id": "candidate-3"}]
     report_path = tmp_path / first["report_path"]
     assert json.loads(report_path.read_text()) == first
+
+
+@pytest.mark.asyncio
+async def test_finalize_run_activity_uses_target_dependencies_publishes_terminal_result(tmp_path, monkeypatch) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"starting_revision": "start", "best_accepted_state": {"candidate_id": "candidate-1", "commit": "best", "metrics": {"passing": 2}}, "baseline_metrics": {"passing": 1}})
+    restored = []
+    released = []
+    monkeypatch.setattr("edd_refinement_workflow.finalize_run._restore_repository", lambda root, commit: restored.append((root, commit)))
+    monkeypatch.setattr("edd_refinement_workflow.finalize_run._release_lease", lambda root, run_id: released.append((root, run_id)))
+
+    result = await finalize_run_activity("run-1", "completed", str(tmp_path))
+
+    assert result["accepted_commit"] == "best"
+    assert restored == [(str(tmp_path), "best")]
+    assert released == [(str(tmp_path), "run-1")]

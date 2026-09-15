@@ -244,7 +244,7 @@
         {
           "id": 25,
           "name": "FinalizeRunActivity_UsesTargetDependencies_PublishesTerminalResult",
-          "status": "pending",
+          "status": "passing",
           "description": "The deployed finalization entrypoint restores and releases through target-scoped dependencies.",
           "arrange": "Persist terminal state and replace repository and lease operations.",
           "act": "Invoke the Cadence Activity entrypoint.",
