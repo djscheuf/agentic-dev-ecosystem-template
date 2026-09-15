@@ -212,5 +212,42 @@ async def test_workflow_executes_and_validates_selected_candidate(
     assert result["candidate"]["status"] == "scope_valid"
 
 
+@pytest.mark.asyncio
+async def test_workflow_resumes_persisted_candidate_without_rerunning_harness(
+    tmp_path, monkeypatch
+) -> None:
+    candidate = {"candidate_id": "candidate-1", "status": "scope_valid"}
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        return {"run_id": "run-1", "candidate": candidate}
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+
+    result = await EddRefinementWorkflow().run(
+        preflight,
+        {
+            "workflow_run_id": "wf-1",
+            "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        },
+    )
+
+    assert calls == ["initialize_run"]
+    assert result["candidate"] == candidate
+
+
 async def _result(value):
     return value

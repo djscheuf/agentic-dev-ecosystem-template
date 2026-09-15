@@ -19,6 +19,9 @@ class EddRefinementWorkflow:
             preflight_result,
             start_to_close_timeout=timedelta(minutes=5),
         )
+        if record.get("candidate") is not None:
+            self._candidate = record["candidate"]
+            return {"record": record, "candidate": record["candidate"]}
 
         baseline = await execute_activity(
             "run_baseline_evaluation",

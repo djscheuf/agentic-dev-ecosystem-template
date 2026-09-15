@@ -177,7 +177,8 @@
       },
       {
         "description": "Worker resumption reloads the candidate and approval context without re-running the harness",
-        "layer": "database"
+        "layer": "database",
+        "status": "completed"
       },
       {
         "description": "Concurrent validations for the same run do not conflate candidate state",
