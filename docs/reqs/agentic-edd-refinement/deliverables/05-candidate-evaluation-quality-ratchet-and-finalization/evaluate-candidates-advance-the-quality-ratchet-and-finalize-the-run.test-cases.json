@@ -235,7 +235,7 @@
         {
           "id": 24,
           "name": "RerunDegradedCandidate_WithRepeatedDegradation_ConfirmsRegression",
-          "status": "pending",
+          "status": "passing",
           "description": "A confirmation rerun that remains below best state is classified as a confirmed regression.",
           "arrange": "Persist best metrics and return degraded confirmation metrics.",
           "act": "Rerun the unchanged candidate.",

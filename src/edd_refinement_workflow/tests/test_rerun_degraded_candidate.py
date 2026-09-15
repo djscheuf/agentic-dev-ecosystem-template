@@ -38,3 +38,14 @@ def test_rerun_degraded_candidate_with_unchanged_candidate_records_confirmation(
         "result": {"passing": 4, "total": 6},
     }
     assert store.create_or_resume("run-1", {})["confirmation_evaluations"] == [result]
+
+
+def test_rerun_degraded_candidate_with_repeated_degradation_confirms_regression(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"evaluation_configuration": {"command": ["eval"], "configuration": "config", "pinned_provider_version": "provider@1", "timeout_seconds": 10}, "best_accepted_state": {"metrics": {"passing": 5}}, "confirmation_evaluations": [], "consecutive_confirmed_regressions": 0})
+    activity = RerunDegradedCandidateActivity(store, lambda **kwargs: {"passing": 4})
+
+    result = activity.run("run-1", "candidate-1", str(tmp_path))
+
+    assert result["classification"] == "confirmed_regression"
+    assert store.create_or_resume("run-1", {})["consecutive_confirmed_regressions"] == 1
