@@ -1,0 +1,387 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/bring-to-ready/requirements.md",
+  "title": "Bring Agentic EDD Refinement to Ready",
+  "story": {
+    "so_that": "an engineer can safely improve an existing skill through evaluation-driven refinement, and the workflow is usable as an exposed capability rather than only as a collection of internal Activities",
+    "as_a": "workflow requester",
+    "i_want": "to start the EDD refinement workflow from one portable input document, have every operation run against the intended target repository, and receive durable progress and terminal evidence"
+  },
+  "target_persona": {
+    "role": "Workflow Requester",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Prepares a portable EDD input document that points to an existing skill folder, evaluation configuration, required test cases, and execution limits; ensures the target skill repository is a clean Git worktree",
+      "during": "Invokes the kickoff script or CLI to start EddRefinementWorkflow, observes durable progress, responds to approval proposals, and trusts that every operation runs against the intended target repository",
+      "after": "Receives a terminal progress record with baseline and final metrics, coverage, accepted commits, token usage, and the target repository left at the best accepted state"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Start a durable, multi-iteration EDD refinement workflow from a validated portable input document, run every operation against an explicitly resolved target Git repository, and produce durable progress and terminal evidence so the workflow is usable as an exposed capability",
+    "inputs": [
+      "Portable EDD input document with skill_folder, eval_config, test_command, inspect_command, test_cases, coverage_metadata_property, modification_scope, and limits",
+      "Existing target skill repository Git worktree",
+      "Target repository's evaluation configuration with exactly one execution provider",
+      "Required test-case YAML document",
+      "Repository commit conventions and git-commit skill configuration",
+      "Orchestrator catalog, Python CLI, and kickoff script configuration"
+    ],
+    "outputs": [
+      "Started EddRefinementWorkflow with printed workflow and run IDs",
+      "Durable progress record colocated with the input document",
+      "Terminal audit record with baseline and final metrics, coverage, attempts, accepted commits, token usage, and final accepted revision",
+      "Target repository restored or confirmed at the best accepted state",
+      "Released or explicitly reported repository mutation lease"
+    ],
+    "state_changes": [
+      "Acquire and hold a repository-scoped mutation lease for the complete run lifetime",
+      "Create run-owned progress artifacts under <input-parent>/.process/edd/<run-id>/",
+      "Modify target repository files within the authorized modification_scope",
+      "Accept and commit improvement candidates",
+      "Reject, revert, or recover no-value and regressive candidates",
+      "Release the mutation lease on every terminal outcome",
+      "Publish a terminal progress record beside the input document"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [
+        "Python CLI (edd-refinement-cli start/query/approve/reject)",
+        "Kickoff shell script (scripts/kickoff-edd-refinement.sh)",
+        "Workflow catalog entry (edd_refinement_workflow.module)",
+        "Cadence workflow and activity contracts"
+      ],
+      "database": [],
+      "external_services": [
+        "Cadence workflow orchestration",
+        "Target repository evaluation provider",
+        "Git worktree and commit operations"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a valid EDD input document and an existing clean skill repository, when the requester invokes scripts/kickoff-edd-refinement.sh, then the CLI starts EddRefinementWorkflow and prints its workflow and run IDs",
+      "gherkin": "Given a valid EDD input document and an existing clean skill repository When the requester invokes scripts/kickoff-edd-refinement.sh Then the CLI starts EddRefinementWorkflow and prints its workflow and run IDs",
+      "type": "Functional",
+      "jtbd": "Start EDD refinement from an input document",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given skill_folder is relative to the input document, when preflight resolves it, then the nearest containing Git worktree becomes the immutable target root and every scoped path is validated against it",
+      "gherkin": "Given skill_folder is relative to the input document When preflight resolves it Then the nearest containing Git worktree becomes the immutable target root and every scoped path is validated against it",
+      "type": "Functional",
+      "jtbd": "Resolve the target repository from the skill folder",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given any input path resolves outside the target worktree through traversal or symlink resolution, when preflight validates the request, then the workflow rejects it before invoking an agent or evaluation command",
+      "gherkin": "Given any input path resolves outside the target worktree through traversal or symlink resolution When preflight validates the request Then the workflow rejects it before invoking an agent or evaluation command",
+      "type": "Functional",
+      "jtbd": "Prevent path escape attacks",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given eval_config resolves exactly one provider, when baseline and candidate evaluations run, then both use that provider and the progress record captures its non-secret identity; given the configuration resolves zero or multiple providers, then preflight rejects the request",
+      "gherkin": "Given eval_config resolves exactly one provider When baseline and candidate evaluations run Then both use that provider and the progress record captures its non-secret identity Given the configuration resolves zero or multiple providers Then preflight rejects the request",
+      "type": "Functional",
+      "jtbd": "Resolve exactly one evaluation provider",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given an evaluation command completes and returns an evaluation identity, when result inspection runs, then inspect_command receives that identity and the workflow does not infer the most recent evaluation",
+      "gherkin": "Given an evaluation command completes and returns an evaluation identity When result inspection runs Then inspect_command receives that identity and the workflow does not infer the most recent evaluation",
+      "type": "Functional",
+      "jtbd": "Inspect the exact evaluation by identity",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given inspector results contain IDs at the configured coverage_metadata_property, when metrics are extracted, then covered and uncovered required test-case IDs are calculated from enabled evaluations and unknown IDs invalidate the evidence",
+      "gherkin": "Given inspector results contain IDs at the configured coverage_metadata_property When metrics are extracted Then covered and uncovered required test-case IDs are calculated from enabled evaluations and unknown IDs invalidate the evidence",
+      "type": "Functional",
+      "jtbd": "Calculate required test-case coverage",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given an evaluation exceeds limits.eval_timeout_seconds, when Cadence times out the Activity, then the attempt is recorded, retry policy is applied, and no duplicate logical iteration is created",
+      "gherkin": "Given an evaluation exceeds limits.eval_timeout_seconds When Cadence times out the Activity Then the attempt is recorded, retry policy is applied, and no duplicate logical iteration is created",
+      "type": "Non-functional",
+      "jtbd": "Enforce evaluation timeout without duplicate iterations",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given preflight succeeds, when the workflow waits, retries, or advances through multiple iterations, then its repository lease remains valid until finalization and blocks another mutating run against the same target",
+      "gherkin": "Given preflight succeeds When the workflow waits, retries, or advances through multiple iterations Then its repository lease remains valid until finalization and blocks another mutating run against the same target",
+      "type": "Functional",
+      "jtbd": "Hold the repository mutation lease for the run",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given the first candidate is accepted and limits permit more work, when its commit and state update complete, then the workflow schedules another planning cycle rather than returning after one attempt",
+      "gherkin": "Given the first candidate is accepted and limits permit more work When its commit and state update complete Then the workflow schedules another planning cycle rather than returning after one attempt",
+      "type": "Functional",
+      "jtbd": "Execute multiple refinement iterations",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given a worker restarts after candidate execution but before comparison, when Cadence replays the workflow, then it resumes evaluation or comparison for the same candidate without rerunning the agent action",
+      "gherkin": "Given a worker restarts after candidate execution but before comparison When Cadence replays the workflow Then it resumes evaluation or comparison for the same candidate without rerunning the agent action",
+      "type": "Functional",
+      "jtbd": "Resume a persisted candidate after worker restart",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given the EDD module is present in the workflow catalog, when the workflow engine starts, then catalog inspection includes the EDD topology and a worker polls the edd-refinement task list",
+      "gherkin": "Given the EDD module is present in the workflow catalog When the workflow engine starts Then catalog inspection includes the EDD topology and a worker polls the edd-refinement task list",
+      "type": "Functional",
+      "jtbd": "Expose the EDD worker through the orchestrator catalog",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given a candidate qualifies for acceptance, when the workflow commits it, then the commit follows the target repository's applicable rules and the git-commit skill conventions without requiring identity fields in the input",
+      "gherkin": "Given a candidate qualifies for acceptance When the workflow commits it Then the commit follows the target repository's applicable rules and the git-commit skill conventions without requiring identity fields in the input",
+      "type": "Functional",
+      "jtbd": "Commit accepted changes following repository conventions",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given an input document at <parent>/edd-input.json, when the run initializes, then its progress record is published under <parent>/.process/edd/<run-id>/ without allowing that run-owned path to hide unrelated changes",
+      "gherkin": "Given an input document at <parent>/edd-input.json When the run initializes Then its progress record is published under <parent>/.process/edd/<run-id>/ without allowing that run-owned path to hide unrelated changes",
+      "type": "Functional",
+      "jtbd": "Publish colocated progress artifacts",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given any successful, rejected, timed-out, failed, or human-handoff terminal outcome, when the workflow terminates, then it publishes a terminal record, leaves the target at the best accepted state, and releases or reports failure to release the lease",
+      "gherkin": "Given any successful, rejected, timed-out, failed, or human-handoff terminal outcome When the workflow terminates Then it publishes a terminal record, leaves the target at the best accepted state, and releases or reports failure to release the lease",
+      "type": "Functional",
+      "jtbd": "Finalize every terminal branch safely",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Given the orchestration repository and target skill repository are different local Git worktrees, when an end-to-end EDD run is executed, then all skill, evaluation, inspection, artifact, and Git operations use the intended target and input locations, and the orchestration worktree remains unchanged",
+      "gherkin": "Given the orchestration repository and target skill repository are different local Git worktrees When an end-to-end EDD run is executed Then all skill, evaluation, inspection, artifact, and Git operations use the intended target and input locations, and the orchestration worktree remains unchanged",
+      "type": "Functional",
+      "jtbd": "Prove EDD runs against an external target repository",
+      "persona_served": "Engineer - Workflow Requester"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "An EDD input document is missing a required field or contains malformed JSON",
+      "gherkin": "Given an EDD input document is missing a required field or contains malformed JSON When preflight validates the request Then the workflow rejects it before any agent or evaluation is invoked",
+      "type": "Edge case",
+      "jtbd": "Reject malformed input early",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A required input path resolves outside the target worktree through traversal or symlink resolution",
+      "gherkin": "Given a required input path resolves outside the target worktree through traversal or symlink resolution When preflight validates the request Then the workflow rejects the request before invoking an agent or evaluation command",
+      "type": "Edge case",
+      "jtbd": "Prevent path traversal and symlink escape",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "The target worktree is dirty before run-owned artifacts are created",
+      "gherkin": "Given the target worktree is dirty before run-owned artifacts are created When preflight runs Then the workflow rejects the request before acquiring a mutation lease",
+      "type": "Edge case",
+      "jtbd": "Refuse to run against a dirty worktree",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "The evaluation configuration resolves zero or multiple execution providers",
+      "gherkin": "Given the evaluation configuration resolves zero or multiple execution providers When preflight inspects the eval_config Then the workflow rejects the request",
+      "type": "Edge case",
+      "jtbd": "Require exactly one evaluation provider",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A required test case references an unknown ID in the evaluation metadata",
+      "gherkin": "Given a required test case references an unknown ID in the evaluation metadata When metrics are extracted Then the candidate evidence is invalidated",
+      "type": "Edge case",
+      "jtbd": "Invalidate coverage claims with unknown test-case IDs",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A candidate evaluation exceeds the configured eval_timeout_seconds",
+      "gherkin": "Given a candidate evaluation exceeds the configured eval_timeout_seconds When Cadence times out the Activity Then the attempt is recorded, retry policy applies, and no duplicate logical iteration is created",
+      "type": "Edge case",
+      "jtbd": "Handle evaluation timeouts without corrupting iteration state",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "Another mutating EDD run is already holding a lease on the same target repository",
+      "gherkin": "Given another mutating EDD run is already holding a lease on the same target repository When preflight attempts to acquire a lease Then the workflow rejects the new run",
+      "type": "Edge case",
+      "jtbd": "Block concurrent mutating runs",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A worker restarts after a candidate is executed but before comparison is complete",
+      "gherkin": "Given a worker restarts after a candidate is executed but before comparison is complete When Cadence replays the workflow Then it resumes evaluation or comparison for the same candidate without rerunning the agent action",
+      "type": "Edge case",
+      "jtbd": "Resume a persisted candidate after worker restart",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A candidate appears degraded on the first comparison and is rerun unchanged",
+      "gherkin": "Given a candidate appears degraded on the first comparison and is rerun unchanged When the repeated comparison is also degraded Then the workflow classifies it as a confirmed regression and reverts the accepted state",
+      "type": "Edge case",
+      "jtbd": "Confirm and recover a regression",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "A human approval proposal expires before a decision is received",
+      "gherkin": "Given a human approval proposal expires before a decision is received When the approval timeout elapses Then the workflow treats the absence as no approval and does not apply the expectation-changing action",
+      "type": "Edge case",
+      "jtbd": "Treat approval timeout as a rejection",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "The run reaches the configured max_iterations or max_tokens after an accepted candidate",
+      "gherkin": "Given the run reaches the configured max_iterations or max_tokens after an accepted candidate When the limit check runs Then the workflow finalizes with the best accepted state and does not schedule another planning cycle",
+      "type": "Edge case",
+      "jtbd": "Respect durable refinement limits",
+      "persona_served": "Engineer - Workflow Requester"
+    },
+    {
+      "criterion": "The mutation lease cannot be released at terminal finalization",
+      "gherkin": "Given the mutation lease cannot be released at terminal finalization When the workflow terminates Then the terminal record reports the release failure and the best accepted state is still published",
+      "type": "Edge case",
+      "jtbd": "Report lease release failure without losing terminal evidence",
+      "persona_served": "Engineer - Workflow Requester"
+    }
+  ],
+  "questions": [
+    {
+      "question": "How is the evaluation identity returned from test_command and how is inspect_command wired to receive it concretely?",
+      "impacts": [
+        "Command execution contract",
+        "Activity input/output serialization",
+        "Structured stdout parsing"
+      ]
+    },
+    {
+      "question": "What backend enforces the repository-scoped mutation lease across Cadence workers?",
+      "impacts": [
+        "Concurrency control",
+        "Infrastructure dependencies",
+        "End-to-end test setup"
+      ]
+    },
+    {
+      "question": "Which exact git-commit skill conventions are discovered and applied from the target repository?",
+      "impacts": [
+        "Commit message format",
+        "Git author configuration",
+        "Acceptance criteria for repository conventions"
+      ]
+    },
+    {
+      "question": "How are the progress record schema version and redaction rules enforced across worker restarts and Continue-As-New?",
+      "impacts": [
+        "Durability",
+        "Security of credentials",
+        "Replay correctness"
+      ]
+    },
+    {
+      "question": "How are approval proposal identity, timeout state, and late decisions persisted through Cadence replay?",
+      "impacts": [
+        "User experience",
+        "Workflow signal handling",
+        "Idempotency"
+      ]
+    },
+    {
+      "question": "Should the run-owned artifact directory be excluded from cleanliness and diff checks, and how is that enforced without hiding unrelated changes?",
+      "impacts": [
+        "Progress artifact location",
+        "Git cleanliness validation",
+        "Candidate diff validation"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "EddRefinementWorkflow",
+        "WorkflowModuleSpec",
+        "ProgressRecordStore",
+        "ProgressRecordSerializer",
+        "ProgressRecordFactory",
+        "InitializeRunActivity",
+        "RunBaselineEvaluationActivity",
+        "BaselineResultParser",
+        "BaselineResultArtifactWriter",
+        "PlanRefinementActivity",
+        "check_refinement_limits",
+        "update_durable_counters",
+        "finalize_run",
+        "evaluate_candidate",
+        "commit_accepted_candidate",
+        "rerun_degraded_candidate",
+        "TargetRepositoryContext",
+        "Orchestrator catalog loader"
+      ],
+      "new_code": [
+        "Preflight Activity and validator",
+        "Repository mutation lease manager",
+        "Python starter and CLI (edd-refinement-cli)",
+        "Kickoff shell script (scripts/kickoff-edd-refinement.sh)",
+        "Workflow catalog registration wiring",
+        "End-to-end Cadence integration test with an external target worktree"
+      ],
+      "infrastructure": [
+        "Cadence local SQLite stack",
+        "Python virtual environment",
+        "nix-shell",
+        "Local Git worktrees"
+      ],
+      "external_services": [
+        "Cadence workflow engine",
+        "Target repository evaluation provider",
+        "Git"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Implement individual EDD refinement Activities and unit-level workflow branches",
+        "Explicit target repository context and path validation",
+        "Progress record and limit counter schema versions"
+      ],
+      "blocks": [
+        "Production EDD refinement runs",
+        "Documentation and runbook for EDD operators"
+      ],
+      "related": [
+        "Agentic EDD feature description",
+        "Story Analysis workflow",
+        "git-commit skill"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "EDD quality ratchet rules",
+        "Evaluation provider and promptfoo configuration",
+        "Required-test-case coverage contract",
+        "Repository commit conventions",
+        "Lease and finalization semantics"
+      ],
+      "technical_knowledge": [
+        "Cadence workflow replay and signals",
+        "Cadence Python client",
+        "Python argparse CLI",
+        "Shell script argument quoting",
+        "Git worktree discovery and symlink resolution",
+        "JSON schema validation",
+        "nix-shell"
+      ],
+      "stakeholder_questions": [
+        "Which repository will host the first real EDD run?",
+        "Who owns the target evaluation provider credentials?",
+        "What is the desired human approval timeout?",
+        "Are there specific kickoff conventions to align with?",
+        "Does the EDD module belong in a separate package or the existing workflow catalog?"
+      ]
+    }
+  }
+}
