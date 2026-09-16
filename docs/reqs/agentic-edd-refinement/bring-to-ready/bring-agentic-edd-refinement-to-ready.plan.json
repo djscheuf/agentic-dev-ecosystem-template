@@ -219,7 +219,7 @@
     {
       "description": "Implement RunBaselineEvaluationActivity: execute test_command, capture evaluation_id, parse structured pass/fail/coverage metrics, and record baseline evidence",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement the evaluation identity chain: parse evaluation_id from test_command output and interpolate it into inspect_command argv",
