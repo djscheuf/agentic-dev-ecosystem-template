@@ -163,6 +163,70 @@ async def test_evaluate_candidate_activity_executes_persisted_configuration(tmp_
     assert result["candidate_id"] == "candidate-1"
 
 
+def test_evaluate_candidate_uses_inspect_command_with_evaluation_id(
+    tmp_path,
+) -> None:
+    import yaml
+
+    cases_path = tmp_path / "cases.yaml"
+    cases_path.write_text(
+        yaml.safe_dump(
+            [
+                {
+                    "group": "Core",
+                    "tests": [{"id": "TC-001"}],
+                }
+            ]
+        )
+    )
+    store = ProgressRecordStore(tmp_path)
+    configuration = {
+        "command": ["promptfoo", "eval"],
+        "configuration": "config",
+        "pinned_provider_version": "provider@1",
+        "timeout_seconds": 10,
+        "measurement_context": "baseline",
+    }
+    store.create_or_resume(
+        "run-1",
+        {
+            "evaluation_configuration": configuration,
+            "candidate_metrics": [],
+            "test_cases": str(cases_path),
+            "coverage_metadata_property": "metadata.covers_test_case_ids",
+            "inspect_command": ["node", "inspect.js", "--id", "{evaluation_id}"],
+        },
+    )
+
+    invocations = []
+
+    def harness(**kwargs) -> dict:
+        invocations.append(kwargs["command"])
+        if kwargs["command"] == ["promptfoo", "eval"]:
+            return {"evaluation_id": "eval-123"}
+        if kwargs["command"] == ["node", "inspect.js", "--id", "eval-123"]:
+            return {
+                "passing": 1,
+                "failing": 0,
+                "total": 1,
+                "percentage": 100.0,
+                "metadata": {"covers_test_case_ids": ["TC-001"]},
+            }
+        return {}
+
+    result = EvaluateCandidateActivity(store, harness).run(
+        "run-1", "candidate-1", str(tmp_path)
+    )
+
+    assert invocations == [
+        ["promptfoo", "eval"],
+        ["node", "inspect.js", "--id", "eval-123"],
+    ]
+    assert result["candidate_id"] == "candidate-1"
+    assert result["required_coverage"] == {"TC-001": 1}
+    assert result["status"] == "success"
+
+
 def test_evaluate_candidate_uses_coverage_metadata_and_rejects_unknown_test_cases(
     tmp_path,
 ) -> None:

@@ -30,7 +30,7 @@
     {
       "criterion": "Given an evaluation command completes and returns an evaluation identity, when result inspection runs, then inspect_command receives that identity and the workflow does not infer the most recent evaluation",
       "gherkin": "Given an evaluation command completes and returns an evaluation identity When result inspection runs Then inspect_command receives that identity and the workflow does not infer the most recent evaluation",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given inspector results contain IDs at the configured coverage_metadata_property, when metrics are extracted, then covered and uncovered required test-case IDs are calculated from enabled evaluations and unknown IDs invalidate the evidence",

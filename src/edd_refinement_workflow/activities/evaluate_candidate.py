@@ -8,6 +8,11 @@ from cadence import activity
 
 from ..candidate_results import CandidateMetricRecord
 from ..coverage import CoverageCalculator, CoverageError
+from ..evaluation_identity import (
+    EvaluationIdentityError,
+    build_inspect_command,
+    extract_evaluation_id,
+)
 
 
 class EvaluateCandidateActivity:
@@ -31,34 +36,69 @@ class EvaluateCandidateActivity:
             return coverage["required_coverage"], False, "unknown_test_case_ids"
         return coverage["required_coverage"], True, None
 
+    def _run_identity_chain(
+        self, command: list[str], inspect_command: list[str], repo_root: str, timeout: int, provider: str, configuration_path: str
+    ) -> dict:
+        test_result = self.harness(
+            command=command,
+            configuration=configuration_path,
+            provider=provider,
+            cwd=repo_root,
+            timeout=timeout,
+        )
+        evaluation_id = extract_evaluation_id(test_result)
+        inspect_argv = build_inspect_command(inspect_command, evaluation_id)
+        return self.harness(
+            command=inspect_argv,
+            configuration=configuration_path,
+            provider=provider,
+            cwd=repo_root,
+            timeout=timeout,
+        )
+
     def run(self, run_id: str, candidate_id: str, repo_root: str) -> dict:
         record = self.store.create_or_resume(run_id, {})
         configuration = record["evaluation_configuration"]
         test_cases = record.get("test_cases") or configuration.get("test_cases")
         coverage_property = record.get("coverage_metadata_property") or configuration.get("coverage_metadata_property")
+        inspect_command = record.get("inspect_command") or configuration.get("inspect_command")
         infrastructure_error = None
         timed_out = False
         try:
-            result = self.harness(
-                command=configuration["command"],
-                configuration=configuration["configuration"],
-                provider=configuration["pinned_provider_version"],
-                cwd=repo_root,
-                timeout=configuration["timeout_seconds"],
-            )
+            if inspect_command:
+                inspect_result = self._run_identity_chain(
+                    configuration["command"],
+                    inspect_command,
+                    repo_root,
+                    configuration["timeout_seconds"],
+                    configuration["pinned_provider_version"],
+                    configuration["configuration"],
+                )
+            else:
+                inspect_result = self.harness(
+                    command=configuration["command"],
+                    configuration=configuration["configuration"],
+                    provider=configuration["pinned_provider_version"],
+                    cwd=repo_root,
+                    timeout=configuration["timeout_seconds"],
+                )
+        except EvaluationIdentityError as exc:
+            inspect_result = {}
+            infrastructure_error = str(exc)
+            timed_out = False
         except TimeoutError:
-            result = {}
+            inspect_result = {}
             timed_out = True
         except RuntimeError as exc:
-            result = {}
+            inspect_result = {}
             infrastructure_error = str(exc)
 
         required_fields = {"passing", "failing", "total", "percentage"}
-        has_metric_fields = required_fields <= result.keys()
+        has_metric_fields = required_fields <= inspect_result.keys()
         required_coverage, coverage_valid, coverage_failure = self._compute_coverage(
-            result, test_cases, coverage_property
+            inspect_result, test_cases, coverage_property
         )
-        artifact_references = result.get("artifact_references", [])
+        artifact_references = inspect_result.get("artifact_references", [])
 
         if timed_out:
             status = "timeout"
@@ -86,10 +126,10 @@ class EvaluateCandidateActivity:
             candidate_id=candidate_id,
             run_id=run_id,
             attempt_number=len(record.get("candidate_metrics", [])) + 1,
-            passing=result.get("passing", 0),
-            failing=result.get("failing", 0),
-            total=result.get("total", 0),
-            percentage=result.get("percentage", 0.0),
+            passing=inspect_result.get("passing", 0),
+            failing=inspect_result.get("failing", 0),
+            total=inspect_result.get("total", 0),
+            percentage=inspect_result.get("percentage", 0.0),
             required_coverage=required_coverage,
             artifact_references=artifact_references,
             pinned_provider_version=configuration["pinned_provider_version"],
@@ -100,8 +140,8 @@ class EvaluateCandidateActivity:
             usable_for_acceptance=valid,
         ).to_dict()
         for field in ("usage_metrics", "is_retry", "logical_iteration_number"):
-            if field in result:
-                metric[field] = result[field]
+            if field in inspect_result:
+                metric[field] = inspect_result[field]
         record["candidate_metrics"] = record.get("candidate_metrics", []) + [metric]
         self.store.save(run_id, record)
         return metric
