@@ -35,7 +35,7 @@ def test_preflight_succeeds_for_clean_target_with_skill(tmp_path) -> None:
     (target / ".devin" / "skills" / "custom").mkdir(parents=True)
     (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
-    (target / "evals" / "custom.tests.yaml").write_text("tests: []")
+    (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"
     anchor.write_text("{}")
     subprocess.run(
@@ -156,7 +156,7 @@ def test_preflight_emits_instrumentation_events(tmp_path) -> None:
     (target / ".devin" / "skills" / "custom").mkdir(parents=True)
     (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
-    (target / "evals" / "custom.tests.yaml").write_text("tests: []")
+    (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"
     anchor.write_text("{}")
     subprocess.run(
@@ -235,7 +235,7 @@ def test_preflight_emits_status_and_scoped_path_events(tmp_path) -> None:
     (target / ".devin" / "skills" / "custom").mkdir(parents=True)
     (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
-    (target / "evals" / "custom.tests.yaml").write_text("tests: []")
+    (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"
     anchor.write_text("{}")
     subprocess.run(

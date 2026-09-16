@@ -25,6 +25,7 @@ class TargetRepositoryContext:
 class PreflightResult:
     status: str
     target_context: Optional[TargetRepositoryContext] = None
+    provider: Optional[str] = None
     failed_conditions: list[str] = dataclasses.field(default_factory=list)
 
 
@@ -126,6 +127,7 @@ def resolve_and_validate_target_repository(
                     branch=branch.stdout.strip(),
                     starting_revision=rev.stdout.strip(),
                 ),
+                provider=skill_result.provider,
             )
     except LeaseConflictError as exc:
         _emit("CompletePreflight", outcome="failure", repo_root=str(repo_root))

@@ -15,7 +15,7 @@
     {
       "criterion": "Given skill_folder is relative to the input document, when preflight resolves it, then the nearest containing Git worktree becomes the immutable target root and every scoped path is validated against it",
       "gherkin": "Given skill_folder is relative to the input document When preflight resolves it Then the nearest containing Git worktree becomes the immutable target root and every scoped path is validated against it",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given any input path resolves outside the target worktree through traversal or symlink resolution, when preflight validates the request, then the workflow rejects it before invoking an agent or evaluation command",
@@ -25,7 +25,7 @@
     {
       "criterion": "Given eval_config resolves exactly one provider, when baseline and candidate evaluations run, then both use that provider and the progress record captures its non-secret identity; given the configuration resolves zero or multiple providers, then preflight rejects the request",
       "gherkin": "Given eval_config resolves exactly one provider When baseline and candidate evaluations run Then both use that provider and the progress record captures its non-secret identity Given the configuration resolves zero or multiple providers Then preflight rejects the request",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given an evaluation command completes and returns an evaluation identity, when result inspection runs, then inspect_command receives that identity and the workflow does not infer the most recent evaluation",
@@ -102,7 +102,7 @@
     {
       "criterion": "The evaluation configuration resolves zero or multiple execution providers",
       "gherkin": "Given the evaluation configuration resolves zero or multiple execution providers When preflight inspects the eval_config Then the workflow rejects the request",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A required test case references an unknown ID in the evaluation metadata",
@@ -199,7 +199,7 @@
     {
       "description": "Implement target repository preflight: resolve the Git worktree from skill_folder, canonicalize scoped paths, validate containment, check worktree cleanliness, and discover exactly one evaluation provider",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement the repository-scoped MutationLeaseStore with acquire, release, TTL, and re-entrant same-run semantics",

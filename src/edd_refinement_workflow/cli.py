@@ -95,7 +95,7 @@ async def start_edd_refinement_workflow(
     profile = {
         "command": input_document.test_command,
         "configuration": str(input_document.eval_config),
-        "provider": "default",
+        "provider": preflight.provider or "default",
         "timeout": input_document.limits["eval_timeout_seconds"],
         "limits": input_document.limits,
         "measurement_context": "baseline",
