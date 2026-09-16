@@ -97,7 +97,7 @@
     {
       "criterion": "The target worktree is dirty before run-owned artifacts are created",
       "gherkin": "Given the target worktree is dirty before run-owned artifacts are created When preflight runs Then the workflow rejects the request before acquiring a mutation lease",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "The evaluation configuration resolves zero or multiple execution providers",
@@ -127,12 +127,12 @@
     {
       "criterion": "A candidate appears degraded on the first comparison and is rerun unchanged",
       "gherkin": "Given a candidate appears degraded on the first comparison and is rerun unchanged When the repeated comparison is also degraded Then the workflow classifies it as a confirmed regression and reverts the accepted state",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A human approval proposal expires before a decision is received",
       "gherkin": "Given a human approval proposal expires before a decision is received When the approval timeout elapses Then the workflow treats the absence as no approval and does not apply the expectation-changing action",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "The run reaches the configured max_iterations or max_tokens after an accepted candidate",
@@ -204,12 +204,12 @@
     {
       "description": "Implement the repository-scoped MutationLeaseStore with acquire, release, TTL, and re-entrant same-run semantics",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement the schema-versioned ProgressRecord and TerminalReport data models with allow-list redaction before persistence",
       "layer": "database",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement InitializeRunActivity to create or resume a progress record under <input-parent>/.process/edd/<run-id>/ and derive a stable run id",
@@ -234,27 +234,27 @@
     {
       "description": "Implement PlanRefinementActivity to select an authorized action, a stop decision, or an approval-required expectation change, constrained by budget and regression threshold",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement approval proposal generation and signal handling with stable proposal_id, diff_hash, deadline, and recorded decision history",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement candidate execution through the Devin harness with a colocated accept-edits configuration, returning changed files, diff hash, and token usage",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement candidate validation, scope and diff checks, and persistence so replay can reuse already-executed candidates",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement candidate evaluation and quality-ratchet comparison: accept gains, rerun degraded, confirm regressions, and escalate inconclusive evidence",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement commit_accepted_candidate using the target repository's git-commit skill conventions and Git config identity",
@@ -264,17 +264,17 @@
     {
       "description": "Implement rerun_degraded_candidate and regression recovery: revert to the best accepted revision, run verification evaluation, and update durable regression counters",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement durable limit checks for max_iterations, max_tokens, eval_timeout_seconds, and the regression stop threshold",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement finalize_run: publish the terminal record, restore or confirm the target repository at the best accepted state, and release or report the mutation lease on every terminal path",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Register the EDD refinement workflow module in the orchestrator catalog and configure a worker that polls the edd-refinement task list",
