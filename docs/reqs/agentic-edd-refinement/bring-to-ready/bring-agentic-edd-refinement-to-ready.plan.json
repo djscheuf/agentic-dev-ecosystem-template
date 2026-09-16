@@ -87,7 +87,7 @@
     {
       "criterion": "An EDD input document is missing a required field or contains malformed JSON",
       "gherkin": "Given an EDD input document is missing a required field or contains malformed JSON When preflight validates the request Then the workflow rejects it before any agent or evaluation is invoked",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A required input path resolves outside the target worktree through traversal or symlink resolution",
@@ -189,7 +189,7 @@
     {
       "description": "Implement and version the EddRefinementInput schema, JSON validation, and path resolution relative to the input document parent",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement the kickoff shell script and edd-refinement-cli start/query/approve/reject subcommands with absolute-path handling and durable ID reporting",
