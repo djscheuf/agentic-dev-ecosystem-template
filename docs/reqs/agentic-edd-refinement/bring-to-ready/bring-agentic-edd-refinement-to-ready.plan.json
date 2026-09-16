@@ -20,7 +20,7 @@
     {
       "criterion": "Given any input path resolves outside the target worktree through traversal or symlink resolution, when preflight validates the request, then the workflow rejects it before invoking an agent or evaluation command",
       "gherkin": "Given any input path resolves outside the target worktree through traversal or symlink resolution When preflight validates the request Then the workflow rejects it before invoking an agent or evaluation command",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given eval_config resolves exactly one provider, when baseline and candidate evaluations run, then both use that provider and the progress record captures its non-secret identity; given the configuration resolves zero or multiple providers, then preflight rejects the request",
@@ -92,7 +92,7 @@
     {
       "criterion": "A required input path resolves outside the target worktree through traversal or symlink resolution",
       "gherkin": "Given a required input path resolves outside the target worktree through traversal or symlink resolution When preflight validates the request Then the workflow rejects the request before invoking an agent or evaluation command",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "The target worktree is dirty before run-owned artifacts are created",

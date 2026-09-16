@@ -79,6 +79,90 @@ def test_preflight_succeeds_for_clean_target_with_skill(tmp_path) -> None:
     assert result.failed_conditions == []
 
 
+def test_preflight_rejects_evaluation_path_outside_target_repository(tmp_path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    subprocess.run(["git", "init"], cwd=str(target), check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "--allow-empty", "-m", "init"],
+        cwd=str(target), check=True, capture_output=True, text=True,
+    )
+
+    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
+    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+
+    outside_eval = outside / "custom.tests.yaml"
+    outside_eval.write_text("providers:\n  - openai:gpt-4o\n")
+
+    anchor = target / "anchor.json"
+    anchor.write_text("{}")
+    subprocess.run(["git", "add", "."], cwd=str(target), check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "-m", "add files"],
+        cwd=str(target), check=True, capture_output=True, text=True,
+    )
+
+    result = resolve_and_validate_target_repository(
+        anchor_path=str(anchor),
+        explicit_root=str(target),
+        scoped_paths=[],
+        skill_name="custom",
+        evaluation_path=str(outside_eval),
+        run_id="run-1",
+        lease_ttl=60,
+    )
+
+    assert result.status == "failure"
+    assert any("outside target root" in cond for cond in result.failed_conditions)
+
+
+def test_preflight_rejects_test_cases_path_outside_target_repository(tmp_path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    subprocess.run(["git", "init"], cwd=str(target), check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "--allow-empty", "-m", "init"],
+        cwd=str(target), check=True, capture_output=True, text=True,
+    )
+
+    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
+    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
+    (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
+
+    outside_cases = outside / "cases.yaml"
+    outside_cases.write_text("[]\n")
+
+
+    anchor = target / "anchor.json"
+    anchor.write_text("{}")
+    subprocess.run(["git", "add", "."], cwd=str(target), check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "-m", "add files"],
+        cwd=str(target), check=True, capture_output=True, text=True,
+    )
+
+    result = resolve_and_validate_target_repository(
+        anchor_path=str(anchor),
+        explicit_root=str(target),
+        scoped_paths=[],
+        skill_name="custom",
+        evaluation_path="evals/custom.tests.yaml",
+        run_id="run-1",
+        lease_ttl=60,
+        additional_paths=[str(outside_cases)],
+    )
+
+    assert result.status == "failure"
+    assert any("outside target root" in cond for cond in result.failed_conditions)
+
+
 def test_preflight_reports_all_failed_conditions(tmp_path) -> None:
     target = tmp_path / "target"
     target.mkdir()

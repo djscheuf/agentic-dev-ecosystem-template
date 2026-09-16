@@ -84,6 +84,10 @@ async def start_edd_refinement_workflow(
         scoped_paths=[str(p) for p in input_document.modification_scope],
         skill_name=input_document.skill_folder.name,
         evaluation_path=str(input_document.eval_config),
+        additional_paths=[
+            str(input_document.test_cases),
+            *(str(p) for p in input_document.related_content),
+        ],
         run_id=resolved_workflow_id,
         lease_ttl=input_document.limits.get("eval_timeout_seconds", 1200),
     )

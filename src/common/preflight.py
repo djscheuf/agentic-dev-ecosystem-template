@@ -35,6 +35,7 @@ def resolve_and_validate_target_repository(
     scoped_paths: Optional[list[str]] = None,
     skill_name: str = "",
     evaluation_path: str = "",
+    additional_paths: Optional[list[str]] = None,
     run_id: str = "",
     lease_ttl: int = 60,
     scratch_globs: Optional[list[str]] = None,
@@ -83,6 +84,30 @@ def resolve_and_validate_target_repository(
     skill_result = discovery.discover(skill_name, evaluation_path, str(repo_root))
     if not skill_result.ok:
         failed_conditions.append("target skill or evaluation suite missing")
+
+    input_validator = ScopedPathValidator()
+    if skill_result.ok and skill_result.skill_path is not None:
+        try:
+            input_validator.validate(str(skill_result.skill_path), str(repo_root))
+            _emit("ValidateInputPaths", path=str(skill_result.skill_path), valid=True)
+        except TargetScopeError as exc:
+            _emit("ValidateInputPaths", path=str(skill_result.skill_path), valid=False, error=str(exc))
+            failed_conditions.append(str(exc))
+    if skill_result.ok and skill_result.evaluation_path is not None:
+        try:
+            input_validator.validate(str(skill_result.evaluation_path), str(repo_root))
+            _emit("ValidateInputPaths", path=str(skill_result.evaluation_path), valid=True)
+        except TargetScopeError as exc:
+            _emit("ValidateInputPaths", path=str(skill_result.evaluation_path), valid=False, error=str(exc))
+            failed_conditions.append(str(exc))
+
+    for path in (additional_paths or []):
+        try:
+            input_validator.validate(str((repo_root / path).resolve()), str(repo_root))
+            _emit("ValidateInputPaths", path=path, valid=True)
+        except TargetScopeError as exc:
+            _emit("ValidateInputPaths", path=path, valid=False, error=str(exc))
+            failed_conditions.append(str(exc))
 
     if failed_conditions:
         _emit(
