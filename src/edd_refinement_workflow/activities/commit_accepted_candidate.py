@@ -4,22 +4,28 @@ from datetime import UTC, datetime
 
 from cadence import activity
 
+from ..git_commit_message import GitCommitMessageBuilder
+
 
 class CommitAcceptedCandidateActivity:
     def __init__(
         self,
         store,
         commit: Callable[[str], str],
+        message_builder: Callable[[str], str] | None = None,
         now: Callable[[], str] | None = None,
     ) -> None:
         self.store = store
         self.commit = commit
+        self.message_builder = message_builder or (
+            lambda candidate_id: f"feat(edd refinement): accept candidate {candidate_id}"
+        )
         self.now = now or (lambda: datetime.now(UTC).isoformat())
 
     def run(self, run_id: str, metric: dict) -> dict:
         record = self.store.create_or_resume(run_id, {})
         candidate_id = metric["candidate_id"]
-        commit_hash = self.commit(f"Accept EDD candidate {candidate_id}")
+        commit_hash = self.commit(self.message_builder(candidate_id))
         best_state = {
             "candidate_id": candidate_id,
             "commit": commit_hash,
@@ -58,4 +64,5 @@ async def commit_accepted_candidate_activity(run_id: str, metric: dict, repo_roo
     return CommitAcceptedCandidateActivity(
         ProgressRecordStore(repo_root),
         commit=lambda message: _commit_repository(repo_root, message),
+        message_builder=GitCommitMessageBuilder(repo_root).build,
     ).run(run_id, metric)

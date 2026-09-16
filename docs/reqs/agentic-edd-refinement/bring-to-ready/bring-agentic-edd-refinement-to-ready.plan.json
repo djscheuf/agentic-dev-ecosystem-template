@@ -65,7 +65,7 @@
     {
       "criterion": "Given a candidate qualifies for acceptance, when the workflow commits it, then the commit follows the target repository's applicable rules and the git-commit skill conventions without requiring identity fields in the input",
       "gherkin": "Given a candidate qualifies for acceptance When the workflow commits it Then the commit follows the target repository's applicable rules and the git-commit skill conventions without requiring identity fields in the input",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given an input document at <parent>/edd-input.json, when the run initializes, then its progress record is published under <parent>/.process/edd/<run-id>/ without allowing that run-owned path to hide unrelated changes",
@@ -259,7 +259,7 @@
     {
       "description": "Implement commit_accepted_candidate using the target repository's git-commit skill conventions and Git config identity",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement rerun_degraded_candidate and regression recovery: revert to the best accepted revision, run verification evaluation, and update durable regression counters",
