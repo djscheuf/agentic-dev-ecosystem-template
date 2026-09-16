@@ -224,7 +224,7 @@
     {
       "description": "Implement the evaluation identity chain: parse evaluation_id from test_command output and interpolate it into inspect_command argv",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement required test-case coverage calculation using coverage_metadata_property and invalidate evidence that contains unknown test-case IDs",
