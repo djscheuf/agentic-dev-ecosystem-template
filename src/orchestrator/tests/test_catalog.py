@@ -40,3 +40,11 @@ def test_workflow_modules_when_loaded_validate_every_spec_before_runtime():
 
     with pytest.raises(CatalogError, match="duplicate_module"):
         load_workflow_modules((first.__name__, second.__name__))
+
+
+def test_default_workflow_catalog_includes_edd_refinement() -> None:
+    from pathlib import Path
+
+    catalog_path = Path(__file__).resolve().parents[1] / "workflow_catalog.json"
+    catalog = load_workflow_catalog(catalog_path)
+    assert "edd_refinement_workflow.module" in catalog.workflow_modules

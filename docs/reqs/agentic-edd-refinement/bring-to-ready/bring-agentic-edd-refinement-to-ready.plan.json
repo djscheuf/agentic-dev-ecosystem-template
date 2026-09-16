@@ -60,7 +60,7 @@
     {
       "criterion": "Given the EDD module is present in the workflow catalog, when the workflow engine starts, then catalog inspection includes the EDD topology and a worker polls the edd-refinement task list",
       "gherkin": "Given the EDD module is present in the workflow catalog When the workflow engine starts Then catalog inspection includes the EDD topology and a worker polls the edd-refinement task list",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given a candidate qualifies for acceptance, when the workflow commits it, then the commit follows the target repository's applicable rules and the git-commit skill conventions without requiring identity fields in the input",
@@ -279,7 +279,7 @@
     {
       "description": "Register the EDD refinement workflow module in the orchestrator catalog and configure a worker that polls the edd-refinement task list",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Wire the EddRefinementWorkflow as a multi-iteration loop with deterministic Activities, Cadence replay resumption, and Continue-As-New readiness",
