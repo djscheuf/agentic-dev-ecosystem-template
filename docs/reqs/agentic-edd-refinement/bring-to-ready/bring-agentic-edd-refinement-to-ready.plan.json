@@ -45,7 +45,7 @@
     {
       "criterion": "Given preflight succeeds, when the workflow waits, retries, or advances through multiple iterations, then its repository lease remains valid until finalization and blocks another mutating run against the same target",
       "gherkin": "Given preflight succeeds When the workflow waits, retries, or advances through multiple iterations Then its repository lease remains valid until finalization and blocks another mutating run against the same target",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given the first candidate is accepted and limits permit more work, when its commit and state update complete, then the workflow schedules another planning cycle rather than returning after one attempt",
@@ -117,7 +117,7 @@
     {
       "criterion": "Another mutating EDD run is already holding a lease on the same target repository",
       "gherkin": "Given another mutating EDD run is already holding a lease on the same target repository When preflight attempts to acquire a lease Then the workflow rejects the new run",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A worker restarts after a candidate is executed but before comparison is complete",

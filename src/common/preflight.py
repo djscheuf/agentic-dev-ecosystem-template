@@ -4,8 +4,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
 
-from common.mutation_lease_policy import LeaseConflictError, MutationLeasePolicyHandler
-from common.mutation_lease_store import MutationLeaseStore
 from common.repository_status import RepositoryStatusInspector
 from common.scoped_path_validator import ScopedPathValidator, TargetScopeError
 from common.skill_and_evaluation_discovery import SkillAndEvaluationDiscovery
@@ -120,40 +118,33 @@ def resolve_and_validate_target_repository(
             status="failure", failed_conditions=failed_conditions
         )
 
-    store = MutationLeaseStore()
-    policy = MutationLeasePolicyHandler(store, on_event=on_event)
-    try:
-        with policy.lease(str(repo_root), run_id, lease_ttl):
-            branch = subprocess.run(
-                ["git", "-C", str(repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            rev = subprocess.run(
-                ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            _emit(
-                "CompletePreflight",
-                outcome="success",
-                repo_root=str(repo_root),
-                branch=branch.stdout.strip(),
-                starting_revision=rev.stdout.strip(),
-            )
-            return PreflightResult(
-                status="success",
-                target_context=TargetRepositoryContext(
-                    repo_root=repo_root,
-                    anchor_path=anchor_path,
-                    explicit_root=explicit_root,
-                    branch=branch.stdout.strip(),
-                    starting_revision=rev.stdout.strip(),
-                ),
-                provider=skill_result.provider,
-            )
-    except LeaseConflictError as exc:
-        _emit("CompletePreflight", outcome="failure", repo_root=str(repo_root))
-        return PreflightResult(status="failure", failed_conditions=[str(exc)])
+    branch = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rev = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    _emit(
+        "CompletePreflight",
+        outcome="success",
+        repo_root=str(repo_root),
+        branch=branch.stdout.strip(),
+        starting_revision=rev.stdout.strip(),
+    )
+    return PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=repo_root,
+            anchor_path=anchor_path,
+            explicit_root=explicit_root,
+            branch=branch.stdout.strip(),
+            starting_revision=rev.stdout.strip(),
+        ),
+        provider=skill_result.provider,
+    )

@@ -2,6 +2,16 @@ import time
 import uuid
 
 
+_DEFAULT_STORE: "MutationLeaseStore | None" = None
+
+
+def get_default_store() -> "MutationLeaseStore":
+    global _DEFAULT_STORE
+    if _DEFAULT_STORE is None:
+        _DEFAULT_STORE = MutationLeaseStore()
+    return _DEFAULT_STORE
+
+
 class MutationLeaseStore:
     def __init__(self):
         self._leases: dict[str, tuple[str, str, float]] = {}

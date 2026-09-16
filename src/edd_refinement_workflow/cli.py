@@ -116,6 +116,7 @@ async def start_edd_refinement_workflow(
         "next_step_token_estimate": 0,
         "test_cases_path": str(input_document.test_cases),
         "coverage_metadata_property": input_document.coverage_metadata_property,
+        "lease_ttl": input_document.limits.get("eval_timeout_seconds", 1200),
     }
 
     return await client.start_workflow(

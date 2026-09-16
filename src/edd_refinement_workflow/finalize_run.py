@@ -71,9 +71,9 @@ def _restore_repository(repo_root: str, commit: str) -> None:
 
 
 def _release_lease(repo_root: str, run_id: str) -> None:
-    from common.mutation_lease_store import MutationLeaseStore
+    from common.mutation_lease_store import get_default_store
 
-    MutationLeaseStore().release(repo_root, run_id)
+    get_default_store().release(repo_root, run_id)
 
 
 @activity.defn(name="finalize_run")

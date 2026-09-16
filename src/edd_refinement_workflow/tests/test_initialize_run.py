@@ -1,5 +1,6 @@
 from typing import Any
 
+import pytest
 from common.preflight import PreflightResult, TargetRepositoryContext
 from edd_refinement_workflow.activities.initialize_run import InitializeRunActivity
 from edd_refinement_workflow.progress_record import ProgressRecordFactory, ProgressRecordStore
@@ -60,6 +61,10 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["candidate"] is None
     assert record["candidate_history"] == []
     assert record["execution_artifacts"] == []
+    assert record["target_repository"] == str(tmp_path)
+    assert record["mutation_lease"]["repo_key"] == str(tmp_path)
+    assert record["mutation_lease"]["run_id"] == record["run_id"]
+    assert "token" in record["mutation_lease"]
     assert (
         tmp_path / ".process" / "edd" / record["run_id"] / "progress.json"
     ).exists()
@@ -98,3 +103,31 @@ def test_initialize_run_with_limit_configuration_seeds_durable_limit_state(tmp_p
     assert record["cumulative_token_usage"] == 0
     assert record["pending_evidence_flags"] == []
     assert record["attempt_records"] == []
+
+
+def test_initialize_run_raises_lease_conflict_for_concurrent_run(tmp_path) -> None:
+    from common.mutation_lease_policy import LeaseConflictError
+
+    factory = ProgressRecordFactory(ProgressRecordStore(tmp_path))
+    activity = InitializeRunActivity(factory)
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abcdef123456",
+        ),
+    )
+    profile = {
+        "command": ["promptfoo", "eval"],
+        "configuration": "promptfooconfig.yaml",
+        "provider": "provider@version",
+        "timeout": 120,
+    }
+
+    activity.run("wf-1", preflight, profile)
+
+    with pytest.raises(LeaseConflictError):
+        activity.run("wf-2", preflight, profile)

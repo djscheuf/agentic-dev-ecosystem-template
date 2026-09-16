@@ -22,6 +22,7 @@ class EddRefinementWorkflow:
             request["workflow_run_id"],
             preflight_result,
             request["profile"],
+            request.get("lease_ttl", 1200),
             start_to_close_timeout=timedelta(minutes=5),
         )
         if record.get("candidate") is not None:
