@@ -35,7 +35,7 @@
     {
       "criterion": "Given inspector results contain IDs at the configured coverage_metadata_property, when metrics are extracted, then covered and uncovered required test-case IDs are calculated from enabled evaluations and unknown IDs invalidate the evidence",
       "gherkin": "Given inspector results contain IDs at the configured coverage_metadata_property When metrics are extracted Then covered and uncovered required test-case IDs are calculated from enabled evaluations and unknown IDs invalidate the evidence",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given an evaluation exceeds limits.eval_timeout_seconds, when Cadence times out the Activity, then the attempt is recorded, retry policy is applied, and no duplicate logical iteration is created",
@@ -107,7 +107,7 @@
     {
       "criterion": "A required test case references an unknown ID in the evaluation metadata",
       "gherkin": "Given a required test case references an unknown ID in the evaluation metadata When metrics are extracted Then the candidate evidence is invalidated",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A candidate evaluation exceeds the configured eval_timeout_seconds",

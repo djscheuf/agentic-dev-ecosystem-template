@@ -99,6 +99,9 @@ async def start_edd_refinement_workflow(
         "timeout": input_document.limits["eval_timeout_seconds"],
         "limits": input_document.limits,
         "measurement_context": "baseline",
+        "test_cases": str(input_document.test_cases),
+        "coverage_metadata_property": input_document.coverage_metadata_property,
+        "inspect_command": input_document.inspect_command,
     }
 
     request = {

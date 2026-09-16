@@ -52,6 +52,12 @@ class InitializeRunActivity:
         }
 
         created = self.factory.create_or_resume(run_id, record)
+        created["test_cases"] = profile.get("test_cases")
+        created["coverage_metadata_property"] = profile.get(
+            "coverage_metadata_property"
+        )
+        created["inspect_command"] = profile.get("inspect_command")
+        self.factory.store.save(run_id, created)
 
         event_name = "InitializeRun" if created is record else "ResumeRun"
         if self.on_event is not None:
