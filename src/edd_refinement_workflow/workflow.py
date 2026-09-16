@@ -29,12 +29,13 @@ class EddRefinementWorkflow:
             self._candidate = record["candidate"]
             return {"record": record, "candidate": record["candidate"]}
 
+        repo_root = str(preflight_result.target_context.repo_root)
         if "budgets" in record:
             limit_decision = await execute_activity(
                 "check_refinement_limits",
                 dict,
                 record,
-                request.get("next_step_token_estimate", 0),
+                0,
                 start_to_close_timeout=timedelta(minutes=5),
             )
             if not limit_decision["schedule_next_step"]:
@@ -43,7 +44,7 @@ class EddRefinementWorkflow:
                     dict,
                     record["run_id"],
                     limit_decision["stop_reason"],
-                    str(preflight_result.target_context.repo_root),
+                    repo_root,
                     start_to_close_timeout=timedelta(minutes=5),
                 )
                 return {
@@ -57,197 +58,271 @@ class EddRefinementWorkflow:
             dict,
             record["run_id"],
             request["profile"],
-            str(preflight_result.target_context.repo_root),
+            repo_root,
             start_to_close_timeout=timedelta(minutes=30),
         )
 
-        planning = await execute_activity(
-            "plan_refinement_action",
-            dict,
-            record,
-            baseline,
-            request.get("proposed_action"),
-            request.get("proposal_id"),
-            request.get("proposed_diff_hash"),
-            start_to_close_timeout=timedelta(minutes=5),
-        )
+        result = {"record": record, "baseline": baseline}
+        while True:
+            if "budgets" in record:
+                limit_decision = await execute_activity(
+                    "check_refinement_limits",
+                    dict,
+                    record,
+                    0,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                if not limit_decision["schedule_next_step"]:
+                    result["terminal_result"] = await execute_activity(
+                        "finalize_run",
+                        dict,
+                        record["run_id"],
+                        limit_decision["stop_reason"],
+                        repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                    return result
 
-        result = {"record": record, "baseline": baseline, "planning": planning}
-        if planning.get("action") == "stop":
-            result["terminal_result"] = await execute_activity(
-                "finalize_run",
+            planning = await execute_activity(
+                "plan_refinement_action",
                 dict,
-                record["run_id"],
-                planning.get("reason", "planning_stopped"),
-                str(preflight_result.target_context.repo_root),
+                record,
+                baseline,
+                request.get("proposed_action"),
+                request.get("proposal_id"),
+                request.get("proposed_diff_hash"),
                 start_to_close_timeout=timedelta(minutes=5),
             )
-            return result
+            result["planning"] = planning
+            if planning.get("action") == "stop":
+                result["terminal_result"] = await execute_activity(
+                    "finalize_run",
+                    dict,
+                    record["run_id"],
+                    planning.get("reason", "planning_stopped"),
+                    repo_root,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                return result
 
-        approved_diff_hash = None
-        if planning.get("requires_approval"):
-            timeout_seconds = request.get("approval_timeout_seconds", 3600)
-            self._approval_request = await execute_activity(
-                "request_human_approval",
+            approved_diff_hash = None
+            if planning.get("requires_approval"):
+                timeout_seconds = request.get("approval_timeout_seconds", 3600)
+                self._approval_request = await execute_activity(
+                    "request_human_approval",
+                    dict,
+                    record["run_id"],
+                    planning,
+                    timeout_seconds,
+                    repo_root,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                decision = await self._await_approval(timedelta(seconds=timeout_seconds))
+                approval = await execute_activity(
+                    "record_human_approval_decision",
+                    dict,
+                    record["run_id"],
+                    planning["proposal_id"],
+                    decision,
+                    self._pending_approval_decision.get("notes", "")
+                    if self._pending_approval_decision
+                    else "",
+                    repo_root,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                self._approval_request = approval
+                result.update(approval=approval, approved=decision == "approve")
+                if decision != "approve":
+                    result["next_state"] = request.get(
+                        "approval_rejection_policy", "planning"
+                    )
+                    return result
+                approved_diff_hash = planning["proposed_diff_hash"]
+                applied_change = await execute_activity(
+                    "record_human_approved_evaluation_change",
+                    dict,
+                    record["run_id"],
+                    request["executed_diff_hash"],
+                    repo_root,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                result["applied_change"] = applied_change
+
+            execution = await execute_activity(
+                "execute_refinement_action",
                 dict,
                 record["run_id"],
                 planning,
-                timeout_seconds,
-                str(preflight_result.target_context.repo_root),
-                start_to_close_timeout=timedelta(minutes=5),
+                approved_diff_hash,
+                repo_root,
+                start_to_close_timeout=timedelta(minutes=30),
             )
-            decision = await self._await_approval(timedelta(seconds=timeout_seconds))
-            approval = await execute_activity(
-                "record_human_approval_decision",
+            result["execution"] = execution
+            if "budgets" in record:
+                record, limit_decision = await self._account_and_check_limits(
+                    record, execution, "execution", repo_root
+                )
+                if not limit_decision["schedule_next_step"]:
+                    result["terminal_result"] = await execute_activity(
+                        "finalize_run",
+                        dict,
+                        record["run_id"],
+                        limit_decision["stop_reason"],
+                        repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                    return result
+            if execution.get("status") == "failed":
+                return result
+
+            candidate = await execute_activity(
+                "validate_candidate",
                 dict,
                 record["run_id"],
-                planning["proposal_id"],
-                decision,
-                self._pending_approval_decision.get("notes", "")
-                if self._pending_approval_decision
-                else "",
-                str(preflight_result.target_context.repo_root),
+                planning,
+                execution,
+                approved_diff_hash,
+                repo_root,
                 start_to_close_timeout=timedelta(minutes=5),
             )
-            self._approval_request = approval
-            result.update(approval=approval, approved=decision == "approve")
-            if decision != "approve":
-                result["next_state"] = request.get("approval_rejection_policy", "planning")
+            if candidate.get("status") != "scope_valid":
+                result.update(execution=execution, candidate=candidate)
+                self._candidate = candidate
                 return result
-            approved_diff_hash = planning["proposed_diff_hash"]
-            applied_change = await execute_activity(
-                "record_human_approved_evaluation_change",
+
+            retry_configuration = request["profile"].get("retry_policy", {})
+            retry_policy = {
+                "maximum_attempts": retry_configuration.get("maximum_attempts", 3),
+                "initial_interval": timedelta(
+                    seconds=retry_configuration.get("initial_interval_seconds", 1)
+                ),
+            }
+            candidate_evaluation = await execute_activity(
+                "evaluate_candidate",
                 dict,
                 record["run_id"],
-                request["executed_diff_hash"],
-                str(preflight_result.target_context.repo_root),
-                start_to_close_timeout=timedelta(minutes=5),
+                candidate["candidate_id"],
+                repo_root,
+                start_to_close_timeout=timedelta(
+                    seconds=request["profile"]["timeout"]
+                ),
+                retry_policy=retry_policy,
             )
-            result["applied_change"] = applied_change
+            result.update(
+                execution=execution,
+                candidate=candidate,
+                candidate_evaluation=candidate_evaluation,
+            )
+            if "budgets" in record:
+                record, limit_decision = await self._account_and_check_limits(
+                    record, candidate_evaluation, "evaluation", repo_root
+                )
+                if not limit_decision["schedule_next_step"]:
+                    result["terminal_result"] = await execute_activity(
+                        "finalize_run",
+                        dict,
+                        record["run_id"],
+                        limit_decision["stop_reason"],
+                        repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                    return result
 
-        execution = await execute_activity(
-            "execute_refinement_action",
-            dict,
-            record["run_id"],
-            planning,
-            approved_diff_hash,
-            str(preflight_result.target_context.repo_root),
-            start_to_close_timeout=timedelta(minutes=30),
-        )
-        result["execution"] = execution
-        if "budgets" in record:
-            limit_decision = await self._account_and_check_limits(
-                record["run_id"], execution, "execution",
-                str(preflight_result.target_context.repo_root),
-            )
-            if not limit_decision["schedule_next_step"]:
-                result["terminal_result"] = await execute_activity(
-                    "finalize_run", dict, record["run_id"], limit_decision["stop_reason"],
-                    str(preflight_result.target_context.repo_root), start_to_close_timeout=timedelta(minutes=5),
+            best_state = record.get("best_accepted_state")
+            if best_state is not None or "budgets" in record:
+                best_metrics = (
+                    best_state["metrics"] if best_state is not None else baseline
                 )
-                return result
-        if execution.get("status") == "failed":
-            return result
-        candidate = await execute_activity(
-            "validate_candidate",
-            dict,
-            record["run_id"],
-            planning,
-            execution,
-            approved_diff_hash,
-            str(preflight_result.target_context.repo_root),
-            start_to_close_timeout=timedelta(minutes=5),
-        )
-        if candidate.get("status") != "scope_valid":
-            result.update(execution=execution, candidate=candidate)
-            self._candidate = candidate
-            return result
-        retry_configuration = request["profile"].get("retry_policy", {})
-        retry_policy = {
-            "maximum_attempts": retry_configuration.get("maximum_attempts", 3),
-            "initial_interval": timedelta(
-                seconds=retry_configuration.get("initial_interval_seconds", 1)
-            ),
-        }
-        candidate_evaluation = await execute_activity(
-            "evaluate_candidate",
-            dict,
-            record["run_id"],
-            candidate["candidate_id"],
-            str(preflight_result.target_context.repo_root),
-            start_to_close_timeout=timedelta(
-                seconds=request["profile"]["timeout"]
-            ),
-            retry_policy=retry_policy,
-        )
-        result.update(
-            execution=execution,
-            candidate=candidate,
-            candidate_evaluation=candidate_evaluation,
-        )
-        if "budgets" in record:
-            limit_decision = await self._account_and_check_limits(
-                record["run_id"], candidate_evaluation, "evaluation",
-                str(preflight_result.target_context.repo_root),
-            )
-            if not limit_decision["schedule_next_step"]:
-                result["terminal_result"] = await execute_activity(
-                    "finalize_run", dict, record["run_id"], limit_decision["stop_reason"],
-                    str(preflight_result.target_context.repo_root), start_to_close_timeout=timedelta(minutes=5),
+                comparison = compare_candidate_to_best(
+                    candidate_evaluation, best_metrics
                 )
-                return result
-        best_state = record.get("best_accepted_state")
-        if best_state is not None:
-            comparison = compare_candidate_to_best(
-                candidate_evaluation, best_state["metrics"]
-            )
-            result["comparison"] = comparison
-            if comparison["decision"] == "accept":
-                result["best_accepted_state"] = await execute_activity(
-                    "commit_accepted_candidate",
-                    dict,
-                    record["run_id"],
-                    candidate_evaluation,
-                    str(preflight_result.target_context.repo_root),
-                    start_to_close_timeout=timedelta(minutes=5),
-                )
-            elif comparison["decision"] == "rerun":
-                result["confirmation_rerun"] = await execute_activity(
-                    "rerun_degraded_candidate",
-                    dict,
-                    record["run_id"],
-                    candidate["candidate_id"],
-                    str(preflight_result.target_context.repo_root),
-                    start_to_close_timeout=timedelta(
-                        seconds=request["profile"]["timeout"]
-                    ),
-                )
-                result["regression_recovery"] = await self._handle_regression(
-                    record["run_id"], candidate["candidate_id"], candidate_evaluation,
-                    result["confirmation_rerun"].get("result", result["confirmation_rerun"]),
-                    best_state, str(preflight_result.target_context.repo_root),
-                    request.get("regression_stop_threshold", 3),
-                )
-        self._candidate = candidate
-        return result
+                result["comparison"] = comparison
+                if comparison["decision"] == "accept":
+                    best_state = await execute_activity(
+                        "commit_accepted_candidate",
+                        dict,
+                        record["run_id"],
+                        candidate_evaluation,
+                        repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                    record["best_accepted_state"] = best_state
+                    record["consecutive_confirmed_regressions"] = 0
+                    record["candidate_history"] = record.get("candidate_history", []) + [
+                        {
+                            "candidate_id": candidate["candidate_id"],
+                            "status": "accepted",
+                            "commit": best_state.get("commit"),
+                        }
+                    ]
+                    result["best_accepted_state"] = best_state
+                elif comparison["decision"] == "rerun":
+                    result["confirmation_rerun"] = await execute_activity(
+                        "rerun_degraded_candidate",
+                        dict,
+                        record["run_id"],
+                        candidate["candidate_id"],
+                        repo_root,
+                        start_to_close_timeout=timedelta(
+                            seconds=request["profile"]["timeout"]
+                        ),
+                    )
+                    result["regression_recovery"] = await self._handle_regression(
+                        record["run_id"],
+                        candidate["candidate_id"],
+                        candidate_evaluation,
+                        result["confirmation_rerun"].get(
+                            "result", result["confirmation_rerun"]
+                        ),
+                        best_state
+                        if best_state is not None
+                        else {"metrics": baseline},
+                        repo_root,
+                        request.get("regression_stop_threshold", 3),
+                    )
+                    if result["regression_recovery"]["next_state"] != "planning":
+                        return result
+                    regression = result["regression_recovery"].get("regression", {})
+                    record["consecutive_confirmed_regressions"] = regression.get(
+                        "consecutive_confirmed_regressions",
+                        record.get("consecutive_confirmed_regressions", 0) + 1,
+                    )
+                else:
+                    record["candidate_history"] = record.get("candidate_history", []) + [
+                        {
+                            "candidate_id": candidate["candidate_id"],
+                            "status": "rejected",
+                        }
+                    ]
 
-    async def _account_and_check_limits(self, run_id, result, step, repo_root):
+            if "budgets" not in record:
+                return result
+
+    async def _account_and_check_limits(self, record, result, step, repo_root):
         usage = result.get("usage_metrics")
         attempt = {
-            "attempt_id": f"{step}-{run_id}",
+            "attempt_id": f"{step}-{record['run_id']}",
             "logical_iteration_number": result.get("logical_iteration_number", 0),
             "is_retry": result.get("is_retry", False),
             "usage_metrics": usage,
             "status": result.get("status", "success"),
         }
         record = await execute_activity(
-            "update_durable_counters", dict, run_id, attempt, repo_root,
+            "update_durable_counters",
+            dict,
+            record["run_id"],
+            attempt,
+            repo_root,
             start_to_close_timeout=timedelta(minutes=5),
         )
-        return await execute_activity(
-            "check_refinement_limits", dict, record, 0,
+        limit_decision = await execute_activity(
+            "check_refinement_limits",
+            dict,
+            record,
+            0,
             start_to_close_timeout=timedelta(minutes=5),
         )
+        return record, limit_decision
 
     async def _handle_regression(self, run_id, candidate_id, original, confirmation, best_state, repo_root, stop_threshold):
         classification = await execute_activity("classify_regression_evidence", dict, original, confirmation, best_state, start_to_close_timeout=timedelta(minutes=5))

@@ -1,11 +1,17 @@
 def compare_candidate_to_best(candidate: dict, best: dict) -> dict:
-    passing_delta = candidate["passing"] - best["passing"]
+    candidate_passing = candidate.get("passing", 0)
+    best_passing = best.get("passing", 0)
+    passing_delta = candidate_passing - best_passing
+    best_coverage = best.get("required_coverage", {})
+    candidate_coverage = candidate.get("required_coverage", {})
     coverage_delta = {
-        case: count - best["required_coverage"].get(case, 0)
-        for case, count in candidate["required_coverage"].items()
-        if count != best["required_coverage"].get(case, 0)
+        case: count - best_coverage.get(case, 0)
+        for case, count in candidate_coverage.items()
+        if count != best_coverage.get(case, 0)
     }
-    if candidate["measurement_context"] != best["measurement_context"]:
+    if candidate.get("measurement_context", "baseline") != best.get(
+        "measurement_context", "baseline"
+    ):
         return {
             "decision": "escalate",
             "reason": "measurement_context_changed",

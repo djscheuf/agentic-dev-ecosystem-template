@@ -521,12 +521,12 @@ async def test_workflow_after_token_consuming_steps_accounts_usage_and_regates(m
         return {"schedule_next_step": False, "stop_reason": "token_budget"}
 
     monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
-    result = await EddRefinementWorkflow()._account_and_check_limits(
-        "run-1", {"usage_metrics": {"total_tokens": 10}}, "execute", "/repo"
+    record, limit_decision = await EddRefinementWorkflow()._account_and_check_limits(
+        {"run_id": "run-1"}, {"usage_metrics": {"total_tokens": 10}}, "execute", "/repo"
     )
 
     assert [name for name, _ in calls] == ["update_durable_counters", "check_refinement_limits"]
-    assert result["schedule_next_step"] is False
+    assert limit_decision["schedule_next_step"] is False
 
 
 @pytest.mark.asyncio
@@ -547,9 +547,9 @@ async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_
         return responses[name]
 
     workflow = EddRefinementWorkflow()
-    async def account(run_id, result, step, repo_root):
+    async def account(record, result, step, repo_root):
         calls.append(step)
-        return {"schedule_next_step": step != "evaluation", "stop_reason": "token_budget" if step == "evaluation" else "none"}
+        return record, {"schedule_next_step": step != "evaluation", "stop_reason": "token_budget" if step == "evaluation" else "none"}
 
     monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
     monkeypatch.setattr(workflow, "_account_and_check_limits", account)
@@ -559,6 +559,93 @@ async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_
 
     assert calls == ["execution", "evaluation"]
     assert result["terminal_result"]["terminal_reason"] == "token_budget"
+
+
+@pytest.mark.asyncio
+async def test_workflow_runs_multiple_iterations_until_limit_stops(tmp_path, monkeypatch) -> None:
+    plan_calls = []
+    execute_calls = []
+    evaluate_calls = []
+    limit_calls = []
+
+    async def mock_execute(name, result_type, *args, **kwargs):
+        if name == "initialize_run":
+            return {
+                "run_id": "run-1",
+                "budgets": {"token_budget": 100},
+                "candidate_history": [],
+            }
+        if name == "check_refinement_limits":
+            limit_calls.append(name)
+            return {
+                "schedule_next_step": len(limit_calls) < 4,
+                "stop_reason": "token_budget" if len(limit_calls) >= 4 else "none",
+            }
+        if name == "run_baseline_evaluation":
+            return {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}
+        if name == "plan_refinement_action":
+            plan_calls.append(args)
+            return {"action": "repair"}
+        if name == "execute_refinement_action":
+            execute_calls.append(args)
+            return {"status": "success", "usage_metrics": {"total_tokens": 1}}
+        if name == "validate_candidate":
+            execute_id = len(execute_calls)
+            return {"status": "scope_valid", "candidate_id": f"candidate-{execute_id}"}
+        if name == "evaluate_candidate":
+            candidate_id = args[1]
+            n = int(candidate_id.split("-")[1])
+            evaluate_calls.append(candidate_id)
+            return {
+                "status": "success",
+                "candidate_id": candidate_id,
+                "passing": 5 + n,
+                "required_coverage": {},
+                "measurement_context": "baseline",
+                "usage_metrics": {"total_tokens": 1},
+            }
+        if name == "commit_accepted_candidate":
+            candidate_evaluation = args[1]
+            return {
+                "candidate_id": candidate_evaluation["candidate_id"],
+                "commit": f"commit-{candidate_evaluation['candidate_id']}",
+                "metrics": candidate_evaluation,
+            }
+        if name == "finalize_run":
+            return {"terminal_reason": "token_budget"}
+        return {}
+
+    workflow = EddRefinementWorkflow()
+
+    async def account(record, result, step, repo_root):
+        return record, {"schedule_next_step": True, "stop_reason": "none"}
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr(workflow, "_account_and_check_limits", account)
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc",
+        ),
+    )
+
+    result = await workflow.run(
+        preflight,
+        {
+            "workflow_run_id": "wf",
+            "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        },
+    )
+
+    assert len(plan_calls) == 2
+    assert len(execute_calls) == 2
+    assert len(evaluate_calls) == 2
+    assert result["terminal_result"]["terminal_reason"] == "token_budget"
+    assert result["best_accepted_state"]["commit"] == "commit-candidate-2"
 
 
 async def _result(value):

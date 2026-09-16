@@ -102,3 +102,20 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Candidate evaluation propagates provider usage, retry identity, and logical iteration context into its durable metric result when the provider reports them.
 - The workflow accounts execution and evaluation results, then reruns the centralized limit gate before scheduling subsequent autonomous work.
 - A post-Activity limit stop finalizes with the preserved best accepted state and does not schedule the next step.
+
+## Bring-to-ready contract (2026-09-15)
+
+- Readiness requirements are captured in `docs/reqs/agentic-edd-refinement/bring-to-ready/requirements.md`.
+- The public JSON input anchors repository discovery at `skill_folder`; relative paths resolve from the input document parent, and progress is written under `<input-parent>/.process/edd/<run-id>/`.
+- The target repository supplies `eval_config`, argv-based `test_command` and `inspect_command`, structured required test cases, and a configurable metadata property for coverage IDs. Provider identity is derived and validated from the evaluation configuration rather than duplicated in the input.
+
+## Multi-iteration workflow loop (2026-09-15)
+
+- `EddRefinementWorkflow.run` now loops over `plan_refinement_action`, `execute_refinement_action`, `validate_candidate`, and `evaluate_candidate`.
+- `check_refinement_limits` runs before each planning cycle; a stop decision immediately finalizes the run.
+- Durable counters are updated after `execute_refinement_action` and `evaluate_candidate`, and the returned progress record is reused by the workflow and the next `plan_refinement_action`.
+- `compare_candidate_to_best` compares against the baseline when no `best_accepted_state` exists, and against the accepted best on subsequent cycles.
+- Accepted candidates are committed through `commit_accepted_candidate` and the updated best state is written back into the in-memory progress record, so the next planning cycle sees the latest accepted commit.
+- See [[decisions/ADR-019-edd-multi-iteration-loop.md]] for the rationale.
+
+- Remaining readiness work includes workflow-owned preflight, start/query CLI support, a kickoff script, and an external-repository Cadence integration test.

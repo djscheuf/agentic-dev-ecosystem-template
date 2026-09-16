@@ -50,7 +50,7 @@
     {
       "criterion": "Given the first candidate is accepted and limits permit more work, when its commit and state update complete, then the workflow schedules another planning cycle rather than returning after one attempt",
       "gherkin": "Given the first candidate is accepted and limits permit more work When its commit and state update complete Then the workflow schedules another planning cycle rather than returning after one attempt",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given a worker restarts after candidate execution but before comparison, when Cadence replays the workflow, then it resumes evaluation or comparison for the same candidate without rerunning the agent action",
@@ -137,7 +137,7 @@
     {
       "criterion": "The run reaches the configured max_iterations or max_tokens after an accepted candidate",
       "gherkin": "Given the run reaches the configured max_iterations or max_tokens after an accepted candidate When the limit check runs Then the workflow finalizes with the best accepted state and does not schedule another planning cycle",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "The mutation lease cannot be released at terminal finalization",
@@ -284,7 +284,7 @@
     {
       "description": "Wire the EddRefinementWorkflow as a multi-iteration loop with deterministic Activities, Cadence replay resumption, and Continue-As-New readiness",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "testing_strategy": {

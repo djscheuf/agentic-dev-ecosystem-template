@@ -21,6 +21,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-016: Consolidated Story Analysis Run Reporting](decisions/ADR-016-consolidated-run-reporting.md)
 - [ADR-017: Agentic EDD Quality Ratchet](decisions/ADR-017-agentic-edd-quality-ratchet.md)
 - [ADR-018: Explicit Target Repository Context for Agentic Workflows](decisions/ADR-018-target-repository-context.md)
+- [ADR-019: EDD Multi-Iteration Loop](decisions/ADR-019-edd-multi-iteration-loop.md)
 
  
 ## Services
