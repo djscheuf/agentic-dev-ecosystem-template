@@ -229,7 +229,7 @@
     {
       "description": "Implement required test-case coverage calculation using coverage_metadata_property and invalidate evidence that contains unknown test-case IDs",
       "layer": "api",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement PlanRefinementActivity to select an authorized action, a stop decision, or an approval-required expectation change, constrained by budget and regression threshold",
