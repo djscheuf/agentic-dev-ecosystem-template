@@ -10,7 +10,7 @@
     {
       "criterion": "Given a valid EDD input document and an existing clean skill repository, when the requester invokes scripts/kickoff-edd-refinement.sh, then the CLI starts EddRefinementWorkflow and prints its workflow and run IDs",
       "gherkin": "Given a valid EDD input document and an existing clean skill repository When the requester invokes scripts/kickoff-edd-refinement.sh Then the CLI starts EddRefinementWorkflow and prints its workflow and run IDs",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Given skill_folder is relative to the input document, when preflight resolves it, then the nearest containing Git worktree becomes the immutable target root and every scoped path is validated against it",
@@ -194,7 +194,7 @@
     {
       "description": "Implement the kickoff shell script and edd-refinement-cli start/query/approve/reject subcommands with absolute-path handling and durable ID reporting",
       "layer": "ui",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Implement target repository preflight: resolve the Git worktree from skill_folder, canonicalize scoped paths, validate containment, check worktree cleanliness, and discover exactly one evaluation provider",
