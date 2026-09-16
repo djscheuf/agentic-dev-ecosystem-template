@@ -1,0 +1,679 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/bring-to-ready/bring-agentic-edd-refinement-to-ready.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/bring-to-ready/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "EddInputReceived: the requester invokes scripts/kickoff-edd-refinement.sh with a portable EDD input document. The kickoff script validates the .venv, resolves an absolute input path, and calls edd-refinement-cli start.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "EddRefinementCLI.start",
+          "data_shape": "{input_path: absolute string}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "InputDocumentValidated: the CLI reads and validates the JSON input against the EddRefinementInput schema, resolves relative paths from the input parent, and rejects malformed or missing required fields.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "EddRefinementInput",
+          "data_shape": "{skill_folder, eval_config, test_command, inspect_command, test_cases, coverage_metadata_property, modification_scope, limits}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "TargetRepositoryPreflight: the workflow invokes the preflight Activity to resolve the Git worktree from skill_folder, canonicalize all scoped paths, validate the eval_config has exactly one provider, check worktree cleanliness, and acquire a repository-scoped mutation lease.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "PreflightResult",
+          "data_shape": "{target_context: TargetRepositoryContext, lease_token, provider, failed_conditions}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "RunInitialized: the workflow creates or resumes the schema-versioned progress record under <input-parent>/.process/edd/<run-id>/ and derives a stable run id from the input document, target starting revision, and Cadence workflow run id.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecordStore",
+          "data_shape": "{run_id, input_path, target_context, limits, schema_version, baseline: null, candidate_history: []}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "BaselineEvaluationRequested: the workflow runs the configured test_command in the target repository, captures the returned evaluation_id, and parses the structured pass/fail/coverage metrics.",
+      "layers_involved": ["Backend", "External"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "DeterministicEvaluation",
+          "data_shape": "{target_context, command: list, provider, timeout_seconds, evaluation_id: string, structured_metrics: object}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "BaselineResultRecorded: the baseline metrics, coverage mapping, token usage, and attempt are written to the progress record. Unknown required test-case IDs invalidate the evidence.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{baseline: BaselineResult, required_test_case_coverage, token_usage, validation_status}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "RefinementPlanned: the planner selects one authorized action, a stop decision, or an evaluation-expectation change that requires human approval, all constrained by the remaining budget and regression threshold.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PlanningResult",
+          "data_shape": "{action, rationale, requires_approval, intended_files, expected_effect, stop_recommendation}"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "ApprovalGated: if the planning result requires human approval, the workflow emits a proposal with stable identity and timeout. A matching approve/reject signal or a timeout is recorded in the progress record; late or mismatched signals are ignored.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{pending_approval_request: {proposal_id, diff_hash, deadline}, decision_history: list}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "ApprovalProposal",
+          "data_shape": "{workflow_id, run_id, proposal_id, diff_hash, timeout_seconds}"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "CandidateExecuted: the approved or non-approval action runs through DevinHarness with an explicitly colocated accept-edits configuration. The harness returns changed files, token usage, and a canonical diff hash.",
+      "layers_involved": ["Backend", "External"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "DevinHarness",
+          "data_shape": "{target_context, accept_edits_config, action, changed_files: list, diff_hash, token_usage}"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "CandidateValidated: the candidate is checked for scope, diff, and metrics validity. Persisted candidates are reused on Cadence replay so the harness is not re-executed.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{candidate_id, diff_hash, scope_status, validation_status, persisted_action}"
+        }
+      ]
+    },
+    {
+      "step": "11",
+      "description": "CandidateEvaluated: the workflow executes the same test_command in the target repository, captures the new evaluation_id, then calls the configured inspect_command with that exact id to produce metrics.",
+      "layers_involved": ["Backend", "External"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "DeterministicEvaluation",
+          "data_shape": "{target_context, test_command: list, inspect_command: list, evaluation_id, structured_metrics: object, attempt}"
+        }
+      ]
+    },
+    {
+      "step": "12",
+      "description": "QualityCompared: the workflow compares the candidate metrics with the best accepted state. It accepts absolute passing gains or meaningful new coverage, reruns apparently degraded candidates unchanged, confirms repeated degradation as a regression, and escalates inconclusive evidence to a human handoff.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "QualityRatchetDecision",
+          "data_shape": "{decision: accept|reject|rerun|regression|human_handoff, new_best: object, consecutive_confirmed_regressions}"
+        }
+      ]
+    },
+    {
+      "step": "13",
+      "description": "AcceptedCandidateCommitted: an accepted candidate is staged and committed in the target repository using the target's git-commit skill conventions. The new revision is recorded as the best accepted state in the progress record.",
+      "layers_involved": ["Backend", "External"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "GitCommit",
+          "data_shape": "{target_context, changed_files, commit_message, resulting_revision}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{best_accepted_state: {revision, diff_hash, metrics}}"
+        }
+      ]
+    },
+    {
+      "step": "14",
+      "description": "RegressionRecovered: a confirmed regression triggers a restore to the best accepted revision, a verification evaluation, and a redacted reverted-proposal record before the workflow checks the three-strikes stop threshold.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{regression_evidence, reverted_proposal, recovery_result, consecutive_confirmed_regressions}"
+        }
+      ]
+    },
+    {
+      "step": "15",
+      "description": "RefinementBudgetChecked: after each completed candidate or recovery, the workflow checks max_iterations, max_tokens, eval_timeout, and the regression stop threshold, then either schedules another planning cycle or finalizes the run.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "LimitCheck",
+          "data_shape": "{limits, durable_counters, should_continue: bool, stop_reason}"
+        }
+      ]
+    },
+    {
+      "step": "16",
+      "description": "RefinementFinalized: the workflow publishes the terminal progress record beside the input document, restores or confirms the target repository is at the best accepted state, and releases the mutation lease on every terminal path.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{terminal_record, best_accepted_state, final_metrics, lease_release_status}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "StartEddRefinement",
+      "description": "Emitted when the kickoff script invokes the CLI and a workflow execution is started.",
+      "layers_involved": ["Frontend", "Backend"],
+      "data_points": [
+        { "point": "input_path", "description": "Absolute path to the EDD input document." },
+        { "point": "workflow_id", "description": "Cadence workflow id." },
+        { "point": "run_id", "description": "Durable run id printed by the CLI." }
+      ]
+    },
+    {
+      "event_name": "ValidateEddInput",
+      "description": "Emitted when the input document is schema-validated and all relative paths are resolved.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "input_path", "description": "Absolute path to the input document." },
+        { "point": "schema_version", "description": "Version of the EddRefinementInput schema." },
+        { "point": "validation_status", "description": "success or failed with rule name." }
+      ]
+    },
+    {
+      "event_name": "ResolveTargetRepository",
+      "description": "Emitted when the target worktree is resolved from the skill_folder anchor.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "anchor_path", "description": "Original skill_folder path." },
+        { "point": "resolved_root", "description": "Canonical absolute worktree root." },
+        { "point": "starting_revision", "description": "HEAD commit SHA at preflight time." }
+      ]
+    },
+    {
+      "event_name": "AcquireMutationLease",
+      "description": "Emitted when the repository-scoped mutation lease is acquired or rejected.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "repo_key", "description": "Canonical target repository key." },
+        { "point": "run_id", "description": "Workflow run id holding the lease." },
+        { "point": "acquired", "description": "True if the lease was acquired." }
+      ]
+    },
+    {
+      "event_name": "InitializeRun",
+      "description": "Emitted when the progress record is created or resumed.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "resumed", "description": "True if the progress record already existed." },
+        { "point": "schema_version", "description": "Progress record schema version." }
+      ]
+    },
+    {
+      "event_name": "RunBaselineEvaluation",
+      "description": "Emitted when the baseline evaluation is requested in the target repository.",
+      "layers_involved": ["Backend", "External"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "provider", "description": "Pinned evaluation provider." },
+        { "point": "evaluation_id", "description": "Identity returned by the test command." }
+      ]
+    },
+    {
+      "event_name": "SelectRefinementAction",
+      "description": "Emitted when the planner produces a selected action or stop decision.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "action", "description": "Canonical action name or 'stop'." },
+        { "point": "requires_approval", "description": "Whether a human approval is required." }
+      ]
+    },
+    {
+      "event_name": "RequestApproval",
+      "description": "Emitted when the workflow exposes an approval proposal to the requester.",
+      "layers_involved": ["Backend", "Frontend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "proposal_id", "description": "Stable approval proposal id." },
+        { "point": "timeout_seconds", "description": "Configured approval timeout." }
+      ]
+    },
+    {
+      "event_name": "ExecuteCandidate",
+      "description": "Emitted when a refinement action is executed by the Devin harness.",
+      "layers_involved": ["Backend", "External"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "diff_hash", "description": "Canonical diff hash." }
+      ]
+    },
+    {
+      "event_name": "EvaluateCandidate",
+      "description": "Emitted when a candidate is evaluated and inspected by exact evaluation id.",
+      "layers_involved": ["Backend", "External"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "evaluation_id", "description": "Exact evaluation identity passed to inspect_command." }
+      ]
+    },
+    {
+      "event_name": "CompareCandidate",
+      "description": "Emitted when the quality ratchet compares a candidate to the best accepted state.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "candidate_id", "description": "Stable candidate identifier." },
+        { "point": "decision", "description": "accept, reject, rerun, regression, or human_handoff." }
+      ]
+    },
+    {
+      "event_name": "CommitAcceptedCandidate",
+      "description": "Emitted when an accepted candidate is committed in the target repository.",
+      "layers_involved": ["Backend", "External"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "new_revision", "description": "Resulting commit SHA." },
+        { "point": "diff_hash", "description": "Accepted candidate diff hash." }
+      ]
+    },
+    {
+      "event_name": "CheckRefinementLimits",
+      "description": "Emitted when the workflow checks iteration, token, timeout, and regression budgets.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "iteration", "description": "Current logical iteration." },
+        { "point": "token_usage", "description": "Cumulative token usage." },
+        { "point": "should_continue", "description": "True if another iteration is allowed." }
+      ]
+    },
+    {
+      "event_name": "FinalizeRun",
+      "description": "Emitted when the workflow reaches a terminal outcome.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable run identifier." },
+        { "point": "terminal_outcome", "description": "success, rejected, timed_out, failed, or human_handoff." },
+        { "point": "best_accepted_revision", "description": "Final target repository state." }
+      ]
+    },
+    {
+      "event_name": "ReleaseMutationLease",
+      "description": "Emitted when the repository-scoped mutation lease is released.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "repo_key", "description": "Canonical target repository key." },
+        { "point": "run_id", "description": "Workflow run id that held the lease." },
+        { "point": "released", "description": "Whether the release succeeded." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Validate input document existence and pass an absolute path to the CLI.",
+          "intent": "The kickoff script is the caller-facing entry point; it should protect the CLI from relative-path issues after chdir."
+        },
+        {
+          "responsibility": "Start the EddRefinementWorkflow through the CLI and print workflow and run IDs.",
+          "intent": "The requester needs durable identifiers to query, approve, or reject later."
+        },
+        {
+          "responsibility": "Render approval proposals and query/status results without enforcing business rules.",
+          "intent": "User-facing display and sequencing are frontend concerns; decisions are made by the backend workflow."
+        },
+        {
+          "responsibility": "Forward approve/reject decisions to the workflow by signal with the correct proposal id.",
+          "intent": "The CLI is the transport; it does not validate the proposal or override timeouts."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Parse and validate the portable EDD input document against the published schema.",
+          "intent": "The input contract is the public surface; the backend enforces correctness before any mutation."
+        },
+        {
+          "responsibility": "Resolve the target Git worktree from skill_folder and validate every scoped path against it.",
+          "intent": "Path traversal prevention and repository identity belong in the defensible zone."
+        },
+        {
+          "responsibility": "Discover exactly one execution provider from eval_config and reject zero or multiple providers.",
+          "intent": "Deterministic evaluation requires a single pinned provider; preflight is the right place to enforce this."
+        },
+        {
+          "responsibility": "Run baseline and candidate evaluations in the target repository and capture evaluation identity for inspection.",
+          "intent": "The backend owns the harness invocation and the structured output contract with the external provider."
+        },
+        {
+          "responsibility": "Compare each candidate to the best accepted state, accept only measured gains, and handle regressions.",
+          "intent": "Quality-ratchet logic is business logic and must be centralized in the backend."
+        },
+        {
+          "responsibility": "Loop the workflow from planning through execution, validation, and evaluation until a budget or stop condition is reached.",
+          "intent": "Multi-iteration refinement is the main new capability and is controlled by the workflow orchestration layer."
+        },
+        {
+          "responsibility": "Commit accepted changes using the target repository's git-commit skill conventions.",
+          "intent": "Commit formatting and repository-specific rules are part of the backend mutation path."
+        },
+        {
+          "responsibility": "Release the repository mutation lease and publish a terminal record on every terminal path.",
+          "intent": "The backend is responsible for safe finalization regardless of success or failure."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist the progress record and terminal record under <input-parent>/.process/edd/<run-id>/.",
+          "intent": "Colocating durable state with the input document keeps artifacts outside the target worktree and supports resumption."
+        },
+        {
+          "responsibility": "Enforce the progress-record schema version and redact secrets before writing.",
+          "intent": "Durability and security are storage concerns; the serializer is the gatekeeper."
+        },
+        {
+          "responsibility": "Store repository-scoped mutation leases keyed by canonical repository root and run id.",
+          "intent": "The lease store is the source of truth for concurrent access."
+        },
+        {
+          "responsibility": "Maintain durable counters for iteration, token usage, attempt history, and confirmed regressions.",
+          "intent": "Limit enforcement and audit depend on consistent, atomic state updates."
+        }
+      ]
+    },
+    {
+      "layer": "External",
+      "new_responsibilities": [
+        {
+          "responsibility": "The target repository's test_command and inspect_command return deterministic structured JSON in the target worktree.",
+          "intent": "External providers own the measurement; the workflow only consumes their public contract."
+        },
+        {
+          "responsibility": "Git in the target repository stages, commits, resets, and reports status relative to the target root.",
+          "intent": "Git operations are external; the backend supplies the target context and expects a local worktree."
+        },
+        {
+          "responsibility": "Cadence replays Activities deterministically from recorded history.",
+          "intent": "Resumption and workflow durability are provided by the orchestration engine, not by the workflow code."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "EddRefinementInput",
+      "description": "Public, versioned input document that kicks off an EDD refinement run.",
+      "changes": {
+        "added": "Fields: skill_folder, eval_config, test_command, inspect_command, test_cases, coverage_metadata_property, modification_scope, limits, optional related_content",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Schema-versioned durable run state that is persisted beside the input document and redacted before storage.",
+      "changes": {
+        "added": "Fields: input_path, input_parent, provider, evaluation_id, best_accepted_state, terminal_record, durable_counters, iteration_history, candidate_history, regression_evidence",
+        "modified": "Storage root is now <input-parent>/.process/edd/<run-id>/ instead of the target repository's .process/edd/<run-id>/",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "TerminalReport",
+      "description": "Atomic, schema-versioned audit record published at workflow termination.",
+      "changes": {
+        "added": "Fields: workflow_id, run_id, terminal_outcome, baseline, final_metrics, accepted_commits, token_usage, best_accepted_state, lease_release_status, completed_at",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "edd-refinement-cli",
+      "description": "Python CLI with start, query, approve, and reject subcommands.",
+      "changes": {
+        "added": "start: accepts an input document path and prints workflow_id and run_id; query: get_status; approve/reject: send decisions by proposal id",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "EddRefinementWorkflow",
+      "description": "Cadence workflow entry point that accepts an absolute input document path and orchestrates preflight, baseline, iteration, and finalization.",
+      "changes": {
+        "added": "Workflow input: input_document_path; outputs: workflow_id, run_id, terminal_record path; exposes get_status, get_approval_status, get_regression_status queries",
+        "modified": "Workflow now loops to the planner after each accepted candidate and supports resumption from a persisted progress record",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "WorkflowCatalogRegistration",
+      "description": "Registration of the EDD module in the orchestrator catalog.",
+      "changes": {
+        "added": "src/edd_refinement_workflow.module.SPEC is added to src/orchestrator/workflow_catalog.json; worker polls the edd-refinement task list",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "PortableInputToPreflight",
+      "description": "The kickoff script and CLI pass an absolute input path to the workflow, which resolves all relative fields from the input parent before preflight.",
+      "changes": {
+        "added": "Path resolution in the CLI, schema validation, and pass-through to EddRefinementWorkflow",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "MultiIterationRefinementLoop",
+      "description": "The workflow repeatedly schedules planning, execution, validation, and evaluation until limits, a stop decision, or a terminal failure.",
+      "changes": {
+        "added": "Loop back to PlanRefinementActivity after commit_accepted_candidate when limits permit",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "EvaluationIdentityChain",
+      "description": "Each test_command execution returns a stable evaluation_id that is passed explicitly to inspect_command; the workflow does not infer the latest result.",
+      "changes": {
+        "added": "test_command structured output contract with evaluation_id and inspect_command interpolation with {evaluation_id} placeholder",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Use a portable JSON input document as the single public entry point for an EDD refinement run.",
+      "justification": "A portable input lets the same workflow be exposed through a CLI, a kickoff script, or an external caller without leaking Cadence or repository internals.",
+      "basis": "Story analysis acceptance criteria and existing promptfoo-style input contracts",
+      "impact": "New EddRefinementInput schema, edd-refinement-cli, and kickoff script; workflow input changes from PreflightResult to input document path.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Resolve all input paths relative to the input document's parent directory, then validate canonical containment against the Git worktree rooted at skill_folder.",
+      "justification": "Relative resolution from the input parent makes the document portable. Anchor-based worktree discovery keeps repository identity deterministic and safe.",
+      "basis": "ADR-018: Explicit Target Repository Context for Agentic Workflows",
+      "impact": "Updates to TargetWorktreeResolver and ScopedPathValidator; the CLI resolves the input parent and the workflow resolves relative paths inside the Activity.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Persist durable progress and terminal records under <input-parent>/.process/edd/<run-id>/, not inside the target repository.",
+      "justification": "Colocating artifacts with the input document keeps the target worktree clean, avoids hiding unrelated changes, and follows ADR-004 output conventions.",
+      "basis": "ADR-004: Skill Output Contracts & Sentinel Files and the acceptance criterion to publish colocated progress artifacts",
+      "impact": "ProgressRecordStore and FinalizeRunActivity receive an output root derived from the input parent; target repository is only modified by scoped candidate changes and Git commits.",
+      "answers_open_question": "Should the run-owned artifact directory be excluded from cleanliness and diff checks, and how is that enforced without hiding unrelated changes?"
+    },
+    {
+      "decision": "Discover the evaluation provider from eval_config and require exactly one provider; reject the request if zero or multiple are found.",
+      "justification": "A single pinned provider makes evaluation results deterministic and simplifies the command and inspection chain.",
+      "basis": "SkillAndEvaluationDiscovery in src/common and the story acceptance criteria",
+      "impact": "skill_and_evaluation_discovery.py extended to parse promptfoo providers and return the selected provider identity to the progress record.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "test_command must emit a structured JSON line containing the evaluation_id; inspect_command receives the same id through a {evaluation_id} placeholder in its argv.",
+      "justification": "This makes the harness-to-inspection chain explicit and prevents the workflow from guessing which evaluation to inspect.",
+      "basis": "Current candidate and baseline evaluation Activities and the story analysis question on evaluation identity",
+      "impact": "New command output contract in evaluate_candidate and run_baseline_evaluation; the test_command and inspect_command shapes are documented in the input schema.",
+      "answers_open_question": "How is the evaluation identity returned from test_command and how is inspect_command wired to receive it concretely?"
+    },
+    {
+      "decision": "Use the existing MutationLeaseStore keyed by the canonical target repository root and workflow run id, with a TTL and explicit release on every terminal path.",
+      "justification": "The lease store already enforces repository-scoped concurrency in the local in-memory stack; adding TTL and guaranteed release satisfies the run-lifetime lease requirement.",
+      "basis": "src/common/mutation_lease_policy.py and ADR-018",
+      "impact": "The store needs TTL support and a release Activity invoked by finalize_run; multi-host deployments will require a shared backend replacement later.",
+      "answers_open_question": "What backend enforces the repository-scoped mutation lease across Cadence workers?"
+    },
+    {
+      "decision": "The workflow loops back to the planner after an accepted candidate is committed and limits still permit more work.",
+      "justification": "A single-pass workflow cannot improve a skill through multiple iterations; the loop must be explicit in the workflow definition.",
+      "basis": "Story analysis acceptance criteria and vault/services/edd_refinement.md",
+      "impact": "EddRefinementWorkflow updated with a planning-execution-validation-evaluation-commit cycle and a limit gate before each new iteration.",
+      "answers_open_question": ""
+    },
+    {
+      "decision": "Worker restart and Cadence replay resume from the persisted progress record; the workflow uses recorded Activity results for already executed candidates.",
+      "justification": "Cadence deterministically replays Activities; the progress record stores candidate identifiers, diff hashes, and metrics so replay does not rerun the harness.",
+      "basis": "Cadence replay semantics and src/edd_refinement_workflow/progress_record.py",
+      "impact": "InitializeRunActivity resumes the progress record; candidate execution and evaluation Activities must be deterministic and idempotent.",
+      "answers_open_question": "How are the progress record schema version and redaction rules enforced across worker restarts and Continue-As-New?"
+    },
+    {
+      "decision": "commit_accepted_candidate applies the target repository's git-commit skill conventions and resolves author/sign-off identity from the target repository's Git config, not from the input document.",
+      "justification": "Repository-specific commit rules and identity belong to the target repository; the portable input should not carry identity fields.",
+      "basis": "git-commit skill and acceptance criterion to commit without requiring identity fields in the input",
+      "impact": "Commit activity loads the git-commit skill from the target repository, falls back to a default conventional commit, and reads Git user config for authorship.",
+      "answers_open_question": "Which exact git-commit skill conventions are discovered and applied from the target repository?"
+    },
+    {
+      "decision": "Approval proposals are identified by a stable proposal id and diff hash, with a deadline stored in the progress record; late or mismatched decisions are ignored and treated as no approval.",
+      "justification": "This makes approval handling deterministic across Cadence replay and prevents replayed or stale signals from applying an expectation-changing action.",
+      "basis": "vault/services/edd_refinement.md and Cadence signal handling",
+      "impact": "ProgressRecord schema version 2 fields and the workflow signal handler updated to compare proposal_id and diff_hash and check the deadline.",
+      "answers_open_question": "How are approval proposal identity, timeout state, and late decisions persisted through Cadence replay?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "How is the evaluation identity returned from test_command and how is inspect_command wired to receive it concretely?",
+      "answer": "test_command prints a structured JSON line with an `evaluation_id` field. inspect_command is a list of strings that may contain the literal placeholder `{evaluation_id}`, which the workflow replaces with the captured id before invocation.",
+      "justification": "This creates an explicit chain from execution to inspection and removes any inference of the most recent evaluation.",
+      "basis": "Architectural decision 5 in this design document"
+    },
+    {
+      "question": "What backend enforces the repository-scoped mutation lease across Cadence workers?",
+      "answer": "The `MutationLeaseStore` in `src/common` enforces the lease, keyed by the canonical realpath of the target worktree and the workflow run id. It supports a TTL and explicit release. For the current local Cadence stack the store is in-memory; a shared persistent backend is required for multi-host workers.",
+      "justification": "The existing store already provides the right contract; adding TTL and guaranteed release satisfies the story without introducing a new database.",
+      "basis": "Architectural decision 6 in this design document"
+    },
+    {
+      "question": "Which exact git-commit skill conventions are discovered and applied from the target repository?",
+      "answer": "The workflow loads the `git-commit` skill from the target repository's `.devin/skills/git-commit/SKILL.md` if it exists. The skill defines the commit-message format, line-length, and sign-off rules. Author and committer are read from the target repository's Git config. If no skill is found, the workflow uses a default conventional commit.",
+      "justification": "Repository conventions and identity live in the target repository, so the portable input does not need to carry them.",
+      "basis": "Architectural decision 9 in this design document"
+    },
+    {
+      "question": "How are the progress record schema version and redaction rules enforced across worker restarts and Continue-As-New?",
+      "answer": "`ProgressRecordSerializer` enforces a hard-coded schema version and an explicit allow-list of fields, redacting environment variables and credential-bearing paths on every write. `InitializeRunActivity` verifies the schema version and allow-list on read and hard-fails on mismatch. If Continue-As-New is used, the new workflow receives the same `run_id` and `progress_record_path` and re-validates on first read.",
+      "justification": "Filesystem persistence with explicit schema and redaction makes the record durable across worker restarts without depending on a specific Cadence version or Continue-As-New strategy.",
+      "basis": "Architectural decision 8 in this design document"
+    },
+    {
+      "question": "How are approval proposal identity, timeout state, and late decisions persisted through Cadence replay?",
+      "answer": "The `ProgressRecord` stores `pending_approval_request` with `proposal_id`, `diff_hash`, and `deadline`, plus `decision_history`. The workflow records the first matching signal by proposal id and diff hash before the deadline. Late or mismatched signals are ignored. On replay, the deterministic signal event and the recorded decision are re-executed exactly.",
+      "justification": "A stable proposal identity and deadline in durable state make replay deterministic and prevent stale or conflicting approvals.",
+      "basis": "Architectural decision 10 in this design document"
+    },
+    {
+      "question": "Should the run-owned artifact directory be excluded from cleanliness and diff checks, and how is that enforced without hiding unrelated changes?",
+      "answer": "The durable progress and terminal records are written under the input document's parent directory, outside the target worktree, so they never appear in the target's Git status. Any scratch directories that must live in the target repository are explicitly configured in `scratch_globs`; preflight passes only if all unexpected changes are confined to those globs.",
+      "justification": "Removing the run-owned artifacts from the target worktree eliminates the risk of unrelated changes being hidden inside them.",
+      "basis": "Architectural decision 3 in this design document"
+    }
+  ]
+}
