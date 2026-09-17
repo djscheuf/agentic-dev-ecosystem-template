@@ -1,0 +1,11 @@
+- group: "Group Name"
+  tests:
+    - id: "TC-001"
+      description: "Test description"
+      given:
+        - "Given condition 1"
+        - "Given condition 2"
+      when: "When Action"
+      then:
+        - "Then result 1"
+        - "Then result 2"

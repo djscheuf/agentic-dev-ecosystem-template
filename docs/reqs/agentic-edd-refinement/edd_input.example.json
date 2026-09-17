@@ -1,0 +1,30 @@
+{
+    "skill_folder": "path/to/skill/folder",
+    "eval_config": "path/to/related/promptfoo.config.yaml",
+    "related_content": [
+        "path/to/related/other_content.md"
+    ],
+    "test_command": [
+        "npm",
+        "run",
+        "test",
+        "--",
+        "skillTests.config.yaml"
+    ],
+    "inspect_command": [
+        "scripts/inspect-eval.js",
+        "--all",
+        "--json"
+    ],
+    "test_cases": "path/to/test-cases.yaml",
+    "coverage_metadata_property": "metadata.covers_test_case_ids",
+    "modification_scope": [
+        "path/to/modifiable/scope.md",
+        "path/to/modifiable/folder/"
+    ],
+    "limits": {
+        "max_iterations": 10,
+        "max_tokens": 10000,
+        "eval_timeout_seconds": 1200
+    }
+}
