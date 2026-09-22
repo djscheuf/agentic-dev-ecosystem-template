@@ -22,6 +22,8 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-017: Agentic EDD Quality Ratchet](decisions/ADR-017-agentic-edd-quality-ratchet.md)
 - [ADR-018: Explicit Target Repository Context for Agentic Workflows](decisions/ADR-018-target-repository-context.md)
 - [ADR-019: EDD Multi-Iteration Loop](decisions/ADR-019-edd-multi-iteration-loop.md)
+- [ADR-020: Cadence Python SDK Serialization and Reconstruction Require JSON-Safe Types and Explicit Type Hints](decisions/ADR-020-cadence-python-sdk-serialization-and-types.md)
+- [ADR-021: EDD Evaluation Commands May Exit Non-Zero and Inspect Commands Return Raw Result Lists](decisions/ADR-021-edd-evaluation-command-contracts.md)
 
  
 ## Services
