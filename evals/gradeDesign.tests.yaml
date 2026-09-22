@@ -37,7 +37,7 @@ providers:
   - id: 'exec: node ./devin.js'
     label: 'SWE-1.7'
     config:
-      model: 'SWE-1.7-Medium'
+      model: 'SWE-1.7'
   
 # Test cases loaded from external file
 tests: 

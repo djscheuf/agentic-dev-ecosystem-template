@@ -9,7 +9,6 @@
         "npm",
         "run",
         "test",
-        "--",
         "gradeDesign.tests.yaml"
     ],
     "inspect_command": [
