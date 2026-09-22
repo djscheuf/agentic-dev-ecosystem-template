@@ -14,6 +14,22 @@ from ..evaluation_identity import (
     extract_evaluation_id,
 )
 
+_PLACEHOLDER = "{evaluation_id}"
+
+
+def _summarize_eval_results(results: list) -> dict:
+    """Derive pass/fail metrics from a promptfoo result list."""
+    passing = sum(1 for r in results if r.get("success") is True)
+    failing = len(results) - passing
+    total = len(results)
+    percentage = (passing / total * 100) if total > 0 else 0.0
+    return {
+        "passing": passing,
+        "failing": failing,
+        "total": total,
+        "percentage": percentage,
+    }
+
 
 class EvaluateCandidateActivity:
     def __init__(self, store, harness: Callable[..., dict], now: Callable[[], str] | None = None) -> None:
@@ -82,6 +98,8 @@ class EvaluateCandidateActivity:
                     cwd=repo_root,
                     timeout=configuration["timeout_seconds"],
                 )
+            if isinstance(inspect_result, list):
+                inspect_result = _summarize_eval_results(inspect_result)
         except EvaluationIdentityError as exc:
             inspect_result = {}
             infrastructure_error = str(exc)
@@ -148,15 +166,25 @@ class EvaluateCandidateActivity:
 
 
 def _run_evaluation_command(**kwargs) -> dict:
-    completed = subprocess.run(
-        kwargs["command"],
-        cwd=kwargs["cwd"],
-        capture_output=True,
-        text=True,
-        timeout=kwargs["timeout"],
-        check=True,
-    )
-    return json.loads(completed.stdout)
+    try:
+        completed = subprocess.run(
+            kwargs["command"],
+            cwd=kwargs["cwd"],
+            capture_output=True,
+            text=True,
+            timeout=kwargs["timeout"],
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError from exc
+
+    stdout = completed.stdout.strip()
+    if stdout:
+        try:
+            return json.loads(stdout)
+        except json.JSONDecodeError:
+            pass
+    return {}
 
 
 @activity.defn(name="evaluate_candidate")
