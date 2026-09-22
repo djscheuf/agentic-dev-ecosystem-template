@@ -74,7 +74,7 @@ def test_preflight_succeeds_for_clean_target_with_skill(tmp_path) -> None:
 
     assert result.status == "success", result.failed_conditions
     assert result.target_context is not None
-    assert result.target_context.repo_root == target.resolve()
+    assert result.target_context.repo_root == str(target.resolve())
     assert result.target_context.branch == "master"
     assert result.failed_conditions == []
 

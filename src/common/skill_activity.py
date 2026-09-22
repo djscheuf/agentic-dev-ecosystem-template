@@ -92,7 +92,7 @@ class SkillActivity(ABC):
 
     def _repo_root(self, skill_input: SkillActivityInput) -> Path:
         if skill_input.target_context is not None:
-            return skill_input.target_context.repo_root
+            return Path(skill_input.target_context.repo_root)
         return self.repo_root
 
     def build_prompt(self, skill_input: SkillActivityInput) -> str:
@@ -225,7 +225,7 @@ def run_skill(
     expected_output_path: Callable[[SkillActivityInput], Path] | None = None,
 ) -> SkillActivityOutput:
     effective_repo_root = (
-        skill_input.target_context.repo_root
+        Path(skill_input.target_context.repo_root)
         if skill_input.target_context is not None
         else repo_root
     )

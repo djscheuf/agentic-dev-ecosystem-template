@@ -12,7 +12,7 @@ from common.target_repository import TargetRepositoryResolutionError, TargetWork
 
 @dataclasses.dataclass
 class TargetRepositoryContext:
-    repo_root: Path
+    repo_root: str
     anchor_path: str
     explicit_root: Optional[str]
     branch: str
@@ -140,7 +140,7 @@ def resolve_and_validate_target_repository(
     return PreflightResult(
         status="success",
         target_context=TargetRepositoryContext(
-            repo_root=repo_root,
+            repo_root=str(repo_root),
             anchor_path=anchor_path,
             explicit_root=explicit_root,
             branch=branch.stdout.strip(),

@@ -4,6 +4,8 @@ from datetime import timedelta
 from cadence import workflow
 from cadence.workflow import execute_activity, sleep, wait_condition
 
+from common.preflight import PreflightResult
+
 from .quality_ratchet import compare_candidate_to_best
 
 
@@ -15,7 +17,7 @@ class EddRefinementWorkflow:
         self._regression_status = None
 
     @workflow.run
-    async def run(self, preflight_result, request: dict):
+    async def run(self, preflight_result: PreflightResult, request: dict):
         record = await execute_activity(
             "initialize_run",
             dict,

@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from common.mutation_lease_policy import LeaseConflictError, MutationLeasePolicyHandler
 from common.mutation_lease_store import get_default_store
+from common.preflight import PreflightResult
 
 from ..candidate_results import EvaluationRunConfiguration
 
@@ -29,7 +30,7 @@ class InitializeRunActivity:
     def run(
         self,
         workflow_run_id: str,
-        preflight_result,
+        preflight_result: PreflightResult,
         profile: dict,
         lease_ttl: int = 1200,
     ) -> dict:
@@ -104,7 +105,7 @@ from cadence import activity
 @activity.defn(name="initialize_run")
 async def initialize_run_activity(
     workflow_run_id: str,
-    preflight_result,
+    preflight_result: PreflightResult,
     profile: dict,
     lease_ttl: int = 1200,
 ) -> dict:
