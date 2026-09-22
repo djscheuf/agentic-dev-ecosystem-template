@@ -82,14 +82,25 @@ class PlanRefinementActivity:
         if total == 0:
             return None, "baseline reported no test cases; nothing to refine"
 
+        if failing > 0:
+            if "repair" in self.taxonomy and "repair" in self.required_test_case_mapping:
+                return (
+                    "repair",
+                    f"selected repair to fix {failing} failing test(s) before expanding coverage",
+                )
+            return None, "tests are failing but repair is not authorized"
+
         uncovered = [tc for tc, covered in required_coverage.items() if not covered]
-        if uncovered or failing > 0:
+        if uncovered:
             if "add_coverage" in self.taxonomy and "add_coverage" in self.required_test_case_mapping:
-                return "add_coverage", f"selected add_coverage (failing={failing}, uncovered={len(uncovered)})"
-            return None, "tests are failing but no automatic action is authorized"
+                return (
+                    "add_coverage",
+                    f"selected add_coverage for {len(uncovered)} uncovered test case(s)",
+                )
+            return None, "uncovered test cases exist but add_coverage is not authorized"
 
         if passing == total:
-            return None, f"all {total} tests passing; no refinement needed"
+            return None, f"all {total} tests passing with full coverage; no refinement needed"
 
         return None, "no automatic action matches the current baseline state"
 
@@ -192,6 +203,7 @@ async def plan_refinement_action(
     proposed_diff_hash: str | None = None,
 ) -> dict:
     mapping = {
+        "repair": "required_test_case",
         "add_coverage": "required_test_case",
         "propose_evaluation_expectation_change": "required_test_case",
     }

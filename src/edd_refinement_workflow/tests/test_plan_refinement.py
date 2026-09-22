@@ -113,10 +113,10 @@ def test_plan_refinement_rejects_unauthorized_or_unmapped_action() -> None:
     assert result.stop_recommendation is True
 
 
-def test_plan_refinement_auto_selects_add_coverage_when_tests_fail() -> None:
+def test_plan_refinement_auto_selects_repair_when_tests_fail() -> None:
     activity = PlanRefinementActivity(
-        taxonomy=["add_coverage", "stop"],
-        required_test_case_mapping={"add_coverage": "tc1"},
+        taxonomy=["repair", "add_coverage", "stop"],
+        required_test_case_mapping={"repair": "tc1", "add_coverage": "tc1"},
     )
     progress_record = {
         "budgets": {"max_iterations": 3},
@@ -127,14 +127,14 @@ def test_plan_refinement_auto_selects_add_coverage_when_tests_fail() -> None:
 
     result = activity.plan(progress_record, baseline)
 
-    assert result.action == "add_coverage"
+    assert result.action == "repair"
     assert result.stop_recommendation is False
 
 
-def test_plan_refinement_auto_selects_add_coverage_for_uncovered_cases() -> None:
+def test_plan_refinement_auto_selects_add_coverage_when_passing_but_uncovered() -> None:
     activity = PlanRefinementActivity(
-        taxonomy=["add_coverage", "stop"],
-        required_test_case_mapping={"add_coverage": "tc1"},
+        taxonomy=["repair", "add_coverage", "stop"],
+        required_test_case_mapping={"repair": "tc1", "add_coverage": "tc1"},
     )
     progress_record = {
         "budgets": {"max_iterations": 3},
