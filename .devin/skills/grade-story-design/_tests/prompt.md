@@ -1,3 +1,4 @@
-@../SKILL.md 
-Use the provided skill to grade the provided story design: {{request}}. 
-Give me the grading result in JSON format in the chat.
+Use the /grade-story-design skill to grade the provided story design: {{request}}.
+
+WARNING: You are unable to write files.
+RESOLUTION: YOu MUST Put the grade JSON in the Chat. 
