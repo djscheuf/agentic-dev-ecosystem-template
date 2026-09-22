@@ -118,4 +118,10 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - Accepted candidates are committed through `commit_accepted_candidate` and the updated best state is written back into the in-memory progress record, so the next planning cycle sees the latest accepted commit.
 - See [[decisions/ADR-019-edd-multi-iteration-loop.md]] for the rationale.
 
+## Planning budget derivation and action proposal (2026-09-22)
+
+- `PlanRefinementActivity` derives the remaining iteration budget from `budgets.max_iterations - logical_iteration_count` when an explicit `budgets.remaining_iterations` is not present.
+- The workflow stops after the baseline unless the input document or an external caller provides a `proposed_action` (e.g. `add_coverage` or `propose_evaluation_expectation_change`); the stop rationale now explains whether the cause is an exhausted budget, a missing proposal, or an unauthorized action.
+- The workflow finalizer reads the planning result's `rationale` field, so the terminal report shows the actual reason instead of the generic `planning_stopped` default.
+
 - Remaining readiness work includes workflow-owned preflight, start/query CLI support, a kickoff script, and an external-repository Cadence integration test.
