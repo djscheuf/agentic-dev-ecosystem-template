@@ -1,4 +1,14 @@
 import dataclasses
+import logging
+
+
+def _get_activity_logger() -> logging.Logger:
+    try:
+        from common.workflow_logger import get_activity_logger
+
+        return get_activity_logger()
+    except Exception:  # pragma: no cover - logging setup may not be present
+        return logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -26,12 +36,27 @@ class PlanRefinementActivity:
         self.required_test_case_mapping = required_test_case_mapping
         self.taxonomy_version = taxonomy_version
 
-    def _budget_exhausted(self, progress_record: dict) -> bool:
+    def _remaining_iterations(self, budgets: dict, progress_record: dict) -> int | None:
+        remaining = budgets.get("remaining_iterations")
+        if remaining is not None:
+            return remaining
+        if "max_iterations" in budgets:
+            return budgets["max_iterations"] - progress_record.get(
+                "logical_iteration_count", 0
+            )
+        return None
+
+    def _budget_exhausted(self, progress_record: dict) -> tuple[bool, str]:
         budgets = progress_record.get("budgets", {})
-        return (
-            budgets.get("remaining_iterations", 0) <= 0
-            or progress_record.get("consecutive_confirmed_regressions", 0) >= 3
+        consecutive_regressions = progress_record.get(
+            "consecutive_confirmed_regressions", 0
         )
+        if consecutive_regressions >= 3:
+            return True, f"regression limit reached ({consecutive_regressions} consecutive)"
+        remaining = self._remaining_iterations(budgets, progress_record)
+        if remaining is not None and remaining <= 0:
+            return True, f"iteration budget exhausted ({remaining} remaining)"
+        return False, ""
 
     def _requires_approval(self, action: str, proposed_diff_hash: str | None) -> bool:
         return action == "propose_evaluation_expectation_change" and bool(
@@ -53,30 +78,49 @@ class PlanRefinementActivity:
         proposal_id: str | None = None,
         proposed_diff_hash: str | None = None,
     ) -> PlanningResult:
-        if self._budget_exhausted(progress_record):
+        logger = _get_activity_logger()
+        budgets = progress_record.get("budgets", {})
+        logical_iterations = progress_record.get("logical_iteration_count", 0)
+        consecutive_regressions = progress_record.get(
+            "consecutive_confirmed_regressions", 0
+        )
+        logger.info(
+            "planning iteration=%s max_iterations=%s regressions=%s proposed_action=%s",
+            logical_iterations,
+            budgets.get("max_iterations"),
+            consecutive_regressions,
+            proposed_action,
+        )
+
+        exhausted, reason = self._budget_exhausted(progress_record)
+        if exhausted:
+            logger.warning("planning stopped: %s", reason)
             return PlanningResult(
                 action="stop",
-                rationale="budget or regression limit exhausted",
+                rationale=f"budget or regression limit exhausted: {reason}",
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
 
         if proposed_action is None:
+            logger.warning("planning stopped: no proposed_action provided")
             return PlanningResult(
                 action="stop",
-                rationale="no action proposed in this cycle",
+                rationale="no action proposed in this cycle (edd_input.json did not provide a proposed_action)",
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
 
         if not self._is_authorized(proposed_action):
+            logger.warning("planning stopped: unauthorized action=%s", proposed_action)
             return PlanningResult(
                 action="stop",
-                rationale="proposed action is not authorized or has no mapping",
+                rationale=f"proposed action {proposed_action!r} is not in taxonomy or has no test-case mapping",
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
 
+        logger.info("planning selected action=%s", proposed_action)
         return PlanningResult(
             action=proposed_action,
             rationale=f"selected authorized action {proposed_action}",

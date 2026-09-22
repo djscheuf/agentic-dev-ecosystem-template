@@ -101,7 +101,7 @@ class EddRefinementWorkflow:
                     "finalize_run",
                     dict,
                     record["run_id"],
-                    planning.get("reason", "planning_stopped"),
+                    planning.get("rationale", "planning_stopped"),
                     repo_root,
                     start_to_close_timeout=timedelta(minutes=5),
                 )
