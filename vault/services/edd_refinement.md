@@ -121,7 +121,7 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 ## Planning budget derivation and action proposal (2026-09-22)
 
 - `PlanRefinementActivity` derives the remaining iteration budget from `budgets.max_iterations - logical_iteration_count` when an explicit `budgets.remaining_iterations` is not present.
-- When no `proposed_action` is supplied, `PlanRefinementActivity` auto-selects `add_coverage` if the baseline has failing tests or uncovered required test cases, and stops only when all tests already pass.
+- When no `proposed_action` is supplied, `PlanRefinementActivity` auto-selects `repair` if any tests are failing, `add_coverage` when all tests pass but required test-case coverage is incomplete, and stops only when all tests pass with full coverage.
 - The stop rationale now explains whether the cause is an exhausted budget, a missing/auto-selected proposal, or an unauthorized action, including the current budget/regression state.
 - The workflow finalizer reads the planning result's `rationale` field, so the terminal report shows the actual reason instead of the generic `planning_stopped` default.
 
