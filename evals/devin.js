@@ -14,6 +14,37 @@ const prompt = process.argv[2];
 const options = process.argv[3];
 const context = process.argv[4];
 
+// The `devin -p` single-shot exec call occasionally returns an empty (or
+// near-empty, truncated-preamble-only) stdout with a clean exit code, likely
+// due to contention/timeouts under concurrent eval runs rather than any
+// actual failure. Retry a few times before giving up, since a full re-run of
+// the invocation reliably recovers.
+const MAX_ATTEMPTS = 3;
+const MIN_OUTPUT_LENGTH = 20;
+
+function runDevinWithRetry(args) {
+  let result;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    result = spawnSync('devin', args, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    if (result.error || result.status !== 0) {
+      return result;
+    }
+
+    if (result.stdout && result.stdout.trim().length >= MIN_OUTPUT_LENGTH) {
+      return result;
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      console.error(`devin.js: empty/short output (attempt ${attempt}/${MAX_ATTEMPTS}), retrying...`);
+    }
+  }
+  return result;
+}
+
 // console.log('Devin CLI: prompt:', prompt);
 // console.log('Devin CLI: options:', options);
 // console.log('Devin CLI: context:', context);
@@ -67,10 +98,7 @@ if (isGraderMode) {
   // Combine system and user into one prompt (Devin has no --system-prompt)
   const fullPrompt = `${systemMsg}\n\n${userMsg}`;
 
-  const result = spawnSync('devin', ['-p', '--model', model, '--', fullPrompt], {
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
+  const result = runDevinWithRetry(['-p', '--model', model, '--', fullPrompt]);
 
   if (result.error) {
     console.error(result.error.message);
@@ -106,10 +134,7 @@ if (isGraderMode) {
   }
 
   // Call devin cli with single-turn mode and specified model
-  const result = spawnSync('devin', ['-p', '--permission-mode', 'auto', '--model', model, '--', prompt], {
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
+  const result = runDevinWithRetry(['-p', '--permission-mode', 'auto', '--model', model, '--', prompt]);
 
   if (result.error) {
     console.error(result.error.message);
