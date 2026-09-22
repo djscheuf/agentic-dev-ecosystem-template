@@ -17,7 +17,7 @@
         "--all",
         "--json"
     ],
-    "test_cases": "test-cases.yaml",
+    "test_cases": "../../../.devin/skills/grade-story-design/_tests/test-cases.yaml",
     "coverage_metadata_property": "metadata.covers_test_case_ids",
     "modification_scope": [
         "../../../.devin/skills/grade-story-design/SKILL.md",
