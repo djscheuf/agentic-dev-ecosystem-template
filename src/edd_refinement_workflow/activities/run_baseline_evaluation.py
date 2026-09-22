@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -15,6 +16,16 @@ from ..evaluation_identity import (
 )
 
 _PLACEHOLDER = "{evaluation_id}"
+
+
+def _get_activity_logger() -> logging.Logger:
+    try:
+        from common.workflow_logger import get_activity_logger
+
+        return get_activity_logger()
+    except Exception:  # pragma: no cover
+        return logging.getLogger(__name__)
+
 
 
 def _summarize_eval_results(results: list) -> dict:
@@ -165,9 +176,17 @@ class RunBaselineEvaluationActivity:
 
 
 def _run_evaluation_command(**kwargs) -> dict:
+    logger = _get_activity_logger()
+    command = kwargs["command"]
+    logger.info(
+        "running evaluation command: %s (cwd=%s, timeout=%s)",
+        " ".join(str(c) for c in command),
+        kwargs["cwd"],
+        kwargs["timeout"],
+    )
     try:
         completed = subprocess.run(
-            kwargs["command"],
+            command,
             cwd=kwargs["cwd"],
             capture_output=True,
             text=True,
@@ -175,14 +194,27 @@ def _run_evaluation_command(**kwargs) -> dict:
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
+        logger.warning("evaluation command timed out: %s", command)
         raise TimeoutError from exc
+
+    logger.info(
+        "evaluation command finished: returncode=%s stdout_len=%s stderr_len=%s",
+        completed.returncode,
+        len(completed.stdout),
+        len(completed.stderr),
+    )
+    if completed.returncode != 0:
+        stderr_preview = completed.stderr[:500] if completed.stderr else completed.stdout[:500]
+        logger.warning("evaluation command stderr preview: %s", stderr_preview)
 
     stdout = completed.stdout.strip()
     if stdout:
         try:
-            return json.loads(stdout)
+            parsed = json.loads(stdout)
+            logger.info("evaluation command produced JSON stdout")
+            return parsed
         except json.JSONDecodeError:
-            pass
+            logger.info("evaluation command stdout is not JSON")
     return {}
 
 

@@ -95,27 +95,43 @@ class PlanRefinementActivity:
         exhausted, reason = self._budget_exhausted(progress_record)
         if exhausted:
             logger.warning("planning stopped: %s", reason)
+            remaining_iterations = self._remaining_iterations(budgets, progress_record)
             return PlanningResult(
                 action="stop",
-                rationale=f"budget or regression limit exhausted: {reason}",
+                rationale=(
+                    f"budget or regression limit exhausted: {reason}; "
+                    f"logical_iterations={logical_iterations}, "
+                    f"remaining_iterations={remaining_iterations}, "
+                    f"consecutive_confirmed_regressions={consecutive_regressions}, "
+                    f"budgets={budgets}"
+                ),
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
 
         if proposed_action is None:
             logger.warning("planning stopped: no proposed_action provided")
+            available = sorted(self.taxonomy & set(self.required_test_case_mapping))
             return PlanningResult(
                 action="stop",
-                rationale="no action proposed in this cycle (edd_input.json did not provide a proposed_action)",
+                rationale=(
+                    "no action proposed in this cycle; "
+                    f"available actions requiring a test-case mapping are {available}; "
+                    "add 'proposed_action' to edd_input.json or signal one"
+                ),
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
 
         if not self._is_authorized(proposed_action):
             logger.warning("planning stopped: unauthorized action=%s", proposed_action)
+            available = sorted(self.taxonomy & set(self.required_test_case_mapping))
             return PlanningResult(
                 action="stop",
-                rationale=f"proposed action {proposed_action!r} is not in taxonomy or has no test-case mapping",
+                rationale=(
+                    f"proposed action {proposed_action!r} is not authorized "
+                    f"(available: {available}, required mapping: {self.required_test_case_mapping})"
+                ),
                 stop_recommendation=True,
                 taxonomy_version=self.taxonomy_version,
             )
