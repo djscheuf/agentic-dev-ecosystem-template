@@ -1,0 +1,296 @@
+# Structured required-test-case document for the `grade-story-design` skill.
+#
+# Derived from `.devin/skills/grade-story-design/_tests/test_cases.md`. Each
+# case carries a stable `id` used by `coverage_metadata_property`
+# (`metadata.covers_test_case_ids`) in the promptfoo test files listed by
+# `evals/gradeDesign.tests.yaml`, so refinement can be scored against
+# required coverage rather than raw pass/fail counts alone.
+
+- group: "Happy Path"
+  tests:
+    - id: "TC-001"
+      description: "Any valid design output produces a fully scored, schema-conformant grade"
+      given:
+        - "Any valid design output"
+      when: "the design grader scores the design against the rubric"
+      then:
+        - "Scores are produced on all dimensions"
+        - "All scores are 3 or less"
+        - "All scores provide reasoning"
+        - "The output matches the design-grade schema"
+
+- group: "Design Reasoning Rubric"
+  tests:
+    - id: "TC-002"
+      description: "Design missing architectural justification scores 0 on Design Reasoning"
+      given:
+        - "Design is missing architectural justification"
+      when: "the design grader scores the Design Reasoning dimension"
+      then:
+        - "Design Reasoning score is 0"
+        - "Reasoning explains the missing justification"
+        - "Recommendation suggests grounding decisions in ADRs or existing code patterns"
+    - id: "TC-003"
+      description: "Design with vague or heuristic-driven architectural justification scores 1 on Design Reasoning"
+      given:
+        - "Design has vague, or heuristic-driven, architectural justification"
+      when: "the design grader scores the Design Reasoning dimension"
+      then:
+        - "Design Reasoning score is 1"
+        - "Reasoning explains the vagueness"
+        - "Recommendation suggests strengthening justification with specific patterns"
+    - id: "TC-004"
+      description: "Design with over-engineered architectural justification scores 1 on Design Reasoning"
+      given:
+        - "Design has over-engineered architectural justification"
+      when: "the design grader scores the Design Reasoning dimension"
+      then:
+        - "Design Reasoning score is 1"
+        - "Reasoning explains the over-engineering in significant excess of user story scope"
+        - "Recommendation suggests simplifying design to match story scope and RoI"
+    - id: "TC-005"
+      description: "Design with solid architectural justification but a few unclear design intentions scores 2 on Design Reasoning"
+      given:
+        - "Design exhibits solid architectural justification, with a few unclear design intentions"
+      when: "the design grader scores the Design Reasoning dimension"
+      then:
+        - "Design Reasoning score is 2"
+        - "Reasoning explains the mostly solid justification and highlights components with unclear justification"
+        - "Recommendation suggests making design intent of all components explicit and avoiding overlap to tighten scope"
+    - id: "TC-006"
+      description: "Design with exemplary architectural justification scores 3 on Design Reasoning"
+      given:
+        - "Design has exemplary architectural justification with every component exhibiting clear, distinct design intent, grounded in proper justifications, and minimal over-engineering"
+      when: "the design grader scores the Design Reasoning dimension"
+      then:
+        - "Design Reasoning score is 3"
+        - "Reasoning explains the exemplary justification"
+        - "No recommendation is needed"
+
+- group: "Workflow Changes Rubric"
+  tests:
+    - id: "TC-007"
+      description: "Design missing workflow changes scores 0 on Workflow Changes"
+      given:
+        - "Design is missing workflow changes such as happy path or edge cases"
+      when: "the design grader scores the Workflow Changes dimension"
+      then:
+        - "Workflow Changes score is 0"
+        - "Reasoning explains missing workflow changes such as missing happy path or edge cases"
+        - "Recommendation suggests specifying the user journey step-by-step, including happy and edge paths, as well as data flows"
+    - id: "TC-008"
+      description: "Design with vague workflow changes scores 1 on Workflow Changes"
+      given:
+        - "Design has vague workflow changes, such as edge cases with unclear divergence from the happy path"
+      when: "the design grader scores the Workflow Changes dimension"
+      then:
+        - "Workflow Changes score is 1"
+        - "Reasoning explains vagueness of edge cases"
+        - "Recommendation suggests strengthening workflow changes by clarifying and distinguishing edge cases and improving clarity of design intent"
+    - id: "TC-009"
+      description: "Design with unclear layer responsibilities in workflow changes scores 1 on Workflow Changes"
+      given:
+        - "Design has workflow changes with unclear layer responsibilities"
+      when: "the design grader scores the Workflow Changes dimension"
+      then:
+        - "Workflow Changes score is 1"
+        - "Reasoning explains unclear layer responsibilities, making the location of expected changes unclear and muddling the flow of data"
+        - "Recommendation suggests clarifying workflow change responsibility assignment"
+    - id: "TC-010"
+      description: "Design with clear workflow changes, differentiated edge cases, and layer responsibility assignment scores 2 on Workflow Changes"
+      given:
+        - "Design exhibits clear workflow changes, differentiated edge cases, and layer responsibility assignment"
+      when: "the design grader scores the Workflow Changes dimension"
+      then:
+        - "Workflow Changes score is 2"
+        - "Reasoning explains clear happy-path data flows, differentiated edge cases, and some layer responsibility assignment"
+        - "Recommendation suggests identifying recovery paths for each edge case and ensuring all acceptance criteria are mapped"
+    - id: "TC-011"
+      description: "Design with exemplary workflow changes scores 3 on Workflow Changes"
+      given:
+        - "Design has exemplary workflow changes with an unambiguous happy path, edge cases with clear divergences, recovery paths, and all acceptance criteria mapped"
+      when: "the design grader scores the Workflow Changes dimension"
+      then:
+        - "Workflow Changes score is 3"
+        - "Reasoning explains the exemplary workflow changes"
+        - "No recommendation is needed"
+
+- group: "Interface And Contracts Rubric"
+  tests:
+    - id: "TC-012"
+      description: "Design missing interface and contracts scores 0 on Interface And Contracts"
+      given:
+        - "Design is missing interface and contracts, such as API contracts or component interfaces being absent or disconnected"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 0"
+        - "Reasoning explains missing interface and contracts, like endpoint definitions, payload shapes, or component props"
+        - "Recommendation suggests specifying API contracts and component interfaces explicitly, including endpoint definitions, payload shapes, and component props"
+    - id: "TC-013"
+      description: "Design with vague or incomplete interface and contracts scores 1 on Interface And Contracts"
+      given:
+        - "Design has vague or incomplete interface and contracts; interfaces are indicative but not descriptive or complete, such as not mapping the whole workflow or missing error handling"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 1"
+        - "Reasoning explains the vague or incomplete contract definitions"
+        - "Recommendation suggests completing contract definitions with clear endpoint definitions, payload shapes, and component props"
+    - id: "TC-014"
+      description: "Design with partial interface and contracts missing details for certain workflow steps scores 1 on Interface And Contracts"
+      given:
+        - "Design has partial interface and contracts which are missing details for certain workflow steps"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 1"
+        - "Reasoning explains the incomplete workflow mapping"
+        - "Recommendation suggests ensuring all workflow steps are properly documented with clear interface and contract details"
+    - id: "TC-015"
+      description: "Design with clear interfaces and contracts but missing error handling or constraints scores 2 on Interface And Contracts"
+      given:
+        - "Design exhibits clear interfaces and contracts, but missing error handling or constraints"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 2"
+        - "Reasoning explains the clear interface and contract definitions but missing error handling or value constraints"
+        - "Recommendation suggests adding error handling and constraints to ensure robustness"
+    - id: "TC-016"
+      description: "Design with clear interfaces and contracts whose chain mismatches along the workflow scores 2 on Interface And Contracts"
+      given:
+        - "Design exhibits clear interfaces and contracts, but whose chain, mapped along the workflow steps, exhibits mismatches in contract shape"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 2"
+        - "Reasoning explains the clear interface and contract definitions but that contracts along the workflow do not perfectly map along the workflow"
+        - "Recommendation suggests ensuring contracts along the workflow are consistent and properly mapped"
+    - id: "TC-017"
+      description: "Design with exemplary interface and contracts scores 3 on Interface And Contracts"
+      given:
+        - "Design has exemplary interface and contracts with a complete contract definition, 1:1 mapping between workflow and contracts, and error handling and constraints specified"
+      when: "the design grader scores the Interface And Contracts dimension"
+      then:
+        - "Interface And Contracts score is 3"
+        - "Reasoning explains the exemplary interface and contract definitions"
+        - "No recommendation is needed"
+
+- group: "Layer Responsibilities & Consistency Rubric"
+  tests:
+    - id: "TC-018"
+      description: "Design missing layer responsibilities and consistency scores 0"
+      given:
+        - "Design is missing layer responsibilities and consistency"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 0"
+        - "Reasoning explains the missing layer responsibilities, explicit boundaries between layers, and clear responsibilities for each layer"
+        - "Recommendation suggests specifying layer responsibilities explicitly, including explicit boundaries between layers and clear responsibilities for each layer"
+    - id: "TC-019"
+      description: "Design with contradictory layer responsibilities and consistency scores 0"
+      given:
+        - "Design has contradictory layer responsibilities and consistency where existing layer responsibilities are inconsistent or conflicting with the proposed design, such as enforcement of authorization in the UI layer, lacking explicit design justification"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 0"
+        - "Reasoning explains the contradictory layer responsibilities without explicit design justification"
+        - "Recommendation suggests reviewing existing layer responsibilities and confirming the proposed design with established patterns unless explicit justification for the contradiction is provided"
+    - id: "TC-020"
+      description: "Design with incomplete layer responsibilities scores 1 on Layer Responsibilities & Consistency"
+      given:
+        - "Design has incomplete layer responsibilities; layer responsibilities are indicative but not descriptive or complete, exhibiting gaps around which layer owns certain workflow changes"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 1"
+        - "Reasoning explains the incomplete nature of layer responsibility, citing the gap"
+        - "Recommendation suggests completing layer responsibilities & consistency with clear ownership of each layer, explicit boundaries between layers, clear responsibilities for each layer, and mapping of all workflow changes to exactly one layer for ownership"
+    - id: "TC-021"
+      description: "Design with ambiguous layer responsibilities scores 1 on Layer Responsibilities & Consistency"
+      given:
+        - "Design has ambiguous layer responsibilities, exhibiting overlaps around which layers own certain workflow changes"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 1"
+        - "Reasoning explains the ambiguous nature of layer responsibility, citing the overlap"
+        - "Recommendation suggests completing layer responsibilities & consistency with clear ownership of each layer, explicit boundaries between layers, clear responsibilities for each layer, and mapping of all workflow changes to exactly one layer for ownership"
+    - id: "TC-022"
+      description: "Design with clear layer responsibilities but limited reuse of existing components scores 2 on Layer Responsibilities & Consistency"
+      given:
+        - "Design exhibits clear layer responsibilities & consistency, but limited reuse of existing components"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 2"
+        - "Reasoning explains the clear layer responsibilities & consistency but limited reuse of existing components"
+        - "Recommendation suggests reviewing existing components and reusing them where possible to reduce duplication"
+    - id: "TC-023"
+      description: "Design with clear layer responsibilities but unexplained deviation from established patterns scores 2 on Layer Responsibilities & Consistency"
+      given:
+        - "Design exhibits clear layer responsibilities & consistency, but leaves deviation from established patterns unexplained"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 2"
+        - "Reasoning explains the clear layer responsibilities & consistency but unexplained deviation from established patterns"
+        - "Recommendation suggests explaining/clarifying the rationale for deviation from established patterns"
+    - id: "TC-024"
+      description: "Design with exemplary layer responsibilities scores 3 on Layer Responsibilities & Consistency"
+      given:
+        - "Design has exemplary layer responsibilities with all workflow responsibilities clearly assigned with explicit rationale, clear and unambiguous layer responsibility, reuse of existing components and utilities, and all deviations justified"
+      when: "the design grader scores the Layer Responsibilities & Consistency dimension"
+      then:
+        - "Layer Responsibilities & Consistency score is 3"
+        - "Reasoning explains the exemplary layer responsibilities & consistency"
+        - "No recommendation is needed"
+
+- group: "Instrumentation & Observability Rubric"
+  tests:
+    - id: "TC-025"
+      description: "Design missing instrumentation and observability scores 0"
+      given:
+        - "Design is missing instrumentation & observability, such as logging, metrics, or observability points"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 0"
+        - "Reasoning explains missing instrumentation with no logging, metrics, or observability points defined"
+        - "Recommendation suggests identifying key workflow milestones for logging and defining observability points"
+    - id: "TC-026"
+      description: "Design with minimal instrumentation and observability scores 1"
+      given:
+        - "Design has minimal instrumentation & observability, such as a single log point with minimal context and no strategy for error states or performance"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 1"
+        - "Reasoning explains minimal instrumentation with only one point and limited context"
+        - "Recommendation suggests expanding instrumentation to cover major workflow branches and include relevant context"
+    - id: "TC-027"
+      description: "Design with instrumentation covering the happy path but no error-state coverage scores 1 on Instrumentation & Observability"
+      given:
+        - "Design has instrumentation & observability with limited debugging support, such as logging for the happy path but no coverage of error states"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 1"
+        - "Reasoning explains the limited debugging support, with error states lacking logging or alerting strategy"
+        - "Recommendation suggests adding logging/alerting for error states and timing instrumentation for performance-critical paths"
+    - id: "TC-028"
+      description: "Design covering 2-3 key workflow milestones with good context but missing error-state coverage scores 2 on Instrumentation & Observability"
+      given:
+        - "Design has instrumentation & observability covering 2-3 key workflow milestones with good context but missing error state coverage"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 2"
+        - "Reasoning explains good context at key milestones but missing coverage of error states or alerting strategy"
+        - "Recommendation suggests adding instrumentation points for all error states and defining a logging/alerting strategy"
+    - id: "TC-029"
+      description: "Design covering major workflow branches but missing data-transformation or timing context scores 2 on Instrumentation & Observability"
+      given:
+        - "Design has instrumentation & observability covering major workflow branches but missing context on data transformations or performance timing"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 2"
+        - "Reasoning explains coverage of major branches but missing context such as data transformation validation or performance timing"
+        - "Recommendation suggests adding relevant context to log events and timing instrumentation for performance-critical paths"
+    - id: "TC-030"
+      description: "Design with exemplary instrumentation and observability scores 3"
+      given:
+        - "Design has exemplary instrumentation & observability with 4+ points, rich context, comprehensive debugging support, and all error states covered"
+      when: "the design grader scores the Instrumentation & Observability dimension"
+      then:
+        - "Instrumentation & Observability score is 3"
+        - "Reasoning explains exemplary instrumentation with key milestones, error states, performance timing, and data transformation logging"
+        - "No recommendation is needed"
