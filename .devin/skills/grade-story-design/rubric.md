@@ -153,3 +153,4 @@ Each dimension is scored on a **0-3 scale**:
 ### Gap: Missing Instrumentation
 **Symptom**: No observability points defined; error states lack logging strategy
 **Fix**: Identify key workflow milestones for logging. Define at least one metric/log point per major workflow branch. Specify logging/alerting for error states and timing for performance-critical paths.
+**Recommendation wording**: The recommendation must explicitly call out expanding instrumentation to cover major workflow branches/milestones (e.g. naming the specific steps or pages that currently share one event and need their own), not just error-state and performance additions — a recommendation that only adds error-state/timing events without also calling out branch coverage is incomplete.
