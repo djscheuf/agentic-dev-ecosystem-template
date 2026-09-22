@@ -26,5 +26,6 @@
         "max_iterations": 3,
         "max_tokens": 3000000,
         "eval_timeout_seconds": 1800
-    }
+    },
+    "proposed_action": "repair"
 }
