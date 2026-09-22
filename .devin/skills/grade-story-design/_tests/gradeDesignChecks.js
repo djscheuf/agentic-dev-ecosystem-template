@@ -47,8 +47,9 @@ function hasExpectedFailingSections(output, context) {
     let errors=[];
     expectedFailingSections.forEach(section => {
         const sectionData = json[section];
-        if (!sectionData || !sectionData.score) {
+        if (!sectionData || typeof sectionData.score !== 'number') {
             errors.push(`Missing section: ${section}`);
+            return;
         }
         if (sectionData.score > scoreFloor) {
             errors.push(`Section ${section} should have score <= ${scoreFloor} but got ${sectionData.score}`);
@@ -84,7 +85,7 @@ function allScoresWithinBounds(output){
 
     let errors = [];
     Object.keys(json).forEach(section => {
-        if(!json[section].score) {
+        if(typeof json[section].score !== 'number') {
             errors.push(`Section ${section} has no score`);
             return;
         }

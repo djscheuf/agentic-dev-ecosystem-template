@@ -25,6 +25,8 @@ Each dimension is scored on a **0-3 scale**:
 | **2** | Most decisions justified by ADRs or patterns; design is mostly minimal; some intents could be clearer | Decisions reference existing patterns; one or two questionable components |
 | **3** | All decisions grounded in ADRs, target architecture, or established patterns; design is lean; intents clearly differentiated | Every component serves a clear purpose; extension favored over creation; defensive programming explicit |
 
+**Mixed-quality tie-breaker**: Before scoring, tally how many architectural decisions are grounded (cite an ADR, existing pattern, or story constraint) versus ungrounded (empty `basis`, or justified only by preference/effort like "save effort" or "for simplicity"). If a majority of decisions are ungrounded, score **0-1** even if one or two decisions are well-grounded — a single strong decision does not offset a majority of weak ones. Only score **2-3** when a majority of decisions are grounded.
+
 #### Improvement Questions:
 - Are design decisions backed by existing ADRs or target architecture?
 - Is the design minimal, or does it include unnecessary abstractions?
@@ -85,6 +87,8 @@ Each dimension is scored on a **0-3 scale**:
 
 **What this measures**: Is ownership clear across layers, and does the design follow established patterns?
 
+**Scoring source**: Grade this dimension only against the design document's dedicated `layer_responsibilities` section (or an equivalent explicit narrative assigning ownership and rationale per layer). `layers_involved` tags attached to individual workflow steps, contracts, or instrumentation events are execution labels, not evidence of this dimension — they do not by themselves justify any score above **0**. If `layer_responsibilities` is missing or empty, score **0** regardless of how many `layers_involved` tags appear elsewhere in the document.
+
 #### Criteria:
 
 | Score | Descriptor | Evidence |
@@ -136,6 +140,7 @@ Each dimension is scored on a **0-3 scale**:
 ### Gap: Incomplete Happy Path
 **Symptom**: Workflow is unclear or missing layer identification; data flow is implicit
 **Fix**: Describe the user journey step-by-step. For each step, identify which layer performs it and what data enters/exits. Make sequence and timing explicit.
+**Recommendation wording**: Do not just list which steps are missing (e.g. "restore steps 2-4"). Explicitly recommend specifying the complete step-by-step user journey from trigger to completion, identifying which layer performs each action, and documenting the data transformations/flow for each step, in addition to naming the specific gaps found.
 
 ### Gap: Unmapped Workflow Steps
 **Symptom**: Workflow steps don't correspond to API endpoints or component calls; data shapes mismatch

@@ -11,6 +11,7 @@ description: Grades the quality of the design document for a given story with ad
 - grade the analysis based on the User Story Quality Rubric defined in `/rubric.md`.
 - Identify a score for each dimension and provide your reasoning for that score. 
 - Provide recommendations for improvement for each dimension with an imperfect score.
+- Before scoring, tally the evidence per dimension (e.g. count how many decisions/steps/contracts are grounded vs. weak) — this tally drives the score even if it isn't fully spelled out in the written reason.
 - Keep each `reason` and `recommendation` to 2-3 sentences. Cite specific evidence (field names, ADR IDs, pattern names) rather than restating the rubric; do not pad with extra commentary. This keeps the full 5-dimension JSON output short enough to avoid truncation.
 - Always emit the complete JSON object with every dimension present and all braces/brackets closed before ending your response.
 
