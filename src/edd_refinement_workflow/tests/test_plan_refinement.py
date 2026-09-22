@@ -111,3 +111,63 @@ def test_plan_refinement_rejects_unauthorized_or_unmapped_action() -> None:
 
     assert result.action == "stop"
     assert result.stop_recommendation is True
+
+
+def test_plan_refinement_auto_selects_add_coverage_when_tests_fail() -> None:
+    activity = PlanRefinementActivity(
+        taxonomy=["add_coverage", "stop"],
+        required_test_case_mapping={"add_coverage": "tc1"},
+    )
+    progress_record = {
+        "budgets": {"max_iterations": 3},
+        "logical_iteration_count": 0,
+        "consecutive_confirmed_regressions": 0,
+    }
+    baseline = {"passing": 0, "failing": 18, "total": 18}
+
+    result = activity.plan(progress_record, baseline)
+
+    assert result.action == "add_coverage"
+    assert result.stop_recommendation is False
+
+
+def test_plan_refinement_auto_selects_add_coverage_for_uncovered_cases() -> None:
+    activity = PlanRefinementActivity(
+        taxonomy=["add_coverage", "stop"],
+        required_test_case_mapping={"add_coverage": "tc1"},
+    )
+    progress_record = {
+        "budgets": {"max_iterations": 3},
+        "logical_iteration_count": 0,
+        "consecutive_confirmed_regressions": 0,
+    }
+    baseline = {
+        "passing": 2,
+        "failing": 0,
+        "total": 2,
+        "required_coverage": {"TC-001": 1, "TC-002": 0},
+    }
+
+    result = activity.plan(progress_record, baseline)
+
+    assert result.action == "add_coverage"
+    assert result.stop_recommendation is False
+
+
+def test_plan_refinement_stops_when_all_tests_pass() -> None:
+    activity = PlanRefinementActivity(
+        taxonomy=["add_coverage", "stop"],
+        required_test_case_mapping={"add_coverage": "tc1"},
+    )
+    progress_record = {
+        "budgets": {"max_iterations": 3},
+        "logical_iteration_count": 0,
+        "consecutive_confirmed_regressions": 0,
+    }
+    baseline = {"passing": 18, "failing": 0, "total": 18}
+
+    result = activity.plan(progress_record, baseline)
+
+    assert result.action == "stop"
+    assert result.stop_recommendation is True
+    assert "all 18 tests passing" in result.rationale

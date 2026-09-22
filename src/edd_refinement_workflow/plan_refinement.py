@@ -70,6 +70,29 @@ class PlanRefinementActivity:
             and action == action.strip().lower()
         )
 
+    def _select_action(
+        self, progress_record: dict, baseline: dict
+    ) -> tuple[str | None, str]:
+        """Choose the next refinement action when none was supplied externally."""
+        required_coverage = baseline.get("required_coverage", {})
+        failing = baseline.get("failing", 0)
+        passing = baseline.get("passing", 0)
+        total = baseline.get("total", 0)
+
+        if total == 0:
+            return None, "baseline reported no test cases; nothing to refine"
+
+        uncovered = [tc for tc, covered in required_coverage.items() if not covered]
+        if uncovered or failing > 0:
+            if "add_coverage" in self.taxonomy and "add_coverage" in self.required_test_case_mapping:
+                return "add_coverage", f"selected add_coverage (failing={failing}, uncovered={len(uncovered)})"
+            return None, "tests are failing but no automatic action is authorized"
+
+        if passing == total:
+            return None, f"all {total} tests passing; no refinement needed"
+
+        return None, "no automatic action matches the current baseline state"
+
     def plan(
         self,
         progress_record: dict,
@@ -110,17 +133,24 @@ class PlanRefinementActivity:
             )
 
         if proposed_action is None:
-            logger.warning("planning stopped: no proposed_action provided")
-            available = sorted(self.taxonomy & set(self.required_test_case_mapping))
-            return PlanningResult(
-                action="stop",
-                rationale=(
-                    "no action proposed in this cycle; "
-                    f"available actions requiring a test-case mapping are {available}; "
-                    "add 'proposed_action' to edd_input.json or signal one"
-                ),
-                stop_recommendation=True,
-                taxonomy_version=self.taxonomy_version,
+            selected_action, selection_rationale = self._select_action(
+                progress_record, baseline
+            )
+            if selected_action is None:
+                logger.warning("planning stopped: %s", selection_rationale)
+                available = sorted(self.taxonomy & set(self.required_test_case_mapping))
+                return PlanningResult(
+                    action="stop",
+                    rationale=(
+                        f"no action proposed and no automatic action selected: {selection_rationale}; "
+                        f"available actions are {available}"
+                    ),
+                    stop_recommendation=True,
+                    taxonomy_version=self.taxonomy_version,
+                )
+            proposed_action = selected_action
+            logger.info(
+                "planning auto-selected action=%s because %s", proposed_action, selection_rationale
             )
 
         if not self._is_authorized(proposed_action):
