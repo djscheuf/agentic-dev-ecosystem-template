@@ -10,6 +10,9 @@
         - "design_reasoning"
       score_floor: 1
   description: 'Incomplete Design Reasoning'
+  metadata:
+    covers_test_case_ids:
+      - "TC-003"
   assert:
     # Core definition
     - type: javascript
@@ -39,6 +42,9 @@
         - "workflow_changes"
       score_floor: 1
   description: 'Incomplete Workflow'
+  metadata:
+    covers_test_case_ids:
+      - "TC-007"
   assert:
     # Core definition
     - type: javascript
@@ -67,6 +73,9 @@
       # - '@../.devin/skills/grade-story-design/_tests/_data/truncated-display.design.json'
       - '@../.devin/skills/grade-story-design/_tests/_data/truncated-admin.design.json'
   description: 'Output Schema Validation - Script Based'
+  metadata:
+    covers_test_case_ids:
+      - "TC-001"
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema

@@ -9,6 +9,9 @@
         - "instrumentation"
       score_floor: 1
   description: 'Minimal Instrumentation and Observability'
+  metadata:
+    covers_test_case_ids:
+      - "TC-026"
   assert:
     - type: javascript
       value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
@@ -33,6 +36,9 @@
     request:
       - '@../.devin/skills/grade-story-design/_tests/_data/simple-display.design.json'
   description: 'Output Schema Validation - Script Based'
+  metadata:
+    covers_test_case_ids:
+      - "TC-001"
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema
