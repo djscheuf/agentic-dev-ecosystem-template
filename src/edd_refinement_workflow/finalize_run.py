@@ -43,9 +43,12 @@ class FinalizeRunActivity:
             "accepted_candidate_id": best.get("candidate_id") if best else None,
             "accepted_commit": accepted_commit,
             "rejected_or_reverted_summaries": record.get("candidate_history", []),
-            "pending_human_items": [record["approval_request"]]
-            if record.get("approval_request", {}).get("status") == "pending"
-            else [],
+            "pending_human_items": (
+                [approval_request]
+                if (approval_request := record.get("approval_request"))
+                and approval_request.get("status") == "pending"
+                else []
+            ),
             "flaky_evidence": record.get("flaky_evidence", []),
             "target_repository": record.get("target_repository"),
             "final_commit": accepted_commit or record.get("starting_revision"),
