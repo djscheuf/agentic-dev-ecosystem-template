@@ -200,8 +200,8 @@ class EddRefinementWorkflow:
                     seconds=retry_configuration.get("initial_interval_seconds", 1)
                 ),
             }
-            candidate_evaluation = await execute_activity(
-                "evaluate_candidate",
+            candidate_check = await execute_activity(
+                "check_candidate",
                 dict,
                 record["run_id"],
                 candidate["candidate_id"],
@@ -211,10 +211,12 @@ class EddRefinementWorkflow:
                 ),
                 retry_policy=retry_policy,
             )
+            candidate_evaluation = candidate_check.get("metrics", candidate_check)
             result.update(
                 execution=execution,
                 candidate=candidate,
                 candidate_evaluation=candidate_evaluation,
+                candidate_check=candidate_check,
             )
             if "budgets" in record:
                 record, limit_decision = await self._account_and_check_limits(
@@ -233,12 +235,23 @@ class EddRefinementWorkflow:
 
             best_state = record.get("best_accepted_state")
             if best_state is not None or "budgets" in record:
-                comparison_baseline = resolve_comparison_baseline(
-                    planning, best_state, baseline
-                )
-                comparison = compare_candidate_to_best(
-                    candidate_evaluation, comparison_baseline
-                )
+                comparison_baseline = candidate_check.get(
+                    "baseline"
+                ) or resolve_comparison_baseline(planning, best_state, baseline)
+                comparison = candidate_check.get("comparison")
+                if comparison is None:
+                    determination = candidate_check.get("determination")
+                    if determination in {"accept", "reject", "rerun", "escalate"}:
+                        comparison = {"decision": determination}
+                    elif determination is not None:
+                        comparison = {
+                            "decision": "reject",
+                            "reason": determination,
+                        }
+                    else:
+                        comparison = compare_candidate_to_best(
+                            candidate_evaluation, comparison_baseline
+                        )
                 result["comparison"] = comparison
                 if comparison["decision"] == "accept":
                     best_state = await execute_activity(

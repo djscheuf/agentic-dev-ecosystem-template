@@ -286,7 +286,7 @@ async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
     assert calls[-3:] == [
         "edd_do",
         "validate_candidate",
-        "evaluate_candidate",
+        "check_candidate",
     ]
     assert result["candidate"]["status"] == "scope_valid"
     assert result["candidate_evaluation"]["passing"] == 6
@@ -387,7 +387,7 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
             return {"status": "success", "changed_files": ["src/skill.py"]}
         if name == "validate_candidate":
             return {"candidate_id": "candidate-1", "status": "scope_valid"}
-        if name == "evaluate_candidate":
+        if name == "check_candidate":
             return {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}
         return {"candidate_id": "candidate-1", "commit": "commit-1"}
 
@@ -397,7 +397,7 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
 
     result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
 
-    assert [name for name, _ in calls][-2:] == ["evaluate_candidate", "commit_accepted_candidate"]
+    assert [name for name, _ in calls][-2:] == ["check_candidate", "commit_accepted_candidate"]
     assert result["comparison"]["decision"] == "accept"
     assert result["best_accepted_state"]["commit"] == "commit-1"
 
@@ -414,7 +414,7 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
             "edd_plan": {"action": "repair"},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
-            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
+            "check_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
             "classify_regression_evidence": {"classification": "unstable_result"},
             "human_handoff": {"notified": True},
@@ -427,7 +427,7 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
 
     result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
 
-    assert [name for name, _ in calls][-4:] == ["evaluate_candidate", "rerun_degraded_candidate", "classify_regression_evidence", "human_handoff"]
+    assert [name for name, _ in calls][-4:] == ["check_candidate", "rerun_degraded_candidate", "classify_regression_evidence", "human_handoff"]
     assert calls[-3][1][1] == "candidate-1"
     assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
     assert result["regression_recovery"]["next_state"] == "pending_human_review"
@@ -460,7 +460,7 @@ async def test_workflow_compares_against_plans_frozen_iteration_start_baseline(
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             # 6 is a regression vs best_accepted_state (10) but an improvement vs
             # the frozen iteration_start_baseline (5).
-            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {}, "measurement_context": "baseline"},
+            "check_candidate": {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {}, "measurement_context": "baseline"},
             "commit_accepted_candidate": {"candidate_id": "candidate-1", "commit": "commit-6"},
         }
         return responses[name]
@@ -499,7 +499,7 @@ async def test_workflow_threads_iteration_start_baseline_into_regression_rerun(
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             # 4 is a regression vs both best_accepted_state (10) and the frozen
             # iteration_start_baseline (5), so this still routes to rerun.
-            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
+            "check_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
             "classify_regression_evidence": {"classification": "unstable_result"},
             "human_handoff": {"notified": True},
@@ -529,7 +529,7 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
     options = {}
 
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
-        if name == "evaluate_candidate":
+        if name == "check_candidate":
             options.update(kwargs)
         responses = {
             "initialize_run": {"run_id": "run-1"},
@@ -537,7 +537,7 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
             "edd_plan": {"action": "repair"},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
-            "evaluate_candidate": {"candidate_id": "candidate-1", "status": "success"},
+            "check_candidate": {"candidate_id": "candidate-1", "status": "success"},
         }
         return responses[name]
 
@@ -629,7 +629,7 @@ async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_
         "edd_plan": {"action": "repair"},
         "edd_do": {"status": "success", "usage_metrics": {"total_tokens": 5}},
         "validate_candidate": {"status": "scope_valid", "candidate_id": "candidate-1"},
-        "evaluate_candidate": {"status": "success", "passing": 2, "usage_metrics": {"total_tokens": 6}},
+        "check_candidate": {"status": "success", "passing": 2, "usage_metrics": {"total_tokens": 6}},
         "finalize_run": {"terminal_reason": "token_budget"},
     }
 
@@ -682,7 +682,7 @@ async def test_workflow_runs_multiple_iterations_until_limit_stops(tmp_path, mon
         if name == "validate_candidate":
             execute_id = len(execute_calls)
             return {"status": "scope_valid", "candidate_id": f"candidate-{execute_id}"}
-        if name == "evaluate_candidate":
+        if name == "check_candidate":
             candidate_id = args[1]
             n = int(candidate_id.split("-")[1])
             evaluate_calls.append(candidate_id)
