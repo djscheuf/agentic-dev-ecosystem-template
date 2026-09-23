@@ -30,7 +30,7 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
             return {"run_id": "wf-1-abc1234"}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {"action": "stop", "reason": "budget_exhausted"}
         if name == "finalize_run":
             return {"terminal_reason": "budget_exhausted", "report_path": "terminal.json"}
@@ -45,7 +45,7 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
     assert calls == [
         "initialize_run",
         "run_baseline_evaluation",
-        "plan_refinement_action",
+        "edd_plan",
         "finalize_run",
     ]
     assert result["record"]["run_id"] == "wf-1-abc1234"
@@ -132,7 +132,7 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
             return {"run_id": "run-1"}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {
                 "action": "propose_evaluation_expectation_change",
                 "requires_approval": True,
@@ -216,7 +216,7 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
             return {"run_id": "run-1"}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {
                 "action": "propose_evaluation_expectation_change",
                 "requires_approval": True,
@@ -236,7 +236,7 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
     result = await workflow.run(preflight, request)
 
     assert "record_human_approved_evaluation_change" in calls
-    assert calls[-2:] == ["execute_refinement_action", "validate_candidate"]
+    assert calls[-2:] == ["edd_do", "validate_candidate"]
     assert result["applied_change"]["applied_diff_hash"] == "abc123"
 
 
@@ -262,9 +262,9 @@ async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
             return {"run_id": "run-1"}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
-        if name == "execute_refinement_action":
+        if name == "edd_do":
             return {"status": "success", "changed_files": ["src/skill.py"]}
         if name == "validate_candidate":
             return {"candidate_id": "candidate-1", "status": "scope_valid"}
@@ -284,7 +284,7 @@ async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
     )
 
     assert calls[-3:] == [
-        "execute_refinement_action",
+        "edd_do",
         "validate_candidate",
         "evaluate_candidate",
     ]
@@ -341,7 +341,7 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
             return {"run_id": "run-1"}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
         return {"status": "failed", "failure_reason": "harness_failure:1"}
 
@@ -367,7 +367,7 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
         },
     )
 
-    assert calls[-1] == "execute_refinement_action"
+    assert calls[-1] == "edd_do"
     assert "candidate" not in result
 
 
@@ -381,9 +381,9 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
             return {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}}}
         if name == "run_baseline_evaluation":
             return {"passing": 5}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
-        if name == "execute_refinement_action":
+        if name == "edd_do":
             return {"status": "success", "changed_files": ["src/skill.py"]}
         if name == "validate_candidate":
             return {"candidate_id": "candidate-1", "status": "scope_valid"}
@@ -411,8 +411,8 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
         responses = {
             "initialize_run": {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}}},
             "run_baseline_evaluation": {"passing": 5},
-            "plan_refinement_action": {"action": "repair"},
-            "execute_refinement_action": {"status": "success"},
+            "edd_plan": {"action": "repair"},
+            "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
@@ -444,8 +444,8 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
         responses = {
             "initialize_run": {"run_id": "run-1"},
             "run_baseline_evaluation": {"passing": 5},
-            "plan_refinement_action": {"action": "repair"},
-            "execute_refinement_action": {"status": "success"},
+            "edd_plan": {"action": "repair"},
+            "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             "evaluate_candidate": {"candidate_id": "candidate-1", "status": "success"},
         }
@@ -536,8 +536,8 @@ async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_
         "initialize_run": {"run_id": "run-1", "budgets": {"token_budget": 100}},
         "check_refinement_limits": {"schedule_next_step": True, "stop_reason": "none"},
         "run_baseline_evaluation": {"passing": 1},
-        "plan_refinement_action": {"action": "repair"},
-        "execute_refinement_action": {"status": "success", "usage_metrics": {"total_tokens": 5}},
+        "edd_plan": {"action": "repair"},
+        "edd_do": {"status": "success", "usage_metrics": {"total_tokens": 5}},
         "validate_candidate": {"status": "scope_valid", "candidate_id": "candidate-1"},
         "evaluate_candidate": {"status": "success", "passing": 2, "usage_metrics": {"total_tokens": 6}},
         "finalize_run": {"terminal_reason": "token_budget"},
@@ -583,10 +583,10 @@ async def test_workflow_runs_multiple_iterations_until_limit_stops(tmp_path, mon
             }
         if name == "run_baseline_evaluation":
             return {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}
-        if name == "plan_refinement_action":
+        if name == "edd_plan":
             plan_calls.append(args)
             return {"action": "repair"}
-        if name == "execute_refinement_action":
+        if name == "edd_do":
             execute_calls.append(args)
             return {"status": "success", "usage_metrics": {"total_tokens": 1}}
         if name == "validate_candidate":

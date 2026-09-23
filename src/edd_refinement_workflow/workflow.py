@@ -86,11 +86,12 @@ class EddRefinementWorkflow:
                     return result
 
             planning = await execute_activity(
-                "plan_refinement_action",
+                "edd_plan",
                 dict,
+                record["run_id"],
+                repo_root,
                 record,
                 baseline,
-                request.get("proposed_action"),
                 request.get("proposal_id"),
                 request.get("proposed_diff_hash"),
                 start_to_close_timeout=timedelta(minutes=5),
@@ -151,7 +152,7 @@ class EddRefinementWorkflow:
                 result["applied_change"] = applied_change
 
             execution = await execute_activity(
-                "execute_refinement_action",
+                "edd_do",
                 dict,
                 record["run_id"],
                 planning,

@@ -37,11 +37,11 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "run_baseline_evaluation",
         "check_refinement_limits",
         "update_durable_counters",
-        "plan_refinement_action",
+        "edd_plan",
         "request_human_approval",
         "record_human_approval_decision",
         "record_human_approved_evaluation_change",
-        "execute_refinement_action",
+        "edd_do",
         "validate_candidate",
         "evaluate_candidate",
         "commit_accepted_candidate",
@@ -62,12 +62,21 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
     assert SPEC.register is register
 
 
-def test_execute_refinement_action_config_explicitly_accepts_edits() -> None:
+def test_edd_plan_config_explicitly_accepts_edits() -> None:
     config = SkillActivityConfig.load(
-        Path(__file__).parents[1]
-        / "activities"
-        / "execute_refinement_action.config.json"
+        Path(__file__).parents[1] / "activities" / "edd_plan.config.json"
     )
 
-    assert config.skill_name == "execute-refinement-action"
+    assert config.skill_name == "edd-plan"
+    assert config.output_path_key == "plan_path"
+    assert config.harness["devin"]["permission_mode"] == "accept-edits"
+
+
+def test_edd_do_config_explicitly_accepts_edits() -> None:
+    config = SkillActivityConfig.load(
+        Path(__file__).parents[1] / "activities" / "edd_do.config.json"
+    )
+
+    assert config.skill_name == "edd-do"
+    assert config.output_path_key == "plan_path"
     assert config.harness["devin"]["permission_mode"] == "accept-edits"

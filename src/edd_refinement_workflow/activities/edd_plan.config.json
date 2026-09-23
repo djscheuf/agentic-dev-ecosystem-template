@@ -1,7 +1,7 @@
 {
   "activity": {
-    "skill_name": "execute-refinement-action",
-    "output_path_key": "execution_result_path"
+    "skill_name": "edd-plan",
+    "output_path_key": "plan_path"
   },
   "harness": {
     "devin": {

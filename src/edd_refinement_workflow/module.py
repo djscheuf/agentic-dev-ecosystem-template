@@ -2,8 +2,9 @@ from common import WorkflowModuleSpec
 
 from .activities.check_refinement_limits import check_refinement_limits_activity
 from .activities.commit_accepted_candidate import commit_accepted_candidate_activity
+from .activities.edd_do import edd_do_action
+from .activities.edd_plan import edd_plan_action
 from .activities.evaluate_candidate import evaluate_candidate_activity
-from .activities.execute_refinement_action import execute_refinement_action_activity
 from .activities.initialize_run import initialize_run_activity
 from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activity
 from .activities.regression_recovery import (
@@ -24,7 +25,6 @@ from .approval import (
     request_human_approval_activity,
 )
 from .finalize_run import finalize_run_activity
-from .plan_refinement import plan_refinement_action
 from .workflow import EddRefinementWorkflow
 
 WORKFLOW_TYPE = "EddRefinementWorkflow"
@@ -33,11 +33,11 @@ ACTIVITY_TYPES = (
     "run_baseline_evaluation",
     "check_refinement_limits",
     "update_durable_counters",
-    "plan_refinement_action",
+    "edd_plan",
     "request_human_approval",
     "record_human_approval_decision",
     "record_human_approved_evaluation_change",
-    "execute_refinement_action",
+    "edd_do",
     "validate_candidate",
     "evaluate_candidate",
     "commit_accepted_candidate",
@@ -56,11 +56,11 @@ ACTIVITIES = (
     run_baseline_evaluation_activity,
     check_refinement_limits_activity,
     update_durable_counters_activity,
-    plan_refinement_action,
+    edd_plan_action,
     request_human_approval_activity,
     record_human_approval_decision_activity,
     record_human_approved_evaluation_change_activity,
-    execute_refinement_action_activity,
+    edd_do_action,
     validate_candidate_activity,
     evaluate_candidate_activity,
     commit_accepted_candidate_activity,
