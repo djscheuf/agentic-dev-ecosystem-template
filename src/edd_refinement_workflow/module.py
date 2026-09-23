@@ -1,5 +1,6 @@
 from common import WorkflowModuleSpec
 
+from .activities.check_candidate import check_candidate_activity
 from .activities.check_refinement_limits import check_refinement_limits_activity
 from .activities.commit_accepted_candidate import commit_accepted_candidate_activity
 from .activities.edd_do import edd_do_action
@@ -40,6 +41,7 @@ ACTIVITY_TYPES = (
     "edd_do",
     "validate_candidate",
     "evaluate_candidate",
+    "check_candidate",
     "commit_accepted_candidate",
     "rerun_degraded_candidate",
     "classify_regression_evidence",
@@ -63,6 +65,7 @@ ACTIVITIES = (
     edd_do_action,
     validate_candidate_activity,
     evaluate_candidate_activity,
+    check_candidate_activity,
     commit_accepted_candidate_activity,
     rerun_degraded_candidate_activity,
     classify_regression_evidence_activity,

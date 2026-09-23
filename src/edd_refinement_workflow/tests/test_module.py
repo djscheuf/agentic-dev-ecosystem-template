@@ -44,6 +44,7 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "edd_do",
         "validate_candidate",
         "evaluate_candidate",
+        "check_candidate",
         "commit_accepted_candidate",
         "rerun_degraded_candidate",
         "classify_regression_evidence",
