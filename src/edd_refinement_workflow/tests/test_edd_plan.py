@@ -3,6 +3,7 @@ import json
 import pytest
 
 from common.skill_activity import SkillActivityError, SkillActivityOutput
+from edd_refinement_workflow.progress_record import ProgressRecordStore
 from edd_refinement_workflow.activities.edd_plan import (
     EddPlanRunner,
     PlanningResult,
@@ -99,6 +100,32 @@ def test_edd_plan_invokes_edd_plan_skill_and_reads_its_plan_json(tmp_path) -> No
     assert result.plan_path == relative_plan_path
     assert result.requires_approval is False
     assert skill.calls[0].input_paths == [".process/edd/run-1/progress.json"]
+
+
+def test_edd_plan_persists_iteration_start_baseline_into_progress_json(
+    tmp_path,
+) -> None:
+    plan_path = tmp_path / ".process" / "edd" / "run-1" / "iterations" / "1" / "plan.json"
+    plan = _write_plan(plan_path)
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path=str(plan_path.relative_to(tmp_path)),
+            sentinel_path=".process/edd/run-1/.process/edd-plan.done.json",
+            duration_ms=10,
+        )
+    )
+    store = ProgressRecordStore(tmp_path)
+    progress_record = store.create_or_resume(
+        "run-1",
+        {"budgets": {"remaining_iterations": 3}, "consecutive_confirmed_regressions": 0},
+    )
+    runner = EddPlanRunner(skill)
+
+    runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+    persisted = store.create_or_resume("run-1", {})
+    assert persisted["iteration_start_baseline"] == plan["iteration_start_baseline"]
 
 
 def test_edd_plan_only_requires_approval_for_expectation_change_with_diff_hash(

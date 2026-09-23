@@ -133,6 +133,14 @@ class EddPlanRunner:
         except json.JSONDecodeError as exc:
             raise SkillActivityError(f"edd-plan wrote malformed JSON to {output.output_path}") from exc
 
+        if plan.get("iteration_start_baseline"):
+            from ..progress_record import ProgressRecordStore
+
+            store = ProgressRecordStore(repo_root)
+            persisted = store.create_or_resume(run_id, {})
+            persisted["iteration_start_baseline"] = plan["iteration_start_baseline"]
+            store.save(run_id, persisted)
+
         action = plan.get("action", "stop")
         requires_approval = (
             action == "propose_evaluation_expectation_change" and bool(proposed_diff_hash)
