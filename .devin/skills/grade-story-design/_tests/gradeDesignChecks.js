@@ -13,7 +13,11 @@ function _parseJsonOutput(output) {
 }
 
 function _pullVarFromAssertConfig(context, varName) {
-    return context.vars?.assert_config?.[varName] || undefined;
+    // NOTE: must not use `||` here -- assert_config values like `score_floor: 0`
+    // or `exact: false` are valid, meaningful, falsy values and must not be
+    // coerced to undefined.
+    const value = context.vars?.assert_config?.[varName];
+    return value === null ? undefined : value;
 }
 
 function hasExpectedFailingSections(output, context) {
@@ -27,13 +31,18 @@ function hasExpectedFailingSections(output, context) {
     }
 
     const scoreFloor = _pullVarFromAssertConfig(context, 'score_floor');
-    if (!scoreFloor) {
+    if (scoreFloor === undefined || scoreFloor === null) {
         return {
             pass: false,
             score: 0,
             reason: 'Missing Assert Config: score_floor (Number)'
         };
     }
+
+    // When `exact: true` is set in assert_config, score_floor is treated as the
+    // single required score (===) rather than an upper bound (<=). Use this for
+    // rubric levels that must be pinned precisely (e.g. score 0 = "missing").
+    const exact = _pullVarFromAssertConfig(context, 'exact') === true;
 
     const json = _parseJsonOutput(output);
     if (!json) {
@@ -51,7 +60,11 @@ function hasExpectedFailingSections(output, context) {
             errors.push(`Missing section: ${section}`);
             return;
         }
-        if (sectionData.score > scoreFloor) {
+        if (exact) {
+            if (sectionData.score !== scoreFloor) {
+                errors.push(`Section ${section} should have score === ${scoreFloor} but got ${sectionData.score}`);
+            }
+        } else if (sectionData.score > scoreFloor) {
             errors.push(`Section ${section} should have score <= ${scoreFloor} but got ${sectionData.score}`);
         }
     });
@@ -67,7 +80,7 @@ function hasExpectedFailingSections(output, context) {
     return {
         pass: true,
         score: 1,
-        reason: 'All expected failing sections have scores under score_floor'
+        reason: exact ? 'All expected sections match the exact required score' : 'All expected failing sections have scores under score_floor'
     };
 }
 
