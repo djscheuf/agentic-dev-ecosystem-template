@@ -31,6 +31,38 @@
       weight: 1
 
 # ========================================
+# EXEMPLARY Design Reasoning
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "design_reasoning"
+      score_floor: 3
+      exact: true
+  description: 'Exemplary Design Reasoning'
+  metadata:
+    covers_test_case_ids:
+      - "TC-006"
+  assert:
+    # Core definition
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: design-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Design Reasoning Section's Reason should describe the architectural justification as grounded or well-justified, citing specific ADRs or existing patterns, without naming any specific ungrounded or missing decision as a deficiency."
+      threshold: 0.7
+      metric: design-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Design Reasoning Section's Recommendation should not identify any concrete gap, missing justification, or required change. It may be empty, say no changes are needed, or offer only forward-looking advice to keep doing what the design already does."
+      threshold: 0.7
+      metric: design-recommendation
+      weight: 1
+
+# ========================================
 # INCOMPLETE Workflow
 # ========================================
 - vars:
@@ -58,6 +90,38 @@
       weight: 1
     - type: llm-rubric
       value: "The Workflow Changes Section's Recommendation should include specifying the complete user journey with clear steps. It may recommend identifying which layer performs each action, and/or documenting data transformations and flow. "
+      threshold: 0.7
+      metric: workflow-recommendation
+      weight: 1
+
+# ========================================
+# EXEMPLARY Workflow
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "workflow_changes"
+      score_floor: 3
+      exact: true
+  description: 'Exemplary Workflow'
+  metadata:
+    covers_test_case_ids:
+      - "TC-011"
+  assert:
+    # Core definition
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: workflow-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Workflow Changes Section's Reason should describe a well-specified happy path with edge cases and divergences covered, without naming any specific missing edge case, recovery path, or unmapped acceptance criterion as a deficiency."
+      threshold: 0.7
+      metric: workflow-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Workflow Changes Section's Recommendation should not identify any concrete gap or required change to the workflow. It may be empty, say no changes are needed, or offer only forward-looking advice to keep doing what the design already does."
       threshold: 0.7
       metric: workflow-recommendation
       weight: 1

@@ -84,6 +84,84 @@
           "data_shape": "Historical order queries join TacticType/DeliveryMethod by Id (no soft-delete/hard-delete ever occurs, so FK integrity is preserved regardless of IsActive)"
         }
       ]
+    },
+    {
+      "step": "4a",
+      "description": "EDGE CASE (diverges from Step 4): Save request contains a delivery method name that duplicates an existing active delivery method under the same tactic type. Backend rejects the entire batch with 409 { reasonCode: 'DuplicateDeliveryMethod' } before any writes occur; frontend surfaces the inline error via `AdminTacticTypeDraftPanel.saveError` and leaves the draft state intact so the administrator can correct the name without losing other pending changes.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "SaveTacticTypeAdminChangesAPI",
+          "data_shape": "409 Conflict { reasonCode: 'DuplicateDeliveryMethod', message }; no partial persistence (single transaction rolled back)"
+        }
+      ]
+    },
+    {
+      "step": "4b",
+      "description": "EDGE CASE (diverges from Step 4, not an error): Save request would leave a tactic type with zero active delivery methods. This is explicitly allowed per questions_addressed -- Save succeeds normally (200 OK), no warning or rejection is raised. The tactic type remains visible and editable in the admin list; its absence from the order form is handled entirely at read-time by Step 6a, not by blocking the save.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "SaveTacticTypeAdminChangesAPI",
+          "data_shape": "200 OK SaveTacticTypeAdminChangesResponse { UpdatedTacticTypes: AdminTacticTypeDto[] } (same success shape as Step 4; no special-case response for this condition)"
+        }
+      ]
+    },
+    {
+      "step": "4d",
+      "description": "EDGE CASE (diverges from Step 4): Save request contains a tactic type or delivery method Name exceeding the 100-character maximum. Backend rejects the entire batch with 409 { reasonCode: 'ValidationError' } before any writes occur; frontend also performs a client-side max-length check (per `layer_responsibilities`) to give immediate feedback before Save is even attempted.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "SaveTacticTypeAdminChangesAPI",
+          "data_shape": "409 Conflict { reasonCode: 'ValidationError', message }; no partial persistence (single transaction rolled back)"
+        }
+      ]
+    },
+    {
+      "step": "1a",
+      "description": "EDGE CASE (diverges from Step 1): GetAdminTacticTypesAPI returns an empty array (no tactic types exist yet). Frontend renders an empty-state message in `AdminTacticTypeDraftPanel` instead of the list, with the same 'add tactic type' entry point available.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "GetAdminTacticTypesAPI",
+          "data_shape": "200 OK [] (empty array, not an error); frontend distinguishes this from a loading/error state"
+        }
+      ]
+    },
+    {
+      "step": "4c",
+      "description": "EDGE CASE (diverges from Step 4): Two administrators save overlapping changes to the same tactic type concurrently. Per the last-write-wins decision (no concurrency token), the second Save to complete its transaction fully overwrites the first administrator's toggles for the same rows; both requests still return 200 OK individually, and the final persisted state reflects whichever transaction committed last.",
+      "layers_involved": ["Backend", "DataPipeline"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "DataPipeline",
+          "contract_used": "TacticTypeDeliveryMethodDataModel",
+          "data_shape": "Second transaction's writes supersede the first for any overlapping rows; no error surfaced to either administrator"
+        }
+      ]
+    },
+    {
+      "step": "6a",
+      "description": "EDGE CASE (diverges from Step 6): All delivery methods under a tactic type are inactive (or the tactic type itself is inactive). The reference read APIs exclude that tactic type entirely from the requestor-facing list rather than showing it with zero delivery methods, so the order form never presents a dead-end selection.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Frontend",
+          "contract_used": "ReferenceTacticTypeAndDeliveryMethodReadAPIs",
+          "data_shape": "200 OK response array omits the tactic type when its active-delivery-method count is zero"
+        }
+      ]
     }
   ],
   "instrumentation_events": [
@@ -117,7 +195,7 @@
       "description": "Fired when a save request fails business rule or uniqueness validation, for observability into admin friction and potential duplicate submissions",
       "layers_involved": ["Backend"],
       "data_points": [
-        { "point": "reasonCode", "description": "DuplicateDeliveryMethod | AllDeliveryMethodsInactive | ValidationError | ConcurrencyConflict" },
+        { "point": "reasonCode", "description": "DuplicateDeliveryMethod | ValidationError (name exceeds 100 characters); no ConcurrencyConflict or AllDeliveryMethodsInactive value exists, since those are explicitly allowed (last-write-wins, no delivery methods active) per questions_addressed and never rejected" },
         { "point": "adminUserId", "description": "Id of the administrator performing the change" },
         { "point": "correlationId", "description": "Correlation id for tracing the request" }
       ]
@@ -129,6 +207,26 @@
       "data_points": [
         { "point": "cacheKeysInvalidated", "description": "List of cache keys removed" },
         { "point": "triggeredBy", "description": "SaveTacticTypeAdminChanges" }
+      ]
+    },
+    {
+      "event_name": "AdminTacticTypeSaveTiming",
+      "description": "Timing metric emitted around the SaveTacticTypeAdminChanges handler, covering the persistence transaction and the subsequent cache-invalidation step, to catch slow admin saves before they impact requestor-facing reads",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "persistenceDurationMs", "description": "Time spent in the single DB transaction writing toggles/creations" },
+        { "point": "cacheInvalidationDurationMs", "description": "Time spent removing the affected IMemoryCache keys" },
+        { "point": "correlationId", "description": "Correlation id for tracing the request" }
+      ]
+    },
+    {
+      "event_name": "ReferenceDataActiveReadServed",
+      "description": "Fired on each GetTacticTypesAPI/GetDeliveryMethodsAPI reference-data read, to confirm the active-only filter is serving fresh values immediately after an admin write and to catch stale-cache regressions",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "cacheHit", "description": "Whether the read was served from IMemoryCache or recomputed" },
+        { "point": "resultCount", "description": "Number of active tactic types/delivery methods returned" },
+        { "point": "filteredOutCount", "description": "Number of inactive rows excluded by the active-status filter" }
       ]
     }
   ],
@@ -179,7 +277,7 @@
       "name": "GetAdminTacticTypesAPI",
       "description": "New admin-only read endpoint returning all tactic types (active and inactive) with nested delivery methods, for the admin list view",
       "changes": {
-        "added": "GET /api/v1/admin/tactic-types -> AdminTacticTypeDto[] { Id, Name, IsActive, DisplayOrder, DeliveryMethods: [{ Id, Name, IsActive, RequiresDigitalProvider, RequiresPrinter, DisplayOrder }] }, [Authorize(Roles = \"Admin\")], follows AdminEntitiesController pattern",
+        "added": "GET /api/v1/admin/tactic-types -> 200 OK AdminTacticTypeDto[] { Id, Name, IsActive, DisplayOrder, DeliveryMethods: [{ Id, Name, IsActive, RequiresDigitalProvider, RequiresPrinter, DisplayOrder }] }; 403 Forbidden if caller lacks Admin role, [Authorize(Roles = \"Admin\")], follows AdminEntitiesController pattern",
         "modified": "None",
         "removed": "None"
       }
@@ -189,9 +287,19 @@
       "name": "SaveTacticTypeAdminChangesAPI",
       "description": "New admin-only write endpoint that atomically applies all pending draft changes (status toggles + new tactic types + new delivery methods) from a single Save action",
       "changes": {
-        "added": "PATCH /api/v1/admin/tactic-types -> SaveTacticTypeAdminChangesCommand { StatusToggles: [{ EntityType: 'TacticType'|'DeliveryMethod', Id, IsActive }], NewTacticTypes: [{ Name }], NewDeliveryMethods: [{ Name, TacticTypeId, RequiresDigitalProvider, RequiresPrinter }] } -> SaveTacticTypeAdminChangesResponse { UpdatedTacticTypes: AdminTacticTypeDto[] }; returns 409 with reasonCode on duplicate delivery method or validation error; [Authorize(Roles = \"Admin\")]",
+        "added": "PATCH /api/v1/admin/tactic-types -> SaveTacticTypeAdminChangesCommand { StatusToggles: [{ EntityType: 'TacticType'|'DeliveryMethod', Id, IsActive }], NewTacticTypes: [{ Name (required, max 100 chars) }], NewDeliveryMethods: [{ Name (required, max 100 chars), TacticTypeId, RequiresDigitalProvider, RequiresPrinter }] } -> 200 OK SaveTacticTypeAdminChangesResponse { UpdatedTacticTypes: AdminTacticTypeDto[] } (returned even when a tactic type ends up with zero active delivery methods -- that state is allowed, not an error); 409 Conflict { reasonCode: 'DuplicateDeliveryMethod'|'ValidationError', message } on duplicate delivery method name or a Name exceeding 100 characters; 403 Forbidden if caller lacks Admin role; [Authorize(Roles = \"Admin\")]. No concurrency-conflict response exists: concurrent saves resolve last-write-wins per architectural_decisions, always returning 200 OK to both callers.",
         "modified": "None",
         "removed": "None (no DELETE endpoint exists or is added, per 'cannot be deleted' constraint)"
+      }
+    },
+    {
+      "contract_type": "ComponentContract",
+      "name": "AdminTacticTypeDraftPanel",
+      "description": "New frontend component (admin section) that renders the tactic type/delivery method list in draft mode and drives the Save/Discard interaction",
+      "changes": {
+        "added": "Props: { tacticTypes: AdminTacticTypeDto[], isSaving: boolean, onToggleActive: (entityType: 'TacticType'|'DeliveryMethod', id: string) => void, onAddEntity: (draft: NewTacticTypeDraft|NewDeliveryMethodDraft) => void, onSave: () => Promise<void>, onDiscard: () => void, saveError?: { reasonCode: 'DuplicateDeliveryMethod'|'ValidationError', message: string } }; renders `saveError.message` inline above the affected row when SaveTacticTypeAdminChangesAPI returns 409; disables Save (client-side, non-authoritative check) when a duplicate name or a Name over 100 characters is detected in the current draft, matching the backend's max-length constraint; renders an empty-state message (per Step 1a) when `tacticTypes` is an empty array",
+        "modified": "None (placeholder admin UI had no prior component)",
+        "removed": "None"
       }
     },
     {

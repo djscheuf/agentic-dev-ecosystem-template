@@ -7,7 +7,8 @@
     assert_config:
       expected_failing_sections:
         - "interface_contracts"
-      score_floor: 1
+      score_floor: 0
+      exact: true
   description: 'Missing Interface and Contracts'
   metadata:
     covers_test_case_ids:
@@ -24,6 +25,37 @@
       weight: 1
     - type: llm-rubric
       value: "The Interface and Contracts Section's Recommendation should include specifying interfaces and contracts explicitly. These may include endpoint definitions, payload shapes, and component props."
+      threshold: 0.7
+      metric: interface-recommendation
+      weight: 1
+
+# ========================================
+# EXEMPLARY Interface and Contracts
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "interface_contracts"
+      score_floor: 3
+      exact: true
+  description: 'Exemplary Interface and Contracts'
+  metadata:
+    covers_test_case_ids:
+      - "TC-017"
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: interface-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Interface and Contracts Section's Reason should describe complete contract definitions (endpoints, payload shapes, component props, error handling) without naming any specific missing contract, unmapped workflow step, or shape mismatch as a deficiency."
+      threshold: 0.7
+      metric: interface-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Interface and Contracts Section's Recommendation should not identify any concrete gap or required change to the contracts. It may be empty, say no changes are needed, or offer only forward-looking advice to keep doing what the design already does."
       threshold: 0.7
       metric: interface-recommendation
       weight: 1

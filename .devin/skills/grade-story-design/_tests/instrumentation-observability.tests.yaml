@@ -29,6 +29,37 @@
       weight: 1
 
 # ========================================
+# EXEMPLARY Instrumentation and Observability
+# ========================================
+- vars:
+    request:
+      - '@../.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json'
+    assert_config:
+      expected_failing_sections:
+        - "instrumentation"
+      score_floor: 3
+      exact: true
+  description: 'Exemplary Instrumentation and Observability'
+  metadata:
+    covers_test_case_ids:
+      - "TC-030"
+  assert:
+    - type: javascript
+      value: file://../.devin/skills/grade-story-design/_tests/gradeDesignChecks.js:hasExpectedFailingSections
+      metric: instrumentation-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Instrumentation and Observability Section's Reason should describe rich instrumentation (4+ points, good context, debugging support) without naming any specific missing point, uncovered error state, or missing timing/context as a deficiency."
+      threshold: 0.7
+      metric: instrumentation-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Instrumentation and Observability Section's Recommendation should not identify any concrete gap or required addition. It may be empty, say no changes are needed, or offer only forward-looking advice to keep doing what the design already does."
+      threshold: 0.7
+      metric: instrumentation-recommendation
+      weight: 1
+
+# ========================================
 # SCRIPT-BASED DETERMINISTIC EVALUATIONS
 # ========================================
 
