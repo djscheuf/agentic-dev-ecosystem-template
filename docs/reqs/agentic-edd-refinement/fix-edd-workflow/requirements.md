@@ -73,7 +73,7 @@ agentic in name only.
 - ✅ `plan_refinement.py`'s `_select_action` rule table → replaced by a real `edd-plan` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_plan.py`, Cadence activity name `edd_plan`). The deterministic budget/regression-count stop gate was ported into `EddPlanRunner`, not into the skill.
 - ✅ `execute_refinement_action.py`'s raw-prompt `HarnessBackedRefinementRunner` → replaced by a real `edd-do` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_do.py`, Cadence activity name `edd_do`), following the exact `analyze_story.py` / `analyze_story.config.json` pattern (colocated config, `skill_name`, `output_path_key`, `accept-edits` permission). Approval gating (`missing_approval` / `diff_hash_mismatch`) stayed deterministic in `EddDoRunner`.
 - ✅ The single-baseline anchor for regression comparison → `edd-plan`'s `plan.json` emits `iteration_start_baseline`; `workflow.py` now resolves it (via `quality_ratchet.resolve_comparison_baseline`, preferring it over `best_accepted_state`) before calling `compare_candidate_to_best`, threads it into `rerun_degraded_candidate`, and passes it as the `metrics` half of the reference state given to `classify_regression_evidence`/`verify_recovery_metrics` (while keeping `best_accepted_state`'s `commit` for `revert_repository_to_best`, since that's still an actual git commit target, not a metrics snapshot — see Open Question 1). Threaded as a per-call argument through the already-in-scope `planning` dict, not (yet) persisted into the on-disk `ProgressRecord` schema itself — see "Data threaded around the loop" below.
-- ⬜ The complete absence of `.process/edd/<run_id>/iterations/<n>/{plan,do,check}.*` artifacts and sentinels → `edd-plan`/`edd-do` write `plan.json`/sentinels per their `SKILL.md`s; the `check`/`regression-confirm` writers and the Setup `guide.md` writer are still outstanding.
+- ◐ The complete absence of `.process/edd/<run_id>/iterations/<n>/{plan,do,check}.*` artifacts and sentinels → `edd-plan`/`edd-do` write `plan.json`/sentinels per their `SKILL.md`s; `check_candidate` now writes `iterations/<n>/check.json` and `.process/check.done.json` (2026-09-23). Still outstanding: `regression-confirm.json`/`regression_confirm.done.json`, `commit.done.json`/`revert.done.json`, and the Setup `guide.md` writer.
 
 ## Target loop
 
@@ -174,6 +174,20 @@ Replaces `execute_refinement_action.py`'s raw-prompt runner. Follows the `analyz
 
 ### 3. Check (`check_candidate`) — deterministic
 
+> **Status update (2026-09-23):** implemented for the post-Do candidate path.
+> `activities/check_candidate.py` (`CheckCandidateActivity`, Cadence name
+> `check_candidate`) delegates the run/inspect/metrics mechanics to
+> `EvaluateCandidateActivity` (ADR-021 contract unchanged), resolves the
+> comparison baseline **from the persisted progress record**
+> (`iteration_start_baseline` → `best_accepted_state.metrics` →
+> `baseline_metrics`), writes `.process/edd/<run_id>/iterations/<n>/check.json`
+> and the `.process/check.done.json` sentinel, and returns
+> `{metrics, determination, comparison, compared_against, baseline}` to the
+> workflow, which routes on `comparison`/`determination` instead of calling
+> `compare_candidate_to_best` itself. Still open: `run_baseline_evaluation`
+> remains the iteration-0 baseline path (unifying it under `check_candidate`
+> is cosmetic), and `regression-confirm.json` is unwritten.
+
 Generalizes `run_baseline_evaluation.py` so the same code path runs for the baseline (iteration 0) and every candidate thereafter.
 
 **Inputs:** the repaired evaluation command contract from `EddRefinementInput` (`test_command`, `inspect_command`), the iteration's `do.json` (for context only).
@@ -249,18 +263,16 @@ gate — those are all deterministic per the vault's own classification table in
 
 ## Data threaded around the loop (progress record additions)
 
-> **Status update (2026-09-23):** the *functional* gap this section describes is closed —
-> `iteration_start_baseline` now anchors every comparison within an iteration — but via a
-> different mechanism than "persist it in the `ProgressRecord` schema". `edd_plan`'s
-> `PlanningResult` (already in scope as `planning` for the rest of that workflow
-> iteration) carries `iteration_start_baseline`, and `workflow.py` passes it explicitly to
-> every activity that needs it (`compare_candidate_to_best` via
-> `resolve_comparison_baseline`, `rerun_degraded_candidate`, and the reference state given
-> to `classify_regression_evidence`/`verify_recovery_metrics`). It is **not** written into
-> `.process/edd/<run_id>/progress.json` itself, so a process reading that file directly
-> (outside the live workflow) still can't see it. If that turns out to matter (e.g. a
-> future out-of-process Check/Regression-Confirm activity, or a resumed run reading only
-> from disk), add it to `ProgressRecordSerializer`'s allow-list then.
+> **Status update (2026-09-23, revised):** `iteration_start_baseline` is now
+> **persisted** — `EddPlanRunner` writes `plan.json`'s `iteration_start_baseline`
+> into `.process/edd/<run_id>/progress.json` immediately after a successful Plan,
+> and activities that need it load it from that file (`check_candidate`'s
+> `_resolve_baseline` prefers it over `best_accepted_state.metrics` and
+> `baseline_metrics`). The in-memory threading through `workflow.py`'s `planning`
+> dict is retained as a fallback for mocked/legacy activity responses. Note it is
+> still not in `ProgressRecordSerializer.for_v5`'s allow-list — that serializer is
+> not on the save path, but if any code path starts round-tripping records through
+> it, the field will be silently dropped.
 
 The existing `ProgressRecord` schema needs one addition to close the regression-baseline
 gap: each iteration's plan must persist `iteration_start_baseline` (a reference to either
@@ -273,7 +285,7 @@ as-is.
 
 ## Open questions / decisions needed before implementation
 
-1. **Commit policy per iteration.** Does Do's change land as an uncommitted working-tree diff that Check evaluates in place (today's behavior), with Commit being the *first* commit for that change — or does the workflow commit provisionally after every Do and rely on `git reset --hard`/`git revert` for Revert? This determines whether Revert is `git checkout -- <files>` (uncommitted) or `git reset --hard <prior-commit>` (committed-then-reverted). The user's phrasing ("take in the git history to revert") suggests the latter; recommend confirming and documenting explicitly, since it changes both Commit and Revert's implementation.
+1. **Commit policy per iteration.** ✅ **Decided (2026-09-23):** the git-history approach. Accepted candidates are committed (`commit_accepted_candidate` remains the commit point), and Revert restores via `git reset --hard <last_accepted_commit>` — i.e., the existing `revert_repository_to_best` semantics against `best_accepted_state.commit`, not a `git checkout -- <files>` of uncommitted diffs. Consequence: Do's change must land uncommitted between Do and Check (evaluated in place), and only reaches git history through the Commit activity on accept.
 2. **Should `edd-decide` be renamed to `edd-plan` or kept as an internal step `edd-plan` calls?** Affects skill directory layout and any existing references to `edd-decide`.
 3. **Commit message: deterministic template vs. `git-commit` skill.** Recommend the skill-based version per the user's own suggestion, but it adds one more agentic hop per accepted iteration; confirm the added cost/latency is acceptable.
 4. **Where does the "guide document" belong physically** — target-repo `.process/edd/<run_id>/guide.md` (ephemeral, gitignored) vs. a durable doc under the target skill's own folder? Recommend ephemeral/gitignored, consistent with all other process artifacts, since it's regenerated from source-of-truth files (skill prompt, rubric, test cases) at Setup time.
@@ -283,7 +295,7 @@ as-is.
 
 1. ✅ **Done (2026-09-23).** Thread `iteration_start_baseline` through `quality_ratchet.py` (new `resolve_comparison_baseline`) / `rerun_degraded_candidate.py` (new optional param) and `workflow.py`'s regression-confirmation reference state. Done as an in-scope function argument rather than a durable `ProgressRecord` field — see "Data threaded around the loop" above for why and when to revisit that.
 2. ✅ **Done (2026-09-23).** Write `edd-plan` and `edd-do` skills; wire them as `SkillActivity` subclasses replacing `plan_refinement.py`/`execute_refinement_action.py`, following `analyze_story.py` exactly. Cadence activity names are `edd_plan`/`edd_do` (renamed from `plan_refinement_action`/`execute_refinement_action`) — `workflow.py`, `module.py`, and their tests were updated to match; `iteration_start_baseline` is threaded from `edd-plan`'s `plan.json` into `PlanningResult`, but not yet consumed downstream (still step 1/3's job).
-3. Generalize `run_baseline_evaluation.py` into a `check_candidate` activity usable for both baseline and post-Do candidates; add the `check.json`/sentinel writers.
+3. ◐ **Partially done (2026-09-23).** `check_candidate` exists, is registered in `module.py`, and the workflow routes every post-Do candidate through it (consuming its `comparison`/`determination`/`baseline` output). `check.json` + `check.done.json` are written per iteration. Still open: `run_baseline_evaluation` remains a separate iteration-0 path, and `regression-confirm.json`/`commit.done.json`/`revert.done.json` writers.
 4. Add the Setup guide-document writer.
 5. Confirm and implement the commit/revert policy decision (Open Question 1), then wire Commit and Revert activities with sentinels.
 6. Re-verify the existing budget/limit/regression-threshold tests still pass unchanged against the new activity boundaries.
