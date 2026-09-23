@@ -38,10 +38,19 @@ class PlanningResult:
 
 
 class EddPlanSkillActivity(SkillActivity):
+    def __init__(self, *, input_parent: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.input_parent = input_parent
+
     def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
         if not skill_input.input_paths:
             raise SkillActivityError("Cannot derive output path without a run directory input path")
         return Path(skill_input.input_paths[0]).with_name("plan.json")
+
+    def modify_sentinel_path(self, sentinel_path: Path) -> Path:
+        if self.input_parent:
+            return Path(self.input_parent) / ".process" / f"{self.skill_name}.done.json"
+        return sentinel_path
 
 
 EDD_PLAN_ACTIVITY = EddPlanSkillActivity(
@@ -53,10 +62,11 @@ class EddPlanRunner:
     """Deterministic budget/regression gate wrapping the agentic `edd-plan` skill.
 
     Action *selection* (what to do next) is delegated entirely to the `edd-plan`
-    skill, which reads the run's guide document / refinement history / latest
-    check results and writes a structured `plan.json`. This wrapper only enforces
-    the iteration/token/regression limits that must stay outside model control
-    (ADR-017's 3-strikes regression stop and the run's iteration/token budgets).
+    skill, which reads the run's refinement context document (`refinement.yaml`)
+    plus `progress.json` and writes a structured `plan.json`. This wrapper only
+    enforces the iteration/token/regression limits that must stay outside model
+    control (ADR-017's 3-strikes regression stop and the run's iteration/token
+    budgets).
     """
 
     def __init__(self, skill_activity: SkillActivity | None = None) -> None:
@@ -92,6 +102,7 @@ class EddPlanRunner:
         baseline: dict,
         proposal_id: str | None = None,
         proposed_diff_hash: str | None = None,
+        input_path: str | None = None,
     ) -> PlanningResult:
         logger = _get_activity_logger()
         logical_iterations = progress_record.get("logical_iteration_count", 0)
@@ -119,8 +130,21 @@ class EddPlanRunner:
             )
 
         run_dir = f".process/edd/{run_id}"
-        output = self.skill_activity.execute(
-            SkillActivityInput(input_paths=[f"{run_dir}/progress.json"])
+        refinement_path = f"{run_dir}/refinement.yaml"
+        progress_path = f"{run_dir}/progress.json"
+        input_parent = str(Path(input_path).parent) if input_path else None
+
+        skill_activity = self.skill_activity
+        if isinstance(skill_activity, EddPlanSkillActivity) and input_parent:
+            skill_activity = EddPlanSkillActivity(
+                input_parent=input_parent,
+                config_path=Path(__file__).with_suffix(".config.json"),
+                harness=HARNESS,
+                repo_root=REPO_ROOT,
+            )
+
+        output = skill_activity.execute(
+            SkillActivityInput(input_paths=[refinement_path, progress_path])
         )
         if output.status == "ambiguity":
             raise SkillActivityError(f"edd-plan reported ambiguity: {output.ambiguity_reason}")
@@ -174,6 +198,7 @@ async def edd_plan_action(
     baseline: dict,
     proposal_id: str | None = None,
     proposed_diff_hash: str | None = None,
+    input_path: str | None = None,
 ) -> dict:
     result = await asyncio.to_thread(
         EDD_PLAN_RUNNER.run,
@@ -183,5 +208,6 @@ async def edd_plan_action(
         baseline,
         proposal_id,
         proposed_diff_hash,
+        input_path,
     )
     return dataclasses.asdict(result)

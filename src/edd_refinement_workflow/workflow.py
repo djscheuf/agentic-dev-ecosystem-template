@@ -24,6 +24,8 @@ class EddRefinementWorkflow:
             request["workflow_run_id"],
             preflight_result,
             request["profile"],
+            request.get("edd_input"),
+            request.get("input_path"),
             request.get("lease_ttl", 1200),
             start_to_close_timeout=timedelta(minutes=5),
         )
@@ -55,14 +57,7 @@ class EddRefinementWorkflow:
                     "terminal_result": terminal_result,
                 }
 
-        baseline = await execute_activity(
-            "run_baseline_evaluation",
-            dict,
-            record["run_id"],
-            request["profile"],
-            repo_root,
-            start_to_close_timeout=timedelta(minutes=30),
-        )
+        baseline = record.get("baseline_metrics", {})
 
         result = {"record": record, "baseline": baseline}
         while True:
@@ -94,6 +89,7 @@ class EddRefinementWorkflow:
                 baseline,
                 request.get("proposal_id"),
                 request.get("proposed_diff_hash"),
+                request.get("input_path"),
                 start_to_close_timeout=timedelta(minutes=5),
             )
             result["planning"] = planning

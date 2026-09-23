@@ -1,4 +1,7 @@
 from collections.abc import Callable
+from pathlib import Path
+
+import yaml
 
 from common.mutation_lease_policy import LeaseConflictError, MutationLeasePolicyHandler
 from common.mutation_lease_store import get_default_store
@@ -7,12 +10,63 @@ from common.preflight import PreflightResult
 from ..candidate_results import EvaluationRunConfiguration
 
 
+_ACTION_TAXONOMY = [
+    {
+        "action": "add_coverage",
+        "description": (
+            "Add a missing required test case, or extend deterministic assertions, "
+            "without weakening any existing expectation."
+        ),
+    },
+    {
+        "action": "repair",
+        "description": (
+            "Fix a defect in a scripted assertion, fixture, or evaluation helper "
+            "(a fixture bug or helper bug, not a real model gap)."
+        ),
+    },
+    {
+        "action": "refine_skill",
+        "description": (
+            "Modify the target skill's SKILL.md / prompt / instructions to close a "
+            "genuine model gap against a rubric the evaluation correctly represents."
+        ),
+    },
+    {
+        "action": "refine_supporting_docs",
+        "description": (
+            "Modify an authorized reference, example, template, or other document the "
+            "target skill depends on."
+        ),
+    },
+    {
+        "action": "propose_evaluation_expectation_change",
+        "description": (
+            "Change what an evaluation expects (an LLM rubric, an expected/floor score). "
+            "This action requires explicit human approval before edd-do may apply it; "
+            "never select it as a first attempt at a failure."
+        ),
+    },
+    {
+        "action": "stop",
+        "description": (
+            "No defensible action remains, the objective is already met, or a "
+            "budget/regression limit blocks another safe attempt."
+        ),
+    },
+]
+
+
 class InitializeRunActivity:
     def __init__(
-        self, factory, on_event: Callable[..., None] | None = None
+        self,
+        factory,
+        on_event: Callable[..., None] | None = None,
+        check_harness: Callable[..., dict] | None = None,
     ) -> None:
         self.factory = factory
         self.on_event = on_event
+        self.check_harness = check_harness
 
     def _acquire_lease(self, repo_root: str, run_id: str, lease_ttl: int) -> dict:
         store = get_default_store()
@@ -27,11 +81,56 @@ class InitializeRunActivity:
             "acquired_at": "now",
         }
 
+    def _run_baseline_check(
+        self,
+        run_id: str,
+        repo_root: str,
+    ) -> dict:
+        from .check_candidate import CheckCandidateActivity
+        from .evaluate_candidate import _run_evaluation_command
+
+        return CheckCandidateActivity(
+            self.factory.store,
+            self.check_harness or _run_evaluation_command,
+        ).run(run_id, "baseline", repo_root)
+
+    def _write_refinement_context(
+        self,
+        repo_root: str,
+        run_id: str,
+        workflow_run_id: str,
+        edd_input: dict,
+        input_parent: str,
+        baseline: dict,
+    ) -> Path:
+        context = {
+            "schema_version": 1,
+            "run_id": run_id,
+            "workflow_run_id": workflow_run_id,
+            "input_parent": input_parent,
+            "edd_input": edd_input,
+            "baseline": baseline,
+            "taxonomy": _ACTION_TAXONOMY,
+            "iterations": [],
+        }
+        path = (
+            Path(repo_root)
+            / ".process"
+            / "edd"
+            / run_id
+            / "refinement.yaml"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(yaml.safe_dump(context, sort_keys=False))
+        return path
+
     def run(
         self,
         workflow_run_id: str,
         preflight_result: PreflightResult,
         profile: dict,
+        edd_input: dict | None = None,
+        input_path: str | None = None,
         lease_ttl: int = 1200,
     ) -> dict:
         if preflight_result.status != "success":
@@ -82,14 +181,34 @@ class InitializeRunActivity:
         )
         created["inspect_command"] = profile.get("inspect_command")
 
+        input_parent = str(Path(input_path).parent) if input_path else repo_root
+
         if created is record:
             created["mutation_lease"] = self._acquire_lease(
                 repo_root, run_id, lease_ttl
             )
             created["target_repository"] = repo_root
+            created["input_path"] = input_path
+            created["input_parent"] = input_parent
             self.factory.store.save(run_id, created)
+
+            baseline_check = self._run_baseline_check(run_id, repo_root)
+            created["baseline_metrics"] = baseline_check["metrics"]
+            self.factory.store.save(run_id, created)
+
+            if edd_input is not None:
+                self._write_refinement_context(
+                    repo_root,
+                    run_id,
+                    workflow_run_id,
+                    edd_input,
+                    input_parent,
+                    baseline_check["metrics"],
+                )
         else:
             created["target_repository"] = repo_root
+            created["input_path"] = input_path or created.get("input_path")
+            created["input_parent"] = input_parent or created.get("input_parent")
             self.factory.store.save(run_id, created)
 
         event_name = "InitializeRun" if created is record else "ResumeRun"
@@ -107,6 +226,8 @@ async def initialize_run_activity(
     workflow_run_id: str,
     preflight_result: PreflightResult,
     profile: dict,
+    edd_input: dict | None = None,
+    input_path: str | None = None,
     lease_ttl: int = 1200,
 ) -> dict:
     from ..progress_record import ProgressRecordFactory, ProgressRecordStore
@@ -115,5 +236,10 @@ async def initialize_run_activity(
     store = ProgressRecordStore(repo_root)
     factory = ProgressRecordFactory(store)
     return InitializeRunActivity(factory).run(
-        workflow_run_id, preflight_result, profile, lease_ttl
+        workflow_run_id,
+        preflight_result,
+        profile,
+        edd_input=edd_input,
+        input_path=input_path,
+        lease_ttl=lease_ttl,
     )

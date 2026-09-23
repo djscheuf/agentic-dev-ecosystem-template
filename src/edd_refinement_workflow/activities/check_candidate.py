@@ -43,8 +43,11 @@ class CheckCandidateActivity:
 
     def run(self, run_id: str, candidate_id: str, repo_root: str) -> dict:
         record = self.store.create_or_resume(run_id, {})
-        iteration = record.get("logical_iteration_count") or (
-            len(record.get("candidate_metrics", [])) + 1
+        logical_iteration = record.get("logical_iteration_count")
+        iteration = (
+            logical_iteration
+            if logical_iteration is not None
+            else len(record.get("candidate_metrics", [])) + 1
         )
         baseline, compared_against = self._resolve_baseline(record)
 

@@ -99,7 +99,10 @@ def test_edd_plan_invokes_edd_plan_skill_and_reads_its_plan_json(tmp_path) -> No
     assert result.iteration_start_baseline == plan["iteration_start_baseline"]
     assert result.plan_path == relative_plan_path
     assert result.requires_approval is False
-    assert skill.calls[0].input_paths == [".process/edd/run-1/progress.json"]
+    assert skill.calls[0].input_paths == [
+        ".process/edd/run-1/refinement.yaml",
+        ".process/edd/run-1/progress.json",
+    ]
 
 
 def test_edd_plan_persists_iteration_start_baseline_into_progress_json(

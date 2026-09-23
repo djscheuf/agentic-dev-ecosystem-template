@@ -77,6 +77,8 @@ async def start_edd_refinement_workflow(
     config = config or load_config()
     resolved_workflow_id = workflow_id or _default_workflow_id(input_path)
 
+    input_path = Path(input_path)
+    raw_input = json.loads(input_path.read_text(encoding="utf-8"))
     input_document = EddRefinementInput.from_path(input_path)
     preflight = resolve_and_validate_target_repository(
         anchor_path=str(input_document.skill_folder),
@@ -111,6 +113,9 @@ async def start_edd_refinement_workflow(
     request = {
         "workflow_run_id": resolved_workflow_id,
         "profile": profile,
+        "input_path": str(input_path),
+        "input_parent": str(input_document.input_parent),
+        "edd_input": raw_input,
         "approval_timeout_seconds": 3600,
         "regression_stop_threshold": 3,
         "next_step_token_estimate": 0,

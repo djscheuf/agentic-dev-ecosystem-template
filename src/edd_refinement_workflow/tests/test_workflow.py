@@ -27,9 +27,7 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
         calls.append(name)
         if name == "initialize_run":
-            return {"run_id": "wf-1-abc1234"}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
+            return {"run_id": "wf-1-abc1234", "baseline_metrics": {"passing": 5}}
         if name == "edd_plan":
             return {"action": "stop", "reason": "budget_exhausted"}
         if name == "finalize_run":
@@ -44,7 +42,6 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
 
     assert calls == [
         "initialize_run",
-        "run_baseline_evaluation",
         "edd_plan",
         "finalize_run",
     ]
@@ -130,8 +127,6 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
         calls.append(name)
         if name == "initialize_run":
             return {"run_id": "run-1"}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
         if name == "edd_plan":
             return {
                 "action": "propose_evaluation_expectation_change",
@@ -214,8 +209,6 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
         calls.append(name)
         if name == "initialize_run":
             return {"run_id": "run-1"}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
         if name == "edd_plan":
             return {
                 "action": "propose_evaluation_expectation_change",
@@ -259,9 +252,7 @@ async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
         calls.append(name)
         if name == "initialize_run":
-            return {"run_id": "run-1"}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
+            return {"run_id": "run-1", "baseline_metrics": {"passing": 5}}
         if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
         if name == "edd_do":
@@ -338,9 +329,7 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
         calls.append(name)
         if name == "initialize_run":
-            return {"run_id": "run-1"}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
+            return {"run_id": "run-1", "baseline_metrics": {"passing": 5}}
         if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
         return {"status": "failed", "failure_reason": "harness_failure:1"}
@@ -378,9 +367,11 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
         calls.append((name, args))
         if name == "initialize_run":
-            return {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}}}
-        if name == "run_baseline_evaluation":
-            return {"passing": 5}
+            return {
+                "run_id": "run-1",
+                "baseline_metrics": {"passing": 5},
+                "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {"required-1": 1}, "measurement_context": "baseline"}},
+            }
         if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
         if name == "edd_do":
@@ -409,8 +400,11 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
     async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
         calls.append((name, args))
         responses = {
-            "initialize_run": {"run_id": "run-1", "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}}},
-            "run_baseline_evaluation": {"passing": 5},
+            "initialize_run": {
+                "run_id": "run-1",
+                "baseline_metrics": {"passing": 5},
+                "best_accepted_state": {"metrics": {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}},
+            },
             "edd_plan": {"action": "repair"},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
@@ -449,12 +443,12 @@ async def test_workflow_compares_against_plans_frozen_iteration_start_baseline(
         responses = {
             "initialize_run": {
                 "run_id": "run-1",
+                "baseline_metrics": {"passing": 5},
                 "best_accepted_state": {
                     "commit": "commit-10",
                     "metrics": {"passing": 10, "required_coverage": {}, "measurement_context": "baseline"},
                 },
             },
-            "run_baseline_evaluation": {"passing": 5},
             "edd_plan": {"action": "repair", "iteration_start_baseline": iteration_start_baseline},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
@@ -488,12 +482,12 @@ async def test_workflow_threads_iteration_start_baseline_into_regression_rerun(
         responses = {
             "initialize_run": {
                 "run_id": "run-1",
+                "baseline_metrics": {"passing": 5},
                 "best_accepted_state": {
                     "commit": "commit-10",
                     "metrics": {"passing": 10, "required_coverage": {}, "measurement_context": "baseline"},
                 },
             },
-            "run_baseline_evaluation": {"passing": 5},
             "edd_plan": {"action": "repair", "iteration_start_baseline": iteration_start_baseline},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
@@ -532,8 +526,7 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
         if name == "check_candidate":
             options.update(kwargs)
         responses = {
-            "initialize_run": {"run_id": "run-1"},
-            "run_baseline_evaluation": {"passing": 5},
+            "initialize_run": {"run_id": "run-1", "baseline_metrics": {"passing": 5}},
             "edd_plan": {"action": "repair"},
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
@@ -623,9 +616,8 @@ async def test_workflow_after_token_consuming_steps_accounts_usage_and_regates(m
 async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_step(tmp_path, monkeypatch) -> None:
     calls = []
     responses = {
-        "initialize_run": {"run_id": "run-1", "budgets": {"token_budget": 100}},
+        "initialize_run": {"run_id": "run-1", "budgets": {"token_budget": 100}, "baseline_metrics": {"passing": 1}},
         "check_refinement_limits": {"schedule_next_step": True, "stop_reason": "none"},
-        "run_baseline_evaluation": {"passing": 1},
         "edd_plan": {"action": "repair"},
         "edd_do": {"status": "success", "usage_metrics": {"total_tokens": 5}},
         "validate_candidate": {"status": "scope_valid", "candidate_id": "candidate-1"},
@@ -664,6 +656,7 @@ async def test_workflow_runs_multiple_iterations_until_limit_stops(tmp_path, mon
                 "run_id": "run-1",
                 "budgets": {"token_budget": 100},
                 "candidate_history": [],
+                "baseline_metrics": {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"},
             }
         if name == "check_refinement_limits":
             limit_calls.append(name)
@@ -671,8 +664,6 @@ async def test_workflow_runs_multiple_iterations_until_limit_stops(tmp_path, mon
                 "schedule_next_step": len(limit_calls) < 4,
                 "stop_reason": "token_budget" if len(limit_calls) >= 4 else "none",
             }
-        if name == "run_baseline_evaluation":
-            return {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}
         if name == "edd_plan":
             plan_calls.append(args)
             return {"action": "repair"}
