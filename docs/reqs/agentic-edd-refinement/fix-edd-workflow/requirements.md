@@ -2,12 +2,23 @@
 
 ## Bottom line
 
-`edd_refinement_workflow` is a large, fully-**deterministic simulation** of an agentic
-refinement loop. Its two steps that are supposed to be agentic — `plan_refinement_action`
-and `execute_refinement_action` — never invoke a real skill: planning is a hardcoded
-`if failing>0: "repair" elif uncovered: "add_coverage"` rule table, and execution sends a
+> **Status update (2026-09-23):** the two dummy activities described below have been
+> replaced. `edd_plan` (backed by the new `.devin/skills/edd-plan` skill) and `edd_do`
+> (backed by the new `.devin/skills/edd-do` skill) are real `SkillActivity` subclasses,
+> colocated-config, wired into `EddRefinementWorkflow` and `module.py` exactly like
+> `analyze_story.py`/`analyze_story.config.json`. `plan_refinement.py` and
+> `execute_refinement_action.py` are deleted. See
+> [[vault/services/edd_refinement.md]] ("`edd_plan`/`edd_do` skill wiring" section) for
+> what shipped and what is still open (`iteration_start_baseline` threading, the
+> `guide.md`/`check_candidate` generalization, and the commit/revert policy decision
+> remain future work — see "Suggested delivery order" below).
+
+`edd_refinement_workflow` was a large, fully-**deterministic simulation** of an agentic
+refinement loop. Its two steps that were supposed to be agentic — `plan_refinement_action`
+and `execute_refinement_action` — never invoked a real skill: planning was a hardcoded
+`if failing>0: "repair" elif uncovered: "add_coverage"` rule table, and execution sent a
 single ad-hoc prompt string to `DevinHarness` referencing a skill (`execute-refinement-action`)
-that does not exist under `.devin/skills/`. Everything *around* those two steps (progress
+that did not exist under `.devin/skills/`. Everything *around* those two steps (progress
 record, budgets, quality ratchet, regression recovery, commit) is sound, reusable, and
 already follows the `SkillActivity` / colocated-config pattern used by `story_analysis_workflow`.
 
@@ -59,10 +70,10 @@ agentic in name only.
 
 ## What must be replaced
 
-- `plan_refinement.py`'s `_select_action` rule table → replaced by a real `edd-plan` skill invocation via `SkillActivity`.
-- `execute_refinement_action.py`'s raw-prompt `HarnessBackedRefinementRunner` → replaced by a real `edd-do` skill invocation via `SkillActivity`, following the exact `analyze_story.py` / `analyze_story.config.json` pattern (colocated config, `skill_name`, `output_path_key`, `accept-edits` permission).
-- The single-baseline anchor for regression comparison → augmented with an explicit "iteration start baseline" captured at Plan time and threaded through Do/Check/Regression-Confirm.
-- The complete absence of `.process/edd/<run_id>/iterations/<n>/{plan,do,check}.*` artifacts and sentinels → new deterministic writers, modeled on `ADR-004` and the sentinel conventions already used by other skills (`<parent>/.process/<skill-name>.done.json`, gitignored via `*.process` / `*.done.json`).
+- ✅ `plan_refinement.py`'s `_select_action` rule table → replaced by a real `edd-plan` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_plan.py`, Cadence activity name `edd_plan`). The deterministic budget/regression-count stop gate was ported into `EddPlanRunner`, not into the skill.
+- ✅ `execute_refinement_action.py`'s raw-prompt `HarnessBackedRefinementRunner` → replaced by a real `edd-do` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_do.py`, Cadence activity name `edd_do`), following the exact `analyze_story.py` / `analyze_story.config.json` pattern (colocated config, `skill_name`, `output_path_key`, `accept-edits` permission). Approval gating (`missing_approval` / `diff_hash_mismatch`) stayed deterministic in `EddDoRunner`.
+- ⬜ The single-baseline anchor for regression comparison → still needs an explicit "iteration start baseline" captured at Plan time and threaded through Do/Check/Regression-Confirm. `edd-plan`'s `plan.json` already emits `iteration_start_baseline` and `edd_plan_action` surfaces it in `PlanningResult`, but nothing downstream (Check/Regression-Confirm) consumes it yet.
+- ⬜ The complete absence of `.process/edd/<run_id>/iterations/<n>/{plan,do,check}.*` artifacts and sentinels → `edd-plan`/`edd-do` write `plan.json`/sentinels per their `SKILL.md`s; the `check`/`regression-confirm` writers and the Setup `guide.md` writer are still outstanding.
 
 ## Target loop
 
@@ -213,8 +224,8 @@ Directly implements the user's spec: "loop through the check again and see... ar
 
 | Skill | Purpose | Notes |
 |---|---|---|
-| `edd-plan` | Review guide doc + iteration history + latest check results; select one authorized action; produce a scoped, specific incremental plan. | Evolve `.devin/skills/edd-decide`'s recommendation logic (already correct in spirit) rather than starting from nothing; add iteration-awareness, structured JSON output, and the iteration-start-baseline field. Consider renaming `edd-decide` → `edd-plan` and retiring the old name, or keeping `edd-decide` as a sub-skill `edd-plan` invokes for the recommendation step. |
-| `edd-do` | Load the target skill's prompt/tests, apply the plan's described change within the authorized scope, update the plan document with what actually changed. | New skill; follow the `analyze-story` skill's shape (single responsibility, defines its own output contract, writes a sentinel). Should explicitly reference the `promptfoo` skill for eval-suite edits and stay within `modification_scope`. |
+| `edd-plan` ✅ written, wired | Review guide doc + iteration history + latest check results; select one authorized action; produce a scoped, specific incremental plan. | Lives at `.devin/skills/edd-plan/SKILL.md`; wired via `src/edd_refinement_workflow/activities/edd_plan.py`/`edd_plan.config.json`. `edd-decide` was left in place, unreferenced, rather than renamed — that consolidation is still open (see Open Question 2). |
+| `edd-do` ✅ written, wired | Load the target skill's prompt/tests, apply the plan's described change within the authorized scope, update the plan document with what actually changed. | Lives at `.devin/skills/edd-do/SKILL.md`; wired via `src/edd_refinement_workflow/activities/edd_do.py`/`edd_do.config.json`, following the `analyze-story` skill's shape (single responsibility, defines its own output contract, writes a sentinel). References the `promptfoo` skill for eval-suite edits. |
 
 No new skill is required for Check, Regression Confirmation, Revert, or the loop-limit
 gate — those are all deterministic per the vault's own classification table in
@@ -258,7 +269,7 @@ as-is.
 ## Suggested delivery order
 
 1. Add `iteration_start_baseline` to the progress record and thread it through `quality_ratchet.py` / `rerun_degraded_candidate.py` (small, deterministic, unblocks everything else).
-2. Write `edd-plan` and `edd-do` skills; wire them as `SkillActivity` subclasses replacing `plan_refinement.py`/`execute_refinement_action.py`, following `analyze_story.py` exactly.
+2. ✅ **Done (2026-09-23).** Write `edd-plan` and `edd-do` skills; wire them as `SkillActivity` subclasses replacing `plan_refinement.py`/`execute_refinement_action.py`, following `analyze_story.py` exactly. Cadence activity names are `edd_plan`/`edd_do` (renamed from `plan_refinement_action`/`execute_refinement_action`) — `workflow.py`, `module.py`, and their tests were updated to match; `iteration_start_baseline` is threaded from `edd-plan`'s `plan.json` into `PlanningResult`, but not yet consumed downstream (still step 1/3's job).
 3. Generalize `run_baseline_evaluation.py` into a `check_candidate` activity usable for both baseline and post-Do candidates; add the `check.json`/sentinel writers.
 4. Add the Setup guide-document writer.
 5. Confirm and implement the commit/revert policy decision (Open Question 1), then wire Commit and Revert activities with sentinels.
