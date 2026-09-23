@@ -1,0 +1,8 @@
+{
+    "plan_path": "path/to/.process/edd/<run_id>/iterations/<n>/plan.json",
+    "iteration_number": "{n}",
+    "action": "repair | add_coverage | refine_skill | refine_supporting_docs | propose_evaluation_expectation_change",
+    "changed_files": [
+        "path/to/changed/file"
+    ]
+}

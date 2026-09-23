@@ -1,0 +1,6 @@
+{
+    "plan_path": "path/to/.process/edd/<run_id>/iterations/<n>/plan.json",
+    "refinement_path": "path/to/.process/edd/<run_id>/refinement.yaml",
+    "iteration_number": "{n}",
+    "action": "refine_skill | repair | add_coverage | refine_supporting_docs | propose_evaluation_expectation_change | stop"
+}

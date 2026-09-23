@@ -1,0 +1,8 @@
+{
+    "task": "{task name}",
+    "status": "pending | in_progress | completed | failed",
+    "verify_params": {
+        "key": "{value}",
+        "another_key": "{another_value}"
+    }
+}
