@@ -107,3 +107,28 @@ def test_check_candidate_compares_against_persisted_iteration_start_baseline(
     assert result["compared_against"] == "iteration_start_baseline"
     assert result["comparison"]["reason"] == "apparent_regression"
     assert result["baseline"]["passing"] == 5
+
+
+def test_check_candidate_with_malformed_metrics_determines_rejected(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        _record_with_baseline(
+            {"passing": 5, "required_coverage": {}, "measurement_context": "baseline"}
+        ),
+    )
+
+    result = CheckCandidateActivity(store, lambda **kwargs: {"passing": 1}).run(
+        "run-1", "candidate-1", str(tmp_path)
+    )
+
+    assert result["metrics"]["status"] == "rejected"
+    assert result["metrics"]["failure_reason"] == "malformed_metrics"
+    assert result["determination"] == "rejected"
+    assert result["comparison"] is None
+    assert result["compared_against"] is None
+
+    sentinel = json.loads(
+        (tmp_path / ".process" / "check.done.json").read_text()
+    )
+    assert sentinel["determination"] == "rejected"
