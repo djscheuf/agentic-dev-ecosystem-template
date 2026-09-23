@@ -30,6 +30,11 @@
         {
           "type": "command",
           "command": "bash .devin/scripts/post-edit-verify-skill.sh"
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/scripts/validate-json-yaml.sh",
+          "timeout": 10
         }
       ]
     }

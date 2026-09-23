@@ -8,6 +8,8 @@
     "test:verbose": "cd evals && promptfoo eval --no-cache --verbose --config $1 > test.log",
     "view": "promptfoo view",
     "inspect-eval": "node scripts/inspect-eval.js"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.3.2"
   }
-
 }
