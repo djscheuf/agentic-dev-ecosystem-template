@@ -1,4 +1,7 @@
-from edd_refinement_workflow.quality_ratchet import compare_candidate_to_best
+from edd_refinement_workflow.quality_ratchet import (
+    compare_candidate_to_best,
+    resolve_comparison_baseline,
+)
 
 
 def metric(passing, total, coverage, context="baseline"):
@@ -93,3 +96,36 @@ def test_compare_candidate_to_best_with_no_qualifying_value_rejects_candidate() 
         "passing_delta": 0,
         "coverage_delta": {},
     }
+
+
+def test_resolve_comparison_baseline_prefers_iteration_start_baseline_over_best_state() -> None:
+    planning = {
+        "iteration_start_baseline": {
+            "source": "best_accepted_state",
+            "candidate_id": "candidate-2",
+            "passing": 9,
+            "failing": 3,
+            "total": 12,
+        }
+    }
+    best_state = {"metrics": {"passing": 20, "failing": 0, "total": 20}}
+
+    result = resolve_comparison_baseline(planning, best_state, {"passing": 0})
+
+    assert result == planning["iteration_start_baseline"]
+
+
+def test_resolve_comparison_baseline_falls_back_to_best_accepted_state() -> None:
+    best_state = {"metrics": {"passing": 5, "total": 6}}
+
+    result = resolve_comparison_baseline({"action": "repair"}, best_state, {"passing": 0})
+
+    assert result == best_state["metrics"]
+
+
+def test_resolve_comparison_baseline_falls_back_to_original_baseline_when_never_accepted() -> None:
+    baseline = {"passing": 5, "total": 6}
+
+    result = resolve_comparison_baseline(None, None, baseline)
+
+    assert result == baseline

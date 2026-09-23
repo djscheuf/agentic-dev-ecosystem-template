@@ -72,7 +72,7 @@ agentic in name only.
 
 - ✅ `plan_refinement.py`'s `_select_action` rule table → replaced by a real `edd-plan` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_plan.py`, Cadence activity name `edd_plan`). The deterministic budget/regression-count stop gate was ported into `EddPlanRunner`, not into the skill.
 - ✅ `execute_refinement_action.py`'s raw-prompt `HarnessBackedRefinementRunner` → replaced by a real `edd-do` skill invocation via `SkillActivity` (`src/edd_refinement_workflow/activities/edd_do.py`, Cadence activity name `edd_do`), following the exact `analyze_story.py` / `analyze_story.config.json` pattern (colocated config, `skill_name`, `output_path_key`, `accept-edits` permission). Approval gating (`missing_approval` / `diff_hash_mismatch`) stayed deterministic in `EddDoRunner`.
-- ⬜ The single-baseline anchor for regression comparison → still needs an explicit "iteration start baseline" captured at Plan time and threaded through Do/Check/Regression-Confirm. `edd-plan`'s `plan.json` already emits `iteration_start_baseline` and `edd_plan_action` surfaces it in `PlanningResult`, but nothing downstream (Check/Regression-Confirm) consumes it yet.
+- ✅ The single-baseline anchor for regression comparison → `edd-plan`'s `plan.json` emits `iteration_start_baseline`; `workflow.py` now resolves it (via `quality_ratchet.resolve_comparison_baseline`, preferring it over `best_accepted_state`) before calling `compare_candidate_to_best`, threads it into `rerun_degraded_candidate`, and passes it as the `metrics` half of the reference state given to `classify_regression_evidence`/`verify_recovery_metrics` (while keeping `best_accepted_state`'s `commit` for `revert_repository_to_best`, since that's still an actual git commit target, not a metrics snapshot — see Open Question 1). Threaded as a per-call argument through the already-in-scope `planning` dict, not (yet) persisted into the on-disk `ProgressRecord` schema itself — see "Data threaded around the loop" below.
 - ⬜ The complete absence of `.process/edd/<run_id>/iterations/<n>/{plan,do,check}.*` artifacts and sentinels → `edd-plan`/`edd-do` write `plan.json`/sentinels per their `SKILL.md`s; the `check`/`regression-confirm` writers and the Setup `guide.md` writer are still outstanding.
 
 ## Target loop
@@ -249,6 +249,19 @@ gate — those are all deterministic per the vault's own classification table in
 
 ## Data threaded around the loop (progress record additions)
 
+> **Status update (2026-09-23):** the *functional* gap this section describes is closed —
+> `iteration_start_baseline` now anchors every comparison within an iteration — but via a
+> different mechanism than "persist it in the `ProgressRecord` schema". `edd_plan`'s
+> `PlanningResult` (already in scope as `planning` for the rest of that workflow
+> iteration) carries `iteration_start_baseline`, and `workflow.py` passes it explicitly to
+> every activity that needs it (`compare_candidate_to_best` via
+> `resolve_comparison_baseline`, `rerun_degraded_candidate`, and the reference state given
+> to `classify_regression_evidence`/`verify_recovery_metrics`). It is **not** written into
+> `.process/edd/<run_id>/progress.json` itself, so a process reading that file directly
+> (outside the live workflow) still can't see it. If that turns out to matter (e.g. a
+> future out-of-process Check/Regression-Confirm activity, or a resumed run reading only
+> from disk), add it to `ProgressRecordSerializer`'s allow-list then.
+
 The existing `ProgressRecord` schema needs one addition to close the regression-baseline
 gap: each iteration's plan must persist `iteration_start_baseline` (a reference to either
 `best_accepted_state.metrics` or the original baseline metrics, frozen at Plan time), so
@@ -268,7 +281,7 @@ as-is.
 
 ## Suggested delivery order
 
-1. Add `iteration_start_baseline` to the progress record and thread it through `quality_ratchet.py` / `rerun_degraded_candidate.py` (small, deterministic, unblocks everything else).
+1. ✅ **Done (2026-09-23).** Thread `iteration_start_baseline` through `quality_ratchet.py` (new `resolve_comparison_baseline`) / `rerun_degraded_candidate.py` (new optional param) and `workflow.py`'s regression-confirmation reference state. Done as an in-scope function argument rather than a durable `ProgressRecord` field — see "Data threaded around the loop" above for why and when to revisit that.
 2. ✅ **Done (2026-09-23).** Write `edd-plan` and `edd-do` skills; wire them as `SkillActivity` subclasses replacing `plan_refinement.py`/`execute_refinement_action.py`, following `analyze_story.py` exactly. Cadence activity names are `edd_plan`/`edd_do` (renamed from `plan_refinement_action`/`execute_refinement_action`) — `workflow.py`, `module.py`, and their tests were updated to match; `iteration_start_baseline` is threaded from `edd-plan`'s `plan.json` into `PlanningResult`, but not yet consumed downstream (still step 1/3's job).
 3. Generalize `run_baseline_evaluation.py` into a `check_candidate` activity usable for both baseline and post-Do candidates; add the `check.json`/sentinel writers.
 4. Add the Setup guide-document writer.

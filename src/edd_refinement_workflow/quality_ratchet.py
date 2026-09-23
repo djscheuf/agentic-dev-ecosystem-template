@@ -1,3 +1,23 @@
+def resolve_comparison_baseline(
+    planning: dict | None, best_state: dict | None, baseline: dict
+) -> dict:
+    """Return the metrics snapshot Check/Regression-Confirm should compare against.
+
+    Prefers the `iteration_start_baseline` that `edd-plan` froze at Plan time
+    (`planning["iteration_start_baseline"]`) over the possibly-since-advanced
+    `best_accepted_state`, so a candidate is always judged against the target
+    the plan believed it was improving on -- not a `best_accepted_state` that
+    raced ahead mid-iteration. Falls back to today's behavior
+    (`best_state["metrics"]`, or the original `baseline` before any candidate
+    has ever been accepted) when Plan did not record one, e.g. mocked/legacy
+    callers that predate ADR-017's iteration-start-baseline requirement.
+    """
+    iteration_start_baseline = (planning or {}).get("iteration_start_baseline")
+    if iteration_start_baseline:
+        return iteration_start_baseline
+    return best_state["metrics"] if best_state is not None else baseline
+
+
 def compare_candidate_to_best(candidate: dict, best: dict) -> dict:
     candidate_passing = candidate.get("passing", 0)
     best_passing = best.get("passing", 0)

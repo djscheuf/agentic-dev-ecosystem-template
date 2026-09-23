@@ -435,6 +435,96 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
 
 
 @pytest.mark.asyncio
+async def test_workflow_compares_against_plans_frozen_iteration_start_baseline(
+    tmp_path, monkeypatch
+) -> None:
+    """best_accepted_state raced ahead to passing=10 mid-iteration, but edd_plan
+    froze iteration_start_baseline at passing=5 when it started this iteration.
+    Check/Regression-Confirm must judge the candidate against 5, not 10."""
+    calls = []
+    iteration_start_baseline = {"passing": 5, "required_coverage": {}}
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append((name, args))
+        responses = {
+            "initialize_run": {
+                "run_id": "run-1",
+                "best_accepted_state": {
+                    "commit": "commit-10",
+                    "metrics": {"passing": 10, "required_coverage": {}, "measurement_context": "baseline"},
+                },
+            },
+            "run_baseline_evaluation": {"passing": 5},
+            "edd_plan": {"action": "repair", "iteration_start_baseline": iteration_start_baseline},
+            "edd_do": {"status": "success"},
+            "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
+            # 6 is a regression vs best_accepted_state (10) but an improvement vs
+            # the frozen iteration_start_baseline (5).
+            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {}, "measurement_context": "baseline"},
+            "commit_accepted_candidate": {"candidate_id": "candidate-1", "commit": "commit-6"},
+        }
+        return responses[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc123456"))
+
+    result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
+
+    # Real (unmocked) compare_candidate_to_best: 6 > 5, so this accepts, using the
+    # frozen iteration_start_baseline rather than best_accepted_state's 10.
+    assert result["comparison"]["decision"] == "accept"
+    assert result["comparison"]["passing_delta"] == 1
+
+
+@pytest.mark.asyncio
+async def test_workflow_threads_iteration_start_baseline_into_regression_rerun(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+    iteration_start_baseline = {"passing": 5, "required_coverage": {}}
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append((name, args))
+        responses = {
+            "initialize_run": {
+                "run_id": "run-1",
+                "best_accepted_state": {
+                    "commit": "commit-10",
+                    "metrics": {"passing": 10, "required_coverage": {}, "measurement_context": "baseline"},
+                },
+            },
+            "run_baseline_evaluation": {"passing": 5},
+            "edd_plan": {"action": "repair", "iteration_start_baseline": iteration_start_baseline},
+            "edd_do": {"status": "success"},
+            "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
+            # 4 is a regression vs both best_accepted_state (10) and the frozen
+            # iteration_start_baseline (5), so this still routes to rerun.
+            "evaluate_candidate": {"candidate_id": "candidate-1", "passing": 4, "required_coverage": {}, "measurement_context": "baseline"},
+            "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
+            "classify_regression_evidence": {"classification": "unstable_result"},
+            "human_handoff": {"notified": True},
+        }
+        return responses[name]
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    preflight = PreflightResult(status="success", target_context=TargetRepositoryContext(repo_root=tmp_path, anchor_path="", explicit_root=None, branch="main", starting_revision="abc123456"))
+
+    result = await EddRefinementWorkflow().run(preflight, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
+
+    rerun_call = next(args for name, args in calls if name == "rerun_degraded_candidate")
+    assert rerun_call[-1] == iteration_start_baseline
+
+    classify_call = next(args for name, args in calls if name == "classify_regression_evidence")
+    # classify_regression_evidence's third positional arg is the reference state;
+    # its metrics must be the frozen iteration_start_baseline, but its commit must
+    # still be best_accepted_state's (needed by a later revert), not dropped.
+    reference_state = classify_call[2]
+    assert reference_state["metrics"] == iteration_start_baseline
+    assert reference_state["commit"] == "commit-10"
+    assert result["comparison"]["decision"] == "rerun"
+
+
+@pytest.mark.asyncio
 async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path, monkeypatch) -> None:
     options = {}
 

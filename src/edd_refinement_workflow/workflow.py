@@ -6,7 +6,7 @@ from cadence.workflow import execute_activity, sleep, wait_condition
 
 from common.preflight import PreflightResult
 
-from .quality_ratchet import compare_candidate_to_best
+from .quality_ratchet import compare_candidate_to_best, resolve_comparison_baseline
 
 
 class EddRefinementWorkflow:
@@ -233,11 +233,11 @@ class EddRefinementWorkflow:
 
             best_state = record.get("best_accepted_state")
             if best_state is not None or "budgets" in record:
-                best_metrics = (
-                    best_state["metrics"] if best_state is not None else baseline
+                comparison_baseline = resolve_comparison_baseline(
+                    planning, best_state, baseline
                 )
                 comparison = compare_candidate_to_best(
-                    candidate_evaluation, best_metrics
+                    candidate_evaluation, comparison_baseline
                 )
                 result["comparison"] = comparison
                 if comparison["decision"] == "accept":
@@ -266,9 +266,18 @@ class EddRefinementWorkflow:
                         record["run_id"],
                         candidate["candidate_id"],
                         repo_root,
+                        comparison_baseline,
                         start_to_close_timeout=timedelta(
                             seconds=request["profile"]["timeout"]
                         ),
+                    )
+                    # Preserve best_state's commit (needed by revert_repository_to_best)
+                    # but classify/verify against the frozen iteration-start baseline,
+                    # not a best_accepted_state that may have advanced mid-iteration.
+                    regression_reference_state = (
+                        {**best_state, "metrics": comparison_baseline}
+                        if best_state is not None
+                        else {"metrics": comparison_baseline}
                     )
                     result["regression_recovery"] = await self._handle_regression(
                         record["run_id"],
@@ -277,9 +286,7 @@ class EddRefinementWorkflow:
                         result["confirmation_rerun"].get(
                             "result", result["confirmation_rerun"]
                         ),
-                        best_state
-                        if best_state is not None
-                        else {"metrics": baseline},
+                        regression_reference_state,
                         repo_root,
                         request.get("regression_stop_threshold", 3),
                     )
