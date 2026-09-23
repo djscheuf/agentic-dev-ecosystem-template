@@ -64,3 +64,46 @@ def test_check_candidate_returns_metrics_comparison_and_writes_artifacts(tmp_pat
     assert sentinel["task"] == "check_candidate"
     assert sentinel["determination"] == "accept"
     assert sentinel["files"] == [str(check_path.relative_to(tmp_path))]
+
+
+def test_check_candidate_compares_against_persisted_iteration_start_baseline(
+    tmp_path,
+) -> None:
+    store = ProgressRecordStore(tmp_path)
+    record = _record_with_baseline(
+        {"passing": 1, "required_coverage": {}, "measurement_context": "baseline"}
+    )
+    record["iteration_start_baseline"] = {
+        "passing": 5,
+        "required_coverage": {},
+        "measurement_context": "baseline",
+    }
+    record["best_accepted_state"] = {
+        "commit": "abc1234",
+        "metrics": {
+            "passing": 10,
+            "required_coverage": {},
+            "measurement_context": "baseline",
+        },
+    }
+    store.create_or_resume("run-1", record)
+
+    def harness(**kwargs) -> dict:
+        return {
+            "passing": 4,
+            "failing": 4,
+            "total": 8,
+            "percentage": 50.0,
+            "required_coverage": {},
+        }
+
+    result = CheckCandidateActivity(store, harness).run(
+        "run-1", "candidate-1", str(tmp_path)
+    )
+
+    # Worse than the frozen iteration_start_baseline (5) -> apparent regression;
+    # had it compared against baseline_metrics (1) it would look like an accept.
+    assert result["determination"] == "rerun"
+    assert result["compared_against"] == "iteration_start_baseline"
+    assert result["comparison"]["reason"] == "apparent_regression"
+    assert result["baseline"]["passing"] == 5
