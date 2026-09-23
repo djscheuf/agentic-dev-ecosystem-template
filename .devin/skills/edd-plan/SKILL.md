@@ -1,6 +1,6 @@
 ---
 name: edd-plan
-description: Reviews the current EDD refinement run state (guide document, evaluation history, and prior plan/do/check outcomes) for a target skill's evaluation, and selects the next single authorized refinement action. Use at the start of every EDD refinement iteration, before edd-do.
+description: Reviews the current EDD refinement run state (refinement.yaml context document, evaluation history, and prior plan/do/check outcomes) for a target skill's evaluation, and selects the next single authorized refinement action. Use at the start of every EDD refinement iteration, before edd-do.
 ---
 
 ## Steps:
@@ -8,8 +8,8 @@ description: Reviews the current EDD refinement run state (guide document, evalu
 ### 1. Read the Run's Process Directory
 - Read the EDD run folder provided as input, e.g. `.process/edd/<run_id>/`.
 - Read `progress.json` for remaining iteration/token budgets, `best_accepted_state`, `consecutive_confirmed_regressions`, and `candidate_history`.
-- On the first iteration (no `iterations/` subfolder yet), read `guide.md` for the target skill's rubric/prompt text, the required-test-case catalog, the baseline metrics, the per-test-case coverage map, and the authorized modification scope.
-- On later iterations, read the running `refinement.yaml` document and the highest-numbered `iterations/<n>/{plan,do,check,regression-confirm}.json` files instead of re-deriving everything from `guide.md` alone.
+- Read the running `refinement.yaml` document. It embeds the original `edd_input` object, which supplies the target skill's rubric/prompt text, the required-test-case catalog, the baseline metrics, the per-test-case coverage map, and the authorized modification scope.
+- Also read the highest-numbered `iterations/<n>/{plan,do,check}.json` files for the current iteration state.
 
 ### 2. Review the Latest Evaluation Evidence
 - Read the two most recent `check.json` results (or the single baseline result if this is the first iteration).
@@ -17,7 +17,7 @@ description: Reviews the current EDD refinement run state (guide document, evalu
 - Cross-reference the required-test-case coverage map in the latest `check.json` against the target skill's `_tests/*.tests.yaml` and required-test-case catalog to find any required case with no covering assertion.
 
 ### 3. Review Prior Plan/Do/Check History
-- Read every prior iteration's `refinement.json`, `do.json`, and its outcome (`accepted` / `rejected` / `reverted`) from `candidate_history`.
+- Read every prior iteration's `plan.json`, `do.json`, and its outcome (`accepted` / `rejected` / `reverted`) from `candidate_history` and `refinement.yaml`.
 - Do not propose an action that repeats a change already confirmed as a regression and reverted, unless the new plan explicitly states what will be different this time and why it is expected to avoid the prior failure.
 
 ### 4. Select the Next Action

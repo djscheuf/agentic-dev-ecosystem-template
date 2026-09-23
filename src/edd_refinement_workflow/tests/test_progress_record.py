@@ -78,7 +78,7 @@ def test_progress_record_v5_with_limit_state_serializes_and_redacts() -> None:
         "cumulative_token_usage": 25,
         "consecutive_confirmed_regressions": 0,
         "pending_evidence_flags": ["inconclusive"],
-        "attempt_records": [
+        "attempts": [
             {
                 "attempt_id": "attempt-1",
                 "total_tokens": 25,
@@ -93,7 +93,7 @@ def test_progress_record_v5_with_limit_state_serializes_and_redacts() -> None:
     )
 
     assert restored == record | {
-        "attempt_records": [
+        "attempts": [
             {
                 "attempt_id": "attempt-1",
                 "total_tokens": 25,

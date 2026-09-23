@@ -58,7 +58,7 @@ class InitializeRunActivity:
             "cumulative_token_usage": 0,
             "consecutive_confirmed_regressions": 0,
             "pending_evidence_flags": [],
-            "attempt_records": [],
+            "attempts": [],
             "iteration_history": [],
             "approval_request": None,
             "approval_history": [],

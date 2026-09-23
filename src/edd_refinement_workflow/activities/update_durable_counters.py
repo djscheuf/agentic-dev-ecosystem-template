@@ -27,7 +27,7 @@ class UpdateDurableCountersActivity:
             "usage_missing": "usage_metrics" not in attempt_record,
         }
         stored_attempt.pop("usage_metrics", None)
-        record["attempt_records"] = record.get("attempt_records", []) + [stored_attempt]
+        record["attempts"] = record.get("attempts", []) + [stored_attempt]
         record["cumulative_token_usage"] = record.get("cumulative_token_usage", 0) + usage["total_tokens"]
         if not attempt_record["is_retry"]:
             record["logical_iteration_count"] = record.get("logical_iteration_count", 0) + 1

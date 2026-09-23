@@ -26,8 +26,9 @@ class ProgressRecordSerializer:
                 "cumulative_token_usage",
                 "consecutive_confirmed_regressions",
                 "pending_evidence_flags",
-                "attempt_records",
+                "attempts",
                 "human_handoff_records",
+                "iteration_start_baseline",
             },
         )
 

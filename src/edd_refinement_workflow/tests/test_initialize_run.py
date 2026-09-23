@@ -102,7 +102,7 @@ def test_initialize_run_with_limit_configuration_seeds_durable_limit_state(tmp_p
     assert record["logical_iteration_count"] == 0
     assert record["cumulative_token_usage"] == 0
     assert record["pending_evidence_flags"] == []
-    assert record["attempt_records"] == []
+    assert record["attempts"] == []
 
 
 def test_initialize_run_raises_lease_conflict_for_concurrent_run(tmp_path) -> None:
