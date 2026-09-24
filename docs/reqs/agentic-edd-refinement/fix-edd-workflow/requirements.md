@@ -179,7 +179,7 @@ Replaces `plan_refinement.py`'s rule table. Evolves `.devin/skills/edd-decide` r
 
 **Inputs**
 - `refinement.yaml` from Setup or the current run (first iteration or subsequent iterations).
-- The two most recent `check.json` results (for pattern detection, matching `edd-decide`'s existing instruction to "review the two most recent evaluation runs").
+- The two most recent `check.json` results (for pattern detection, matching `edd-decide`'s existing instruction to "review the two most recent evaluation runs"). These are passed directly as additional input paths by `EddPlanRunner` (globbed from `iterations/*/check.json`, newest first) so the skill never needs to re-run an evaluation.
 - The previous iteration's `plan.json` and the "changes made" notes in `refinement.yaml` (what was tried, what changed, whether it was accepted/reverted) — this is the mechanism that lets the agent avoid repeating a just-reverted change (ADR-017's "failed-attempt memory").
 - Remaining iteration/token budget (from `check_refinement_limits`), read via `progress.json` or embedded in `refinement.yaml`.
 - Authorized action taxonomy and modification scope (from the embedded `edd_input`), unchanged from `feature-description.md`.

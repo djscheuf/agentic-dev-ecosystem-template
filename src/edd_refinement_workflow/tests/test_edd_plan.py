@@ -139,6 +139,39 @@ def test_edd_plan_propagates_skill_token_usage(tmp_path) -> None:
     }
 
 
+def test_edd_plan_supplies_two_most_recent_check_results_as_inputs(tmp_path) -> None:
+    run_dir = tmp_path / ".process" / "edd" / "run-1"
+    plan_path = run_dir / "iterations" / "3" / "plan.json"
+    _write_plan(plan_path)
+    for n in range(3):
+        check = run_dir / "iterations" / str(n) / "check.json"
+        check.parent.mkdir(parents=True, exist_ok=True)
+        check.write_text("{}")
+
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path=str(plan_path.relative_to(tmp_path)),
+            sentinel_path=".process/edd-plan.done.json",
+            duration_ms=10,
+        )
+    )
+    runner = EddPlanRunner(skill)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+    }
+
+    runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+    assert skill.calls[0].input_paths == [
+        ".process/edd/run-1/refinement.yaml",
+        ".process/edd/run-1/progress.json",
+        ".process/edd/run-1/iterations/2/check.json",
+        ".process/edd/run-1/iterations/1/check.json",
+    ]
+
+
 def test_edd_plan_persists_iteration_start_baseline_into_progress_json(
     tmp_path,
 ) -> None:

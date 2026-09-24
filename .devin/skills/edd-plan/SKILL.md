@@ -5,6 +5,8 @@ description: Reviews the current EDD refinement run state (refinement.yaml conte
 
 ## Steps:
 
+**Read-only planning.** Do not run shell commands or re-run evaluations — the workflow supplies all evaluation evidence as input documents. Plan strictly from the files you can read.
+
 ### 1. Read the Run's Process Directory
 - Read the EDD run folder provided as input, e.g. `.process/edd/<run_id>/`.
 - Read `progress.json` for remaining iteration/token budgets, `best_accepted_state`, `consecutive_confirmed_regressions`, and `candidate_history`.
@@ -12,7 +14,7 @@ description: Reviews the current EDD refinement run state (refinement.yaml conte
 - Also read the highest-numbered `iterations/<n>/{plan,do,check}.json` files for the current iteration state.
 
 ### 2. Review the Latest Evaluation Evidence
-- Read the two most recent `check.json` results (or the single baseline result if this is the first iteration).
+- Read the two most recent `check.json` results — they are supplied directly as additional input paths in the invocation prompt (or the single baseline result if this is the first iteration).
 - Identify common failure patterns: are failures concentrated in one rubric dimension, one fixture, or one assertion helper?
 - Cross-reference the required-test-case coverage map in the latest `check.json` against the target skill's `_tests/*.tests.yaml` and required-test-case catalog to find any required case with no covering assertion.
 
@@ -53,9 +55,9 @@ Record the exact metric snapshot this iteration is trying to beat as `iteration_
 - This document is append-only: never rewrite, reorder, or delete a prior iteration's section. It is the audit trail!
 
 ### 8. Write the Sentinel File
-- create `<input_parent>/.process/` when needed and write `{skill-name}.done.json` there; use the repository-root `.process/` only when no input path is supplied. The sentinel must not be removed after verification.
+- Write the sentinel to the exact path given in the invocation prompt (e.g. `<input-dir>/.process/edd-plan.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json.
-- set the task field to "{skill-name}".
+- set the task field to "edd-plan".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json.
 - set the verify_params as follows:
     - set "plan_path" to the path of `iterations/<n>/plan.json`, relative to repo root.

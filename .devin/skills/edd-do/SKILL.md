@@ -8,6 +8,8 @@ description: Implements the single refinement action selected by edd-plan agains
 ## Purpose
 Apply exactly one planned refinement action to a target skill and/or its evaluation suite. Make only the change described in the plan.
 
+**No shell commands.** Do not run shell commands (`exec`, `git`, `npm`, etc.) — every needed check is either a file edit or a re-read. The workflow runs validation (scope checks, the full evaluation) deterministically after this skill completes.
+
 ## Prerequisites
 - `iterations/<n>/plan.json` exists and names an authorized action, `intended_files`, and `expected_effect`.
 - The target repository worktree has no stray edits from a previous, not-yet-committed-or-reverted attempt.
@@ -76,26 +78,25 @@ By action type:
   fixing the underlying fixture, helper, or skill behavior IS FORBIDDEN
 ```
 
-### Step 4: Run Local Deterministic Checks
+### Step 4: Re-read and Validate Every Edit
 ```
-Run fast, local checks before finishing. Do NOT run the full promptfoo
-evaluation suite here — that is a separate deterministic workflow step
-(check_candidate) that runs after this skill completes.
+Do NOT run the promptfoo evaluation suite or any shell command here —
+validation is a separate deterministic workflow step (check_candidate)
+that runs after this skill completes.
 
-- YAML syntax check on every edited *.tests.yaml file
-- JSON validity check on every edited fixture
-- Syntax check on any edited helper JS
+Instead, re-read each file you edited and confirm by inspection:
+- YAML files parse cleanly (indentation, anchors, block structure)
+- JSON fixtures are valid (balanced braces, quoted keys, no trailing commas)
+- Helper JS is syntactically consistent
 
-Fix and re-check until all of these pass. These mirror the deterministic
-pre-run checks the manually-run refinement process performs after every
-batch of edits.
+Fix and re-check until every edited file reads cleanly.
 ```
 
 ### Step 5: Verify Scope
 ```
-Diff the working tree (git status / git diff --name-only) and confirm
-every changed file appears in intended_files and in the run's overall
-authorized modification_scope.
+List every file you created or modified during this session and confirm
+each appears in intended_files and in the run's overall authorized
+modification_scope.
 
 If anything else changed:
   → Revert the out-of-scope change before finishing.
@@ -113,7 +114,7 @@ section in .process/edd/<run_id>/refinement.yaml:
 ```
 
 ### Step 7: Write the Sentinel File
-- create `<input_parent>/.process/` when needed and write `edd-do.done.json` there; use the repository-root `.process/` only when no input path is supplied. The sentinel must not be removed after verification.
+- Write the sentinel to the exact path given in the invocation prompt (e.g. `<plan-dir>/.process/edd-do.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json.
 - set the task field to "edd-do".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json.

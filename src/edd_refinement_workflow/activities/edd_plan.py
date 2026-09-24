@@ -135,6 +135,15 @@ class EddPlanRunner:
         progress_path = f"{run_dir}/progress.json"
         input_parent = str(Path(input_path).parent) if input_path else None
 
+        check_paths = sorted(
+            (Path(repo_root) / run_dir / "iterations").glob("*/check.json"),
+            key=lambda p: int(p.parent.name) if p.parent.name.isdigit() else -1,
+            reverse=True,
+        )[:2]
+        recent_checks = [
+            str(path.relative_to(repo_root)) for path in check_paths
+        ]
+
         skill_activity = self.skill_activity
         if isinstance(skill_activity, EddPlanSkillActivity) and input_parent:
             skill_activity = EddPlanSkillActivity(
@@ -145,7 +154,9 @@ class EddPlanRunner:
             )
 
         output = skill_activity.execute(
-            SkillActivityInput(input_paths=[refinement_path, progress_path])
+            SkillActivityInput(
+                input_paths=[refinement_path, progress_path, *recent_checks]
+            )
         )
         if output.status == "ambiguity":
             raise SkillActivityError(f"edd-plan reported ambiguity: {output.ambiguity_reason}")
