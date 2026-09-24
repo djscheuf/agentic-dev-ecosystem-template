@@ -10,6 +10,15 @@
       ]
     },
     {
+      "matcher":"read",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash .devin/scripts/protect-secrets.sh"
+        }
+      ]
+    },
+    {
       "matcher": "exec",
       "hooks": [
         {

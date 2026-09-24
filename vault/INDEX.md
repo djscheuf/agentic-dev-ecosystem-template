@@ -33,3 +33,4 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [EDD Refinement ProgressRecord](services/edd_refinement.md)
 - [grade-story-design eval-suite refinement process](services/grade-story-design-eval-refinement.md)
 - [NixOS development environment](services/nixos.md)
+- [Secret protection for env files](services/secret-protection.md)
