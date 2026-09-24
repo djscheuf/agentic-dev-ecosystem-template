@@ -69,7 +69,7 @@ class InitializeRunActivity:
         self.check_harness = check_harness
 
     def _acquire_lease(self, repo_root: str, run_id: str, lease_ttl: int) -> dict:
-        store = get_default_store()
+        store = get_default_store(Path(repo_root) / ".process" / "mutation-leases.json")
         policy = MutationLeasePolicyHandler(store, on_event=self.on_event)
         handle = policy.lease(repo_root, run_id, lease_ttl)
         token = handle.__enter__()

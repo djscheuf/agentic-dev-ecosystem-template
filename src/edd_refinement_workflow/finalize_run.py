@@ -74,9 +74,13 @@ def _restore_repository(repo_root: str, commit: str) -> None:
 
 
 def _release_lease(repo_root: str, run_id: str) -> None:
+    from pathlib import Path
+
     from common.mutation_lease_store import get_default_store
 
-    get_default_store().release(repo_root, run_id)
+    get_default_store(Path(repo_root) / ".process" / "mutation-leases.json").release(
+        repo_root, run_id
+    )
 
 
 @activity.defn(name="finalize_run")

@@ -18,6 +18,32 @@ class EddRefinementWorkflow:
 
     @workflow.run
     async def run(self, preflight_result: PreflightResult, request: dict):
+        self._record = None
+        self._repo_root = None
+        self._finalized = False
+        try:
+            return await self._run(preflight_result, request)
+        except Exception:
+            if (
+                self._record is not None
+                and self._repo_root is not None
+                and not self._finalized
+            ):
+                try:
+                    await execute_activity(
+                        "finalize_run",
+                        dict,
+                        self._record["run_id"],
+                        "workflow_exception",
+                        self._repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                except Exception:
+                    pass
+                self._finalized = True
+            raise
+
+    async def _run(self, preflight_result: PreflightResult, request: dict):
         record = await execute_activity(
             "initialize_run",
             dict,
@@ -29,11 +55,13 @@ class EddRefinementWorkflow:
             request.get("lease_ttl", 1200),
             start_to_close_timeout=timedelta(minutes=5),
         )
+        self._record = record
         if record.get("candidate") is not None:
             self._candidate = record["candidate"]
             return {"record": record, "candidate": record["candidate"]}
 
         repo_root = str(preflight_result.target_context.repo_root)
+        self._repo_root = repo_root
         if "budgets" in record:
             limit_decision = await execute_activity(
                 "check_refinement_limits",
