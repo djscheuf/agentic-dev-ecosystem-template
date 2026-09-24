@@ -287,3 +287,13 @@ validation against the `grade-story-design` eval suite.
 
 Still open: end-to-end validation of the full loop against the
 `grade-story-design` eval suite.
+
+## Gotcha: sentinel path must match in prompt and verifier (2026-09-24)
+
+`SkillActivity.build_prompt` originally told the agent to write the completion
+sentinel at the *default* `_sentinel_path` (next to the first input), while
+`execute()` verified at the `modify_sentinel_path` override. For `edd_plan`
+(`input_parent` redirect to the EDD input's directory) the agent dutifully wrote
+`.process/edd/<run_id>/.process/edd-plan.done.json` and the verifier then failed
+with "Missing sentinel". Rule: any `modify_sentinel_path` override must be
+applied in `build_prompt` too — it now is.
