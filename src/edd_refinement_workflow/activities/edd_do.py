@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import hashlib
+import json
 import subprocess
 from pathlib import Path
 
@@ -58,7 +59,7 @@ class EddDoRunner:
                 SkillActivityInput(input_paths=[plan_path])
             )
         except SkillActivityError as exc:
-            return ExecutionResult(
+            result = ExecutionResult(
                 status="failed",
                 usage_metrics=UsageMetrics(0, 0, 0, 0.0),
                 changed_files=[],
@@ -67,6 +68,8 @@ class EddDoRunner:
                 atif_path=None,
                 duration_ms=0,
             )
+            self._write_do_json(plan_path, repo_root, result)
+            return result
 
         diff = subprocess.run(
             ["git", "diff", "--no-ext-diff", "--binary"],
@@ -85,7 +88,7 @@ class EddDoRunner:
         usage = output.observation.get("usage") or {}
         prompt_tokens = usage.get("prompt_tokens") or 0
         completion_tokens = usage.get("completion_tokens") or 0
-        return ExecutionResult(
+        result = ExecutionResult(
             status="success",
             usage_metrics=UsageMetrics(
                 input_tokens=prompt_tokens,
@@ -99,6 +102,17 @@ class EddDoRunner:
             atif_path=output.observation.get("atif_path"),
             duration_ms=output.duration_ms,
         )
+        self._write_do_json(plan_path, repo_root, result)
+        return result
+
+    @staticmethod
+    def _write_do_json(plan_path: str, repo_root: str, result: ExecutionResult) -> None:
+        path = Path(plan_path)
+        if not path.is_absolute():
+            path = Path(repo_root) / path
+        do_path = path.with_name("do.json")
+        do_path.parent.mkdir(parents=True, exist_ok=True)
+        do_path.write_text(json.dumps(dataclasses.asdict(result), indent=2))
 
 
 EDD_DO_RUNNER = EddDoRunner()

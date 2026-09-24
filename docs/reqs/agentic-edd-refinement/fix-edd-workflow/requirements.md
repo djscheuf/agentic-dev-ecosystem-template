@@ -28,9 +28,23 @@
 >   being retired. `iteration_start_baseline` will be added to
 >   `ProgressRecordSerializer.for_v5`'s allow-list.
 >
-> Still open: the Setup context-document writer, per-iteration `plan.json` and
-> `do.json`/change-record handling, the `attempt_records`→`attempts` rename across
-> the codebase, and aligning the workflow approval/validation order with this spec.
+> **Status update (2026-09-23, second revision):** the Setup context-document
+> writer has shipped — `initialize_run` now runs the baseline evaluation as
+> iteration 0 (`iterations/0/check.json`) and initializes
+> `.process/edd/<run_id>/refinement.yaml` embedding `edd_input`, baseline metrics,
+> and the action taxonomy. `edd_plan` reads `refinement.yaml` + `progress.json`
+> and places its sentinel next to the original EDD input file. The
+> `attempt_records`→`attempts` rename and the `iteration_start_baseline`
+> serializer allow-list entry are done, and approval routing is simplified —
+> only `propose_evaluation_expectation_change` proposals gate on human approval;
+> everything else routes straight to `edd_do`.
+>
+> Still open: per-iteration `do.json` writing/verification by `edd_do`; a
+> **token-limit pre-check before every agentic step** — `edd_plan`'s token spend
+> must be accounted and `check_refinement_limits` re-run before `edd_do` is
+> invoked, so a plan that exhausts the budget stops the iteration instead of
+> proceeding to Do (see "Loop control" below); and the first real end-to-end run
+> of the full loop against the `grade-story-design` eval suite.
 
 `edd_refinement_workflow` was a large, fully-**deterministic simulation** of an agentic
 refinement loop. Its two steps that were supposed to be agentic — `plan_refinement_action`
@@ -64,7 +78,7 @@ See also:
 | Execution | `execute_refinement_action.py` (`HarnessBackedRefinementRunner`) | Builds one raw prompt string (`"Execute refinement action '{action}'... Only modify these files: {...}"`) and calls `DevinHarness.run` directly. `execute_refinement_action.config.json` declared `skill_name: "execute-refinement-action"`, but no such skill exists in `.devin/skills/`. This bypasses the entire skills-based architecture (ADR-003) that `story_analysis_workflow` follows. |
 | Agentic context document | *(missing)* | Setup does not synthesize the `edd_input` object, rubric, test-case catalog, fixture inventory, or prior iteration history into a single document `edd-plan` can read. Every planning/do cycle starts from zero durable context. |
 | Loop anchor for regression confirmation | `workflow.py` (`_handle_regression`) | Already fixed: `iteration_start_baseline` is frozen at Plan time, persisted into `progress.json`, and used by Check and Regression Confirmation. |
-| Per-iteration artifact trail | *(incomplete)* | `check.json` + `check.done.json` are written for post-Do candidates. `iterations/<n>/plan.json`, `do.json`, and the running `refinement.yaml` historical document are not yet produced. Setup does not write an iteration-0 `check.json`. |
+| Per-iteration artifact trail | *(mostly resolved)* | `check.json` is written for iteration 0 (Setup baseline) and post-Do candidates; `check.done.json` remains as optional observability. `iterations/<n>/plan.json` is written by `edd-plan` and `refinement.yaml` is initialized by Setup. `iterations/<n>/do.json` is not yet produced. |
 | Skill naming | n/a | The only real EDD skill that exists is `.devin/skills/edd-decide`, which is a single-shot recommender. It is *not* wired into the workflow — `plan_refinement.py` reimplemented a worse version of its logic in Python instead of invoking it. The new `edd-plan` skill supersedes it. |
 
 Net effect: the workflow runs, produces a syntactically valid terminal report, and never
@@ -90,11 +104,11 @@ agentic in name only.
 - ✅ `plan_refinement.py`'s rule table → replaced by `edd-plan` skill invocation via `SkillActivity` (`activities/edd_plan.py`). Budget/regression stop gate stays deterministic in `EddPlanRunner`.
 - ✅ `execute_refinement_action.py`'s raw-prompt runner → replaced by `edd-do` skill invocation via `SkillActivity` (`activities/edd_do.py`). Approval gating stays deterministic.
 - ✅ The single-baseline anchor for regression comparison → `iteration_start_baseline` is frozen by `edd-plan`, persisted to `progress.json`, and consumed by `check_candidate` and regression handling.
-- ◐ The **context document** → replaced by a run-level `refinement.yaml` initialized by Setup, embedding the `edd_input` object, iteration-0 baseline metrics, and an append-only iteration history. Not yet implemented.
-- ◐ The **per-iteration artifact trail** → `check.json` exists for post-Do checks. `iterations/<n>/plan.json` and a record of what `edd-do` changed are not yet written. Iteration-0 `check.json` is not written by Setup.
-- ◐ **Sentinel policy** → only `edd-plan` and `edd-do` require sentinels. Deterministic activities do not.
-- ◐ **Approval flow simplification** → route directly to `edd-do` unless the action is `propose_evaluation_expectation_change`.
-- ◐ **Progress-record schema cleanup** → rename `attempt_records` to `attempts` everywhere and add `iteration_start_baseline` to `ProgressRecordSerializer.for_v5`.
+- ✅ The **context document** → a run-level `refinement.yaml` initialized by `initialize_run`, embedding the `edd_input` object, iteration-0 baseline metrics, the action taxonomy, and an empty `iterations:` list appended to by each cycle.
+- ◐ The **per-iteration artifact trail** → `check.json` exists for iteration 0 (Setup baseline) and post-Do checks. `iterations/<n>/plan.json` is written by `edd-plan`. `iterations/<n>/do.json` (change record from `edd-do`) is not yet written/verified.
+- ✅ **Sentinel policy** → only `edd-plan` and `edd-do` require sentinels. `check_candidate` still writes `check.done.json` for observability (optional, allowed).
+- ✅ **Approval flow simplification** → `workflow.py` routes to `edd_do` directly; only `planning.requires_approval` (set for `propose_evaluation_expectation_change`) triggers the approval gate.
+- ✅ **Progress-record schema cleanup** → `attempt_records` renamed to `attempts` in `initialize_run.py`, `update_durable_counters.py`, tests, and the serializer; `iteration_start_baseline` added to `ProgressRecordSerializer.for_v5`.
 
 ## Target loop
 
@@ -110,9 +124,10 @@ agentic in name only.
                                                       │
                                                       └─▶ loop to Plan directly (reject: no qualifying value, nothing to commit or revert)
 
-   Limit check ("check_refinement_limits") runs before every EDD Plan call and after
-   every EDD Do / Check / Regression-Confirm call. A stop decision routes straight to Finalize
-   regardless of where in the loop it is raised.
+   Limit check ("check_refinement_limits") runs before every EDD Plan call, before every
+   EDD Do call (after Plan's token spend is accounted), and after every EDD Do / Check /
+   Regression-Confirm call. A stop decision routes straight to Finalize regardless of
+   where in the loop it is raised.
 ```
 
 Activity name ↔ loop position ↔ type, at a glance:
@@ -124,7 +139,7 @@ Activity name ↔ loop position ↔ type, at a glance:
 | 2 | `edd_plan` | loop step 1 | **agentic** (skill: `edd-plan`) | every cycle |
 | 3 | `edd_do` | loop step 2 | **agentic** (skill: `edd-do`) | every cycle (unless Plan says `stop`) |
 | 4 | `check_candidate` (Check) | loop step 3 | deterministic | every cycle after Do |
-| 5 | `check_refinement_limits` | after Do, after Check | deterministic | every cycle |
+| 5 | `check_refinement_limits` | before Do (after Plan's usage is accounted), after Do, after Check | deterministic | every cycle |
 | 6 | `confirm_regression` (Regression Confirmation) | loop step 4, conditional | deterministic | only when Check flags apparent regression |
 | 7 | `revert_last_change` (Revert) | loop step 5, conditional | deterministic | only on confirmed regression |
 | 8 | `commit_accepted_candidate` (Commit) | loop step 5, conditional | deterministic | only on accept |
@@ -236,9 +251,10 @@ Directly implements the user's spec: "loop through the check again and see... ar
 - The `git-commit` skill is **not** used; commit message generation remains deterministic in this iteration.
 - Record the accepted commit in the progress record and in the current iteration's `refinement.yaml` section. No sentinel is required.
 
-### 7. Loop control: iteration & token limits — deterministic, unchanged
+### 7. Loop control: iteration & token limits — deterministic
 
-- Reuse `check_refinement_limits.py` and `update_durable_counters.py` verbatim. No functional gap was found here; keep the existing check-before-Plan / update-after-Do / update-after-Check placement from `workflow.py`.
+- Reuse `check_refinement_limits.py` and `update_durable_counters.py` verbatim. Keep the existing check-before-Plan / update-after-Do / update-after-Check placement from `workflow.py`.
+- **Both agentic steps are individually pre-checked.** `check_refinement_limits` already runs before `edd_plan` at the top of every loop cycle — that placement stays unchanged. The new requirement is a second check **before `edd_do`**: `edd_plan`'s token usage must be folded into `cumulative_token_usage` via `update_durable_counters` immediately after the plan step (today it is only accounted after `edd_do`), and `check_refinement_limits` re-run against the updated totals. If the plan step spent the last of the allowed token budget, the loop must stop there — a stop decision routes straight to `finalize_run`, exactly like any other limit stop — rather than invoking `edd_do`.
 - Confirmed regression count (3-strikes stop) is already implemented; port it into the new `edd_plan` deterministic wrapper (the Cadence Activity around the `edd-plan` skill call), not into the skill itself — budget arithmetic must stay deterministic and untestable-by-the-model.
 
 ## New skills to write
@@ -298,11 +314,12 @@ gate — those are all deterministic per the vault's own classification table in
 
 1. ✅ **Done.** Thread `iteration_start_baseline` through Plan→Check→Regression and persist it.
 2. ✅ **Done.** Wire `edd-plan` and `edd-do` as real `SkillActivity` invocations.
-3. **In progress.** Update `requirements.md` (this document) to record the new context-document, sentinel, approval-flow, and record-schema decisions.
-4. Update `ProgressRecordSerializer.for_v5`: add `iteration_start_baseline` to the allow-list and rename `attempt_records` → `attempts` everywhere it is used.
-5. Implement the Setup context-document writer: create `refinement.yaml` with embedded `edd_input`, baseline metrics, and empty `iterations` list; run baseline as iteration 0 and write `iterations/0/check.json`.
-6. Update `edd-plan` activity wiring so the skill is invoked with the original EDD input document path (for sentinel location) plus `refinement.yaml` (for context), and so it reads the embedded `edd_input`.
-7. Ensure `edd-do` writes/verifies `iterations/<n>/do.json` and appends "changes made" to `refinement.yaml`.
-8. Simplify workflow approval routing: route directly to `edd-do` unless `plan.json.action == "propose_evaluation_expectation_change"`; on expectation-change proposals, await human approval before invoking `edd-do`, then verify the executed diff hash matches the approved hash.
-9. Remove/ignore sentinel requirements for Setup, regression confirmation, commit, and revert; keep sentinels only for `edd-plan` and `edd-do`.
-10. Re-verify the existing budget/limit/regression-threshold tests still pass unchanged against the new activity boundaries, then run the full loop against the `grade-story-design` eval suite as the first real end-to-end validation.
+3. ✅ **Done.** Update `requirements.md` (this document) to record the new context-document, sentinel, approval-flow, and record-schema decisions.
+4. ✅ **Done.** `ProgressRecordSerializer.for_v5` allows `iteration_start_baseline`; `attempt_records` renamed to `attempts` in `initialize_run.py`, `update_durable_counters.py`, tests, and serializer.
+5. ✅ **Done.** `initialize_run` creates `refinement.yaml` (embedded `edd_input`, baseline metrics, action taxonomy, empty `iterations` list) and runs the baseline as iteration 0 via `check_candidate`, writing `iterations/0/check.json` and storing `baseline_metrics` in the progress record.
+6. ✅ **Done.** `edd_plan` is invoked with `input_path` (sentinel placed at `<input-parent>/.process/edd-plan.done.json`) and reads `refinement.yaml` + `progress.json` for context.
+7. ✅ **Done.** `edd-do`'s SKILL.md appends a "changes made" section to `refinement.yaml`; `EddDoRunner` writes `iterations/<n>/do.json` (the `ExecutionResult` shape) next to the iteration's `plan.json` after measuring the diff, on both success and harness-failure paths.
+7a. **Pending.** Token-limit pre-check before `edd_do` (the pre-`edd_plan` check already exists at the top of the loop): account `edd_plan`'s token usage via `update_durable_counters` and re-run `check_refinement_limits` between Plan and Do, so a budget-exhausting plan stops the iteration instead of proceeding to Do.
+8. ✅ **Done.** `workflow.py` routes to `edd_do` directly unless `planning.requires_approval`; expectation-change proposals await approval and verify the executed diff hash before proceeding.
+9. ✅ **Done.** Sentinels are required only for `edd-plan` and `edd-do`; `check_candidate`'s `check.done.json` is retained as optional observability.
+10. **Pending.** Re-verify the existing budget/limit/regression-threshold tests still pass unchanged against the new activity boundaries, then run the full loop against the `grade-story-design` eval suite as the first real end-to-end validation.
