@@ -265,3 +265,25 @@ unless the action is `propose_evaluation_expectation_change`), ensure `edd-do`
 records `do.json` and appends "changes made" to `refinement.yaml`, remove
 sentinel expectations from deterministic activities, and run end-to-end
 validation against the `grade-story-design` eval suite.
+
+## Artifact trail, limits, and outcome logging (2026-09-24)
+
+- `EddDoRunner` writes `iterations/<n>/do.json` (the `ExecutionResult` shape:
+  changed files, diff hash, usage metrics, duration) next to `plan.json` after
+  measuring the diff, on both success and harness-failure paths.
+- `PlanningResult.usage_metrics` propagates the edd-plan skill's token spend;
+  `workflow.py` folds it into `cumulative_token_usage` and re-runs
+  `check_refinement_limits` immediately after Plan, so a budget-exhausting plan
+  routes to `finalize_run` without invoking `edd_do`.
+- `refinement_log.append_refinement_outcome` is the shared append point for
+  deterministic outcomes: `record_confirmed_regression`,
+  `record_reverted_proposal_context`, `human_handoff`, and
+  `commit_accepted_candidate` each append an `outcomes` event to the current
+  iteration's section of `refinement.yaml`. It is a no-op when the run has no
+  refinement.yaml.
+- `record_reverted_proposal_context` also appends the reverted candidate to
+  `candidate_history` with status `reverted` — every candidate now has a final
+  state (`accepted` / `rejected` / `reverted`).
+
+Still open: end-to-end validation of the full loop against the
+`grade-story-design` eval suite.
