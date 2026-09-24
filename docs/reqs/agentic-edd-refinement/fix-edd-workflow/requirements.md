@@ -49,7 +49,9 @@
 > `edd_do`; and deterministic activities append outcome events
 > (`accepted`, `regression_confirmed`, `reverted`, `human_handoff`) to the
 > current iteration's section of `refinement.yaml` via
-> `refinement_log.append_refinement_outcome`.
+> `refinement_log.append_refinement_outcome`. `record_reverted_proposal_context`
+> also appends the reverted candidate to `candidate_history` with status
+> `reverted`, closing the gap where reverted candidates vanished from history.
 
 `edd_refinement_workflow` was a large, fully-**deterministic simulation** of an agentic
 refinement loop. Its two steps that were supposed to be agentic — `plan_refinement_action`

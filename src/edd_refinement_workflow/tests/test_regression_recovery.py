@@ -70,6 +70,19 @@ def test_record_reverted_proposal_appends_redacted_context(tmp_path) -> None:
     assert store.create_or_resume("run-1", {})["reverted_proposals"] == [result]
 
 
+def test_record_reverted_proposal_marks_candidate_reverted_in_history(tmp_path) -> None:
+    from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"candidate_history": []})
+    activity = RecordRevertedProposalContextActivity(store)
+
+    activity.run("run-1", {"candidate_id": "candidate-1"})
+
+    history = store.create_or_resume("run-1", {})["candidate_history"]
+    assert history == [{"candidate_id": "candidate-1", "status": "reverted"}]
+
+
 def test_regression_recovery_with_successful_proposal_resets_consecutive_counter(tmp_path) -> None:
     from edd_refinement_workflow.progress_record import ProgressRecordStore
 

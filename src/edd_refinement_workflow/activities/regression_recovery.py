@@ -61,6 +61,11 @@ class RecordRevertedProposalContextActivity:
         redacted = ProgressRecordSerializer(1, {"schema_version", "context"}).serialize({"schema_version": 1, "context": context})["context"]
         result = redacted | {"reverted_at": self.now()}
         record["reverted_proposals"] = record.get("reverted_proposals", []) + [result]
+        candidate_id = context.get("candidate_id")
+        if candidate_id is not None:
+            record["candidate_history"] = record.get("candidate_history", []) + [
+                {"candidate_id": candidate_id, "status": "reverted"}
+            ]
         self.store.save(run_id, record)
         return result
 
