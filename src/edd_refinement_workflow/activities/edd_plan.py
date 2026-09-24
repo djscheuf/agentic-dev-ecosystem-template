@@ -35,6 +35,7 @@ class PlanningResult:
     iteration_number: int | None = None
     iteration_start_baseline: dict | None = None
     plan_path: str = ""
+    usage_metrics: dict | None = None
 
 
 class EddPlanSkillActivity(SkillActivity):
@@ -165,6 +166,16 @@ class EddPlanRunner:
             persisted["iteration_start_baseline"] = plan["iteration_start_baseline"]
             store.save(run_id, persisted)
 
+        usage = output.observation.get("usage") or {}
+        prompt_tokens = usage.get("prompt_tokens") or 0
+        completion_tokens = usage.get("completion_tokens") or 0
+        usage_metrics = {
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "cost_usd": usage.get("cost_usd") or 0.0,
+        }
+
         action = plan.get("action", "stop")
         requires_approval = (
             action == "propose_evaluation_expectation_change" and bool(proposed_diff_hash)
@@ -184,6 +195,7 @@ class EddPlanRunner:
             iteration_number=plan.get("iteration_number"),
             iteration_start_baseline=plan.get("iteration_start_baseline"),
             plan_path=output.output_path,
+            usage_metrics=usage_metrics,
         )
 
 

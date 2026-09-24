@@ -105,6 +105,40 @@ def test_edd_plan_invokes_edd_plan_skill_and_reads_its_plan_json(tmp_path) -> No
     ]
 
 
+def test_edd_plan_propagates_skill_token_usage(tmp_path) -> None:
+    plan_path = tmp_path / "plan.json"
+    _write_plan(plan_path)
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path="plan.json",
+            sentinel_path=".process/edd-plan.done.json",
+            duration_ms=10,
+            observation={
+                "usage": {
+                    "prompt_tokens": 200,
+                    "completion_tokens": 50,
+                    "cost_usd": 0.03,
+                }
+            },
+        )
+    )
+    runner = EddPlanRunner(skill)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+    }
+
+    result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+    assert result.usage_metrics == {
+        "input_tokens": 200,
+        "output_tokens": 50,
+        "total_tokens": 250,
+        "cost_usd": 0.03,
+    }
+
+
 def test_edd_plan_persists_iteration_start_baseline_into_progress_json(
     tmp_path,
 ) -> None:

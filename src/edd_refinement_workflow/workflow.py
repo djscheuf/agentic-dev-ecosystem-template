@@ -93,6 +93,20 @@ class EddRefinementWorkflow:
                 start_to_close_timeout=timedelta(minutes=5),
             )
             result["planning"] = planning
+            if "budgets" in record:
+                record, limit_decision = await self._account_and_check_limits(
+                    record, planning, "planning", repo_root
+                )
+                if not limit_decision["schedule_next_step"]:
+                    result["terminal_result"] = await execute_activity(
+                        "finalize_run",
+                        dict,
+                        record["run_id"],
+                        limit_decision["stop_reason"],
+                        repo_root,
+                        start_to_close_timeout=timedelta(minutes=5),
+                    )
+                    return result
             if planning.get("action") == "stop":
                 result["terminal_result"] = await execute_activity(
                     "finalize_run",
