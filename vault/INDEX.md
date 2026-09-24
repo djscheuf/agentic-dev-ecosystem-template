@@ -24,6 +24,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-019: EDD Multi-Iteration Loop](decisions/ADR-019-edd-multi-iteration-loop.md)
 - [ADR-020: Cadence Python SDK Serialization and Reconstruction Require JSON-Safe Types and Explicit Type Hints](decisions/ADR-020-cadence-python-sdk-serialization-and-types.md)
 - [ADR-021: EDD Evaluation Commands May Exit Non-Zero and Inspect Commands Return Raw Result Lists](decisions/ADR-021-edd-evaluation-command-contracts.md)
+- [ADR-022: Capture Raw EDD Evaluation Command Artifacts](decisions/ADR-022-edd-evaluation-command-artifacts.md)
 
  
 ## Services

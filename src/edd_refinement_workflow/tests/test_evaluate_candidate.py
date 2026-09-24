@@ -1,6 +1,9 @@
+import json
+
 import pytest
 from edd_refinement_workflow.activities.evaluate_candidate import (
     EvaluateCandidateActivity,
+    _run_evaluation_command,
     evaluate_candidate_activity,
 )
 from edd_refinement_workflow.progress_record import ProgressRecordStore
@@ -41,15 +44,16 @@ def test_evaluate_candidate_with_successful_result_records_structured_metrics(tm
 
     result = activity.run("run-1", "candidate-1", str(tmp_path))
 
-    assert invocations == [
-        {
-            "command": configuration["command"],
-            "configuration": configuration["configuration"],
-            "provider": configuration["pinned_provider_version"],
-            "cwd": str(tmp_path),
-            "timeout": configuration["timeout_seconds"],
-        }
-    ]
+    assert len(invocations) == 1
+    assert invocations[0]["command"] == configuration["command"]
+    assert invocations[0]["configuration"] == configuration["configuration"]
+    assert invocations[0]["provider"] == configuration["pinned_provider_version"]
+    assert invocations[0]["cwd"] == str(tmp_path)
+    assert invocations[0]["timeout"] == configuration["timeout_seconds"]
+    assert invocations[0]["command_label"] == "run"
+    assert invocations[0]["artifact_dir"] == (
+        tmp_path / ".process" / "edd" / "run-1" / "iterations" / "1"
+    )
     assert result == {
         "candidate_id": "candidate-1",
         "run_id": "run-1",
@@ -340,3 +344,28 @@ def test_evaluate_candidate_uses_coverage_metadata_for_valid_test_cases(
     assert result["required_coverage"] == {"TC-001": 1}
     assert result["status"] == "success"
     assert result["usable_for_acceptance"] is True
+
+
+def test_run_evaluation_command_writes_invocation_artifact(tmp_path) -> None:
+    artifact_dir = tmp_path / "artifacts"
+    result = _run_evaluation_command(
+        command=["echo", '{"evaluation_id": "eval-123"}'],
+        configuration="config.yaml",
+        provider="provider@1",
+        cwd=str(tmp_path),
+        timeout=10,
+        artifact_dir=artifact_dir,
+        command_label="run",
+    )
+
+    assert result == {"evaluation_id": "eval-123"}
+
+    artifact_path = artifact_dir / "run-command.json"
+    assert artifact_path.is_file()
+    artifact = json.loads(artifact_path.read_text())
+    assert artifact["command_label"] == "run"
+    assert artifact["command"] == ["echo", '{"evaluation_id": "eval-123"}']
+    assert artifact["returncode"] == 0
+    assert artifact["stdout"].strip() == '{"evaluation_id": "eval-123"}'
+    assert artifact["parsed_stdout"] == {"evaluation_id": "eval-123"}
+    assert artifact["timed_out"] is False

@@ -63,7 +63,14 @@ class EvaluateCandidateActivity:
         return coverage["required_coverage"], True, None
 
     def _run_identity_chain(
-        self, command: list[str], inspect_command: list[str], repo_root: str, timeout: int, provider: str, configuration_path: str
+        self,
+        command: list[str],
+        inspect_command: list[str],
+        repo_root: str,
+        timeout: int,
+        provider: str,
+        configuration_path: str,
+        artifact_dir: Path | None,
     ) -> dict:
         test_result = self.harness(
             command=command,
@@ -71,6 +78,8 @@ class EvaluateCandidateActivity:
             provider=provider,
             cwd=repo_root,
             timeout=timeout,
+            artifact_dir=artifact_dir,
+            command_label="run",
         )
         evaluation_id = extract_evaluation_id(test_result)
         inspect_argv = build_inspect_command(inspect_command, evaluation_id)
@@ -80,14 +89,39 @@ class EvaluateCandidateActivity:
             provider=provider,
             cwd=repo_root,
             timeout=timeout,
+            artifact_dir=artifact_dir,
+            command_label="inspect",
         )
 
-    def run(self, run_id: str, candidate_id: str, repo_root: str) -> dict:
+    def run(
+        self,
+        run_id: str,
+        candidate_id: str,
+        repo_root: str,
+        iteration: int | None = None,
+    ) -> dict:
         record = self.store.create_or_resume(run_id, {})
         configuration = record["evaluation_configuration"]
         test_cases = record.get("test_cases") or configuration.get("test_cases")
         coverage_property = record.get("coverage_metadata_property") or configuration.get("coverage_metadata_property")
         inspect_command = record.get("inspect_command") or configuration.get("inspect_command")
+
+        if iteration is None:
+            logical_iteration = record.get("logical_iteration_count")
+            if logical_iteration is not None:
+                iteration = logical_iteration
+            else:
+                iteration = len(record.get("candidate_metrics", [])) + 1
+        artifact_dir = (
+            Path(repo_root)
+            / ".process"
+            / "edd"
+            / run_id
+            / "iterations"
+            / str(iteration)
+        )
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+
         infrastructure_error = None
         timed_out = False
         try:
@@ -99,6 +133,7 @@ class EvaluateCandidateActivity:
                     configuration["timeout_seconds"],
                     configuration["pinned_provider_version"],
                     configuration["configuration"],
+                    artifact_dir,
                 )
             else:
                 inspect_result = self.harness(
@@ -107,6 +142,8 @@ class EvaluateCandidateActivity:
                     provider=configuration["pinned_provider_version"],
                     cwd=repo_root,
                     timeout=configuration["timeout_seconds"],
+                    artifact_dir=artifact_dir,
+                    command_label="run",
                 )
             if isinstance(inspect_result, list):
                 inspect_result = _summarize_eval_results(inspect_result)
@@ -175,26 +212,79 @@ class EvaluateCandidateActivity:
         return metric
 
 
+def _write_command_artifact(
+    artifact_dir: Path,
+    command_label: str,
+    command: list[str],
+    cwd: str,
+    timeout: int,
+    provider: str,
+    configuration: str,
+    completed: subprocess.CompletedProcess | None,
+    parsed_stdout,
+    exc: BaseException | None,
+) -> None:
+    """Persist raw command invocation details for later debugging."""
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact = {
+        "command_label": command_label,
+        "command": command,
+        "cwd": cwd,
+        "timeout": timeout,
+        "provider": provider,
+        "configuration": configuration,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "timed_out": isinstance(exc, TimeoutError),
+        "returncode": completed.returncode if completed is not None else None,
+        "stdout": completed.stdout if completed is not None else None,
+        "stderr": completed.stderr if completed is not None else None,
+        "parsed_stdout": parsed_stdout,
+    }
+    artifact_path = artifact_dir / f"{command_label}-command.json"
+    artifact_path.write_text(json.dumps(artifact, indent=2, default=str))
+
+
 def _run_evaluation_command(**kwargs) -> dict:
     logger = _get_activity_logger()
     command = kwargs["command"]
+    cwd = kwargs["cwd"]
+    timeout = kwargs["timeout"]
+    provider = kwargs.get("provider", "")
+    configuration = kwargs.get("configuration", "")
+    artifact_dir = kwargs.get("artifact_dir")
+    command_label = kwargs.get("command_label")
     logger.info(
         "running evaluation command: %s (cwd=%s, timeout=%s)",
         " ".join(str(c) for c in command),
-        kwargs["cwd"],
-        kwargs["timeout"],
+        cwd,
+        timeout,
     )
+    completed = None
+    parsed_stdout = None
     try:
         completed = subprocess.run(
             command,
-            cwd=kwargs["cwd"],
+            cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=kwargs["timeout"],
+            timeout=timeout,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
         logger.warning("evaluation command timed out: %s", command)
+        if artifact_dir is not None and command_label is not None:
+            _write_command_artifact(
+                Path(artifact_dir),
+                command_label,
+                command,
+                cwd,
+                timeout,
+                provider,
+                configuration,
+                completed,
+                parsed_stdout,
+                TimeoutError(),
+            )
         raise TimeoutError from exc
 
     logger.info(
@@ -210,18 +300,34 @@ def _run_evaluation_command(**kwargs) -> dict:
     stdout = completed.stdout.strip()
     if stdout:
         try:
-            parsed = json.loads(stdout)
+            parsed_stdout = json.loads(stdout)
             logger.info("evaluation command produced JSON stdout")
-            return parsed
         except json.JSONDecodeError:
             logger.info("evaluation command stdout is not JSON")
-    return {}
+
+    if artifact_dir is not None and command_label is not None:
+        _write_command_artifact(
+            Path(artifact_dir),
+            command_label,
+            command,
+            cwd,
+            timeout,
+            provider,
+            configuration,
+            completed,
+            parsed_stdout,
+            None,
+        )
+
+    return parsed_stdout if parsed_stdout is not None else {}
 
 
 @activity.defn(name="evaluate_candidate")
-async def evaluate_candidate_activity(run_id: str, candidate_id: str, repo_root: str) -> dict:
+async def evaluate_candidate_activity(
+    run_id: str, candidate_id: str, repo_root: str, iteration: int | None = None
+) -> dict:
     from ..progress_record import ProgressRecordStore
 
     return EvaluateCandidateActivity(
         ProgressRecordStore(repo_root), _run_evaluation_command
-    ).run(run_id, candidate_id, repo_root)
+    ).run(run_id, candidate_id, repo_root, iteration=iteration)

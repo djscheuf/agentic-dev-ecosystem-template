@@ -53,7 +53,7 @@ class CheckCandidateActivity:
 
         metric = EvaluateCandidateActivity(
             self.store, self.harness, now=self.now
-        ).run(run_id, candidate_id, repo_root)
+        ).run(run_id, candidate_id, repo_root, iteration=iteration)
 
         if metric["usable_for_acceptance"] and baseline is not None:
             comparison = compare_candidate_to_best(metric, baseline)
@@ -73,6 +73,11 @@ class CheckCandidateActivity:
             / "check.json"
         )
         check_path.parent.mkdir(parents=True, exist_ok=True)
+        command_artifacts = [
+            str(p.relative_to(repo_root))
+            for p in sorted(check_path.parent.glob("*-command.json"))
+            if p.is_file()
+        ]
         check = {
             "run_id": run_id,
             "iteration": iteration,
@@ -82,6 +87,7 @@ class CheckCandidateActivity:
             "comparison": comparison,
             "compared_against": compared_against,
             "baseline": baseline,
+            "command_artifacts": command_artifacts,
         }
         check_path.write_text(json.dumps(check, indent=2, sort_keys=True))
 
@@ -91,7 +97,7 @@ class CheckCandidateActivity:
             "run_id": run_id,
             "iteration": iteration,
             "determination": determination,
-            "files": [str(check_path.relative_to(repo_root))],
+            "files": [str(check_path.relative_to(repo_root))] + command_artifacts,
         }
         sentinel_path.write_text(json.dumps(sentinel, indent=2, sort_keys=True))
 
