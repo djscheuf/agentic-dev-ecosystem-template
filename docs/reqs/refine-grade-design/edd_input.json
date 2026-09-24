@@ -23,7 +23,7 @@
         "../../../.devin/skills/grade-story-design/rubric.md"
     ],
     "limits": {
-        "max_iterations": 1,
+        "max_iterations": 3,
         "max_tokens": 1000000,
         "eval_timeout_seconds": 1800
     },
