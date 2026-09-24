@@ -14,10 +14,11 @@ class UpdateDurableCountersActivity:
 
     def _run(self, run_id: str, attempt_record: dict) -> dict:
         record = self.store.create_or_resume(run_id, {})
-        usage = attempt_record.get("usage_metrics") or {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
+        raw_usage = attempt_record.get("usage_metrics") or {}
+        usage = {
+            "prompt_tokens": raw_usage.get("prompt_tokens", raw_usage.get("input_tokens", 0)),
+            "completion_tokens": raw_usage.get("completion_tokens", raw_usage.get("output_tokens", 0)),
+            "total_tokens": raw_usage.get("total_tokens", 0),
         }
         stored_attempt = {
             **attempt_record,

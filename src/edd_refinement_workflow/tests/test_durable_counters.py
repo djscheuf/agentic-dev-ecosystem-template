@@ -71,6 +71,34 @@ def test_update_durable_counters_with_missing_usage_records_zero_and_marker(tmp_
     assert result["attempts"][0]["total_tokens"] == 0
 
 
+def test_update_durable_counters_accepts_input_output_token_aliases(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "logical_iteration_count": 0,
+            "cumulative_token_usage": 0,
+            "attempts": [],
+        },
+    )
+
+    result = UpdateDurableCountersActivity(store).run(
+        "run-1",
+        {
+            "attempt_id": "planning-run-1",
+            "logical_iteration_number": 1,
+            "is_retry": False,
+            "usage_metrics": {"input_tokens": 200, "output_tokens": 50, "total_tokens": 250, "cost_usd": 0.03},
+            "status": "success",
+        },
+    )
+
+    assert result["cumulative_token_usage"] == 250
+    assert result["attempts"][0]["prompt_tokens"] == 200
+    assert result["attempts"][0]["completion_tokens"] == 50
+    assert result["attempts"][0]["total_tokens"] == 250
+
+
 def test_update_durable_counters_with_concurrent_attempts_preserves_every_update(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     store.create_or_resume("run-1", {"logical_iteration_count": 0, "cumulative_token_usage": 0, "attempts": []})
