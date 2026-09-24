@@ -95,6 +95,32 @@ def test_build_prompt_applies_hook_after_output_directory_instruction(tmp_path) 
     assert prompt.endswith("Do not remove the sentinel after verification.\nmodified")
 
 
+def test_build_prompt_instructs_the_modified_sentinel_path(tmp_path) -> None:
+    config_path = tmp_path / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {},
+    }))
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(0, "", "")
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("artifacts/custom.json")
+
+        def modify_sentinel_path(self, sentinel_path: Path) -> Path:
+            return tmp_path / "inputs-override" / ".process" / "custom.done.json"
+
+    prompt = CustomActivity(
+        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+    ).build_prompt(SkillActivityInput(input_paths=["inputs/story.json"]))
+
+    assert "inputs-override/.process/custom.done.json" in prompt
+    assert "inputs/.process/custom.done.json" not in prompt
+
+
 def test_execute_returns_paths_for_created_activity_logs(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "custom.config.json"
     config_path.write_text(json.dumps({

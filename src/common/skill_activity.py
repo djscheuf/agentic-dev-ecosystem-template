@@ -105,7 +105,9 @@ class SkillActivity(ABC):
                 f"input path ({skill_input.input_paths[0]}), following the skill's "
                 f"naming convention."
             )
-        sentinel = _sentinel_path(repo_root, self.skill_name, skill_input.input_paths)
+        sentinel = self.modify_sentinel_path(
+            _sentinel_path(repo_root, self.skill_name, skill_input.input_paths)
+        )
         lines.append(
             f"Create the .process directory if needed and write the completion sentinel to "
             f"{sentinel.relative_to(repo_root)}. Do not remove the sentinel after verification."
