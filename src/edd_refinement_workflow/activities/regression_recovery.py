@@ -136,6 +136,16 @@ async def record_confirmed_regression_activity(run_id: str, candidate_id: str, o
     record["consecutive_confirmed_regressions"] = count
     record["regression_evidence"] = record.get("regression_evidence", []) + [evidence]
     store.save(run_id, record)
+    from ..refinement_log import append_refinement_outcome
+    append_refinement_outcome(
+        repo_root,
+        run_id,
+        {
+            "event": "regression_confirmed",
+            "candidate_id": candidate_id,
+            "consecutive_confirmed_regressions": count,
+        },
+    )
     return {"consecutive_confirmed_regressions": count, "threshold_reached": count >= stop_threshold}
 
 
@@ -156,7 +166,18 @@ async def verify_recovery_metrics_activity(recovery: dict, best: dict) -> dict:
 @activity.defn(name="record_reverted_proposal_context")
 async def record_reverted_proposal_context_activity(run_id: str, context: dict, repo_root: str = ".") -> dict:
     from ..progress_record import ProgressRecordStore
-    return RecordRevertedProposalContextActivity(ProgressRecordStore(repo_root)).run(run_id, context)
+    from ..refinement_log import append_refinement_outcome
+    result = RecordRevertedProposalContextActivity(ProgressRecordStore(repo_root)).run(run_id, context)
+    append_refinement_outcome(
+        repo_root,
+        run_id,
+        {
+            "event": "reverted",
+            "candidate_id": context.get("candidate_id"),
+            "recovered": (context.get("recovery_result") or {}).get("recovered"),
+        },
+    )
+    return result
 
 
 @activity.defn(name="publish_human_handoff")
@@ -169,4 +190,9 @@ async def publish_human_handoff_activity(run_id: str, stop_reason: str, repo_roo
 @activity.defn(name="human_handoff")
 async def human_handoff_activity(run_id: str, reason: str, evidence: dict, repo_root: str = ".", maximum_attempts: int = 1) -> dict:
     from ..progress_record import ProgressRecordStore
-    return HumanHandoffActivity(ProgressRecordStore(repo_root), lambda summary: False).run(run_id, reason, evidence, maximum_attempts)
+    from ..refinement_log import append_refinement_outcome
+    result = HumanHandoffActivity(ProgressRecordStore(repo_root), lambda summary: False).run(run_id, reason, evidence, maximum_attempts)
+    append_refinement_outcome(
+        repo_root, run_id, {"event": "human_handoff", "reason": reason}
+    )
+    return result

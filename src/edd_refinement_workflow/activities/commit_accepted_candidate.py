@@ -61,8 +61,19 @@ def _commit_repository(repo_root: str, message: str) -> str:
 async def commit_accepted_candidate_activity(run_id: str, metric: dict, repo_root: str) -> dict:
     from ..progress_record import ProgressRecordStore
 
-    return CommitAcceptedCandidateActivity(
+    best_state = CommitAcceptedCandidateActivity(
         ProgressRecordStore(repo_root),
         commit=lambda message: _commit_repository(repo_root, message),
         message_builder=GitCommitMessageBuilder(repo_root).build,
     ).run(run_id, metric)
+    from ..refinement_log import append_refinement_outcome
+    append_refinement_outcome(
+        repo_root,
+        run_id,
+        {
+            "event": "accepted",
+            "candidate_id": best_state["candidate_id"],
+            "commit": best_state["commit"],
+        },
+    )
+    return best_state

@@ -39,12 +39,17 @@
 > only `propose_evaluation_expectation_change` proposals gate on human approval;
 > everything else routes straight to `edd_do`.
 >
-> Still open: per-iteration `do.json` writing/verification by `edd_do`; a
-> **token-limit pre-check before every agentic step** — `edd_plan`'s token spend
-> must be accounted and `check_refinement_limits` re-run before `edd_do` is
-> invoked, so a plan that exhausts the budget stops the iteration instead of
-> proceeding to Do (see "Loop control" below); and the first real end-to-end run
-> of the full loop against the `grade-story-design` eval suite.
+> Still open: the first real end-to-end run of the full loop against the
+> `grade-story-design` eval suite.
+>
+> **Status update (2026-09-24):** three more gaps closed — `edd_do` now writes
+> per-iteration `iterations/<n>/do.json` (the `ExecutionResult` shape) after
+> measuring the diff; `edd_plan`'s token usage is propagated via
+> `PlanningResult.usage_metrics` and `check_refinement_limits` re-runs before
+> `edd_do`; and deterministic activities append outcome events
+> (`accepted`, `regression_confirmed`, `reverted`, `human_handoff`) to the
+> current iteration's section of `refinement.yaml` via
+> `refinement_log.append_refinement_outcome`.
 
 `edd_refinement_workflow` was a large, fully-**deterministic simulation** of an agentic
 refinement loop. Its two steps that were supposed to be agentic — `plan_refinement_action`
