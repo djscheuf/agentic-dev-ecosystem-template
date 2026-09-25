@@ -28,14 +28,14 @@ cd "$HOOK_PROJECT_DIR"
 
 case "$file_path" in
   *.json)
-    if ! error=$(python3 -c "
-import json, sys
-try:
-    with open(sys.argv[1], encoding='utf-8') as f:
-        json.load(f)
-except Exception as e:
-    print(f'{type(e).__name__}: {e}')
-    sys.exit(1)
+    if ! error=$(node -e "
+const fs = require('fs');
+try {
+  JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+} catch (e) {
+  console.log(e.message);
+  process.exit(1);
+}
 " "$file_path" 2>&1); then
       block "Invalid JSON in $file_path\n\n$error"
     fi
