@@ -6,6 +6,7 @@ from pathlib import Path
 
 from cadence import activity
 
+from common.scoped_path_validator import PathScopeChecker
 from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 
 from .harness_instance import HARNESS, REPO_ROOT
@@ -36,6 +37,9 @@ class PlanningResult:
     iteration_start_baseline: dict | None = None
     plan_path: str = ""
     usage_metrics: dict | None = None
+    modification_scope: list | None = None
+    rejection_reason: str | None = None
+    out_of_scope_details: dict | None = None
 
 
 class EddPlanSkillActivity(SkillActivity):
@@ -191,6 +195,41 @@ class EddPlanRunner:
         requires_approval = (
             action == "propose_evaluation_expectation_change" and bool(proposed_diff_hash)
         )
+        modification_scope = progress_record.get("modification_scope") or []
+        intended_files = plan.get("intended_files") or []
+        checker = PathScopeChecker()
+        offending = [
+            path
+            for path in intended_files
+            if not checker.is_authorized(path, modification_scope)
+        ]
+        if offending:
+            logger.warning(
+                "plan rejected: %s out-of-scope intended files (run_id=%s)",
+                len(offending),
+                run_id,
+            )
+            return PlanningResult(
+                action=action,
+                rationale=plan.get("rationale", ""),
+                evidence=plan.get("evidence"),
+                intended_files=intended_files,
+                expected_effect=plan.get("expected_effect", ""),
+                stop_recommendation=True,
+                iteration_number=plan.get("iteration_number"),
+                iteration_start_baseline=plan.get("iteration_start_baseline"),
+                plan_path=output.output_path,
+                usage_metrics=usage_metrics,
+                modification_scope=modification_scope,
+                rejection_reason="plan_out_of_scope",
+                out_of_scope_details={
+                    "check": "plan",
+                    "action": action,
+                    "rationale": plan.get("rationale", ""),
+                    "evidence": plan.get("evidence"),
+                    "paths": offending,
+                },
+            )
         logger.info("planning selected action=%s (run_id=%s)", action, run_id)
         return PlanningResult(
             action=action,
@@ -207,6 +246,7 @@ class EddPlanRunner:
             iteration_start_baseline=plan.get("iteration_start_baseline"),
             plan_path=output.output_path,
             usage_metrics=usage_metrics,
+            modification_scope=modification_scope,
         )
 
 

@@ -91,6 +91,7 @@ def test_edd_plan_invokes_edd_plan_skill_and_reads_its_plan_json(tmp_path) -> No
         "consecutive_confirmed_regressions": 0,
     }
 
+    progress_record["modification_scope"] = ["skill/"]
     result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
 
     assert result.action == plan["action"]
@@ -129,6 +130,7 @@ def test_edd_plan_propagates_skill_token_usage(tmp_path) -> None:
         "consecutive_confirmed_regressions": 0,
     }
 
+    progress_record["modification_scope"] = ["skill/"]
     result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
 
     assert result.usage_metrics == {
@@ -162,6 +164,7 @@ def test_edd_plan_supplies_two_most_recent_check_results_as_inputs(tmp_path) -> 
         "consecutive_confirmed_regressions": 0,
     }
 
+    progress_record["modification_scope"] = ["skill/"]
     runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
 
     assert skill.calls[0].input_paths == [
@@ -192,6 +195,7 @@ def test_edd_plan_persists_iteration_start_baseline_into_progress_json(
     )
     runner = EddPlanRunner(skill)
 
+    progress_record["modification_scope"] = ["skill/"]
     runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
 
     persisted = store.create_or_resume("run-1", {})
@@ -221,6 +225,7 @@ def test_edd_plan_only_requires_approval_for_expectation_change_with_diff_hash(
         "consecutive_confirmed_regressions": 0,
     }
 
+    progress_record["modification_scope"] = ["skill/"]
     without_hash = runner.run(
         "run-1", str(tmp_path), progress_record, {"passing": 5}, proposed_diff_hash=""
     )
@@ -257,6 +262,61 @@ def test_edd_plan_raises_on_missing_plan_json(tmp_path) -> None:
 
     with pytest.raises(SkillActivityError, match="did not write"):
         runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+
+def test_edd_plan_rejects_plan_with_intended_files_outside_scope(tmp_path) -> None:
+    plan_path = tmp_path / "plan.json"
+    _write_plan(plan_path, intended_files=["skill/ok.md", "outside/hack.py"])
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path="plan.json",
+            sentinel_path=".process/edd-plan.done.json",
+            duration_ms=1,
+        )
+    )
+    runner = EddPlanRunner(skill)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+        "modification_scope": ["skill/"],
+    }
+
+    result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+    assert result.stop_recommendation is True
+    assert result.rejection_reason == "plan_out_of_scope"
+    assert result.out_of_scope_details["paths"] == ["outside/hack.py"]
+    assert result.out_of_scope_details["check"] == "plan"
+    assert result.out_of_scope_details["action"] == "repair"
+    assert result.out_of_scope_details["rationale"] == "fixture defect"
+    assert result.modification_scope == ["skill/"]
+
+
+def test_edd_plan_in_scope_intended_files_pass_scope_gate(tmp_path) -> None:
+    plan_path = tmp_path / "plan.json"
+    _write_plan(plan_path, intended_files=["skill/_tests/foo.tests.yaml"])
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path="plan.json",
+            sentinel_path=".process/edd-plan.done.json",
+            duration_ms=1,
+        )
+    )
+    runner = EddPlanRunner(skill)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+        "modification_scope": ["skill/"],
+    }
+
+    result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+
+    assert result.rejection_reason is None
+    assert result.action == "repair"
+    assert result.stop_recommendation is False
+    assert result.modification_scope == ["skill/"]
 
 
 @pytest.mark.asyncio
