@@ -1,1 +1,0 @@
-original skill content
