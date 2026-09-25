@@ -121,6 +121,31 @@ def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     assert progress_path.read_text() == progress_path.read_text()
 
 
+def test_for_v5_roundtrip_preserves_modification_scope_and_violations() -> None:
+    serializer = ProgressRecordSerializer.for_v5()
+    record = {
+        "schema_version": 5,
+        "run_id": "run-1",
+        "modification_scope": ["skill/", "docs/guide.md"],
+        "scope_violations": [
+            {
+                "check": "plan",
+                "paths": ["outside/hack.py"],
+                "action": "refine_skill",
+                "rationale": "oops",
+                "evidence": {},
+            }
+        ],
+        "unlisted_field": "dropped",
+    }
+
+    serialized = serializer.serialize(record)
+    assert serialized["modification_scope"] == ["skill/", "docs/guide.md"]
+    assert serialized["scope_violations"] == record["scope_violations"]
+    assert "unlisted_field" not in serialized
+    assert serializer.deserialize(serialized) == serialized
+
+
 def test_factory_derives_run_id_and_refuses_duplicate_creation(tmp_path) -> None:
     store = ProgressRecordStore(tmp_path)
     factory = ProgressRecordFactory(store)

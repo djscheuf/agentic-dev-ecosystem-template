@@ -29,6 +29,8 @@ class ProgressRecordSerializer:
                 "attempts",
                 "human_handoff_records",
                 "iteration_start_baseline",
+                "modification_scope",
+                "scope_violations",
             },
         )
 
