@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 
 from cadence import activity
 
+from common.scoped_path_validator import PathScopeChecker
+
 from ..candidate_results import CandidateValidationResult, ExecutionResult, UsageMetrics
 from ..progress_record import ProgressRecordStore
 
@@ -62,10 +64,21 @@ class ValidateCandidateActivity:
             reason = "empty_scope"
         elif not execution.changed_files:
             reason = "no_op"
+        elif unauthorized := [
+            path
+            for path in execution.changed_files
+            if not PathScopeChecker().is_authorized(
+                path, planning.get("modification_scope") or []
+            )
+        ]:
+            reason = "diff_out_of_scope"
         elif any(path not in intended_files for path in execution.changed_files):
             reason = "out_of_scope"
         else:
             reason = self._test_change_reason(planning, execution)
+        out_of_scope_details = None
+        if reason == "diff_out_of_scope":
+            out_of_scope_details = {"check": "diff", "paths": unauthorized}
         result = CandidateValidationResult(
             candidate_id=f"{run_id}-{execution.diff_hash[:12]}",
             run_id=run_id,
@@ -75,6 +88,7 @@ class ValidateCandidateActivity:
             diff_hash=execution.diff_hash,
             rejection_reason=reason,
             validated_at=datetime.now(timezone.utc).isoformat(),
+            out_of_scope_details=out_of_scope_details,
         )
         if self.store is not None:
             with self._store_lock:

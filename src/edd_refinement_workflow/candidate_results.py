@@ -64,3 +64,4 @@ class CandidateValidationResult:
     diff_hash: str
     rejection_reason: str | None
     validated_at: str
+    out_of_scope_details: dict | None = None

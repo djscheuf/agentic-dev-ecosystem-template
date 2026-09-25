@@ -34,7 +34,10 @@ def test_validate_candidate_rejects_invalid_file_scope(
 ) -> None:
     result = ValidateCandidateActivity().run(
         "run-1",
-        {"intended_files": intended_files},
+        {
+            "intended_files": intended_files,
+            "modification_scope": ["src/", "README.md"],
+        },
         _execution(changed_files),
     )
 
@@ -60,6 +63,7 @@ def test_validate_candidate_rejects_required_test_changes(
         {
             "intended_files": ["tests/test_required.py"],
             "required_test_files": ["tests/test_required.py"],
+            "modification_scope": ["tests/"],
         },
         _execution(["tests/test_required.py"]),
     )
@@ -74,13 +78,13 @@ def test_validate_candidate_rejects_diff_mismatch_and_malformed_metrics() -> Non
 
     mismatch = activity.run(
         "run-1",
-        {"intended_files": ["src/skill.py"]},
+        {"intended_files": ["src/skill.py"], "modification_scope": ["src/"]},
         execution,
         approved_diff_hash="different",
     )
     malformed = activity.run(
         "run-1",
-        {"intended_files": ["src/skill.py"]},
+        {"intended_files": ["src/skill.py"], "modification_scope": ["src/"]},
         dataclasses.replace(
             execution,
             usage_metrics=UsageMetrics(1, 1, 99, 0.01),
@@ -89,6 +93,52 @@ def test_validate_candidate_rejects_diff_mismatch_and_malformed_metrics() -> Non
 
     assert mismatch.rejection_reason == "diff_mismatch"
     assert malformed.rejection_reason == "malformed_metrics"
+
+
+def test_validate_candidate_rejects_diff_outside_authorized_scope() -> None:
+    result = ValidateCandidateActivity().run(
+        "run-1",
+        {
+            "intended_files": ["skill/ok.md", "outside/hack.py"],
+            "modification_scope": ["skill/"],
+        },
+        _execution(["outside/hack.py"]),
+    )
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "diff_out_of_scope"
+    assert result.out_of_scope_details == {
+        "check": "diff",
+        "paths": ["outside/hack.py"],
+    }
+
+
+def test_validate_candidate_in_scope_diff_passes_scope_check() -> None:
+    result = ValidateCandidateActivity().run(
+        "run-1",
+        {
+            "intended_files": ["skill/ok.md"],
+            "modification_scope": ["skill/"],
+        },
+        _execution(["skill/ok.md"]),
+    )
+
+    assert result.status == "scope_valid"
+    assert result.rejection_reason is None
+
+
+def test_validate_candidate_unplanned_but_authorized_change_keeps_out_of_scope_reason() -> None:
+    result = ValidateCandidateActivity().run(
+        "run-1",
+        {
+            "intended_files": ["skill/ok.md"],
+            "modification_scope": ["skill/"],
+        },
+        _execution(["skill/extra.md"]),
+    )
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "out_of_scope"
 
 
 def test_concurrent_validations_preserve_independent_candidate_history(tmp_path) -> None:
@@ -107,7 +157,9 @@ def test_concurrent_validations_preserve_independent_candidate_history(tmp_path)
         results = list(
             executor.map(
                 lambda execution: activity.run(
-                    "run-1", {"intended_files": ["src/skill.py"]}, execution
+                    "run-1",
+                    {"intended_files": ["src/skill.py"], "modification_scope": ["src/"]},
+                    execution,
                 ),
                 executions,
             )
@@ -130,7 +182,11 @@ def test_validate_candidate_emits_rejection_event() -> None:
         on_event=lambda name, **data: events.append((name, data))
     )
 
-    activity.run("run-1", {"intended_files": ["src/skill.py"]}, _execution([]))
+    activity.run(
+        "run-1",
+        {"intended_files": ["src/skill.py"], "modification_scope": ["src/"]},
+        _execution([]),
+    )
 
     assert events[0][0] == "CandidateRejected"
     assert events[0][1]["rejection_reason"] == "no_op"
