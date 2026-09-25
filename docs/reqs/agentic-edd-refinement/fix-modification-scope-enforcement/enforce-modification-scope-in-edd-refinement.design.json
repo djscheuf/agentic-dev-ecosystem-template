@@ -1,0 +1,426 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "EddInputReceived: the requester provides a portable EddRefinementInput document. The CLI parses the document, including the raw `modification_scope` list, and passes it to the workflow along with an input anchor path.",
+      "layers_involved": ["Frontend", "Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "EddRefinementCLI.start",
+          "data_shape": "{input_path: absolute string, edd_input: object}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "TargetRepositoryPreflight: the workflow invokes the preflight Activity. The target Git worktree and starting revision are resolved, and the raw `modification_scope` entries are confirmed to exist inside the repo root, but the resolved list is not yet attached to the context.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PreflightResult",
+          "data_shape": "{target_context: TargetRepositoryContext, failed_conditions: list}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "RunInitialized: `InitializeRunActivity` derives the run id, creates or resumes the v5 progress record, and resolves the raw `modification_scope` to a canonical list of repo-relative, POSIX-style paths (appending a trailing slash for existing directories). The canonical list is persisted under `record['modification_scope']` so fresh and resumed runs use the same value.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecordV5",
+          "data_shape": "{run_id, schema_version: 5, modification_scope: list[string], starting_revision, best_accepted_state: null, ...}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Common",
+          "contract_used": "PathScopeChecker",
+          "data_shape": "{raw_scope: list[string]} -> canonical_scope: list[string]"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "RefinementPlanned: `EddPlanRunner` reads the `edd-plan` skill's `plan.json`, then validates every entry in `plan['intended_files']` against the persisted `modification_scope` using `PathScopeChecker`. If all intended files are authorized, the planning result proceeds as before.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecordV5",
+          "data_shape": "{run_id, modification_scope}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PlanningResult",
+          "data_shape": "{action, rationale, intended_files, modification_scope}"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "PlanScopeRejected: when one or more `intended_files` fall outside the authorized scope, `EddPlanRunner` short-circuits without invoking `edd_do`. It returns a `PlanningResult` carrying `rejection_reason: 'plan_out_of_scope'`, the offending action/rationale/evidence, and the offending paths. No candidate is created.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PlanningResult",
+          "data_shape": "{rejection_reason: 'plan_out_of_scope', out_of_scope_details: {offending_action, rationale, evidence, paths}, stop_recommendation: true}"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "RefinementExecuted: for an in-scope plan, the workflow invokes `edd_do`. The activity runs the selected action through `DevinHarness` and measures the real diff (`git diff --name-only`) and a canonical diff hash, returning an `ExecutionResult`.",
+      "layers_involved": ["Backend", "External"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "External",
+          "contract_used": "DevinHarness",
+          "data_shape": "{target_context, action, intended_files, accept_edits_config} -> {changed_files: list[string], diff_hash, usage_metrics}"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "CandidateValidated: `validate_candidate` receives the `PlanningResult` (which now includes `modification_scope`), the `ExecutionResult`, and the approved diff hash. It checks `changed_files` against `modification_scope` first, then against `intended_files`, returning distinguishable rejection reasons.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "ValidateCandidate",
+          "data_shape": "{run_id, planning: {modification_scope, intended_files}, execution: ExecutionResult, approved_diff_hash, repo_root} -> CandidateValidationResult"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "DiffScopeRejected: when a changed file is outside `modification_scope`, `validate_candidate` returns a `CandidateValidationResult` with `rejection_reason: 'diff_out_of_scope'` and the offending paths. The candidate is persisted but marked as rejected.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "CandidateValidationResult",
+          "data_shape": "{candidate_id, run_id, status: 'rejected', rejection_reason: 'diff_out_of_scope', out_of_scope_details: {paths, check: 'diff'}}"
+        }
+      ]
+    },
+    {
+      "step": "9",
+      "description": "OutOfScopeAlarmed: the workflow inspects `PlanningResult.rejection_reason` and `CandidateValidationResult.rejection_reason`. On `plan_out_of_scope` or `diff_out_of_scope`, it raises `OutOfScopeModificationError` with a structured `out_of_scope_details` payload instead of quietly returning.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "OutOfScopeWorkflowError",
+          "data_shape": "{terminal_reason: 'out_of_scope_modification', details: {check, paths, action, rationale, evidence}}"
+        }
+      ]
+    },
+    {
+      "step": "10",
+      "description": "RunFinalized: the exception-driven finalize path in `EddRefinementWorkflow.run` catches `OutOfScopeModificationError`, invokes `finalize_run` with `terminal_reason='out_of_scope_modification'`, releases the mutation lease, and writes a terminal report. `FinalizeRunActivity` resets the worktree to `starting_revision` when no `best_accepted_state` exists, or to the accepted commit otherwise, and continues even if the git reset fails.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecordV5",
+          "data_shape": "{scope_violations: list, terminal_result, lease_released}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "TerminalReport",
+          "data_shape": "{terminal_reason: 'out_of_scope_modification', scope_violations, final_metrics, rejected_or_reverted_summaries}"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "ResolveModificationScope",
+      "description": "Emitted when `InitializeRunActivity` resolves and canonicalizes the authorized modification scope from the input document.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "scope_entry_count", "description": "Number of canonical scope entries persisted." },
+        { "point": "input_path", "description": "Path to the EddRefinementInput document for traceability." }
+      ]
+    },
+    {
+      "event_name": "RejectPlanOutOfScope",
+      "description": "Emitted when `EddPlanRunner` rejects a plan because one or more intended files are outside the authorized scope.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "action", "description": "The offending proposed action." },
+        { "point": "offending_paths", "description": "The intended file paths that failed scope containment." },
+        { "point": "rationale", "description": "The plan's own stated rationale for the action." }
+      ]
+    },
+    {
+      "event_name": "DetectDiffOutOfScope",
+      "description": "Emitted when `validate_candidate` finds a changed file outside the authorized modification scope.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the offending candidate." },
+        { "point": "unauthorized_paths", "description": "The actual diff paths that failed scope containment." },
+        { "point": "authorized_scope", "description": "The canonical modification_scope used for the check." }
+      ]
+    },
+    {
+      "event_name": "RaiseOutOfScopeModification",
+      "description": "Emitted when the workflow raises `OutOfScopeModificationError` to trigger the exception-driven finalize path.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "check_phase", "description": "Whether the violation was detected at 'plan' or 'diff' time." },
+        { "point": "terminal_reason", "description": "The value 'out_of_scope_modification'." }
+      ]
+    },
+    {
+      "event_name": "FinalizeCleanWorktree",
+      "description": "Emitted when `FinalizeRunActivity` attempts to restore the worktree to a clean starting or accepted revision.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "restore_target", "description": "starting_revision or best_accepted_state.commit." },
+        { "point": "restore_succeeded", "description": "Whether the git reset completed without error." }
+      ]
+    },
+    {
+      "event_name": "ReleaseMutationLease",
+      "description": "Emitted when `FinalizeRunActivity` releases the repository-scoped mutation lease, either on a normal terminal path or after an out-of-scope exception.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "terminal_reason", "description": "The terminal reason passed to finalize_run." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Resolve and persist the canonical `modification_scope` in `InitializeRunActivity`.",
+          "intent": "The workflow layer is where the input document first meets the target repository; it owns the transformation from raw input to durable, repo-relative scope."
+        },
+        {
+          "responsibility": "Validate `intended_files` against `modification_scope` before `edd_do` is invoked.",
+          "intent": "Defensive, deterministic gating of the planning output must live outside the agentic skill (ADR-017)."
+        },
+        {
+          "responsibility": "Validate the actual `changed_files` against `modification_scope` after `edd_do`.",
+          "intent": "The real diff is the ground truth for unauthorized writes; the backend is the only layer that can compare it to the persisted authorized scope."
+        },
+        {
+          "responsibility": "Raise `OutOfScopeModificationError` from the workflow on a confirmed plan-time or diff-time violation.",
+          "intent": "Only the orchestration layer has enough context to turn an activity-level rejection into a terminal, lease-releasing stop."
+        },
+        {
+          "responsibility": "Route out-of-scope stops to `finalize_run` with the distinct `terminal_reason` `out_of_scope_modification`.",
+          "intent": "Reuses ADR-023's exception-driven finalize path instead of duplicating lease-release logic."
+        }
+      ]
+    },
+    {
+      "layer": "Common",
+      "new_responsibilities": [
+        {
+          "responsibility": "Implement `PathScopeChecker` in `common/scoped_path_validator.py` for path-aware containment.",
+          "intent": "A single, filesystem-agnostic helper guarantees the same semantics at plan time and diff time."
+        },
+        {
+          "responsibility": "Distinguish exact-file scope entries from directory prefixes using a trailing-slash convention and `PurePosixPath` containment.",
+          "intent": "Naive string prefixing would allow `foo-bar/x` to match a `foo/` scope; the helper prevents this."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Store `modification_scope` and `scope_violations` in the v5 `ProgressRecord`.",
+          "intent": "Durable state is the only source of truth that survives worker restarts and resumed runs."
+        },
+        {
+          "responsibility": "Update `ProgressRecordSerializer.for_v5` to allow `modification_scope` and `scope_violations` through redaction.",
+          "intent": "A future round-trip save/load path must not silently drop these fields."
+        },
+        {
+          "responsibility": "Persist a terminal report with the `out_of_scope_modification` reason and the captured violation details.",
+          "intent": "The terminal report is the durable, human-readable record of why the run ended."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecordV5",
+      "description": "The durable run record now carries the authorized modification scope and any scope violations that occur during the run.",
+      "changes": {
+        "added": "`modification_scope` (list of repo-relative POSIX path strings) and `scope_violations` (list of {check, paths, action, rationale, evidence}) fields.",
+        "modified": "`ProgressRecordSerializer.for_v5` allow-list extended to include `modification_scope` and `scope_violations`.",
+        "removed": "None."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "PlanningResult",
+      "description": "The planning result now threads the authorized scope and can report a plan-time scope rejection without invoking `edd_do`.",
+      "changes": {
+        "added": "`modification_scope` (canonical scope used for the check), `rejection_reason` (e.g. 'plan_out_of_scope'), and `out_of_scope_details` (offending action/rationale/evidence/paths).",
+        "modified": "`EddPlanRunner.run` short-circuits to a `stop_recommendation` result when `intended_files` contains out-of-scope paths; `action` may be 'stop' with a diagnostic payload.",
+        "removed": "None."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "CandidateValidationResult",
+      "description": "Validation now distinguishes an unauthorized file diff from a deviation between the actual diff and the plan's intended files.",
+      "changes": {
+        "added": "`rejection_reason` value `diff_out_of_scope` and `out_of_scope_details` (paths and check phase).",
+        "modified": "`ValidateCandidateActivity.run` checks `changed_files` against `planning['modification_scope']` before the existing `intended_files` check. The existing `out_of_scope` reason is retained for unplanned (but authorized-scope) changes.",
+        "removed": "None."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "PathScopeChecker",
+      "description": "A shared utility contract for checking whether a repo-relative candidate path is inside an authorized scope list.",
+      "changes": {
+        "added": "`PathScopeChecker.is_authorized(candidate: str, scope: list[str]) -> bool` with exact-file and directory-prefix semantics based on `PurePosixPath`.",
+        "modified": "`common/scoped_path_validator.py` gains the new `PathScopeChecker` class alongside `ScopedPathValidator`.",
+        "removed": "None."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "OutOfScopeWorkflowError",
+      "description": "A dedicated exception type carries a structured out-of-scope payload from the workflow into the exception-driven finalize path.",
+      "changes": {
+        "added": "`OutOfScopeModificationError` class with `terminal_reason='out_of_scope_modification'` and `details` attributes.",
+        "modified": "`EddRefinementWorkflow.run` catches `OutOfScopeModificationError` and calls `finalize_run` with the exception's terminal reason before re-raising, similar to the generic exception path in ADR-023.",
+        "removed": "None."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "FinalizeRunCleanup",
+      "description": "Finalization now guarantees a clean worktree on any terminal path that lacks an accepted candidate, and does not lose the terminal report if git reset fails.",
+      "changes": {
+        "added": "`FinalizeRunActivity.run` restores to `record['starting_revision']` when `best_accepted_state` is None; git reset failures are logged and swallowed so the terminal report is still written and the lease released.",
+        "modified": "The terminal report includes `scope_violations` when present.",
+        "removed": "None."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Persist `modification_scope` in the v5 `ProgressRecord` and read it from the record in `edd_plan` and `validate_candidate`, not from the original CLI input.",
+      "justification": "This makes the authorized scope a durable, single source of truth that is identical for fresh and resumed runs, matching the `iteration_start_baseline` threading pattern already in use.",
+      "basis": "vault/services/edd_refinement.md (iteration_start_baseline threading) and requirements.md Requirement 1.",
+      "impact": "`InitializeRunActivity`, `ProgressRecordSerializer.for_v5`, `EddPlanRunner`, and `ValidateCandidateActivity`.",
+      "answers_open_question": "How is the authorized scope threaded to resumed runs?"
+    },
+    {
+      "decision": "Implement a single `PathScopeChecker` in `common/scoped_path_validator.py` using `PurePosixPath` and a trailing-slash directory/exact-file discriminator.",
+      "justification": "A shared, filesystem-agnostic helper guarantees that plan-time and diff-time containment checks never drift. `PurePosixPath` avoids naive string-prefix bugs such as `foo-bar/x` matching `foo/`.",
+      "basis": "requirements.md Requirement 2; existing `common/scoped_path_validator.py` is the base primitive.",
+      "impact": "`common/scoped_path_validator.py` gains `PathScopeChecker`; `EddPlanRunner` and `ValidateCandidateActivity` call it.",
+      "answers_open_question": "How is path containment checked without false positives?"
+    },
+    {
+      "decision": "Report plan-time and diff-time out-of-scope detections as structured `PlanningResult` and `CandidateValidationResult` values, then raise `OutOfScopeModificationError` from the workflow.",
+      "justification": "Activities remain deterministic and easy to unit test; the orchestration layer makes the terminal-halt decision. This also lets the existing `try/except` in `EddRefinementWorkflow.run` handle finalization.",
+      "basis": "requirements.md Requirement 5; ADR-023 exception-driven finalize.",
+      "impact": "`PlanningResult`, `CandidateValidationResult`, `EddRefinementWorkflow`, and a new `OutOfScopeModificationError`.",
+      "answers_open_question": "How does an out-of-scope detection become a hard stop?"
+    },
+    {
+      "decision": "Reuse the existing exception-driven finalize path in `EddRefinementWorkflow.run` for out-of-scope stops rather than adding a special-case finalize branch.",
+      "justification": "ADR-023 already guarantees mutation lease release and terminal report on unhandled exceptions. Raising a dedicated exception preserves this invariant without duplicating cleanup logic.",
+      "basis": "ADR-023; requirements.md Requirement 5.",
+      "impact": "`workflow.py` and `FinalizeRunActivity`.",
+      "answers_open_question": "How is the lease released on an out-of-scope stop?"
+    },
+    {
+      "decision": "Do not count an out-of-scope stop toward `consecutive_confirmed_regressions` or any iteration/token budget.",
+      "justification": "An out-of-scope write is an authorization/control failure, not a measured quality regression. Conflating the two would allow a small number of tolerated 'regressions' to mask a security-relevant scope breach.",
+      "basis": "requirements.md open question 1; ADR-017 (regression is a quality-measurement concept).",
+      "impact": "`EddRefinementWorkflow` and `FinalizeRunActivity` treat `out_of_scope_modification` as an immediate, independent terminal reason.",
+      "answers_open_question": "Should a confirmed out-of-scope stop count toward consecutive_confirmed_regressions or any existing budget counter?"
+    },
+    {
+      "decision": "Add a dedicated `scope_violations` list to the `ProgressRecord` and terminal report, parallel to `regression_evidence` and `reverted_proposals`.",
+      "justification": "Scope violations are rare but critical control events. A durable, structured list supports observability, post-mortems, and future cross-run aggregation without overloading the existing `candidate_history` or `rejected_or_reverted_summaries` fields.",
+      "basis": "requirements.md Requirement 5 (diagnostic payload); ProgressRecord v5 already uses durable evidence lists.",
+      "impact": "`ProgressRecord` schema and serializer; `FinalizeRunActivity` terminal report.",
+      "answers_open_question": "Do we want a dedicated scope_violations list in the progress record / terminal report for observability?"
+    },
+    {
+      "decision": "Canonicalize `modification_scope` in `InitializeRunActivity` (repo-relative POSIX, trailing slash for existing directories) and let the `PathScopeChecker` treat a trailing slash as the directory/exact-file discriminator.",
+      "justification": "This keeps the containment helper pure and fast, makes the persisted scope canonical for resumption, and still allows the helper to reject sibling-prefix matches.",
+      "basis": "requirements.md Requirement 1 and open question 4; common/scoped_path_validator.py.",
+      "impact": "`InitializeRunActivity` scope resolution; `PathScopeChecker` semantics.",
+      "answers_open_question": "Should trailing-slash normalization for directory scope entries be enforced at EddRefinementInput parse time or handled defensively in the containment helper?"
+    },
+    {
+      "decision": "Deliver the scope persistence, plan-time check, diff-time check, and cleanup as one cohesive multi-activity change rather than two vertical slices.",
+      "justification": "The four capabilities are tightly coupled: without persistence the checks cannot survive resumption, without the hard stop the cleanup is not triggered, and without cleanup the breach persists. A single coherent change keeps the invariants intact.",
+      "basis": "requirements.md Requirements 1-6; ADR-023.",
+      "impact": "All touched activities and the workflow are updated and tested together.",
+      "answers_open_question": "Should this work be delivered as two vertical slices or as one cohesive multi-activity change?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Should a confirmed out-of-scope stop count toward consecutive_confirmed_regressions or any existing budget counter, or is it always an immediate, separate terminal state?",
+      "answer": "It is always an immediate, separate terminal state. Out-of-scope stops do not count toward `consecutive_confirmed_regressions`, iterations, or token budgets.",
+      "justification": "A scope breach is an authorization/control failure, not a measured quality regression. Counting it as a regression would let a small number of tolerated regressions mask a critical control failure.",
+      "basis": "requirements.md open question 1 leaning; ADR-017 defines regression as a quality-ratchet outcome."
+    },
+    {
+      "question": "Do we want a dedicated scope_violations list in the progress record / terminal report for observability, or is a single terminal report entry sufficient?",
+      "answer": "Yes, add a dedicated `scope_violations` list to the `ProgressRecord` and surface it in the terminal report.",
+      "justification": "Scope violations are rare but critical. A structured, durable list supports post-mortems and cross-run observability, mirroring the existing `regression_evidence` and `reverted_proposals` evidence lists in v5.",
+      "basis": "requirements.md Requirement 5 (diagnostic payload); vault/services/edd_refinement.md (ProgressRecord v5 evidence lists)."
+    },
+    {
+      "question": "For the Requirement 3 pre-check: should a plan-time scope violation still get recorded as a candidate for get_candidate_status symmetry, even though no edd_do/validate_candidate ran?",
+      "answer": "No. A plan-time violation is not a candidate. Record it as a `scope_violations` entry; `get_candidate_status` remains for actual executed candidates.",
+      "justification": "`CandidateValidationResult` and `get_candidate_status` describe an executed candidate. Recording a plan-time violation as a candidate would misrepresent the shape and lifecycle of that entity.",
+      "basis": "requirements.md Requirement 3; existing `validate_candidate` contract is post-execution."
+    },
+    {
+      "question": "Should trailing-slash normalization for directory scope entries be enforced at EddRefinementInput parse time or handled defensively in the containment helper?",
+      "answer": "`InitializeRunActivity` canonicalizes the scope at run start (POSIX, repo-relative, trailing slash for existing directories). The `PathScopeChecker` uses the trailing slash as the exact-file/directory discriminator and does no filesystem IO itself.",
+      "justification": "This makes the persisted scope canonical and resumable, keeps the containment helper pure and deterministic, and still supports the required sibling-prefix rejection semantics.",
+      "basis": "requirements.md Requirement 1 and open question 4; common/scoped_path_validator.py path-containment primitive."
+    },
+    {
+      "question": "Should this work be delivered as two vertical slices (scope persistence + plan-time rejection, then do-time validation + cleanup) or as one cohesive multi-activity change?",
+      "answer": "One cohesive multi-activity change.",
+      "justification": "The persistence, plan-time gate, diff-time gate, and terminal cleanup are mutually dependent. Splitting them would leave intermediate states where a violation could be missed or the worktree/lease left dirty.",
+      "basis": "requirements.md Requirements 1-6; ADR-023 exception-driven finalize."
+    }
+  ]
+}
