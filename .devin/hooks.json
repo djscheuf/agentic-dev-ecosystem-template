@@ -43,7 +43,7 @@
         {
           "type": "command",
           "command": "bash .devin/scripts/validate-json-yaml.sh",
-          "timeout": 10
+          "timeout": 5
         }
       ]
     }
