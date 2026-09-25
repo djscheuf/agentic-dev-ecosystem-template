@@ -28,8 +28,14 @@ class FinalizeRunActivity:
         accepted_commit = best["commit"] if best else None
         baseline = record.get("baseline_metrics", {})
         final_metrics = best.get("metrics", {}) if best else baseline
-        if accepted_commit is not None:
-            self.restore(accepted_commit)
+        restore_target = accepted_commit or record.get("starting_revision")
+        restore_succeeded = None
+        if restore_target is not None:
+            try:
+                self.restore(restore_target)
+                restore_succeeded = True
+            except Exception:
+                restore_succeeded = False
         self.release_lease(run_id)
 
         report_path = f".process/edd/{run_id}/terminal.json"
@@ -50,6 +56,8 @@ class FinalizeRunActivity:
                 else []
             ),
             "flaky_evidence": record.get("flaky_evidence", []),
+            "scope_violations": record.get("scope_violations", []),
+            "restore_succeeded": restore_succeeded,
             "target_repository": record.get("target_repository"),
             "final_commit": accepted_commit or record.get("starting_revision"),
             "lease_released_at": self.now(),

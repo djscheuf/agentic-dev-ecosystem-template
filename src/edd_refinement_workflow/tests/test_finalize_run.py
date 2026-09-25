@@ -49,6 +49,77 @@ def test_finalize_run_with_terminal_outcome_publishes_once_and_releases_lease(tm
     assert json.loads(report_path.read_text()) == first
 
 
+def test_finalize_run_without_accepted_state_resets_to_starting_revision(
+    tmp_path,
+) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "schema_version": 5,
+            "run_id": "run-1",
+            "starting_revision": "start-commit",
+            "baseline_metrics": {"passing": 5, "total": 6},
+            "best_accepted_state": None,
+            "scope_violations": [
+                {"check": "plan", "paths": ["outside/hack.py"]}
+            ],
+        },
+    )
+    restored = []
+    released = []
+    activity = FinalizeRunActivity(
+        store,
+        restore=lambda commit: restored.append(commit),
+        release_lease=lambda run_id: released.append(run_id),
+    )
+
+    result = activity.run("run-1", "out_of_scope_modification")
+
+    assert restored == ["start-commit"]
+    assert released == ["run-1"]
+    assert result["terminal_reason"] == "out_of_scope_modification"
+    assert result["scope_violations"] == [
+        {"check": "plan", "paths": ["outside/hack.py"]}
+    ]
+    assert result["final_commit"] == "start-commit"
+    report = json.loads((tmp_path / result["report_path"]).read_text())
+    assert report["scope_violations"] == result["scope_violations"]
+
+
+def test_finalize_run_still_reports_and_releases_lease_when_reset_fails(
+    tmp_path,
+) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "schema_version": 5,
+            "run_id": "run-1",
+            "starting_revision": "start-commit",
+            "baseline_metrics": {"passing": 5, "total": 6},
+            "best_accepted_state": None,
+        },
+    )
+    released = []
+
+    def failing_restore(commit: str) -> None:
+        raise RuntimeError("git reset failed")
+
+    activity = FinalizeRunActivity(
+        store,
+        restore=failing_restore,
+        release_lease=lambda run_id: released.append(run_id),
+    )
+
+    result = activity.run("run-1", "out_of_scope_modification")
+
+    assert released == ["run-1"]
+    assert result["terminal_reason"] == "out_of_scope_modification"
+    assert result["restore_succeeded"] is False
+    assert (tmp_path / result["report_path"]).exists()
+
+
 @pytest.mark.asyncio
 async def test_finalize_run_activity_uses_target_dependencies_publishes_terminal_result(tmp_path, monkeypatch) -> None:
     store = ProgressRecordStore(tmp_path)
