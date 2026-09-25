@@ -276,11 +276,15 @@ def test_edd_plan_rejects_plan_with_intended_files_outside_scope(tmp_path) -> No
         )
     )
     runner = EddPlanRunner(skill)
-    progress_record = {
-        "budgets": {"remaining_iterations": 3},
-        "consecutive_confirmed_regressions": 0,
-        "modification_scope": ["skill/"],
-    }
+    store = ProgressRecordStore(tmp_path)
+    progress_record = store.create_or_resume(
+        "run-1",
+        {
+            "budgets": {"remaining_iterations": 3},
+            "consecutive_confirmed_regressions": 0,
+            "modification_scope": ["skill/"],
+        },
+    )
 
     result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
 
@@ -291,6 +295,9 @@ def test_edd_plan_rejects_plan_with_intended_files_outside_scope(tmp_path) -> No
     assert result.out_of_scope_details["action"] == "repair"
     assert result.out_of_scope_details["rationale"] == "fixture defect"
     assert result.modification_scope == ["skill/"]
+    persisted = store.create_or_resume("run-1", {})
+    assert persisted["scope_violations"][-1]["check"] == "plan"
+    assert persisted["scope_violations"][-1]["paths"] == ["outside/hack.py"]
 
 
 def test_edd_plan_in_scope_intended_files_pass_scope_gate(tmp_path) -> None:

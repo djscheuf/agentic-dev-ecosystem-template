@@ -2,7 +2,123 @@ from datetime import timedelta
 
 import pytest
 from common.preflight import PreflightResult, TargetRepositoryContext
-from edd_refinement_workflow.workflow import EddRefinementWorkflow
+from edd_refinement_workflow.workflow import (
+    EddRefinementWorkflow,
+    OutOfScopeModificationError,
+)
+
+
+@pytest.mark.asyncio
+async def test_workflow_plan_out_of_scope_halts_with_scope_terminal_reason(
+    tmp_path, monkeypatch
+) -> None:
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+    request = {
+        "workflow_run_id": "wf-1",
+        "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+    }
+    calls = []
+    finalize_reasons = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {"run_id": "wf-1-abc1234", "baseline_metrics": {"passing": 5}}
+        if name == "edd_plan":
+            return {
+                "action": "refine_skill",
+                "rejection_reason": "plan_out_of_scope",
+                "out_of_scope_details": {
+                    "check": "plan",
+                    "paths": ["outside/hack.py"],
+                },
+            }
+        if name == "finalize_run":
+            finalize_reasons.append(args[1])
+            return {"terminal_reason": args[1]}
+        raise AssertionError(f"unexpected activity: {name}")
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+
+    with pytest.raises(OutOfScopeModificationError) as excinfo:
+        await EddRefinementWorkflow().run(preflight, request)
+
+    assert excinfo.value.terminal_reason == "out_of_scope_modification"
+    assert excinfo.value.details["paths"] == ["outside/hack.py"]
+    assert finalize_reasons == ["out_of_scope_modification"]
+    assert "edd_do" not in calls
+
+
+@pytest.mark.asyncio
+async def test_workflow_diff_out_of_scope_halts_with_scope_terminal_reason(
+    tmp_path, monkeypatch
+) -> None:
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+    request = {
+        "workflow_run_id": "wf-1",
+        "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+    }
+    finalize_reasons = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        if name == "initialize_run":
+            return {"run_id": "wf-1-abc1234", "baseline_metrics": {"passing": 5}}
+        if name == "edd_plan":
+            return {
+                "action": "refine_skill",
+                "intended_files": ["skill/ok.md"],
+                "modification_scope": ["skill/"],
+            }
+        if name == "edd_do":
+            return {
+                "status": "success",
+                "changed_files": ["outside/hack.py"],
+                "diff_hash": "abc123",
+            }
+        if name == "validate_candidate":
+            return {
+                "status": "rejected",
+                "rejection_reason": "diff_out_of_scope",
+                "out_of_scope_details": {
+                    "check": "diff",
+                    "paths": ["outside/hack.py"],
+                },
+            }
+        if name == "finalize_run":
+            finalize_reasons.append(args[1])
+            return {"terminal_reason": args[1]}
+        return {}
+
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+
+    with pytest.raises(OutOfScopeModificationError) as excinfo:
+        await EddRefinementWorkflow().run(preflight, request)
+
+    assert excinfo.value.terminal_reason == "out_of_scope_modification"
+    assert excinfo.value.details["check"] == "diff"
+    assert finalize_reasons == ["out_of_scope_modification"]
 
 
 @pytest.mark.asyncio

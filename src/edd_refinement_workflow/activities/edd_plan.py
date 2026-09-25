@@ -209,6 +209,21 @@ class EddPlanRunner:
                 len(offending),
                 run_id,
             )
+            violation = {
+                "check": "plan",
+                "action": action,
+                "rationale": plan.get("rationale", ""),
+                "evidence": plan.get("evidence"),
+                "paths": offending,
+            }
+            from ..progress_record import ProgressRecordStore
+
+            store = ProgressRecordStore(repo_root)
+            persisted = store.create_or_resume(run_id, {})
+            persisted["scope_violations"] = persisted.get(
+                "scope_violations", []
+            ) + [violation]
+            store.save(run_id, persisted)
             return PlanningResult(
                 action=action,
                 rationale=plan.get("rationale", ""),
@@ -222,13 +237,7 @@ class EddPlanRunner:
                 usage_metrics=usage_metrics,
                 modification_scope=modification_scope,
                 rejection_reason="plan_out_of_scope",
-                out_of_scope_details={
-                    "check": "plan",
-                    "action": action,
-                    "rationale": plan.get("rationale", ""),
-                    "evidence": plan.get("evidence"),
-                    "paths": offending,
-                },
+                out_of_scope_details=violation,
             )
         logger.info("planning selected action=%s (run_id=%s)", action, run_id)
         return PlanningResult(

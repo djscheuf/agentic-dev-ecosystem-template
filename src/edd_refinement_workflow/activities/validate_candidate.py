@@ -96,6 +96,10 @@ class ValidateCandidateActivity:
                 candidate = dataclasses.asdict(result)
                 record["candidate"] = candidate
                 record["candidate_history"] = record.get("candidate_history", []) + [candidate]
+                if out_of_scope_details is not None:
+                    record["scope_violations"] = record.get(
+                        "scope_violations", []
+                    ) + [out_of_scope_details]
                 self.store.save(run_id, record)
         if self.on_event is not None:
             self.on_event(

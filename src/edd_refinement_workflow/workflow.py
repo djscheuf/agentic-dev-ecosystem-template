@@ -9,6 +9,13 @@ from common.preflight import PreflightResult
 from .quality_ratchet import compare_candidate_to_best, resolve_comparison_baseline
 
 
+class OutOfScopeModificationError(Exception):
+    def __init__(self, details: dict | None = None) -> None:
+        super().__init__("out_of_scope_modification")
+        self.terminal_reason = "out_of_scope_modification"
+        self.details = details or {}
+
+
 class EddRefinementWorkflow:
     def __init__(self) -> None:
         self._approval_request = None
@@ -23,7 +30,7 @@ class EddRefinementWorkflow:
         self._finalized = False
         try:
             return await self._run(preflight_result, request)
-        except Exception:
+        except Exception as exc:
             if (
                 self._record is not None
                 and self._repo_root is not None
@@ -34,7 +41,7 @@ class EddRefinementWorkflow:
                         "finalize_run",
                         dict,
                         self._record["run_id"],
-                        "workflow_exception",
+                        getattr(exc, "terminal_reason", "workflow_exception"),
                         self._repo_root,
                         start_to_close_timeout=timedelta(minutes=5),
                     )
@@ -121,6 +128,10 @@ class EddRefinementWorkflow:
                 start_to_close_timeout=timedelta(minutes=5),
             )
             result["planning"] = planning
+            if planning.get("rejection_reason") == "plan_out_of_scope":
+                raise OutOfScopeModificationError(
+                    planning.get("out_of_scope_details")
+                )
             if "budgets" in record:
                 record, limit_decision = await self._account_and_check_limits(
                     record, planning, "planning", repo_root
@@ -226,6 +237,10 @@ class EddRefinementWorkflow:
                 repo_root,
                 start_to_close_timeout=timedelta(minutes=5),
             )
+            if candidate.get("rejection_reason") == "diff_out_of_scope":
+                raise OutOfScopeModificationError(
+                    candidate.get("out_of_scope_details")
+                )
             if candidate.get("status") != "scope_valid":
                 result.update(execution=execution, candidate=candidate)
                 self._candidate = candidate
