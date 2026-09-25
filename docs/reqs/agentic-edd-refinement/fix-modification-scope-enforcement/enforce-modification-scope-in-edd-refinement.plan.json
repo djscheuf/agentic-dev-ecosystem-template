@@ -10,74 +10,74 @@
     {
       "criterion": "The run persists and threads the authorized modification scope to every scope-checking activity so fresh and resumed runs behave identically",
       "gherkin": "Given an EDD refinement input with an authorized modification scope When initialize_run executes Then the resolved repo-relative scope is stored in the progress record and is available to edd_plan and validate_candidate on fresh or resumed runs",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A shared path-containment helper accepts a repo-relative candidate when it exactly matches a scope entry or is nested under a directory prefix, using path-aware containment and not naive string prefixing",
       "gherkin": "Given a repo-relative candidate path and an authorized scope list containing files and directory prefixes When the helper checks containment Then exact matches and descendants of directory prefixes pass while sibling or partial-prefix paths fail",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A plan that proposes files outside the authorized scope is rejected before edd-do runs and produces a diagnostic report",
       "gherkin": "Given an EDD refinement plan that includes intended files outside the authorized scope When the plan is validated Then edd-do is skipped and a plan-time out-of-scope result is produced with the offending action, rationale, evidence, and paths",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Any file that actually changed outside the authorized scope is detected after edd-do and distinguished from a plan-time violation",
       "gherkin": "Given an executed candidate with changed files outside the authorized scope When validate_candidate runs Then a diff_out_of_scope rejection is produced naming the offending path(s)",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A confirmed out-of-scope detection halts the run, reverts uncommitted changes, and records a distinct terminal reason",
       "gherkin": "Given a plan-time or diff-time out-of-scope detection When workflow.py handles it Then it triggers the existing exception-driven finalize path, restores the worktree, writes the terminal report, and releases the mutation lease",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A run that ends before any candidate is accepted leaves the worktree reset to the starting revision",
       "gherkin": "Given a run ends before any candidate has been accepted When finalize_run executes Then the worktree is reset to the starting revision and no stray uncommitted changes remain",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "A fully in-scope run continues through validation without a false scope alarm",
       "gherkin": "Given an EDD refinement input with an authorized modification scope and a candidate whose intended and changed files are both within that scope When the workflow validates the candidate Then the candidate is accepted or proceeds normally without a scope rejection",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "edge_cases": [
     {
       "criterion": "Empty or missing modification_scope",
       "gherkin": "Given an EddRefinementInput with an empty or missing modification_scope When initialize_run executes Then the scope is persisted as an empty list and all later file checks fail as out-of-scope",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Scope list contains paths with special characters or non-POSIX separators",
       "gherkin": "Given a modification_scope containing backslashes, tilde, or unicode segments When it is resolved Then it is normalized to repo-relative POSIX paths before storage and comparison",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Scope directory prefix incorrectly matched by sibling name sharing a substring",
       "gherkin": "Given a scope entry 'foo/' and a candidate 'foo-bar/x' When the containment helper runs Then it rejects the candidate because path 'foo-bar' is not nested under 'foo'",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Scope entry is an exact file and the candidate is a file in the same directory",
       "gherkin": "Given a scope entry naming an exact file and a candidate naming a sibling file in the same directory When containment is checked Then the sibling file is rejected",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Resumed run must use the persisted modification_scope, not the original input",
       "gherkin": "Given a resumed run with a progress record containing a resolved modification_scope When edd_plan or validate_candidate runs Then it uses the stored scope and not a freshly derived value from CLI input",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Out-of-scope detection before any candidate is accepted",
       "gherkin": "Given a plan-time out-of-scope detection with no best_accepted_state When the workflow finalizes Then it still resets the worktree to the starting_revision",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "criterion": "Git worktree reset fails during finalize",
       "gherkin": "Given an out-of-scope stop where git reset --hard fails When finalize_run runs Then the terminal report still records out_of_scope_modification and the lease is released",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "impacted_layers": {
@@ -107,42 +107,42 @@
     {
       "description": "Implement PathScopeChecker in common/scoped_path_validator.py using PurePosixPath and a trailing-slash directory/exact-file discriminator",
       "layer": "common",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update InitializeRunActivity to resolve raw modification_scope to repo-relative POSIX paths, append trailing slashes for directories, and persist the canonical scope in the v5 ProgressRecord",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Extend ProgressRecordSerializer.for_v5 to allow modification_scope and scope_violations fields through save/load redaction",
       "layer": "data",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update EddPlanRunner to validate every intended_files entry against the persisted modification_scope and short-circuit to a plan_out_of_scope PlanningResult when unauthorized paths are proposed",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update ValidateCandidateActivity to check changed_files against modification_scope before intended_files and emit a diff_out_of_scope CandidateValidationResult when the real diff violates scope",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Add OutOfScopeModificationError and wire EddRefinementWorkflow.run to raise it and route to the existing exception-driven finalize path",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update FinalizeRunActivity to reset the worktree to starting_revision when no best_accepted_state exists, swallow git reset failures, and include scope_violations in the terminal report",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "description": "Update the EDD CLI to parse and pass the raw modification_scope from EddRefinementInput to the workflow",
       "layer": "backend",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "testing_strategy": {

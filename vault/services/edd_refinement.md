@@ -288,6 +288,17 @@ validation against the `grade-story-design` eval suite.
 Still open: end-to-end validation of the full loop against the
 `grade-story-design` eval suite.
 
+## Modification-scope enforcement (2026-09-25)
+
+- `common/scoped_path_validator.py` gains `PathScopeChecker.is_authorized(candidate, scope)` — pure, no filesystem IO. Scope entries ending in `/` are directory prefixes; others are exact files. Candidates are `posixpath.normpath`-ed before part-wise comparison, so `foo/` never matches `foo-bar/x`.
+- `InitializeRunActivity` canonicalizes `edd_input["modification_scope"]` to repo-relative POSIX paths (backslashes normalized, `~` expanded and dropped if outside the repo, trailing `/` appended for existing directories) and persists it as `record["modification_scope"]`. Resumed runs reuse the persisted value; `record["scope_violations"]` starts as `[]`.
+- `EddPlanRunner` checks every `plan["intended_files"]` entry against the persisted scope after reading `plan.json`. A violation returns `PlanningResult(rejection_reason="plan_out_of_scope", stop_recommendation=True, out_of_scope_details={check,action,rationale,evidence,paths})`, appends to `scope_violations`, and `edd_do` is never invoked.
+- `ValidateCandidateActivity` checks `changed_files` against `planning["modification_scope"]` before the existing `intended_files` comparison; unauthorized diffs get `rejection_reason="diff_out_of_scope"` (distinct from `out_of_scope`, which remains for authorized-but-unplanned changes). `CandidateValidationResult` carries `out_of_scope_details`.
+- `EddRefinementWorkflow` raises `OutOfScopeModificationError` (terminal_reason `out_of_scope_modification`, structured `details`) on either rejection; the generic `except` in `run()` finalizes with `getattr(exc, "terminal_reason", "workflow_exception")`, reusing ADR-023's lease-release path.
+- `FinalizeRunActivity` restores `starting_revision` when no `best_accepted_state` exists (previously it restored nothing), swallows restore failures (`restore_succeeded: false` in the report) so the terminal report and lease release still happen, and includes `scope_violations` in `terminal.json`.
+- `ProgressRecordSerializer.for_v5` allow-list now includes `modification_scope` and `scope_violations`.
+- Out-of-scope stops never count toward `consecutive_confirmed_regressions` or iteration/token budgets — they are an authorization failure, not a quality regression.
+
 ## Gotcha: sentinel path must match in prompt and verifier (2026-09-24)
 
 `SkillActivity.build_prompt` originally told the agent to write the completion
