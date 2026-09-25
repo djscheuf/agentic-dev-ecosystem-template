@@ -72,17 +72,20 @@ class EvaluateCandidateActivity:
         configuration_path: str,
         artifact_dir: Path | None,
     ) -> dict:
-        test_result = self.harness(
-            command=command,
-            configuration=configuration_path,
-            provider=provider,
-            cwd=repo_root,
-            timeout=timeout,
-            artifact_dir=artifact_dir,
-            command_label="run",
-        )
-        evaluation_id = extract_evaluation_id(test_result)
-        inspect_argv = build_inspect_command(inspect_command, evaluation_id)
+        if any(_PLACEHOLDER in arg for arg in inspect_command):
+            test_result = self.harness(
+                command=command,
+                configuration=configuration_path,
+                provider=provider,
+                cwd=repo_root,
+                timeout=timeout,
+                artifact_dir=artifact_dir,
+                command_label="run",
+            )
+            evaluation_id = extract_evaluation_id(test_result)
+            inspect_argv = build_inspect_command(inspect_command, evaluation_id)
+        else:
+            inspect_argv = inspect_command
         return self.harness(
             command=inspect_argv,
             configuration=configuration_path,

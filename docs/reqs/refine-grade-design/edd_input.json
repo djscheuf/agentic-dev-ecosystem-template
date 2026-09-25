@@ -13,6 +13,7 @@
     ],
     "inspect_command": [
         "scripts/inspect-eval.js",
+        "{evaluation_id}",
         "--all",
         "--json"
     ],
