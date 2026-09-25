@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -55,6 +56,29 @@ _ACTION_TAXONOMY = [
         ),
     },
 ]
+
+
+def _resolve_modification_scope(
+    edd_input: dict | None, repo_root: str, input_parent: str
+) -> list[str]:
+    if not edd_input:
+        return []
+    root = Path(repo_root).resolve()
+    canonical = []
+    for raw in edd_input.get("modification_scope") or []:
+        normalized = str(raw).replace("\\", "/")
+        if normalized.startswith("~"):
+            normalized = os.path.expanduser(normalized)
+        resolved = (Path(input_parent) / normalized).resolve()
+        try:
+            relative = resolved.relative_to(root)
+        except ValueError:
+            continue
+        entry = relative.as_posix()
+        if resolved.is_dir():
+            entry += "/"
+        canonical.append(entry)
+    return canonical
 
 
 class InitializeRunActivity:
@@ -171,6 +195,8 @@ class InitializeRunActivity:
             "reverted_proposals": [],
             "recovery_results": [],
             "human_handoff_records": [],
+            "modification_scope": [],
+            "scope_violations": [],
         }
 
         repo_root = str(preflight_result.target_context.repo_root)
@@ -190,6 +216,9 @@ class InitializeRunActivity:
             created["target_repository"] = repo_root
             created["input_path"] = input_path
             created["input_parent"] = input_parent
+            created["modification_scope"] = _resolve_modification_scope(
+                edd_input, repo_root, input_parent
+            )
             self.factory.store.save(run_id, created)
 
             baseline_check = self._run_baseline_check(run_id, repo_root)

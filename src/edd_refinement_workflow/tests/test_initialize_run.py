@@ -172,6 +172,76 @@ def test_initialize_run_with_limit_configuration_seeds_durable_limit_state(
     assert record["attempts"] == []
 
 
+def _preflight(tmp_path) -> PreflightResult:
+    return PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abcdef123456",
+        ),
+    )
+
+
+def _profile() -> dict:
+    return {
+        "command": ["promptfoo", "eval"],
+        "configuration": "promptfooconfig.yaml",
+        "provider": "provider@version",
+        "timeout": 120,
+    }
+
+
+def test_initialize_run_persists_canonical_modification_scope(tmp_path) -> None:
+    (tmp_path / "skill").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("guide")
+    activity = InitializeRunActivity(
+        ProgressRecordFactory(ProgressRecordStore(tmp_path)),
+        check_harness=_fake_harness,
+    )
+    edd_input = _sample_edd_input()
+    edd_input["modification_scope"] = ["skill", "docs\\guide.md", "~/ignored"]
+
+    record = activity.run(
+        "wf-1",
+        _preflight(tmp_path),
+        _profile(),
+        edd_input=edd_input,
+        input_path=str(tmp_path / "edd-input.json"),
+    )
+
+    assert record["modification_scope"] == ["skill/", "docs/guide.md"]
+
+
+def test_initialize_run_resumed_run_reuses_persisted_scope(tmp_path) -> None:
+    (tmp_path / "skill").mkdir()
+    factory = ProgressRecordFactory(ProgressRecordStore(tmp_path))
+    activity = InitializeRunActivity(factory, check_harness=_fake_harness)
+    input_path = str(tmp_path / "edd-input.json")
+
+    first = activity.run(
+        "wf-1",
+        _preflight(tmp_path),
+        _profile(),
+        edd_input=_sample_edd_input(),
+        input_path=input_path,
+    )
+    assert first["modification_scope"] == ["skill/"]
+
+    resumed = activity.run(
+        "wf-1",
+        _preflight(tmp_path),
+        _profile(),
+        edd_input={**_sample_edd_input(), "modification_scope": ["other"]},
+        input_path=input_path,
+    )
+
+    assert resumed["modification_scope"] == ["skill/"]
+
+
 def test_initialize_run_raises_lease_conflict_for_concurrent_run(tmp_path) -> None:
     from common.mutation_lease_policy import LeaseConflictError
 
