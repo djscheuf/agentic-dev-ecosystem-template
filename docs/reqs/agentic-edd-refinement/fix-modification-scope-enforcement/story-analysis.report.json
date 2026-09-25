@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-25T16:49:05.373970Z",
+  "workflow_id": "story-analysis-requirements_202609251147",
+  "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+  "story_document": "/mnt/data/0_repo/agentic-dev-ecosystem-template/docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/requirements.md",
+  "terminal_at": "2026-09-25T16:49:05.373947Z",
+  "final_status": "passed",
+  "outcome_origin": "repaired_pass",
+  "final_analysis_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis.json",
+  "repair_attempt_count": 1,
+  "attempts": [
+    {
+      "workflow_id": "story-analysis-requirements_202609251147",
+      "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+      "sequence": 1,
+      "step_name": "extract-story-intent",
+      "activity_type": "extract_story_intent",
+      "activity_id": "1",
+      "attempt": 0,
+      "started_at": "2026-09-25T16:47:10.640590Z",
+      "duration_ms": 19663,
+      "outcome": "success",
+      "model": "SWE-1.7",
+      "permission_mode": "accept-edits",
+      "output_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.intent.json",
+      "activity_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/extract_story_intent_1_0/activity.log",
+      "devin_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/extract_story_intent_1_0/devin.log",
+      "atif_path": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/extract_story_intent_1_0/devin-trajectory.json",
+      "usage": {
+        "prompt_tokens": 146866,
+        "completion_tokens": 4523,
+        "cached_tokens": 126784,
+        "cost_usd": null
+      }
+    },
+    {
+      "workflow_id": "story-analysis-requirements_202609251147",
+      "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+      "sequence": 2,
+      "step_name": "analyze-story",
+      "activity_type": "analyze_story",
+      "activity_id": "2",
+      "attempt": 0,
+      "started_at": "2026-09-25T16:47:30.320925Z",
+      "duration_ms": 25351,
+      "outcome": "success",
+      "model": "SWE-1.7",
+      "permission_mode": "accept-edits",
+      "output_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis.json",
+      "activity_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/analyze_story_2_0/activity.log",
+      "devin_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/analyze_story_2_0/devin.log",
+      "atif_path": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/analyze_story_2_0/devin-trajectory.json",
+      "usage": {
+        "prompt_tokens": 209325,
+        "completion_tokens": 6174,
+        "cached_tokens": 186048,
+        "cost_usd": null
+      }
+    },
+    {
+      "workflow_id": "story-analysis-requirements_202609251147",
+      "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+      "sequence": 3,
+      "step_name": "grade-story-analysis",
+      "activity_type": "grade_story_analysis",
+      "activity_id": "3",
+      "attempt": 0,
+      "started_at": "2026-09-25T16:47:55.683775Z",
+      "duration_ms": 19280,
+      "outcome": "success",
+      "model": "SWE-1.7",
+      "permission_mode": "accept-edits",
+      "output_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis-grade.json",
+      "activity_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_3_0/activity.log",
+      "devin_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_3_0/devin.log",
+      "atif_path": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_3_0/devin-trajectory.json",
+      "usage": {
+        "prompt_tokens": 172604,
+        "completion_tokens": 3948,
+        "cached_tokens": 145856,
+        "cost_usd": null
+      }
+    },
+    {
+      "workflow_id": "story-analysis-requirements_202609251147",
+      "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+      "sequence": 4,
+      "step_name": "repair-story-analysis",
+      "activity_type": "repair_story_analysis",
+      "activity_id": "4",
+      "attempt": 0,
+      "started_at": "2026-09-25T16:48:14.976645Z",
+      "duration_ms": 38397,
+      "outcome": "success",
+      "model": "SWE-1.7",
+      "permission_mode": "accept-edits",
+      "output_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis.json",
+      "activity_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/repair_story_analysis_4_0/activity.log",
+      "devin_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/repair_story_analysis_4_0/devin.log",
+      "atif_path": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/repair_story_analysis_4_0/devin-trajectory.json",
+      "usage": {
+        "prompt_tokens": 312376,
+        "completion_tokens": 10601,
+        "cached_tokens": 257024,
+        "cost_usd": null
+      }
+    },
+    {
+      "workflow_id": "story-analysis-requirements_202609251147",
+      "run_id": "d0d3ba54-241a-420c-9fe4-13765b417c6d",
+      "sequence": 5,
+      "step_name": "grade-story-analysis",
+      "activity_type": "grade_story_analysis",
+      "activity_id": "5",
+      "attempt": 0,
+      "started_at": "2026-09-25T16:48:53.386382Z",
+      "duration_ms": 11968,
+      "outcome": "success",
+      "model": "SWE-1.7",
+      "permission_mode": "accept-edits",
+      "output_path": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis-grade.json",
+      "activity_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_5_0/activity.log",
+      "devin_log_path": ".process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_5_0/devin.log",
+      "atif_path": "/mnt/data/0_repo/agentic-dev-ecosystem-template/.process/logs/story-analysis-requirements_202609251147/d0d3ba54-241a-420c-9fe4-13765b417c6d/activities/grade_story_analysis_5_0/devin-trajectory.json",
+      "usage": {
+        "prompt_tokens": 103438,
+        "completion_tokens": 2514,
+        "cached_tokens": 92352,
+        "cost_usd": null
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": {
+      "available": true,
+      "value": 944609
+    },
+    "completion_tokens": {
+      "available": true,
+      "value": 27760
+    },
+    "cached_tokens": {
+      "available": true,
+      "value": 808064
+    },
+    "cost_usd": {
+      "available": false,
+      "value": null
+    }
+  }
+}
