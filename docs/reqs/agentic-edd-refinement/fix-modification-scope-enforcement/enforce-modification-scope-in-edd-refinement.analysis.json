@@ -1,0 +1,249 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/requirements.md",
+  "title": "Fix Modification-Scope Enforcement in EDD Refinement",
+  "story": {
+    "so_that": "we reduce workflow-source corruption incidents and avoid manual worktree cleanup, keeping EDD refinement runs recoverable within the existing SLO",
+    "as_a": "Agentic EDD Refinement Operator / Maintainer",
+    "i_want": "the EDD refinement workflow to reject any file change outside the authorized modification scope and leave the repository clean"
+  },
+  "target_persona": {
+    "role": "Workflow Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "EDD refinement runs can drift out of scope and modify the workflow's own source without detection or cleanup",
+      "during": "The operator kicks off a refinement run and monitors for out-of-scope plan proposals and unauthorized file changes",
+      "after": "Any out-of-scope attempt fails fast with a diagnostic terminal report, the worktree is reset, and the mutation lease is released"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Persist and validate the authorized modification_scope against planned and actual file changes, raising a hard stop and cleaning the worktree on any violation",
+    "inputs": [
+      "edd_input.json modification_scope entries",
+      "plan.json intended_files list",
+      "git diff --name-only changed_files from edd-do execution",
+      "starting revision and best accepted state for worktree reset"
+    ],
+    "outputs": [
+      "Progress record with resolved repo-relative modification_scope",
+      "Planning and validation results with distinct out-of-scope rejection reasons",
+      "OutOfScopeModificationError raised into the finalize path",
+      "Terminal report with terminal_reason 'out_of_scope_modification'",
+      "Restored worktree and released mutation lease"
+    ],
+    "state_changes": [
+      "ProgressRecord gains a modification_scope field",
+      "EddPlanRunner may reject a plan before edd-do runs",
+      "validate_candidate may reject a candidate after edd-do runs",
+      "workflow.py raises and finalizes on out-of-scope instead of quietly returning"
+    ],
+    "affected_components": {
+      "ui": [],
+      "api": [],
+      "database": [
+        "ProgressRecord durable record",
+        "Terminal report payload"
+      ],
+      "external_services": [
+        "Target git repository worktree",
+        "Mutation lease manager"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "The run persists and threads the authorized modification scope to every scope-checking activity so fresh and resumed runs behave identically",
+      "gherkin": "Given an EDD refinement input with an authorized modification scope When initialize_run executes Then the resolved repo-relative scope is stored in the progress record and is available to edd_plan and validate_candidate on fresh or resumed runs",
+      "type": "Functional",
+      "jtbd": "Persist authorized scope for the life of the run",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A shared path-containment helper accepts a repo-relative candidate when it exactly matches a scope entry or is nested under a directory prefix, using path-aware containment and not naive string prefixing",
+      "gherkin": "Given a repo-relative candidate path and an authorized scope list containing files and directory prefixes When the helper checks containment Then exact matches and descendants of directory prefixes pass while sibling or partial-prefix paths fail",
+      "type": "Functional",
+      "jtbd": "Check file paths against authorized scope",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A plan that proposes files outside the authorized scope is rejected before edd-do runs and produces a diagnostic report",
+      "gherkin": "Given an EDD refinement plan that includes intended files outside the authorized scope When the plan is validated Then edd-do is skipped and a plan-time out-of-scope result is produced with the offending action, rationale, evidence, and paths",
+      "type": "Error handling",
+      "jtbd": "Prevent out-of-scope plan from executing",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Any file that actually changed outside the authorized scope is detected after edd-do and distinguished from a plan-time violation",
+      "gherkin": "Given an executed candidate with changed files outside the authorized scope When validate_candidate runs Then a diff_out_of_scope rejection is produced naming the offending path(s)",
+      "type": "Error handling",
+      "jtbd": "Detect unauthorized files in the actual diff",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A confirmed out-of-scope detection halts the run, reverts uncommitted changes, and records a distinct terminal reason",
+      "gherkin": "Given a plan-time or diff-time out-of-scope detection When workflow.py handles it Then it triggers the existing exception-driven finalize path, restores the worktree, writes the terminal report, and releases the mutation lease",
+      "type": "Error handling",
+      "jtbd": "Halt the run on scope violation",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A run that ends before any candidate is accepted leaves the worktree reset to the starting revision",
+      "gherkin": "Given a run ends before any candidate has been accepted When finalize_run executes Then the worktree is reset to the starting revision and no stray uncommitted changes remain",
+      "type": "Functional",
+      "jtbd": "Leave a clean worktree after any stop",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A fully in-scope run continues through validation without a false scope alarm",
+      "gherkin": "Given an EDD refinement input with an authorized modification scope and a candidate whose intended and changed files are both within that scope When the workflow validates the candidate Then the candidate is accepted or proceeds normally without a scope rejection",
+      "type": "Happy path",
+      "jtbd": "Preserve normal behavior for authorized changes",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty or missing modification_scope",
+      "gherkin": "Given an EddRefinementInput with an empty or missing modification_scope When initialize_run executes Then the scope is persisted as an empty list and all later file checks fail as out-of-scope",
+      "type": "Edge case",
+      "jtbd": "Handle missing authorized scope defensively",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Scope list contains paths with special characters or non-POSIX separators",
+      "gherkin": "Given a modification_scope containing backslashes, tilde, or unicode segments When it is resolved Then it is normalized to repo-relative POSIX paths before storage and comparison",
+      "type": "Edge case",
+      "jtbd": "Normalize path inputs safely",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Scope directory prefix incorrectly matched by sibling name sharing a substring",
+      "gherkin": "Given a scope entry 'foo/' and a candidate 'foo-bar/x' When the containment helper runs Then it rejects the candidate because path 'foo-bar' is not nested under 'foo'",
+      "type": "Edge case",
+      "jtbd": "Avoid naive string-prefix scope matching",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Scope entry is an exact file and the candidate is a file in the same directory",
+      "gherkin": "Given a scope entry naming an exact file and a candidate naming a sibling file in the same directory When containment is checked Then the sibling file is rejected",
+      "type": "Edge case",
+      "jtbd": "Treat exact file entries as non-recursive",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Resumed run must use the persisted modification_scope, not the original input",
+      "gherkin": "Given a resumed run with a progress record containing a resolved modification_scope When edd_plan or validate_candidate runs Then it uses the stored scope and not a freshly derived value from CLI input",
+      "type": "Edge case",
+      "jtbd": "Keep scope consistent across run resumptions",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Out-of-scope detection before any candidate is accepted",
+      "gherkin": "Given a plan-time out-of-scope detection with no best_accepted_state When the workflow finalizes Then it still resets the worktree to the starting_revision",
+      "type": "Edge case",
+      "jtbd": "Clean worktree on early out-of-scope stop",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "Git worktree reset fails during finalize",
+      "gherkin": "Given an out-of-scope stop where git reset --hard fails When finalize_run runs Then the terminal report still records out_of_scope_modification and the lease is released",
+      "type": "Edge case",
+      "jtbd": "Preserve terminal reporting even if cleanup fails",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Should a confirmed out-of-scope stop count toward consecutive_confirmed_regressions or any existing budget counter, or is it always an immediate, separate terminal state?",
+      "impacts": [
+        "workflow budget logic",
+        "terminal report classification",
+        "monitoring and alerting semantics"
+      ]
+    },
+    {
+      "question": "Do we want a dedicated scope_violations list in the progress record / terminal report for observability, or is a single terminal report entry sufficient?",
+      "impacts": [
+        "progress record schema",
+        "terminal report payload",
+        "run-level observability"
+      ]
+    },
+    {
+      "question": "For the Requirement 3 pre-check: should a plan-time scope violation still get recorded as a candidate for get_candidate_status symmetry, even though no edd_do/validate_candidate ran?",
+      "impacts": [
+        "get_candidate_status API",
+        "candidate record shape",
+        "external poller expectations"
+      ]
+    },
+    {
+      "question": "Should trailing-slash normalization for directory scope entries be enforced at EddRefinementInput parse time or handled defensively in the containment helper?",
+      "impacts": [
+        "input parsing",
+        "containment helper design",
+        "downstream consistency"
+      ]
+    },
+    {
+      "question": "Should this work be delivered as two vertical slices (scope persistence + plan-time rejection, then do-time validation + cleanup) or as one cohesive multi-activity change?",
+      "impacts": [
+        "story scope",
+        "implementation sequencing",
+        "integration test scheduling"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "common/preflight.py",
+        "common/scoped_path_validator.py",
+        "activities/initialize_run.py",
+        "activities/edd_plan.py",
+        "activities/edd_do.py",
+        "activities/validate_candidate.py",
+        "activities/finalize_run.py",
+        "workflow.py",
+        "ProgressRecordSerializer.for_v5"
+      ],
+      "new_code": [
+        "common/scoped_path_validator.py::PathScopeChecker",
+        "OutOfScopeModificationError exception",
+        "plan-time out-of-scope capture in PlanningResult",
+        "diff_out_of_scope rejection reason in validate_candidate"
+      ],
+      "infrastructure": [
+        "ProgressRecord durable storage",
+        "Target git repository",
+        "Cadence workflow exception-driven finalize"
+      ],
+      "external_services": [
+        "Mutation lease manager"
+      ]
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "docs/reqs/agentic-edd-refinement/fix-edd-workflow/requirements.md"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "EDD refinement run lifecycle and authorized scope semantics",
+        "Plan-time vs do-time detection distinction",
+        "Exception-driven finalize and mutation-lease release"
+      ],
+      "technical_knowledge": [
+        "Cadence Temporal workflow patterns",
+        "PurePosixPath path containment",
+        "Git worktree reset and git diff mechanics"
+      ],
+      "stakeholder_questions": [
+        "Does out-of-scope stop count toward regression budget?",
+        "What telemetry fields are required for scope violations?",
+        "Should a plan-time violation still be reported as a candidate?"
+      ]
+    }
+  }
+}
