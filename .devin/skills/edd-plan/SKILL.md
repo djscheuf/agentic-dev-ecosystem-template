@@ -55,7 +55,7 @@ Record the exact metric snapshot this iteration is trying to beat as `iteration_
 - This document is append-only: never rewrite, reorder, or delete a prior iteration's section. It is the audit trail!
 
 ### 8. Write the Sentinel File
-- Write the sentinel to the exact path given in the invocation prompt (e.g. `<input-dir>/.process/edd-plan.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
+- Write the sentinel to the exact path given in the invocation prompt (e.g. `<input_parent>/.process/edd-plan.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json.
 - set the task field to "edd-plan".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json.

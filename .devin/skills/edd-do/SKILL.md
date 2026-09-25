@@ -114,7 +114,7 @@ section in .process/edd/<run_id>/refinement.yaml:
 ```
 
 ### Step 7: Write the Sentinel File
-- Write the sentinel to the exact path given in the invocation prompt (e.g. `<plan-dir>/.process/edd-do.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
+- Write the sentinel to the exact path given in the invocation prompt (e.g. `<input_parent>/.process/edd-do.done.json`), creating the parent `.process/` directory when needed. The sentinel must not be removed after verification.
 - the sentinel file will follow @/schema/sentinel.schema.json.
 - set the task field to "edd-do".
 - the verify_params of the sentinel file will follow @/schema/verify-params.schema.json.
