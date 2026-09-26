@@ -35,7 +35,7 @@ class MutationLeaseStore:
                 if held_run_id != run_id:
                     return None
             token = str(uuid.uuid4())
-            leases[repo_key] = (run_id, token, time.monotonic() + ttl)
+            leases[repo_key] = (run_id, token, time.time() + ttl)
             return token
 
         return self._atomic(_mutate)
@@ -63,7 +63,15 @@ class MutationLeaseStore:
     def _expire(
         self, leases: dict[str, tuple[str, str, float]]
     ) -> dict[str, tuple[str, str, float]]:
-        now = time.monotonic()
+        # Deadlines are stored as wall-clock (time.time()) dead-by
+        # timestamps, not time.monotonic() values. This store is shared
+        # across separate worker processes via `store_path`, and
+        # time.monotonic()'s reference point is only guaranteed stable
+        # within a single process -- a restarted process can start from a
+        # different monotonic baseline, which made previously-persisted
+        # deadlines look artificially far in the future and left stale
+        # leases held indefinitely.
+        now = time.time()
         for key in list(leases.keys()):
             if leases[key][2] <= now:
                 del leases[key]
