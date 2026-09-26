@@ -6,9 +6,8 @@
         "../../../.devin/skills/grade-story-design/_tests/test_cases.md"
     ],
     "test_command": [
-        "npm",
-        "run",
-        "test",
+        "node",
+        "scripts/run-eval.js",
         "gradeDesign.tests.yaml"
     ],
     "inspect_command": [

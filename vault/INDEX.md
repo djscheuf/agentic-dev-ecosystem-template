@@ -32,6 +32,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 
 - [Cadence local SQLite stack](services/cadence.md)
 - [Devin ATIF usage exports](services/devin-atif.md)
+- [EDD Evaluation Commands](services/edd-evaluation-commands.md)
 - [EDD Refinement ProgressRecord](services/edd_refinement.md)
 - [grade-story-design eval-suite refinement process](services/grade-story-design-eval-refinement.md)
 - [NixOS development environment](services/nixos.md)

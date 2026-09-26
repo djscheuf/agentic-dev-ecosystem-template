@@ -52,3 +52,7 @@ After relaxing the exit-code check, a second problem appeared: the inspect comma
 
 - **Whitelist only exit code 100 as success** — rejected because other eval harnesses may use different non-zero codes for failed tests.
 - **Require the test command to print a JSON summary with metrics** — rejected because it forces every promptfoo-based eval to be wrapped in a custom script; deriving metrics from the inspect list is more general.
+
+## 2026-09-26 addendum: direct Node invocation
+
+In practice `npm run test <config>` polluted stdout with npm's lifecycle banner, so the Python harness could not parse the JSON `evaluation_id`. EDD refinement inputs now invoke `node scripts/run-eval.js <config>` directly. See [[services/edd-evaluation-commands.md]].

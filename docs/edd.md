@@ -6,7 +6,7 @@ Leveraging Promptfoo for evals on each of the core skills.
 ## Structure
 Adding a `_tests` directory to each skill with example inputs and expected outputs.
 Adding a `{skillname}.tests.yaml` file to each skill with the test cases. 
-Invoked with `npm run test {skillname}.tests.yaml`
+Invoked with `node scripts/run-eval.js {skillname}.tests.yaml`
 
 
 ## One conversion on the skills

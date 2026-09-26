@@ -5,10 +5,8 @@
         "path/to/related/other_content.md"
     ],
     "test_command": [
-        "npm",
-        "run",
-        "test",
-        "--",
+        "node",
+        "scripts/run-eval.js",
         "skillTests.config.yaml"
     ],
     "inspect_command": [

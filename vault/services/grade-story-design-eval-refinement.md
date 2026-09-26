@@ -103,7 +103,7 @@ node -e "<quick inline test of _pullVarFromAssertConfig>"
 ### Live evaluation run
 
 ```bash
-npm run test gradeDesign.tests.yaml
+node scripts/run-eval.js gradeDesign.tests.yaml
 ```
 
 **Type:** deterministic command, **but requires authenticated Devin CLI**
@@ -119,13 +119,14 @@ If deep inspection is needed, use:
 
 ```bash
 node scripts/inspect-eval.js --all --json
+node scripts/inspect-eval.js eval-<id> --all --json
 ```
 
 **Inputs:** latest evaluation id or auto-detected latest run
 **Outputs:** raw per-result objects used to compute pass/fail/coverage metrics
 
 **Implicit rules:**
-- A non-zero exit from `npm run test` is a normal signal of failing assertions, not an infrastructure crash, per [[decisions/ADR-021-edd-evaluation-command-contracts.md]].
+- A non-zero exit from `node scripts/run-eval.js` is a normal signal of failing assertions, not an infrastructure crash, per [[decisions/ADR-021-edd-evaluation-command-contracts.md]].
 - Distinguish helper errors (e.g. "Missing Assert Config") from assertion failures; helper errors usually indicate a bug in `gradeDesignChecks.js`, not a bad model output.
 
 ## Adjust: classify failures and fix the right layer
@@ -171,7 +172,7 @@ Per [[decisions/ADR-017-agentic-edd-quality-ratchet.md]]: compare each candidate
 | Editing YAML/JSON/JS | mixed | mechanics are deterministic, but what to change is agentic |
 | YAML/JSON/JS syntax validation | deterministic | can be fully scripted |
 | Helper logic sanity checks | deterministic | inline assertions or small unit tests |
-| Live `npm run test` | deterministic command | same inputs should produce same outputs, but needs external auth |
+| Live `node scripts/run-eval.js` | deterministic command | same inputs should produce same outputs, but needs external auth |
 | Inspect raw results | deterministic | parses structured output |
 | Classify failures | agentic | requires distinguishing fixture bug, brittleness, helper bug, real gap |
 | Decide next adjustment | agentic | chooses which layer to fix and how |
