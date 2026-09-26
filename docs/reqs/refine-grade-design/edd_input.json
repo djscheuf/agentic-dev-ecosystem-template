@@ -13,8 +13,9 @@
     "inspect_command": [
         "scripts/inspect-eval.js",
         "{evaluation_id}",
-        "--all",
-        "--json"
+        "--compact-json",
+        "--coverage-metadata-property",
+        "metadata.covers_test_case_ids"
     ],
     "test_cases": "../../../.devin/skills/grade-story-design/_tests/test-cases.yaml",
     "coverage_metadata_property": "metadata.covers_test_case_ids",

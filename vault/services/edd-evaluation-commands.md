@@ -73,3 +73,41 @@ Use `{evaluation_id}` as a placeholder so the workflow substitutes the exact id:
     "--json"
 ]
 ```
+
+This must continue to return a JSON array of per-result objects (or a dict with `passing/failing/total/percentage`) so the harness can compute metrics and coverage.
+
+## Compact inspection for agents / humans
+
+`scripts/inspect-eval.js` also supports `--compact-json`, which produces a small, agent-friendly summary that includes *all* test cases:
+
+```bash
+node scripts/inspect-eval.js eval-<id> --compact-json
+```
+
+Output:
+
+```json
+{
+  "passing": 22,
+  "failing": 1,
+  "total": 23,
+  "percentage": 95.65,
+  "tests": [
+    { "index": 0, "description": "TC-001 ...", "status": "pass", "provider": "...", "metadata": {...} },
+    { "index": 5, "description": "TC-006 ...", "status": "fail", "provider": "...", "metadata": {...},
+      "vars": {...}, "prompt": "...", "output": "...", "gradingResult": {...} }
+  ]
+}
+```
+
+Passing cases include only identification fields; failing cases include the rendered prompt, variables, raw output, and failed assertion details. Unlike `--json`, `--compact-json` defaults to showing every test because the passing entries are already minimal.
+
+### Preserving coverage computation
+
+If the EDD harness needs to compute required-test-case coverage, pass `--coverage-metadata-property <path>` so the compact JSON still mirrors the aggregated coverage metadata at the top level:
+
+```bash
+node scripts/inspect-eval.js eval-<id> --compact-json --coverage-metadata-property metadata.covers_test_case_ids
+```
+
+This collects the specified metadata field from every test case and places it at the same dotted path in the output, keeping the `CoverageCalculator` contract intact.

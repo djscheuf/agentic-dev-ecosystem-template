@@ -125,6 +125,20 @@ node scripts/inspect-eval.js eval-<id> --all --json
 **Inputs:** latest evaluation id or auto-detected latest run
 **Outputs:** raw per-result objects used to compute pass/fail/coverage metrics
 
+For an agent-friendly trimmed view that keeps full detail only on failing cases, use `--compact-json`:
+
+```bash
+node scripts/inspect-eval.js eval-<id> --compact-json
+```
+
+This prints a small JSON object with `passing/failing/total/percentage` at the top and a `tests` array for *all* cases, where passing cases carry only identification fields and failing cases include prompt, vars, output, and failed assertion reasons.
+
+If the downstream harness also needs to compute required-test-case coverage, add `--coverage-metadata-property`:
+
+```bash
+node scripts/inspect-eval.js eval-<id> --compact-json --coverage-metadata-property metadata.covers_test_case_ids
+```
+
 **Implicit rules:**
 - A non-zero exit from `node scripts/run-eval.js` is a normal signal of failing assertions, not an infrastructure crash, per [[decisions/ADR-021-edd-evaluation-command-contracts.md]].
 - Distinguish helper errors (e.g. "Missing Assert Config") from assertion failures; helper errors usually indicate a bug in `gradeDesignChecks.js`, not a bad model output.
