@@ -21,16 +21,24 @@ def _execution(changed_files: list[str]) -> ExecutionResult:
 
 
 @pytest.mark.parametrize(
-    ("intended_files", "changed_files", "reason"),
+    ("intended_files", "changed_files", "reason", "expected_details"),
     [
-        (["src/skill.py"], [], "no_op"),
-        (["src/skill.py"], ["README.md"], "out_of_scope"),
-        (["src/skill.py"], ["src/skill.py", "README.md"], "out_of_scope"),
-        ([], ["src/skill.py"], "empty_scope"),
+        (["src/skill.py"], [], "no_op", None),
+        (["src/skill.py"], ["README.md"], "out_of_scope", {
+            "check": "intended_files",
+            "paths": ["README.md"],
+            "intended_files": ["src/skill.py"],
+        }),
+        (["src/skill.py"], ["src/skill.py", "README.md"], "out_of_scope", {
+            "check": "intended_files",
+            "paths": ["README.md"],
+            "intended_files": ["src/skill.py"],
+        }),
+        ([], ["src/skill.py"], "empty_scope", None),
     ],
 )
 def test_validate_candidate_rejects_invalid_file_scope(
-    intended_files: list[str], changed_files: list[str], reason: str
+    intended_files: list[str], changed_files: list[str], reason: str, expected_details: dict | None
 ) -> None:
     result = ValidateCandidateActivity().run(
         "run-1",
@@ -43,6 +51,7 @@ def test_validate_candidate_rejects_invalid_file_scope(
 
     assert result.status == "rejected"
     assert result.rejection_reason == reason
+    assert result.out_of_scope_details == expected_details
 
 
 @pytest.mark.parametrize(
@@ -139,6 +148,11 @@ def test_validate_candidate_unplanned_but_authorized_change_keeps_out_of_scope_r
 
     assert result.status == "rejected"
     assert result.rejection_reason == "out_of_scope"
+    assert result.out_of_scope_details == {
+        "check": "intended_files",
+        "paths": ["skill/extra.md"],
+        "intended_files": ["skill/ok.md"],
+    }
 
 
 def test_concurrent_validations_preserve_independent_candidate_history(tmp_path) -> None:

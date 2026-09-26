@@ -72,13 +72,23 @@ class ValidateCandidateActivity:
             )
         ]:
             reason = "diff_out_of_scope"
-        elif any(path not in intended_files for path in execution.changed_files):
+        elif unplanned := [
+            path
+            for path in execution.changed_files
+            if path not in intended_files
+        ]:
             reason = "out_of_scope"
         else:
             reason = self._test_change_reason(planning, execution)
         out_of_scope_details = None
         if reason == "diff_out_of_scope":
             out_of_scope_details = {"check": "diff", "paths": unauthorized}
+        elif reason == "out_of_scope":
+            out_of_scope_details = {
+                "check": "intended_files",
+                "paths": unplanned,
+                "intended_files": intended_files,
+            }
         result = CandidateValidationResult(
             candidate_id=f"{run_id}-{execution.diff_hash[:12]}",
             run_id=run_id,

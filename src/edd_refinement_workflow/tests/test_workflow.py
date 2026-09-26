@@ -56,6 +56,7 @@ async def test_workflow_plan_out_of_scope_halts_with_scope_terminal_reason(
 
     assert excinfo.value.terminal_reason == "out_of_scope_modification"
     assert excinfo.value.details["paths"] == ["outside/hack.py"]
+    assert "outside/hack.py" in str(excinfo.value)
     assert finalize_reasons == ["out_of_scope_modification"]
     assert "edd_do" not in calls
 
@@ -118,6 +119,7 @@ async def test_workflow_diff_out_of_scope_halts_with_scope_terminal_reason(
 
     assert excinfo.value.terminal_reason == "out_of_scope_modification"
     assert excinfo.value.details["check"] == "diff"
+    assert '"check": "diff"' in str(excinfo.value)
     assert finalize_reasons == ["out_of_scope_modification"]
 
 

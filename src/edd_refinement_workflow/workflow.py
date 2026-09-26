@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import timedelta
 
 from cadence import workflow
@@ -11,9 +12,11 @@ from .quality_ratchet import compare_candidate_to_best, resolve_comparison_basel
 
 class OutOfScopeModificationError(Exception):
     def __init__(self, details: dict | None = None) -> None:
-        super().__init__("out_of_scope_modification")
-        self.terminal_reason = "out_of_scope_modification"
         self.details = details or {}
+        self.terminal_reason = "out_of_scope_modification"
+        super().__init__(
+            f"out_of_scope_modification: {json.dumps(self.details, sort_keys=True)}"
+        )
 
 
 class EddRefinementWorkflow:

@@ -299,6 +299,14 @@ Still open: end-to-end validation of the full loop against the
 - `ProgressRecordSerializer.for_v5` allow-list now includes `modification_scope` and `scope_violations`.
 - Out-of-scope stops never count toward `consecutive_confirmed_regressions` or iteration/token budgets — they are an authorization failure, not a quality regression.
 
+## Out-of-scope paths now surface in terminal error messages (2026-09-26)
+
+`ValidateCandidateActivity` now attaches `out_of_scope_details` to the `out_of_scope` rejection reason (authorized scope, but not in `intended_files`), not only to `diff_out_of_scope`. The payload is `{check: "intended_files", paths: [...], intended_files: [...]}`.
+
+`OutOfScopeModificationError` now formats its message as `out_of_scope_modification: <json>` so that logs, Cadence failure reasons, and `terminal.json` show the offending paths instead of the bare reason string. `details` and `terminal_reason` remain available programmatically.
+
+To recover from a scope rejection, inspect `.process/edd/<run_id>/terminal.json` (`scope_violations`) or the Cadence workflow failure details for the offending paths, then either widen `modification_scope` in the EDD input document or constrain the prompt/fixture so the agent stops proposing files outside the scope.
+
 ## Gotcha: `edd_plan`/`edd_do` dropped their ATIF audit trail (2026-09-26)
 
 `SkillActivity.execute()` (shared by every workflow) already builds a rich
