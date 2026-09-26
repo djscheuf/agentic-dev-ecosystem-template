@@ -40,3 +40,11 @@ The root cause was that `MutationLeaseStore` kept leases in a process-local dict
 
 - Consider a SQLite-backed store if cross-platform locking or richer lease metadata is needed later.
 - The worker should be restarted after this change so subsequent activities use the new file-backed store.
+
+## Update (2026-09-26): TTL must use wall clock, not `time.monotonic()`
+
+A lease from a terminated run failed to expire and blocked a fresh run minutes later. Root cause: `MutationLeaseStore` computed and compared deadlines with `time.monotonic()`. That clock's reference point is only guaranteed stable *within one process*; this store is explicitly persisted so **different** processes (a restarted worker) can see it. After a worker restart, the new process's `time.monotonic()` baseline can be lower than the deadline persisted by the previous process, so the deadline compares as still in the future indefinitely — the lease never expires until that same process eventually monotonic-catches-up, which may never happen in practice.
+
+Fix: `MutationLeaseStore.acquire`/`_expire` now store and compare a wall-clock `time.time()` dead-by value. `initialize_run`'s `mutation_lease` record now also carries a real `acquired_at` and `dead_by` epoch timestamp instead of the literal string `"now"`, so a held lease's liveness can be read directly from the progress record for the same repo-key scope.
+
+Lesson: never persist a `time.monotonic()` value for a liveness check that crosses process boundaries. Monotonic clocks are for measuring elapsed time within one process only; persisted deadlines need wall clock.
