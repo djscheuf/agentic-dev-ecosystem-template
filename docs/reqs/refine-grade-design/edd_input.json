@@ -20,13 +20,13 @@
     "test_cases": "../../../.devin/skills/grade-story-design/_tests/test-cases.yaml",
     "coverage_metadata_property": "metadata.covers_test_case_ids",
     "modification_scope": [
-        "../../../.devin/skills/grade-story-design/SKILL.md",
-        "../../../.devin/skills/grade-story-design/rubric.md"
+        "../../../.devin/skills/grade-story-design/*",
+        "../../../evals/gradeDesign.tests.yaml"
     ],
     "limits": {
         "max_iterations": 3,
         "max_tokens": 1000000,
         "eval_timeout_seconds": 1800
     },
-    "proposed_action": "repair"
+    "proposed_action": "refine"
 }
