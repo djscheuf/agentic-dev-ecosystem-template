@@ -15,8 +15,10 @@ description: Reviews the current EDD refinement run state (refinement.yaml conte
 
 ### 2. Review the Latest Evaluation Evidence
 - Read the two most recent `check.json` results — they are supplied directly as additional input paths in the invocation prompt (or the single baseline result if this is the first iteration).
+- You MUST read the json output DIRECTLY. You are Forbidden from using any commands to read the file.
 - Identify common failure patterns: are failures concentrated in one rubric dimension, one fixture, or one assertion helper?
 - Cross-reference the required-test-case coverage map in the latest `check.json` against the target skill's `_tests/*.tests.yaml` and required-test-case catalog to find any required case with no covering assertion.
+
 
 ### 3. Review Prior Plan/Do/Check History
 - Read every prior iteration's `plan.json`, `do.json`, and its outcome (`accepted` / `rejected` / `reverted`) from `candidate_history` and `refinement.yaml`.
