@@ -52,6 +52,7 @@ class ExecutionResult:
     failure_reason: str | None
     atif_path: str | None
     duration_ms: int
+    observation: dict | None = None
 
 
 @dataclasses.dataclass(frozen=True)

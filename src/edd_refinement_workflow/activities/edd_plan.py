@@ -40,6 +40,7 @@ class PlanningResult:
     modification_scope: list | None = None
     rejection_reason: str | None = None
     out_of_scope_details: dict | None = None
+    observation: dict | None = None
 
 
 class EddPlanSkillActivity(SkillActivity):
@@ -238,6 +239,7 @@ class EddPlanRunner:
                 modification_scope=modification_scope,
                 rejection_reason="plan_out_of_scope",
                 out_of_scope_details=violation,
+                observation=output.observation or None,
             )
         logger.info("planning selected action=%s (run_id=%s)", action, run_id)
         return PlanningResult(
@@ -256,6 +258,7 @@ class EddPlanRunner:
             plan_path=output.output_path,
             usage_metrics=usage_metrics,
             modification_scope=modification_scope,
+            observation=output.observation or None,
         )
 
 
@@ -282,4 +285,12 @@ async def edd_plan_action(
         proposed_diff_hash,
         input_path,
     )
+    if result.observation:
+        from ..refinement_log import append_refinement_outcome
+
+        append_refinement_outcome(
+            repo_root,
+            run_id,
+            {"event": "agentic_activity_trail", "step": "edd_plan", **result.observation},
+        )
     return dataclasses.asdict(result)

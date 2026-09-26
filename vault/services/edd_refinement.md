@@ -299,6 +299,31 @@ Still open: end-to-end validation of the full loop against the
 - `ProgressRecordSerializer.for_v5` allow-list now includes `modification_scope` and `scope_violations`.
 - Out-of-scope stops never count toward `consecutive_confirmed_regressions` or iteration/token budgets — they are an authorization failure, not a quality regression.
 
+## Gotcha: `edd_plan`/`edd_do` dropped their ATIF audit trail (2026-09-26)
+
+`SkillActivity.execute()` (shared by every workflow) already builds a rich
+`observation` dict per invocation — `workflow_id`, `run_id`, `activity_id`,
+`atif_path`, `usage` (prompt/completion/cost), timestamps, `model`,
+`permission_mode`. `story_analysis_workflow.workflow.py` collects every
+activity's `observation` into `self._attempt_observations` and publishes it
+via `publish_story_analysis_run_report`. `edd_refinement_workflow`'s
+`EddPlanRunner`/`EddDoRunner` were unpacking only `usage` into their own
+`usage_metrics`/`atif_path` fields and discarding the rest of `observation`
+entirely — the ATIF audit trail for the two agentic steps (`edd-plan`,
+`edd-do`) was never persisted anywhere.
+
+Fix: `PlanningResult` (`activities/edd_plan.py`) and `ExecutionResult`
+(`candidate_results.py`, used by `activities/edd_do.py`) now carry the full
+`observation` dict verbatim. The `edd_plan_action`/`edd_do_action` Cadence
+entrypoints append it to `refinement.yaml` via the existing
+`refinement_log.append_refinement_outcome` convention (same append point used
+by `commit_accepted_candidate`, `regression_recovery`, etc.), tagged
+`{"event": "agentic_activity_trail", "step": "edd_plan"|"edd_do", **observation}`.
+`edd_do`'s `observation` also rides along in `do.json` for free since that
+file is `dataclasses.asdict(ExecutionResult)`. No append happens when
+`observation` is falsy (deterministic budget-exhausted stop, or a harness
+failure that never returned a `SkillActivityOutput`).
+
 ## Gotcha: sentinel path must match in prompt and verifier (2026-09-24)
 
 `SkillActivity.build_prompt` originally told the agent to write the completion

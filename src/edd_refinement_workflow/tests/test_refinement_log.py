@@ -129,3 +129,121 @@ async def test_human_handoff_appends_outcome_to_refinement_yaml(tmp_path) -> Non
 
     outcomes = _read(path)["iterations"][0]["outcomes"]
     assert outcomes == [{"event": "human_handoff", "reason": "unstable_result"}]
+
+
+@pytest.mark.asyncio
+async def test_edd_plan_activity_appends_atif_observation_to_refinement_yaml(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_refinement_workflow.activities.edd_plan import (
+        PlanningResult,
+        edd_plan_action,
+    )
+
+    path = _write_refinement(tmp_path)
+    observation = {
+        "workflow_id": "wf-1",
+        "run_id": "run-1",
+        "activity_id": "act-1",
+        "atif_path": ".process/edd/run-1/devin-trajectory.json",
+        "usage": {"prompt_tokens": 100, "completion_tokens": 20},
+    }
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.edd_plan.EDD_PLAN_RUNNER",
+        type(
+            "FakeRunner",
+            (),
+            {"run": lambda self, *a, **k: PlanningResult(action="repair", observation=observation)},
+        )(),
+    )
+
+    await edd_plan_action("run-1", str(tmp_path), {}, {})
+
+    outcomes = _read(path)["iterations"][0]["outcomes"]
+    assert outcomes == [{"event": "agentic_activity_trail", "step": "edd_plan", **observation}]
+
+
+@pytest.mark.asyncio
+async def test_edd_plan_activity_does_not_append_when_skill_was_not_invoked(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_refinement_workflow.activities.edd_plan import (
+        PlanningResult,
+        edd_plan_action,
+    )
+
+    path = _write_refinement(tmp_path)
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.edd_plan.EDD_PLAN_RUNNER",
+        type(
+            "FakeRunner",
+            (),
+            {"run": lambda self, *a, **k: PlanningResult(action="stop", stop_recommendation=True)},
+        )(),
+    )
+
+    await edd_plan_action("run-1", str(tmp_path), {}, {})
+
+    assert _read(path)["iterations"][0].get("outcomes") is None
+
+
+@pytest.mark.asyncio
+async def test_edd_do_activity_appends_atif_observation_to_refinement_yaml(
+    tmp_path, monkeypatch
+) -> None:
+    from edd_refinement_workflow.activities.edd_do import edd_do_action
+    from edd_refinement_workflow.candidate_results import ExecutionResult, UsageMetrics
+
+    path = _write_refinement(tmp_path)
+    observation = {
+        "workflow_id": "wf-1",
+        "run_id": "run-1",
+        "activity_id": "act-2",
+        "atif_path": ".process/edd/run-1/devin-trajectory.json",
+        "usage": {"prompt_tokens": 50, "completion_tokens": 10},
+    }
+    expected = ExecutionResult(
+        status="success",
+        usage_metrics=UsageMetrics(50, 10, 60, 0.0),
+        changed_files=["src/skill.py"],
+        diff_hash="abc123",
+        failure_reason=None,
+        atif_path=observation["atif_path"],
+        duration_ms=1,
+        observation=observation,
+    )
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.edd_do.EDD_DO_RUNNER",
+        type("FakeRunner", (), {"run": lambda self, *a: expected})(),
+    )
+
+    await edd_do_action("run-1", {"action": "repair"}, None, str(tmp_path))
+
+    outcomes = _read(path)["iterations"][0]["outcomes"]
+    assert outcomes == [{"event": "agentic_activity_trail", "step": "edd_do", **observation}]
+
+
+@pytest.mark.asyncio
+async def test_edd_do_activity_does_not_append_on_harness_failure(tmp_path, monkeypatch) -> None:
+    from edd_refinement_workflow.activities.edd_do import edd_do_action
+    from edd_refinement_workflow.candidate_results import ExecutionResult, UsageMetrics
+
+    path = _write_refinement(tmp_path)
+    failed = ExecutionResult(
+        status="failed",
+        usage_metrics=UsageMetrics(0, 0, 0, 0.0),
+        changed_files=[],
+        diff_hash="",
+        failure_reason="harness_failure:1",
+        atif_path=None,
+        duration_ms=0,
+        observation=None,
+    )
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.edd_do.EDD_DO_RUNNER",
+        type("FakeRunner", (), {"run": lambda self, *a: failed})(),
+    )
+
+    await edd_do_action("run-1", {"action": "repair"}, None, str(tmp_path))
+
+    assert _read(path)["iterations"][0].get("outcomes") is None

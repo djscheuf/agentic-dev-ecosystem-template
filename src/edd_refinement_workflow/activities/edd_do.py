@@ -67,6 +67,7 @@ class EddDoRunner:
                 failure_reason=str(exc),
                 atif_path=None,
                 duration_ms=0,
+                observation=None,
             )
             self._write_do_json(plan_path, repo_root, result)
             return result
@@ -101,6 +102,7 @@ class EddDoRunner:
             failure_reason=None,
             atif_path=output.observation.get("atif_path"),
             duration_ms=output.duration_ms,
+            observation=output.observation or None,
         )
         self._write_do_json(plan_path, repo_root, result)
         return result
@@ -128,4 +130,12 @@ async def edd_do_action(
     result = await asyncio.to_thread(
         EDD_DO_RUNNER.run, run_id, planning, approved_diff_hash, repo_root
     )
+    if result.observation:
+        from ..refinement_log import append_refinement_outcome
+
+        append_refinement_outcome(
+            repo_root,
+            run_id,
+            {"event": "agentic_activity_trail", "step": "edd_do", **result.observation},
+        )
     return dataclasses.asdict(result)
