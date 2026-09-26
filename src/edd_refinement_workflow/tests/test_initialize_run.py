@@ -1,3 +1,4 @@
+import time
 from typing import Any
 
 import pytest
@@ -102,6 +103,8 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["mutation_lease"]["repo_key"] == str(tmp_path)
     assert record["mutation_lease"]["run_id"] == record["run_id"]
     assert "token" in record["mutation_lease"]
+    assert isinstance(record["mutation_lease"]["dead_by"], float)
+    assert record["mutation_lease"]["dead_by"] > time.time()
     assert (
         tmp_path / ".process" / "edd" / record["run_id"] / "progress.json"
     ).exists()

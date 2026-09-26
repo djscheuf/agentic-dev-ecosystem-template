@@ -1,4 +1,5 @@
 import os
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -97,12 +98,14 @@ class InitializeRunActivity:
         policy = MutationLeasePolicyHandler(store, on_event=self.on_event)
         handle = policy.lease(repo_root, run_id, lease_ttl)
         token = handle.__enter__()
+        acquired_at = time.time()
         return {
             "repo_key": repo_root,
             "run_id": run_id,
             "token": token,
             "ttl": lease_ttl,
-            "acquired_at": "now",
+            "acquired_at": acquired_at,
+            "dead_by": acquired_at + lease_ttl,
         }
 
     def _run_baseline_check(
