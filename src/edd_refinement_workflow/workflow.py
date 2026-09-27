@@ -255,6 +255,12 @@ class EddRefinementWorkflow:
                 "initial_interval": timedelta(
                     seconds=retry_configuration.get("initial_interval_seconds", 1)
                 ),
+                "backoff_coefficient": retry_configuration.get(
+                    "backoff_coefficient", 2.0
+                ),
+                "maximum_interval": timedelta(
+                    seconds=retry_configuration.get("maximum_interval_seconds", 300)
+                ),
             }
             candidate_check = await execute_activity(
                 "check_candidate",

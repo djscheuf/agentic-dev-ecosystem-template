@@ -661,6 +661,8 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
     assert options["retry_policy"] == {
         "maximum_attempts": 3,
         "initial_interval": timedelta(seconds=2),
+        "backoff_coefficient": 2.0,
+        "maximum_interval": timedelta(minutes=5),
     }
 
 
