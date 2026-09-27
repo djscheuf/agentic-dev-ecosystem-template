@@ -7,8 +7,8 @@ description: Grades the quality of the design document for a given story with ad
 ### 1. Read the Analysis JSON
 - Read the analysis json document.
 
-### 2. Grade the Desogm
-- grade the analysis based on the User Story Quality Rubric defined in `/rubric.md`.
+### 2. Grade the Design
+- grade the design based on the Implementation Design Quality Rubric defined in `/rubric.md`.
 - Identify a score for each dimension and provide your reasoning for that score. 
 - Provide recommendations for improvement for each dimension with an imperfect score.
 - Before scoring, tally the evidence per dimension (e.g. count how many decisions/steps/contracts are grounded vs. weak) — this tally drives the score even if it isn't fully spelled out in the written reason.
