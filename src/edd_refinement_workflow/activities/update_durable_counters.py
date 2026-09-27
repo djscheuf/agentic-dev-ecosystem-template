@@ -30,7 +30,10 @@ class UpdateDurableCountersActivity:
         stored_attempt.pop("usage_metrics", None)
         record["attempts"] = record.get("attempts", []) + [stored_attempt]
         record["cumulative_token_usage"] = record.get("cumulative_token_usage", 0) + usage["total_tokens"]
-        if not attempt_record["is_retry"]:
+        # A logical iteration is complete once its evaluation/check step finishes.
+        # Planning and execution attempts consume tokens but do not advance the
+        # iteration counter; retries of any step also do not advance it.
+        if attempt_record.get("step") == "evaluation" and not attempt_record["is_retry"]:
             record["logical_iteration_count"] = record.get("logical_iteration_count", 0) + 1
         self.store.save(run_id, record)
         return record

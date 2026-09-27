@@ -387,6 +387,7 @@ class EddRefinementWorkflow:
         usage = result.get("usage_metrics")
         attempt = {
             "attempt_id": f"{step}-{record['run_id']}",
+            "step": step,
             "logical_iteration_number": result.get("logical_iteration_number", 0),
             "is_retry": result.get("is_retry", False),
             "usage_metrics": usage,
