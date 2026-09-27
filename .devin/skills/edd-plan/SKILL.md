@@ -53,7 +53,11 @@ Record the exact metric snapshot this iteration is trying to beat as `iteration_
 - The JSON MUST follow `/schema/plan.schema.json`.
 
 ### 7. Append to the Running Refinement Document
-- Append a new, dated section to `.process/edd/<run_id>/refinement.yaml` (create it if it doesn't exist yet) summarizing this iteration's number, selected action, rationale, evidence, intended files, and expected effect.
+- Append this iteration as a new item in the `iterations:` list of the single YAML document at `.process/edd/<run_id>/refinement.yaml` (create the file if it does not exist).
+- Avoid adding a YAML document separator (`---`) or creating a second document.
+- Each item in `iterations:` must be a mapping containing exactly these keys: `iteration_number`, `action`, `rationale`, `evidence`, `intended_files`, `expected_effect`, `iteration_start_baseline`.
+- For the first iteration, replace `iterations: []` with the full list containing the new item.
+- For later iterations, add a new `-` item after the existing iteration items while preserving their indentation and order.
 - This document is append-only: never rewrite, reorder, or delete a prior iteration's section. It is the audit trail!
 
 ### 8. Write the Sentinel File
