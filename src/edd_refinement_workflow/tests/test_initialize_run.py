@@ -100,6 +100,7 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert record["target_repository"] == str(tmp_path)
     assert record["input_path"] == input_path
     assert record["input_parent"] == str(tmp_path)
+    assert record["modification_scope"] == ["skill"]
     assert record["mutation_lease"]["repo_key"] == str(tmp_path)
     assert record["mutation_lease"]["run_id"] == record["run_id"]
     assert "token" in record["mutation_lease"]

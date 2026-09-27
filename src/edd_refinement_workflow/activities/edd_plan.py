@@ -215,6 +215,8 @@ class EddPlanRunner:
                 "action": action,
                 "rationale": plan.get("rationale", ""),
                 "evidence": plan.get("evidence"),
+                "intended_files": intended_files,
+                "modification_scope": modification_scope,
                 "paths": offending,
             }
             from ..progress_record import ProgressRecordStore

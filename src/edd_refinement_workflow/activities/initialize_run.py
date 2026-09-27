@@ -173,6 +173,12 @@ class InitializeRunActivity:
             measurement_context=profile.get("measurement_context", "baseline"),
         )
 
+        repo_root = str(preflight_result.target_context.repo_root)
+        input_parent = str(Path(input_path).parent) if input_path else repo_root
+        modification_scope = _resolve_modification_scope(
+            edd_input, repo_root, input_parent
+        )
+
         record = {
             "schema_version": 5,
             "run_id": run_id,
@@ -198,19 +204,16 @@ class InitializeRunActivity:
             "reverted_proposals": [],
             "recovery_results": [],
             "human_handoff_records": [],
-            "modification_scope": [],
+            "modification_scope": modification_scope,
             "scope_violations": [],
         }
 
-        repo_root = str(preflight_result.target_context.repo_root)
         created = self.factory.create_or_resume(run_id, record)
         created["test_cases"] = profile.get("test_cases")
         created["coverage_metadata_property"] = profile.get(
             "coverage_metadata_property"
         )
         created["inspect_command"] = profile.get("inspect_command")
-
-        input_parent = str(Path(input_path).parent) if input_path else repo_root
 
         if created is record:
             created["mutation_lease"] = self._acquire_lease(
@@ -219,9 +222,7 @@ class InitializeRunActivity:
             created["target_repository"] = repo_root
             created["input_path"] = input_path
             created["input_parent"] = input_parent
-            created["modification_scope"] = _resolve_modification_scope(
-                edd_input, repo_root, input_parent
-            )
+            created["modification_scope"] = modification_scope
             self.factory.store.save(run_id, created)
 
             baseline_check = self._run_baseline_check(run_id, repo_root)

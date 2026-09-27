@@ -294,10 +294,20 @@ def test_edd_plan_rejects_plan_with_intended_files_outside_scope(tmp_path) -> No
     assert result.out_of_scope_details["check"] == "plan"
     assert result.out_of_scope_details["action"] == "repair"
     assert result.out_of_scope_details["rationale"] == "fixture defect"
+    assert result.out_of_scope_details["intended_files"] == [
+        "skill/ok.md",
+        "outside/hack.py",
+    ]
+    assert result.out_of_scope_details["modification_scope"] == ["skill/"]
     assert result.modification_scope == ["skill/"]
     persisted = store.create_or_resume("run-1", {})
     assert persisted["scope_violations"][-1]["check"] == "plan"
     assert persisted["scope_violations"][-1]["paths"] == ["outside/hack.py"]
+    assert persisted["scope_violations"][-1]["intended_files"] == [
+        "skill/ok.md",
+        "outside/hack.py",
+    ]
+    assert persisted["scope_violations"][-1]["modification_scope"] == ["skill/"]
 
 
 def test_edd_plan_in_scope_intended_files_pass_scope_gate(tmp_path) -> None:
