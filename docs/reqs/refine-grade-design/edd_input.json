@@ -24,7 +24,7 @@
         "../../../evals/gradeDesign.tests.yaml"
     ],
     "limits": {
-        "max_iterations": 3,
+        "max_iterations": 5,
         "max_tokens": 1000000,
         "eval_timeout_seconds": 1800
     },
