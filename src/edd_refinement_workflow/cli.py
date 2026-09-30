@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import dataclasses
 import json
 import re
 import sys
@@ -71,63 +70,21 @@ async def start_edd_refinement_workflow(
     workflow_id: Optional[str] = None,
     config: Optional[CadenceConfig] = None,
 ):
-    """Start an EDD Refinement Workflow from a portable input document."""
-    from common.preflight import resolve_and_validate_target_repository
+    """Start an EDD Refinement Workflow from a portable input document.
 
+    The client performs only schema sanity-checks on the input document;
+    repository resolution and validation are owned by the workflow's
+    `preflight` activity so the result is durable and replay-safe.
+    """
     config = config or load_config()
     resolved_workflow_id = workflow_id or _default_workflow_id(input_path)
 
-    input_path = Path(input_path)
-    raw_input = json.loads(input_path.read_text(encoding="utf-8"))
-    input_document = EddRefinementInput.from_path(input_path)
-    preflight = resolve_and_validate_target_repository(
-        anchor_path=str(input_document.skill_folder),
-        explicit_root=None,
-        scoped_paths=[str(p) for p in input_document.modification_scope],
-        skill_name=input_document.skill_folder.name,
-        evaluation_path=str(input_document.eval_config),
-        additional_paths=[
-            str(input_document.test_cases),
-            *(str(p) for p in input_document.related_content),
-        ],
-        run_id=resolved_workflow_id,
-        lease_ttl=input_document.limits.get("eval_timeout_seconds", 1200),
-    )
-    if preflight.status != "success":
-        raise EddRefinementInputError(
-            f"preflight failed: {'; '.join(preflight.failed_conditions)}"
-        )
-
-    profile = {
-        "command": input_document.test_command,
-        "configuration": str(input_document.eval_config),
-        "provider": preflight.provider or "default",
-        "timeout": input_document.limits["eval_timeout_seconds"],
-        "limits": input_document.limits,
-        "measurement_context": "baseline",
-        "test_cases": str(input_document.test_cases),
-        "coverage_metadata_property": input_document.coverage_metadata_property,
-        "inspect_command": input_document.inspect_command,
-    }
-
-    request = {
-        "workflow_run_id": resolved_workflow_id,
-        "profile": profile,
-        "input_path": str(input_path),
-        "input_parent": str(input_document.input_parent),
-        "edd_input": raw_input,
-        "approval_timeout_seconds": 3600,
-        "regression_stop_threshold": 3,
-        "next_step_token_estimate": 0,
-        "test_cases_path": str(input_document.test_cases),
-        "coverage_metadata_property": input_document.coverage_metadata_property,
-        "lease_ttl": input_document.limits.get("eval_timeout_seconds", 1200),
-    }
+    EddRefinementInput.from_path(input_path)
 
     return await client.start_workflow(
         "EddRefinementWorkflow",
-        preflight,
-        request,
+        str(input_path),
+        resolved_workflow_id,
         **config.to_start_workflow_kwargs(resolved_workflow_id),
     )
 

@@ -5,9 +5,15 @@ from datetime import timedelta
 from cadence import workflow
 from cadence.workflow import execute_activity, sleep, wait_condition
 
-from common.preflight import PreflightResult
+from common.preflight import PreflightResult, TargetRepositoryContext
 
 from .quality_ratchet import compare_candidate_to_best, resolve_comparison_baseline
+
+
+class PreflightFailedError(Exception):
+    def __init__(self, failed_conditions: list[str]) -> None:
+        self.failed_conditions = failed_conditions
+        super().__init__(f"preflight failed: {'; '.join(failed_conditions)}")
 
 
 class OutOfScopeModificationError(Exception):
@@ -27,12 +33,12 @@ class EddRefinementWorkflow:
         self._regression_status = None
 
     @workflow.run
-    async def run(self, preflight_result: PreflightResult, request: dict):
+    async def run(self, input_document_path: str, workflow_id: str = ""):
         self._record = None
         self._repo_root = None
         self._finalized = False
         try:
-            return await self._run(preflight_result, request)
+            return await self._run(input_document_path, workflow_id)
         except Exception as exc:
             if (
                 self._record is not None
@@ -53,7 +59,26 @@ class EddRefinementWorkflow:
                 self._finalized = True
             raise
 
-    async def _run(self, preflight_result: PreflightResult, request: dict):
+    async def _run(self, input_document_path: str, workflow_id: str):
+        preflight_output = await execute_activity(
+            "preflight",
+            dict,
+            input_document_path,
+            workflow_id,
+            start_to_close_timeout=timedelta(minutes=5),
+        )
+        raw_result = preflight_output["preflight_result"]
+        if raw_result["status"] != "success":
+            raise PreflightFailedError(raw_result.get("failed_conditions") or [])
+        context = raw_result["target_context"]
+        preflight_result = PreflightResult(
+            status=raw_result["status"],
+            target_context=TargetRepositoryContext(**context) if context else None,
+            provider=raw_result.get("provider"),
+            failed_conditions=raw_result.get("failed_conditions") or [],
+        )
+        request = preflight_output["request"]
+
         record = await execute_activity(
             "initialize_run",
             dict,

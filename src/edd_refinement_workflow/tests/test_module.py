@@ -33,6 +33,7 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
     )
     assert SPEC.workflow_types == ("EddRefinementWorkflow",)
     assert SPEC.activity_types == (
+        "preflight",
         "initialize_run",
         "run_baseline_evaluation",
         "check_refinement_limits",

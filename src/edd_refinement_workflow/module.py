@@ -7,6 +7,7 @@ from .activities.edd_do import edd_do_action
 from .activities.edd_plan import edd_plan_action
 from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.initialize_run import initialize_run_activity
+from .activities.preflight import preflight_activity
 from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activity
 from .activities.renew_mutation_lease import renew_mutation_lease_activity
 from .activities.regression_recovery import (
@@ -31,6 +32,7 @@ from .workflow import EddRefinementWorkflow
 
 WORKFLOW_TYPE = "EddRefinementWorkflow"
 ACTIVITY_TYPES = (
+    "preflight",
     "initialize_run",
     "run_baseline_evaluation",
     "check_refinement_limits",
@@ -56,6 +58,7 @@ ACTIVITY_TYPES = (
     "finalize_run",
 )
 ACTIVITIES = (
+    preflight_activity,
     initialize_run_activity,
     run_baseline_evaluation_activity,
     check_refinement_limits_activity,

@@ -79,7 +79,7 @@ async def test_cli_start_subcommand_invokes_starter_and_prints_ids(
 
 
 @pytest.mark.asyncio
-async def test_start_workflow_threads_raw_modification_scope_into_request(
+async def test_start_workflow_passes_document_path_without_client_side_preflight(
     monkeypatch, tmp_path
 ):
     parent = tmp_path / "inputs"
@@ -101,16 +101,21 @@ async def test_start_workflow_threads_raw_modification_scope_into_request(
     input_file.write_text(json.dumps(valid))
     (parent / "skill").mkdir()
 
+    def forbidden_preflight(**kwargs):
+        raise AssertionError(
+            "CLI must not resolve the target repository; preflight is a workflow activity"
+        )
+
     monkeypatch.setattr(
         "common.preflight.resolve_and_validate_target_repository",
-        lambda **kwargs: SimpleNamespace(status="success", provider="p"),
+        forbidden_preflight,
     )
 
     started = []
 
     class CapturingClient(FakeClient):
-        async def start_workflow(self, workflow_type, preflight, request, **kwargs):
-            started.append((workflow_type, request))
+        async def start_workflow(self, workflow_type, *args, **kwargs):
+            started.append((workflow_type, args))
             return ExecutionResult(workflow_id="wf-1", run_id="run-1")
 
     await cli.start_edd_refinement_workflow(
@@ -122,8 +127,7 @@ async def test_start_workflow_threads_raw_modification_scope_into_request(
         ),
     )
 
-    request = started[0][1]
-    assert request["edd_input"]["modification_scope"] == [
-        "skill",
-        "docs/guide.md",
-    ]
+    workflow_type, args = started[0]
+    assert workflow_type == "EddRefinementWorkflow"
+    assert args[0] == str(input_file)
+    assert args[1] == "wf-1"
