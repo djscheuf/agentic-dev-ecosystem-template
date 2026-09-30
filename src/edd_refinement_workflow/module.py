@@ -8,6 +8,7 @@ from .activities.edd_plan import edd_plan_action
 from .activities.evaluate_candidate import evaluate_candidate_activity
 from .activities.initialize_run import initialize_run_activity
 from .activities.rerun_degraded_candidate import rerun_degraded_candidate_activity
+from .activities.renew_mutation_lease import renew_mutation_lease_activity
 from .activities.regression_recovery import (
     classify_regression_evidence_activity,
     human_handoff_activity,
@@ -51,6 +52,7 @@ ACTIVITY_TYPES = (
     "record_reverted_proposal_context",
     "publish_human_handoff",
     "human_handoff",
+    "renew_mutation_lease",
     "finalize_run",
 )
 ACTIVITIES = (
@@ -75,6 +77,7 @@ ACTIVITIES = (
     record_reverted_proposal_context_activity,
     publish_human_handoff_activity,
     human_handoff_activity,
+    renew_mutation_lease_activity,
     finalize_run_activity,
 )
 

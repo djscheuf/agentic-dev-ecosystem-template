@@ -54,6 +54,7 @@ def test_edd_refinement_module_declares_and_registers_accurate_spec() -> None:
         "record_reverted_proposal_context",
         "publish_human_handoff",
         "human_handoff",
+        "renew_mutation_lease",
         "finalize_run",
     )
     assert [name for name, _ in registry.workflows] == list(SPEC.workflow_types)

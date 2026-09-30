@@ -98,7 +98,16 @@ class EddRefinementWorkflow:
         baseline = record.get("baseline_metrics", {})
 
         result = {"record": record, "baseline": baseline}
+        lease_ttl = request.get("lease_ttl", 3600)
         while True:
+            await execute_activity(
+                "renew_mutation_lease",
+                dict,
+                repo_root,
+                record["run_id"],
+                lease_ttl,
+                start_to_close_timeout=timedelta(minutes=1),
+            )
             if "budgets" in record:
                 limit_decision = await execute_activity(
                     "check_refinement_limits",
@@ -163,6 +172,14 @@ class EddRefinementWorkflow:
             approved_diff_hash = None
             if planning.get("requires_approval"):
                 timeout_seconds = request.get("approval_timeout_seconds", 3600)
+                await execute_activity(
+                    "renew_mutation_lease",
+                    dict,
+                    repo_root,
+                    record["run_id"],
+                    lease_ttl,
+                    start_to_close_timeout=timedelta(minutes=1),
+                )
                 self._approval_request = await execute_activity(
                     "request_human_approval",
                     dict,

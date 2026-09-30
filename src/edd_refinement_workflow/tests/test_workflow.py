@@ -42,6 +42,8 @@ async def test_workflow_plan_out_of_scope_halts_with_scope_terminal_reason(
                     "paths": ["outside/hack.py"],
                 },
             }
+        if name == "renew_mutation_lease":
+            return {"renewed": True}
         if name == "finalize_run":
             finalize_reasons.append(args[1])
             return {"terminal_reason": args[1]}
@@ -124,6 +126,61 @@ async def test_workflow_diff_out_of_scope_halts_with_scope_terminal_reason(
 
 
 @pytest.mark.asyncio
+async def test_workflow_renews_mutation_lease_each_iteration_and_before_approval_wait(
+    tmp_path, monkeypatch
+) -> None:
+    preflight = PreflightResult(
+        status="success",
+        target_context=TargetRepositoryContext(
+            repo_root=tmp_path,
+            anchor_path="",
+            explicit_root=None,
+            branch="main",
+            starting_revision="abc123456",
+        ),
+    )
+    request = {
+        "workflow_run_id": "wf-1",
+        "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+        "proposed_diff_hash": "abc123",
+        "approval_timeout_seconds": 60,
+        "lease_ttl": 900,
+    }
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "initialize_run":
+            return {"run_id": "run-1"}
+        if name == "edd_plan":
+            return {
+                "action": "propose_evaluation_expectation_change",
+                "requires_approval": True,
+                "proposal_id": "proposal-1",
+                "proposed_diff_hash": "abc123",
+            }
+        if name == "request_human_approval":
+            return {"proposal_id": "proposal-1", "status": "pending"}
+        if name == "renew_mutation_lease":
+            assert args[1] == "run-1"
+            assert args[2] == 900
+            return {"renewed": True}
+        return {"proposal_id": "proposal-1", "status": "decided", "decision": "reject"}
+
+    workflow = EddRefinementWorkflow()
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+    monkeypatch.setattr(workflow, "_await_approval", lambda timeout: _result("reject"))
+
+    result = await workflow.run(preflight, request)
+
+    renew_positions = [i for i, n in enumerate(calls) if n == "renew_mutation_lease"]
+    assert len(renew_positions) == 2
+    assert calls.index("edd_plan") > renew_positions[0]
+    assert calls.index("request_human_approval") > renew_positions[1]
+    assert result["approved"] is False
+
+
+@pytest.mark.asyncio
 async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> None:
     preflight = PreflightResult(
         status="success",
@@ -160,6 +217,7 @@ async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> N
 
     assert calls == [
         "initialize_run",
+        "renew_mutation_lease",
         "edd_plan",
         "finalize_run",
     ]
@@ -530,6 +588,7 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
             "classify_regression_evidence": {"classification": "unstable_result"},
             "human_handoff": {"notified": True},
+            "renew_mutation_lease": {"renewed": True},
         }
         return responses[name]
 
@@ -574,6 +633,7 @@ async def test_workflow_compares_against_plans_frozen_iteration_start_baseline(
             # the frozen iteration_start_baseline (5).
             "check_candidate": {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {}, "measurement_context": "baseline"},
             "commit_accepted_candidate": {"candidate_id": "candidate-1", "commit": "commit-6"},
+            "renew_mutation_lease": {"renewed": True},
         }
         return responses[name]
 
@@ -615,6 +675,7 @@ async def test_workflow_threads_iteration_start_baseline_into_regression_rerun(
             "rerun_degraded_candidate": {"candidate_id": "candidate-1", "is_confirmation_rerun": True},
             "classify_regression_evidence": {"classification": "unstable_result"},
             "human_handoff": {"notified": True},
+            "renew_mutation_lease": {"renewed": True},
         }
         return responses[name]
 
@@ -649,6 +710,7 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
             "edd_do": {"status": "success"},
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             "check_candidate": {"candidate_id": "candidate-1", "status": "success"},
+            "renew_mutation_lease": {"renewed": True},
         }
         return responses[name]
 
@@ -746,6 +808,7 @@ async def test_workflow_accounts_plan_usage_and_stops_before_edd_do(
         },
         "check_refinement_limits": {"schedule_next_step": True, "stop_reason": "none"},
         "edd_plan": {"action": "repair", "usage_metrics": {"total_tokens": 99}},
+        "renew_mutation_lease": {"renewed": True},
         "finalize_run": {"terminal_reason": "token_budget"},
     }
 
@@ -796,6 +859,7 @@ async def test_workflow_across_execution_and_evaluation_accounts_and_gates_each_
         "edd_do": {"status": "success", "usage_metrics": {"total_tokens": 5}},
         "validate_candidate": {"status": "scope_valid", "candidate_id": "candidate-1"},
         "check_candidate": {"status": "success", "passing": 2, "usage_metrics": {"total_tokens": 6}},
+        "renew_mutation_lease": {"renewed": True},
         "finalize_run": {"terminal_reason": "token_budget"},
     }
 
