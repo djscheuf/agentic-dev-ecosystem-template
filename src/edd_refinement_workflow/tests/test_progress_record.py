@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -119,6 +120,30 @@ def test_progress_record_store_create_or_resume_is_idempotent(tmp_path) -> None:
     )
     assert resumed == record
     assert progress_path.read_text() == progress_path.read_text()
+
+
+def test_save_does_not_corrupt_existing_progress_on_torn_write(
+    tmp_path, monkeypatch
+) -> None:
+    store = ProgressRecordStore(tmp_path)
+    original = {"schema_version": 1, "run_id": "run-1", "state": "original"}
+    store.create_or_resume("run-1", original)
+    progress_path = tmp_path / ".process" / "edd" / "run-1" / "progress.json"
+
+    real_write_text = Path.write_text
+
+    def torn_write_text(self, data, *args, **kwargs):
+        real_write_text(self, data[:10])
+        raise OSError("simulated crash mid-write")
+
+    monkeypatch.setattr(Path, "write_text", torn_write_text)
+
+    with pytest.raises(OSError):
+        store.save(
+            "run-1", {"schema_version": 1, "run_id": "run-1", "state": "updated"}
+        )
+
+    assert json.loads(progress_path.read_text()) == original
 
 
 def test_for_v5_roundtrip_preserves_modification_scope_and_violations() -> None:
