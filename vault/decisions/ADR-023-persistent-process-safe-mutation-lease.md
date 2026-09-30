@@ -48,3 +48,12 @@ A lease from a terminated run failed to expire and blocked a fresh run minutes l
 Fix: `MutationLeaseStore.acquire`/`_expire` now store and compare a wall-clock `time.time()` dead-by value. `initialize_run`'s `mutation_lease` record now also carries a real `acquired_at` and `dead_by` epoch timestamp instead of the literal string `"now"`, so a held lease's liveness can be read directly from the progress record for the same repo-key scope.
 
 Lesson: never persist a `time.monotonic()` value for a liveness check that crosses process boundaries. Monotonic clocks are for measuring elapsed time within one process only; persisted deadlines need wall clock.
+
+## Update (2026-09-30): renewal + TTL decoupled from eval timeout
+
+Code review found two gaps: (a) the lease TTL was coupled to `eval_timeout_seconds`, so a long evaluation or approval wait could outlive the lease mid-run; (b) there was no way to extend a held lease.
+
+- `MutationLeaseStore` gained `renew(run_id)` — it extends the wall-clock `dead_by` only for the current lease holder, so it cannot resurrect or steal another run's lease.
+- A new `renew_mutation_lease` Cadence activity is scheduled once per loop iteration and before approval waits. The lease TTL is now an independent setting owned by the workflow-owned `preflight` activity, not derived from the evaluation timeout.
+- `finalize_run` treats lease-release failure as non-fatal: it records `lease_released: false` plus `lease_release_error` in `terminal.json` instead of aborting the terminal report.
+- Finalize-on-exit is now guaranteed for *every* terminal branch (not just exceptions) via a central `_finalize` in `EddRefinementWorkflow`; see the 2026-09-30 section of [[services/edd_refinement.md]].

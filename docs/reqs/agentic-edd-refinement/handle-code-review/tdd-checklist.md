@@ -25,7 +25,7 @@ Commit after every Green phase per `/git-commit` rules.
 - [x] T14 (CR-07): every terminal branch invokes `finalize_run` exactly once — approval rejected, execution failed, candidate rejected, regression handoff, budget stop, stop action, exception
 - [x] T15 (CR-07): `finalize_run` produces `terminal.json` and releases the lease even when restore/release raises (failure recorded)
 - [x] T16 (CR-06): external-target integration test — scratch git repo target, real skill-activity path, orchestration tree unchanged (AC-15)
-- [ ] T17: full suite green via `scripts/run_unit_tests.sh`; fix any collateral in `test_workflow.py`, `test_cli.py`, `test_module.py`, `test_initialize_run.py`
+- [x] T17: full suite green via `scripts/run_unit_tests.sh` (439 passed); collateral fixed in `test_workflow.py`, `test_cli.py`, `test_module.py`, `test_initialize_run.py`
 
 ### Current Phase: THINK complete — next is RED for T1
 ### Next Action: Write failing test for T1

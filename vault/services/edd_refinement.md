@@ -341,3 +341,15 @@ sentinel at the *default* `_sentinel_path` (next to the first input), while
 `.process/edd/<run_id>/.process/edd-plan.done.json` and the verifier then failed
 with "Missing sentinel". Rule: any `modify_sentinel_path` override must be
 applied in `build_prompt` too — it now is.
+
+## Code-review hardening: preflight, lease renew, finalize-everywhere (2026-09-30)
+
+> **Stale note:** the 2026-09-23 section above says "`initialize_run` is now the single Setup step" that runs the baseline inline, and ADR-023 lists the exception path as the only always-finalize guarantee. Both are superseded below.
+
+- **Preflight is workflow-owned.** `activities/preflight.py` (`PreflightActivity`, Cadence name `preflight`) runs target-repo discovery, cleanliness checks, and acquires the mutation lease inside the workflow. `cli.py` no longer performs preflight inline — it validates the input document and starts the workflow; the first scheduled activity is `preflight`, then `initialize_run`.
+- **Lease TTL is decoupled from `eval_timeout_seconds`.** The lease TTL now comes from preflight's own setting, and `MutationLeaseStore` gained `renew` (extends the wall-clock `dead_by` for the same run id). A new `renew_mutation_lease` activity is scheduled once per loop iteration and before approval waits, so long evaluations/approval holds can't let the lease lapse (see [[decisions/ADR-023-persistent-process-safe-mutation-lease.md]] update).
+- **Runners are per-invocation, target-rooted.** `EddPlanRunner`/`EddDoRunner` no longer hold process-global `SkillActivity` singletons; each `run()` builds an `EddPlanSkillActivity`/`EddDoSkillActivity` with `repo_root=<target>` (the CR-02 `harness_instance.REPO_ROOT` defect — activities resolved paths against the orchestration repo). `tests/test_external_target_integration.py` is the AC-15 proof: a scratch git repo as target, real runner path, orchestration `git status` byte-for-byte unchanged.
+- **Baseline is its own activity again.** `initialize_run` no longer evaluates the baseline inline; `run_baseline_evaluation` is scheduled separately with `eval_timeout_seconds` (a >5-minute baseline no longer times out against the 5-minute activity default), and it backfills `baseline` in `refinement.yaml` so `edd-plan` still sees it.
+- **Every terminal branch finalizes exactly once.** `EddRefinementWorkflow` gained a central `_finalize` helper and `_terminal_reason` field; early returns (approval rejected, execution failed, candidate rejected, regression `pending_human_review`, resumed-candidate return) set the reason and the run body finalizes after `_run` returns. Exceptions still finalize via `try/except`. `finalize_run` now survives a lease-release failure (`lease_released: false` + `lease_release_error` in `terminal.json`) instead of aborting.
+- **Limits use the real contract key.** `check_refinement_limits` enforces `limits.max_tokens`; invented keys were dropped.
+- **`scratch_globs` supports `**`.** `RepositoryStatusInspector` now tests both `Path.match` and `Path.full_match`, so `.process/**` actually matches nested run artifacts (`Path.match` treats `**` as a single `*`).
