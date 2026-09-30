@@ -46,15 +46,8 @@ class EddDoRunner:
         self,
         run_id: str,
         planning: dict,
-        approved_diff_hash: str | None,
         repo_root: str,
     ) -> ExecutionResult:
-        if planning.get("requires_approval"):
-            if approved_diff_hash is None:
-                raise ValueError("missing_approval")
-            if approved_diff_hash != planning.get("proposed_diff_hash"):
-                raise ValueError("diff_hash_mismatch")
-
         plan_path = planning.get("plan_path")
         if not plan_path:
             raise SkillActivityError(
@@ -132,11 +125,10 @@ EDD_DO_RUNNER = EddDoRunner()
 async def edd_do_action(
     run_id: str,
     planning: dict,
-    approved_diff_hash: str | None,
     repo_root: str,
 ) -> dict:
     result = await asyncio.to_thread(
-        EDD_DO_RUNNER.run, run_id, planning, approved_diff_hash, repo_root
+        EDD_DO_RUNNER.run, run_id, planning, repo_root
     )
     if result.observation:
         from ..refinement_log import append_refinement_outcome
