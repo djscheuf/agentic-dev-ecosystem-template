@@ -29,7 +29,10 @@ class RepositoryStatusInspector:
             if not line:
                 continue
             path = line[3:].strip()
-            if any(Path(path).match(glob) for glob in scratch_globs):
+            if any(
+                Path(path).match(glob) or Path(path).full_match(glob)
+                for glob in scratch_globs
+            ):
                 continue
             if line.startswith("??"):
                 untracked.append(path)
