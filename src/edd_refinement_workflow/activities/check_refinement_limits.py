@@ -11,14 +11,10 @@ def check_refinement_limits(progress_record: dict, next_step_estimate: int = 0) 
         ),
         (
             "token_budget",
-            "token_budget" in budgets
-            and progress_record.get("cumulative_token_usage", 0) >= budgets["token_budget"],
-        ),
-        (
-            "hard_limit",
-            "hard_token_limit" in budgets
-            and progress_record.get("cumulative_token_usage", 0) + next_step_estimate
-            > budgets["hard_token_limit"],
+            "max_tokens" in budgets
+            and progress_record.get("cumulative_token_usage", 0)
+            + next_step_estimate
+            >= budgets["max_tokens"],
         ),
         (
             "regression_threshold",
