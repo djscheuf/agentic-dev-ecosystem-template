@@ -26,8 +26,9 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-021: EDD Evaluation Commands May Exit Non-Zero and Inspect Commands Return Raw Result Lists](decisions/ADR-021-edd-evaluation-command-contracts.md)
 - [ADR-022: Capture Raw EDD Evaluation Command Artifacts](decisions/ADR-022-edd-evaluation-command-artifacts.md)
 - [ADR-023: Persistent, Process-Safe Mutation Lease for EDD](decisions/ADR-023-persistent-process-safe-mutation-lease.md)
+- [ADR-024: Approval for Evaluation-Expectation Changes is Decoupled from Diff Hash](decisions/ADR-024-approval-decoupled-from-diff-hash.md)
 
- 
+
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)
