@@ -89,7 +89,7 @@ class RevertRepositoryToBestActivity:
 
 def classify_regression_evidence(original: dict, confirmation: dict, best_state: dict) -> dict:
     best = best_state["metrics"]
-    if confirmation.get("status") in {"error", "timeout", "infrastructure_error"}:
+    if confirmation.get("status") in {"error", "timeout", "infrastructure_error", "infra_error"}:
         classification = "suspected_flakiness"
     elif confirmation.get("measurement_context") != best.get("measurement_context"):
         classification = "suspected_flakiness"
