@@ -53,6 +53,19 @@ class MutationLeaseStore:
 
         return self._atomic(_mutate)
 
+    def renew(self, repo_key: str, run_id: str, ttl: int) -> bool:
+        def _mutate(leases: dict[str, tuple[str, str, float]]) -> bool:
+            self._expire(leases)
+            if repo_key not in leases:
+                return False
+            held_run_id, token, _ = leases[repo_key]
+            if held_run_id != run_id:
+                return False
+            leases[repo_key] = (held_run_id, token, time.time() + ttl)
+            return True
+
+        return self._atomic(_mutate)
+
     def is_held(self, repo_key: str) -> bool:
         def _read(leases: dict[str, tuple[str, str, float]]) -> bool:
             self._expire(leases)

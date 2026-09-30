@@ -34,6 +34,44 @@ def test_expired_lease_is_not_held() -> None:
     assert store.is_held("repo") is False
 
 
+def test_renew_extends_dead_by_for_holding_run(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "leases.json"
+    monkeypatch.setattr(mutation_lease_store.time, "time", lambda: 1_000.0)
+    store = MutationLeaseStore(path)
+    store.acquire(repo_key="repo", run_id="run-1", ttl=60)
+
+    monkeypatch.setattr(mutation_lease_store.time, "time", lambda: 1_050.0)
+    renewed = store.renew(repo_key="repo", run_id="run-1", ttl=120)
+    assert renewed is True
+
+    # Original deadline (1_060) passed, but renewed deadline (1_170) holds.
+    monkeypatch.setattr(mutation_lease_store.time, "time", lambda: 1_100.0)
+    assert store.is_held("repo") is True
+    assert store.acquire(repo_key="repo", run_id="run-2", ttl=60) is None
+
+
+def test_renew_rejects_non_holder_and_expired_lease(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "leases.json"
+    monkeypatch.setattr(mutation_lease_store.time, "time", lambda: 1_000.0)
+    store = MutationLeaseStore(path)
+    store.acquire(repo_key="repo", run_id="run-1", ttl=60)
+
+    assert store.renew(repo_key="repo", run_id="run-2", ttl=120) is False
+
+    monkeypatch.setattr(mutation_lease_store.time, "time", lambda: 1_200.0)
+    assert store.renew(repo_key="repo", run_id="run-1", ttl=120) is False
+
+
+def test_release_after_renew_frees_repo_key(tmp_path) -> None:
+    store = MutationLeaseStore(tmp_path / "leases.json")
+    store.acquire(repo_key="repo", run_id="run-1", ttl=60)
+    store.renew(repo_key="repo", run_id="run-1", ttl=60)
+    store.release(repo_key="repo", run_id="run-1")
+
+    assert store.is_held("repo") is False
+    assert store.acquire(repo_key="repo", run_id="run-2", ttl=60) is not None
+
+
 def test_file_backed_store_shares_leases_across_instances(tmp_path) -> None:
     path = tmp_path / "leases.json"
     store1 = MutationLeaseStore(path)
