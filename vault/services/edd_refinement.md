@@ -353,3 +353,13 @@ applied in `build_prompt` too — it now is.
 - **Every terminal branch finalizes exactly once.** `EddRefinementWorkflow` gained a central `_finalize` helper and `_terminal_reason` field; early returns (approval rejected, execution failed, candidate rejected, regression `pending_human_review`, resumed-candidate return) set the reason and the run body finalizes after `_run` returns. Exceptions still finalize via `try/except`. `finalize_run` now survives a lease-release failure (`lease_released: false` + `lease_release_error` in `terminal.json`) instead of aborting.
 - **Limits use the real contract key.** `check_refinement_limits` enforces `limits.max_tokens`; invented keys were dropped.
 - **`scratch_globs` supports `**`.** `RepositoryStatusInspector` now tests both `Path.match` and `Path.full_match`, so `.process/**` actually matches nested run artifacts (`Path.match` treats `**` as a single `*`).
+
+## Atomic, locked progress.json writes (2026-09-30)
+
+`ProgressRecordStore` no longer writes `progress.json` with a bare
+`write_text`. Both `create_or_resume` and `save` go through `_write_atomic`
+(tmp file + `replace`, same pattern as `terminal.json`), and every store
+operation holds an exclusive `fcntl.flock` on a sibling `progress.lock` —
+the same advisory-lock pattern as `MutationLeaseStore`. A worker killed
+mid-write can no longer leave a torn `progress.json`, and concurrent
+activity processes serialize read-modify-write sequences per run id.
