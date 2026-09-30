@@ -1,5 +1,10 @@
+import json
+import subprocess
+from pathlib import Path
+
 import pytest
 
+from common.harness import HarnessResult
 from common.skill_activity import SkillActivityError, SkillActivityOutput
 from edd_refinement_workflow.activities.edd_do import EddDoRunner, edd_do_action
 from edd_refinement_workflow.candidate_results import ExecutionResult, UsageMetrics
@@ -159,6 +164,62 @@ def test_edd_do_writes_do_json_next_to_plan(monkeypatch, tmp_path) -> None:
     assert do["diff_hash"] == result.diff_hash
     assert do["usage_metrics"]["total_tokens"] == 150
     assert do["duration_ms"] == 250
+
+
+def test_edd_do_roots_harness_sentinel_and_diff_in_target_repository(tmp_path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    subprocess.run(["git", "init"], cwd=target, check=True, capture_output=True)
+    (target / "tracked.txt").write_text("v1")
+    subprocess.run(["git", "-C", str(target), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(target), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "init"],
+        check=True,
+        capture_output=True,
+    )
+
+    plan_rel = ".process/edd/run-1/iterations/1/plan.json"
+    plan_abs = target / plan_rel
+    plan_abs.parent.mkdir(parents=True)
+    plan_abs.write_text("{}")
+
+    harness_calls = []
+
+    class DoHarness:
+        def run(self, prompt, *, cwd, config=None):
+            cwd = Path(cwd)
+            harness_calls.append(cwd)
+            (cwd / "tracked.txt").write_text("v2")
+            sentinel = (
+                cwd
+                / ".process/edd/run-1/iterations/1/.process/edd-do.done.json"
+            )
+            sentinel.parent.mkdir(parents=True, exist_ok=True)
+            sentinel.write_text(
+                json.dumps(
+                    {"task": "edd-do", "verify_params": {"plan_path": plan_rel}}
+                )
+            )
+            return HarnessResult(exit_code=0, stdout="", stderr="")
+
+    runner = EddDoRunner(harness=DoHarness())
+    result = runner.run(
+        "run-1",
+        {"action": "repair", "plan_path": plan_rel},
+        None,
+        str(target),
+    )
+
+    from edd_refinement_workflow.activities.harness_instance import REPO_ROOT
+
+    assert harness_calls == [target]
+    assert harness_calls[0] != REPO_ROOT
+    assert (
+        target / ".process/edd/run-1/iterations/1/.process/edd-do.done.json"
+    ).exists()
+    assert result.status == "success"
+    assert result.changed_files == ["tracked.txt"]
+    assert plan_abs.with_name("do.json").exists()
 
 
 def test_edd_do_reports_harness_failure_as_failed_result(tmp_path) -> None:

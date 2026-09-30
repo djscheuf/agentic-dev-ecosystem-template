@@ -9,7 +9,7 @@ from cadence import activity
 from common.scoped_path_validator import PathScopeChecker
 from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 
-from .harness_instance import HARNESS, REPO_ROOT
+from .harness_instance import HARNESS
 
 
 def _get_activity_logger() -> logging.Logger:
@@ -59,11 +59,6 @@ class EddPlanSkillActivity(SkillActivity):
         return sentinel_path
 
 
-EDD_PLAN_ACTIVITY = EddPlanSkillActivity(
-    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS, repo_root=REPO_ROOT
-)
-
-
 class EddPlanRunner:
     """Deterministic budget/regression gate wrapping the agentic `edd-plan` skill.
 
@@ -75,8 +70,23 @@ class EddPlanRunner:
     budgets).
     """
 
-    def __init__(self, skill_activity: SkillActivity | None = None) -> None:
-        self.skill_activity = skill_activity or EDD_PLAN_ACTIVITY
+    def __init__(
+        self,
+        skill_activity: SkillActivity | None = None,
+        harness=None,
+    ) -> None:
+        self.skill_activity = skill_activity
+        self.harness = harness or HARNESS
+
+    def _build_skill_activity(
+        self, repo_root: str, input_parent: str | None
+    ) -> "EddPlanSkillActivity":
+        return EddPlanSkillActivity(
+            input_parent=input_parent,
+            config_path=Path(__file__).with_suffix(".config.json"),
+            harness=self.harness,
+            repo_root=Path(repo_root),
+        )
 
     def _remaining_iterations(self, budgets: dict, progress_record: dict) -> int | None:
         remaining = budgets.get("remaining_iterations")
@@ -149,14 +159,9 @@ class EddPlanRunner:
             str(path.relative_to(repo_root)) for path in check_paths
         ]
 
-        skill_activity = self.skill_activity
-        if isinstance(skill_activity, EddPlanSkillActivity) and input_parent:
-            skill_activity = EddPlanSkillActivity(
-                input_parent=input_parent,
-                config_path=Path(__file__).with_suffix(".config.json"),
-                harness=HARNESS,
-                repo_root=REPO_ROOT,
-            )
+        skill_activity = self.skill_activity or self._build_skill_activity(
+            repo_root, input_parent
+        )
 
         output = skill_activity.execute(
             SkillActivityInput(

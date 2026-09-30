@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,6 +72,58 @@ def test_edd_plan_stops_after_three_consecutive_regressions() -> None:
 
     assert result.action == "stop"
     assert skill.calls == []
+
+
+class RecordingHarness:
+    """Harness that records the invocation cwd and writes the plan.json +
+    sentinel a real edd-plan run would, relative to that cwd."""
+
+    def __init__(self):
+        self.calls = []
+
+    def run(self, prompt, *, cwd, config=None):
+        from common.harness import HarnessResult
+
+        cwd = Path(cwd)
+        self.calls.append({"prompt": prompt, "cwd": cwd, "config": config})
+        plan_rel = Path(".process/edd/run-1/iterations/1/plan.json")
+        _write_plan(cwd / plan_rel)
+        sentinel = cwd / ".process/edd/run-1/.process/edd-plan.done.json"
+        sentinel.parent.mkdir(parents=True, exist_ok=True)
+        sentinel.write_text(
+            json.dumps(
+                {
+                    "task": "edd-plan",
+                    "verify_params": {"plan_path": str(plan_rel)},
+                }
+            )
+        )
+        return HarnessResult(exit_code=0, stdout="", stderr="")
+
+
+def test_edd_plan_roots_skill_execution_in_target_repository(tmp_path) -> None:
+    target = tmp_path / "target"
+    (target / ".process" / "edd" / "run-1").mkdir(parents=True)
+    (target / ".process" / "edd" / "run-1" / "refinement.yaml").write_text("iterations: []")
+
+    harness = RecordingHarness()
+    runner = EddPlanRunner(harness=harness)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+        "modification_scope": ["skill/"],
+    }
+
+    result = runner.run("run-1", str(target), progress_record, {"passing": 5})
+
+    from edd_refinement_workflow.activities.harness_instance import REPO_ROOT
+
+    assert harness.calls[0]["cwd"] == target
+    assert harness.calls[0]["cwd"] != REPO_ROOT
+    sentinel = target / ".process/edd/run-1/.process/edd-plan.done.json"
+    assert sentinel.exists()
+    assert result.action == "repair"
+    assert result.plan_path == ".process/edd/run-1/iterations/1/plan.json"
 
 
 def test_edd_plan_invokes_edd_plan_skill_and_reads_its_plan_json(tmp_path) -> None:

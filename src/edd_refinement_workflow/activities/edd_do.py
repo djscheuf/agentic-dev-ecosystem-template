@@ -10,7 +10,7 @@ from cadence import activity
 from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 
 from ..candidate_results import ExecutionResult, UsageMetrics
-from .harness_instance import HARNESS, REPO_ROOT
+from .harness_instance import HARNESS
 
 
 class EddDoSkillActivity(SkillActivity):
@@ -20,11 +20,6 @@ class EddDoSkillActivity(SkillActivity):
         return Path(skill_input.input_paths[0])
 
 
-EDD_DO_ACTIVITY = EddDoSkillActivity(
-    config_path=Path(__file__).with_suffix(".config.json"), harness=HARNESS, repo_root=REPO_ROOT
-)
-
-
 class EddDoRunner:
     """Applies the plan's single refinement action via the agentic `edd-do` skill,
     then measures the diff it produced. Approval gating for
@@ -32,8 +27,20 @@ class EddDoRunner:
     the skill itself.
     """
 
-    def __init__(self, skill_activity: SkillActivity | None = None) -> None:
-        self.skill_activity = skill_activity or EDD_DO_ACTIVITY
+    def __init__(
+        self,
+        skill_activity: SkillActivity | None = None,
+        harness=None,
+    ) -> None:
+        self.skill_activity = skill_activity
+        self.harness = harness or HARNESS
+
+    def _build_skill_activity(self, repo_root: str) -> "EddDoSkillActivity":
+        return EddDoSkillActivity(
+            config_path=Path(__file__).with_suffix(".config.json"),
+            harness=self.harness,
+            repo_root=Path(repo_root),
+        )
 
     def run(
         self,
@@ -54,8 +61,9 @@ class EddDoRunner:
                 "planning result is missing plan_path; cannot invoke edd-do"
             )
 
+        skill_activity = self.skill_activity or self._build_skill_activity(repo_root)
         try:
-            output = self.skill_activity.execute(
+            output = skill_activity.execute(
                 SkillActivityInput(input_paths=[plan_path])
             )
         except SkillActivityError as exc:
