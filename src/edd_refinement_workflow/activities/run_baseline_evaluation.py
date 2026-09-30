@@ -172,6 +172,18 @@ class RunBaselineEvaluationActivity:
         record["attempts"] = record.get("attempts", []) + [attempt]
         record["baseline_metrics"] = metric
         self.store.save(run_id, record)
+
+        # Backfill the baseline section of refinement.yaml, which
+        # initialize_run wrote before the baseline existed (CR-04).
+        refinement_path = (
+            Path(repo_root) / ".process" / "edd" / run_id / "refinement.yaml"
+        )
+        if refinement_path.exists():
+            import yaml
+
+            context = yaml.safe_load(refinement_path.read_text())
+            context["baseline"] = metric
+            refinement_path.write_text(yaml.safe_dump(context, sort_keys=False))
         return metric
 
 

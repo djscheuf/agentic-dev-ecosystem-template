@@ -108,19 +108,6 @@ class InitializeRunActivity:
             "dead_by": acquired_at + lease_ttl,
         }
 
-    def _run_baseline_check(
-        self,
-        run_id: str,
-        repo_root: str,
-    ) -> dict:
-        from .check_candidate import CheckCandidateActivity
-        from .evaluate_candidate import _run_evaluation_command
-
-        return CheckCandidateActivity(
-            self.factory.store,
-            self.check_harness or _run_evaluation_command,
-        ).run(run_id, "baseline", repo_root)
-
     def _write_refinement_context(
         self,
         repo_root: str,
@@ -225,10 +212,6 @@ class InitializeRunActivity:
             created["modification_scope"] = modification_scope
             self.factory.store.save(run_id, created)
 
-            baseline_check = self._run_baseline_check(run_id, repo_root)
-            created["baseline_metrics"] = baseline_check["metrics"]
-            self.factory.store.save(run_id, created)
-
             if edd_input is not None:
                 self._write_refinement_context(
                     repo_root,
@@ -236,7 +219,7 @@ class InitializeRunActivity:
                     workflow_run_id,
                     edd_input,
                     input_parent,
-                    baseline_check["metrics"],
+                    baseline={},
                 )
         else:
             created["target_repository"] = repo_root

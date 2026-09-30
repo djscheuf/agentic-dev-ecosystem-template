@@ -34,13 +34,18 @@ def _sample_edd_input(input_path: str = "/repo/edd-input.json") -> dict:
 
 def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     events = []
+    harness_calls = []
 
     def on_event(name: str, **data: Any) -> None:
         events.append((name, data))
 
+    def spy_harness(**kwargs) -> dict:
+        harness_calls.append(kwargs)
+        return _fake_harness(**kwargs)
+
     factory = ProgressRecordFactory(ProgressRecordStore(tmp_path))
     activity = InitializeRunActivity(
-        factory, on_event=on_event, check_harness=_fake_harness
+        factory, on_event=on_event, check_harness=spy_harness
     )
 
     preflight = PreflightResult(
@@ -109,8 +114,12 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert (
         tmp_path / ".process" / "edd" / record["run_id"] / "progress.json"
     ).exists()
-    assert record["baseline_metrics"]["passing"] == 5
-    assert (
+    # Baseline evaluation is a separate workflow activity scheduled after
+    # initialize_run with the eval timeout (CR-04); initialize_run only
+    # prepares the record and the lease.
+    assert "baseline_metrics" not in record
+    assert harness_calls == []
+    assert not (
         tmp_path
         / ".process"
         / "edd"
@@ -125,7 +134,7 @@ def test_initialize_run_creates_record_and_emits_event(tmp_path) -> None:
     assert refinement_path.exists()
     refinement = yaml.safe_load(refinement_path.read_text())
     assert refinement["edd_input"] == edd_input
-    assert refinement["baseline"]["passing"] == 5
+    assert refinement["baseline"] == {}
     assert refinement["iterations"] == []
     assert any(name == "InitializeRun" for name, _ in events)
 

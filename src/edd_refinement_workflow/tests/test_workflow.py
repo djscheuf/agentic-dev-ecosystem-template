@@ -202,6 +202,52 @@ async def test_workflow_renews_mutation_lease_each_iteration_and_before_approval
 
 
 @pytest.mark.asyncio
+async def test_workflow_schedules_baseline_evaluation_with_eval_timeout(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "preflight":
+            return _preflight_output(
+                tmp_path,
+                {
+                    "workflow_run_id": "wf-1",
+                    "profile": {"command": ["x"], "provider": "p", "timeout": 900},
+                },
+            )
+        if name == "initialize_run":
+            return {"run_id": "run-1"}
+        if name == "run_baseline_evaluation":
+            assert args[0] == "run-1"
+            assert args[2] == str(tmp_path)
+            assert kwargs["start_to_close_timeout"] == timedelta(seconds=900)
+            return {"passing": 5}
+        if name == "renew_mutation_lease":
+            return {"renewed": True}
+        if name == "edd_plan":
+            return {"action": "stop"}
+        if name == "finalize_run":
+            return {"terminal_reason": "done"}
+        raise AssertionError(f"unexpected activity: {name}")
+
+    monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
+
+    result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
+
+    assert calls == [
+        "preflight",
+        "initialize_run",
+        "run_baseline_evaluation",
+        "renew_mutation_lease",
+        "edd_plan",
+        "finalize_run",
+    ]
+    assert result["baseline"]["passing"] == 5
+
+
+@pytest.mark.asyncio
 async def test_workflow_with_stop_plan_finalizes_run(tmp_path, monkeypatch) -> None:
     request = {
         "workflow_run_id": "wf-1",

@@ -120,7 +120,19 @@ class EddRefinementWorkflow:
                     "terminal_result": terminal_result,
                 }
 
-        baseline = record.get("baseline_metrics", {})
+        baseline = record.get("baseline_metrics")
+        if baseline is None:
+            baseline = await execute_activity(
+                "run_baseline_evaluation",
+                dict,
+                record["run_id"],
+                request["profile"],
+                repo_root,
+                start_to_close_timeout=timedelta(
+                    seconds=request["profile"]["timeout"]
+                ),
+            )
+            record["baseline_metrics"] = baseline
 
         result = {"record": record, "baseline": baseline}
         lease_ttl = request.get("lease_ttl", 3600)
