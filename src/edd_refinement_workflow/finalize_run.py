@@ -36,7 +36,13 @@ class FinalizeRunActivity:
                 restore_succeeded = True
             except Exception:
                 restore_succeeded = False
-        self.release_lease(run_id)
+        lease_released = True
+        lease_release_error = None
+        try:
+            self.release_lease(run_id)
+        except Exception as exc:
+            lease_released = False
+            lease_release_error = str(exc)
 
         report_path = f".process/edd/{run_id}/terminal.json"
         result = {
@@ -60,6 +66,8 @@ class FinalizeRunActivity:
             "restore_succeeded": restore_succeeded,
             "target_repository": record.get("target_repository"),
             "final_commit": accepted_commit or record.get("starting_revision"),
+            "lease_released": lease_released,
+            "lease_release_error": lease_release_error,
             "lease_released_at": self.now(),
             "report_path": report_path,
         }
@@ -69,7 +77,7 @@ class FinalizeRunActivity:
         temporary_path.write_text(json.dumps(result, indent=2, sort_keys=True))
         temporary_path.replace(path)
         record["terminal_result"] = result
-        record["lease_released"] = True
+        record["lease_released"] = lease_released
         record["terminal_report_path"] = report_path
         self.store.save(run_id, record)
         return result

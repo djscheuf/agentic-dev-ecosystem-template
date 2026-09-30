@@ -41,6 +41,8 @@ async def test_workflow_starts_from_document_path_and_schedules_preflight_first(
             return _preflight_output(tmp_path, request)
         if name == "initialize_run":
             return {"run_id": "run-1", "candidate": {"candidate_id": "c-1"}}
+        if name == "finalize_run":
+            return {"terminal_reason": args[1]}
         raise AssertionError(f"unexpected activity: {name}")
 
     request = {"workflow_run_id": "wf-1", "profile": {"command": ["x"]}}
@@ -361,15 +363,22 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
             }
         if name == "request_human_approval":
             return {"proposal_id": "proposal-1", "status": "pending"}
+        if name == "finalize_run":
+            finalize_reasons.append(args[1])
+            return {"terminal_reason": args[1]}
         return {"proposal_id": "proposal-1", "status": "decided", "decision": "timeout"}
 
+    finalize_reasons = []
     workflow = EddRefinementWorkflow()
     monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
     monkeypatch.setattr(workflow, "_await_approval", lambda timeout: _result("timeout"))
 
     result = await workflow.run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert calls[-2:] == ["request_human_approval", "record_human_approval_decision"]
+    assert calls[-3:-1] == ["request_human_approval", "record_human_approval_decision"]
+    assert calls[-1] == "finalize_run"
+    assert finalize_reasons == ["approval_timeout"]
+    assert result["terminal_result"]["terminal_reason"] == "approval_timeout"
     assert result["approval"]["decision"] == "timeout"
     assert result["approved"] is False
     assert result["next_state"] == "planning"
@@ -446,7 +455,7 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
     result = await workflow.run(INPUT_DOCUMENT_PATH, "wf-1")
 
     assert "record_human_approved_evaluation_change" in calls
-    assert calls[-2:] == ["edd_do", "validate_candidate"]
+    assert calls[-3:] == ["edd_do", "validate_candidate", "finalize_run"]
     assert result["applied_change"]["applied_diff_hash"] == "abc123"
 
 
@@ -483,10 +492,11 @@ async def test_workflow_with_valid_candidate_invokes_candidate_evaluation(
 
     result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert calls[-3:] == [
+    assert calls[-4:] == [
         "edd_do",
         "validate_candidate",
         "check_candidate",
+        "finalize_run",
     ]
     assert result["candidate"]["status"] == "scope_valid"
     assert result["candidate_evaluation"]["passing"] == 6
@@ -509,6 +519,8 @@ async def test_workflow_resumes_persisted_candidate_without_rerunning_harness(
                     "profile": {"command": ["x"], "provider": "p", "timeout": 1},
                 },
             )
+        if name == "finalize_run":
+            return {"terminal_reason": args[1]}
         return {"run_id": "run-1", "candidate": candidate}
 
     monkeypatch.setattr(
@@ -517,7 +529,8 @@ async def test_workflow_resumes_persisted_candidate_without_rerunning_harness(
 
     result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert calls == ["preflight", "initialize_run"]
+    assert calls == ["preflight", "initialize_run", "finalize_run"]
+    assert result["terminal_result"]["terminal_reason"] == "completed"
     assert result["candidate"] == candidate
 
 
@@ -541,7 +554,58 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
             return {"run_id": "run-1", "baseline_metrics": {"passing": 5}}
         if name == "edd_plan":
             return {"action": "repair", "intended_files": ["src/skill.py"]}
+        if name == "finalize_run":
+            finalize_reasons.append(args[1])
+            return {"terminal_reason": args[1]}
         return {"status": "failed", "failure_reason": "harness_failure:1"}
+
+    finalize_reasons = []
+    monkeypatch.setattr(
+        "edd_refinement_workflow.workflow.execute_activity", mock_execute
+    )
+
+    result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
+
+    assert calls[-2] == "edd_do"
+    assert calls[-1] == "finalize_run"
+    assert finalize_reasons == ["execution_failed"]
+    assert result["terminal_result"]["terminal_reason"] == "execution_failed"
+    assert "candidate" not in result
+
+
+@pytest.mark.asyncio
+async def test_workflow_finalizes_when_candidate_is_rejected(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+    finalize_reasons = []
+
+    async def mock_execute(name: str, result_type, *args, **kwargs) -> dict:
+        calls.append(name)
+        if name == "preflight":
+            return _preflight_output(
+                tmp_path,
+                {
+                    "workflow_run_id": "wf-1",
+                    "profile": {"command": ["x"], "provider": "p", "timeout": 1},
+                },
+            )
+        if name == "initialize_run":
+            return {"run_id": "run-1", "baseline_metrics": {"passing": 5}}
+        if name == "edd_plan":
+            return {"action": "repair", "intended_files": ["src/skill.py"]}
+        if name == "edd_do":
+            return {"status": "success", "changed_files": ["src/skill.py"]}
+        if name == "validate_candidate":
+            return {
+                "candidate_id": "candidate-1",
+                "status": "rejected",
+                "rejection_reason": "no_value",
+            }
+        if name == "finalize_run":
+            finalize_reasons.append(args[1])
+            return {"terminal_reason": args[1]}
+        return {}
 
     monkeypatch.setattr(
         "edd_refinement_workflow.workflow.execute_activity", mock_execute
@@ -549,8 +613,10 @@ async def test_workflow_creates_no_candidate_when_execution_fails(
 
     result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert calls[-1] == "edd_do"
-    assert "candidate" not in result
+    assert finalize_reasons == ["candidate_rejected"]
+    assert calls.count("finalize_run") == 1
+    assert result["terminal_result"]["terminal_reason"] == "candidate_rejected"
+    assert result["candidate"]["status"] == "rejected"
 
 
 @pytest.mark.asyncio
@@ -582,7 +648,7 @@ async def test_workflow_with_accepted_comparison_commits_candidate(tmp_path, mon
 
     result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert [name for name, _ in calls][-2:] == ["check_candidate", "commit_accepted_candidate"]
+    assert [name for name, _ in calls][-3:] == ["check_candidate", "commit_accepted_candidate", "finalize_run"]
     assert result["comparison"]["decision"] == "accept"
     assert result["best_accepted_state"]["commit"] == "commit-1"
 
@@ -610,6 +676,10 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
             "human_handoff": {"notified": True},
             "renew_mutation_lease": {"renewed": True},
         }
+        if name == "finalize_run":
+            return {"terminal_reason": args[1]}
+        if name == "preflight":
+            return _preflight_output(tmp_path, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
         return responses[name]
 
     monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
@@ -617,8 +687,10 @@ async def test_workflow_with_degraded_comparison_reruns_candidate(tmp_path, monk
 
     result = await EddRefinementWorkflow().run(INPUT_DOCUMENT_PATH, "wf-1")
 
-    assert [name for name, _ in calls][-4:] == ["check_candidate", "rerun_degraded_candidate", "classify_regression_evidence", "human_handoff"]
-    assert calls[-3][1][1] == "candidate-1"
+    assert [name for name, _ in calls][-5:] == ["check_candidate", "rerun_degraded_candidate", "classify_regression_evidence", "human_handoff", "finalize_run"]
+    assert calls[-4][1][1] == "candidate-1"
+    assert calls[-1][1][1] == "pending_human_review"
+    assert result["terminal_result"]["terminal_reason"] == "pending_human_review"
     assert result["confirmation_rerun"]["is_confirmation_rerun"] is True
     assert result["regression_recovery"]["next_state"] == "pending_human_review"
     assert calls[-1][1][-1] == str(tmp_path)
@@ -653,6 +725,7 @@ async def test_workflow_compares_against_plans_frozen_iteration_start_baseline(
             "check_candidate": {"candidate_id": "candidate-1", "passing": 6, "required_coverage": {}, "measurement_context": "baseline"},
             "commit_accepted_candidate": {"candidate_id": "candidate-1", "commit": "commit-6"},
             "renew_mutation_lease": {"renewed": True},
+            "finalize_run": {"terminal_reason": "completed"},
         }
         if name == "preflight":
             return _preflight_output(tmp_path, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
@@ -696,6 +769,7 @@ async def test_workflow_threads_iteration_start_baseline_into_regression_rerun(
             "classify_regression_evidence": {"classification": "unstable_result"},
             "human_handoff": {"notified": True},
             "renew_mutation_lease": {"renewed": True},
+            "finalize_run": {"terminal_reason": "pending_human_review"},
         }
         if name == "preflight":
             return _preflight_output(tmp_path, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 1}})
@@ -732,6 +806,7 @@ async def test_workflow_when_evaluating_candidate_applies_retry_policy(tmp_path,
             "validate_candidate": {"candidate_id": "candidate-1", "status": "scope_valid"},
             "check_candidate": {"candidate_id": "candidate-1", "status": "success"},
             "renew_mutation_lease": {"renewed": True},
+            "finalize_run": {"terminal_reason": "completed"},
         }
         if name == "preflight":
             return _preflight_output(tmp_path, {"workflow_run_id": "wf-1", "profile": {"command": ["x"], "provider": "p", "timeout": 30, "retry_policy": {"maximum_attempts": 3, "initial_interval_seconds": 2}}})

@@ -37,8 +37,9 @@ class EddRefinementWorkflow:
         self._record = None
         self._repo_root = None
         self._finalized = False
+        self._terminal_reason = None
         try:
-            return await self._run(input_document_path, workflow_id)
+            result = await self._run(input_document_path, workflow_id)
         except Exception as exc:
             if (
                 self._record is not None
@@ -46,18 +47,36 @@ class EddRefinementWorkflow:
                 and not self._finalized
             ):
                 try:
-                    await execute_activity(
-                        "finalize_run",
-                        dict,
+                    await self._finalize(
                         self._record["run_id"],
                         getattr(exc, "terminal_reason", "workflow_exception"),
                         self._repo_root,
-                        start_to_close_timeout=timedelta(minutes=5),
                     )
                 except Exception:
                     pass
-                self._finalized = True
             raise
+        if (
+            self._record is not None
+            and self._repo_root is not None
+            and not self._finalized
+        ):
+            result["terminal_result"] = await self._finalize(
+                self._record["run_id"],
+                self._terminal_reason or "completed",
+                self._repo_root,
+            )
+        return result
+
+    async def _finalize(self, run_id: str, reason: str, repo_root: str) -> dict:
+        self._finalized = True
+        return await execute_activity(
+            "finalize_run",
+            dict,
+            run_id,
+            reason,
+            repo_root,
+            start_to_close_timeout=timedelta(minutes=5),
+        )
 
     async def _run(self, input_document_path: str, workflow_id: str):
         preflight_output = await execute_activity(
@@ -91,12 +110,12 @@ class EddRefinementWorkflow:
             start_to_close_timeout=timedelta(minutes=5),
         )
         self._record = record
+        repo_root = str(preflight_result.target_context.repo_root)
+        self._repo_root = repo_root
         if record.get("candidate") is not None:
             self._candidate = record["candidate"]
             return {"record": record, "candidate": record["candidate"]}
 
-        repo_root = str(preflight_result.target_context.repo_root)
-        self._repo_root = repo_root
         if "budgets" in record:
             limit_decision = await execute_activity(
                 "check_refinement_limits",
@@ -106,13 +125,10 @@ class EddRefinementWorkflow:
                 start_to_close_timeout=timedelta(minutes=5),
             )
             if not limit_decision["schedule_next_step"]:
-                terminal_result = await execute_activity(
-                    "finalize_run",
-                    dict,
+                terminal_result = await self._finalize(
                     record["run_id"],
                     limit_decision["stop_reason"],
                     repo_root,
-                    start_to_close_timeout=timedelta(minutes=5),
                 )
                 return {
                     "record": record,
@@ -154,13 +170,10 @@ class EddRefinementWorkflow:
                     start_to_close_timeout=timedelta(minutes=5),
                 )
                 if not limit_decision["schedule_next_step"]:
-                    result["terminal_result"] = await execute_activity(
-                        "finalize_run",
-                        dict,
+                    result["terminal_result"] = await self._finalize(
                         record["run_id"],
                         limit_decision["stop_reason"],
                         repo_root,
-                        start_to_close_timeout=timedelta(minutes=5),
                     )
                     return result
 
@@ -186,23 +199,17 @@ class EddRefinementWorkflow:
                     record, planning, "planning", repo_root
                 )
                 if not limit_decision["schedule_next_step"]:
-                    result["terminal_result"] = await execute_activity(
-                        "finalize_run",
-                        dict,
+                    result["terminal_result"] = await self._finalize(
                         record["run_id"],
                         limit_decision["stop_reason"],
                         repo_root,
-                        start_to_close_timeout=timedelta(minutes=5),
                     )
                     return result
             if planning.get("action") == "stop":
-                result["terminal_result"] = await execute_activity(
-                    "finalize_run",
-                    dict,
+                result["terminal_result"] = await self._finalize(
                     record["run_id"],
                     planning.get("rationale", "planning_stopped"),
                     repo_root,
-                    start_to_close_timeout=timedelta(minutes=5),
                 )
                 return result
 
@@ -245,6 +252,7 @@ class EddRefinementWorkflow:
                     result["next_state"] = request.get(
                         "approval_rejection_policy", "planning"
                     )
+                    self._terminal_reason = f"approval_{decision}"
                     return result
                 approved_diff_hash = planning["proposed_diff_hash"]
                 applied_change = await execute_activity(
@@ -272,16 +280,14 @@ class EddRefinementWorkflow:
                     record, execution, "execution", repo_root
                 )
                 if not limit_decision["schedule_next_step"]:
-                    result["terminal_result"] = await execute_activity(
-                        "finalize_run",
-                        dict,
+                    result["terminal_result"] = await self._finalize(
                         record["run_id"],
                         limit_decision["stop_reason"],
                         repo_root,
-                        start_to_close_timeout=timedelta(minutes=5),
                     )
                     return result
             if execution.get("status") == "failed":
+                self._terminal_reason = "execution_failed"
                 return result
 
             candidate = await execute_activity(
@@ -301,6 +307,7 @@ class EddRefinementWorkflow:
             if candidate.get("status") != "scope_valid":
                 result.update(execution=execution, candidate=candidate)
                 self._candidate = candidate
+                self._terminal_reason = "candidate_rejected"
                 return result
 
             retry_configuration = request["profile"].get("retry_policy", {})
@@ -339,13 +346,10 @@ class EddRefinementWorkflow:
                     record, candidate_evaluation, "evaluation", repo_root
                 )
                 if not limit_decision["schedule_next_step"]:
-                    result["terminal_result"] = await execute_activity(
-                        "finalize_run",
-                        dict,
+                    result["terminal_result"] = await self._finalize(
                         record["run_id"],
                         limit_decision["stop_reason"],
                         repo_root,
-                        start_to_close_timeout=timedelta(minutes=5),
                     )
                     return result
 
@@ -420,6 +424,7 @@ class EddRefinementWorkflow:
                         request.get("regression_stop_threshold", 3),
                     )
                     if result["regression_recovery"]["next_state"] != "planning":
+                        self._terminal_reason = "pending_human_review"
                         return result
                     regression = result["regression_recovery"].get("regression", {})
                     record["consecutive_confirmed_regressions"] = regression.get(

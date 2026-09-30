@@ -120,6 +120,38 @@ def test_finalize_run_still_reports_and_releases_lease_when_reset_fails(
     assert (tmp_path / result["report_path"]).exists()
 
 
+def test_finalize_run_records_lease_release_failure_and_still_reports(
+    tmp_path,
+) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "schema_version": 5,
+            "run_id": "run-1",
+            "starting_revision": "start-commit",
+            "baseline_metrics": {"passing": 5, "total": 6},
+            "best_accepted_state": None,
+        },
+    )
+
+    def failing_release(run_id: str) -> None:
+        raise RuntimeError("lease release failed")
+
+    activity = FinalizeRunActivity(
+        store,
+        restore=lambda commit: None,
+        release_lease=failing_release,
+    )
+
+    result = activity.run("run-1", "completed")
+
+    assert result["terminal_reason"] == "completed"
+    assert result["lease_released"] is False
+    assert "lease_release_error" in result
+    assert (tmp_path / result["report_path"]).exists()
+
+
 @pytest.mark.asyncio
 async def test_finalize_run_activity_uses_target_dependencies_publishes_terminal_result(tmp_path, monkeypatch) -> None:
     store = ProgressRecordStore(tmp_path)
