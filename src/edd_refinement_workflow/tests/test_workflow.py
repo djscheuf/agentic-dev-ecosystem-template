@@ -163,7 +163,6 @@ async def test_workflow_renews_mutation_lease_each_iteration_and_before_approval
     request = {
         "workflow_run_id": "wf-1",
         "profile": {"command": ["x"], "provider": "p", "timeout": 1},
-        "proposed_diff_hash": "abc123",
         "approval_timeout_seconds": 60,
         "lease_ttl": 900,
     }
@@ -180,7 +179,6 @@ async def test_workflow_renews_mutation_lease_each_iteration_and_before_approval
                 "action": "propose_evaluation_expectation_change",
                 "requires_approval": True,
                 "proposal_id": "proposal-1",
-                "proposed_diff_hash": "abc123",
             }
         if name == "request_human_approval":
             return {"proposal_id": "proposal-1", "status": "pending"}
@@ -341,9 +339,6 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
     request = {
         "workflow_run_id": "wf-1",
         "profile": {"command": ["x"], "provider": "p", "timeout": 1},
-        "proposed_action": "propose_evaluation_expectation_change",
-        "proposal_id": "proposal-1",
-        "proposed_diff_hash": "abc123",
         "approval_timeout_seconds": 60,
     }
     calls = []
@@ -359,7 +354,6 @@ async def test_workflow_requires_explicit_approval_and_records_timeout(
                 "action": "propose_evaluation_expectation_change",
                 "requires_approval": True,
                 "proposal_id": "proposal-1",
-                "proposed_diff_hash": "abc123",
             }
         if name == "request_human_approval":
             return {"proposal_id": "proposal-1", "status": "pending"}
@@ -418,14 +412,13 @@ def test_workflow_ignores_decisions_after_approval_is_decided() -> None:
 
 
 @pytest.mark.asyncio
-async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypatch) -> None:
+async def test_workflow_records_approved_evaluation_change_after_edd_do_with_actual_diff_hash(
+    tmp_path, monkeypatch
+) -> None:
     request = {
         "workflow_run_id": "wf-1",
         "profile": {"command": ["x"], "provider": "p", "timeout": 1},
-        "proposed_action": "propose_evaluation_expectation_change",
-        "proposal_id": "proposal-1",
-        "proposed_diff_hash": "abc123",
-        "executed_diff_hash": "abc123",
+        "approval_timeout_seconds": 60,
     }
     calls = []
 
@@ -440,13 +433,26 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
                 "action": "propose_evaluation_expectation_change",
                 "requires_approval": True,
                 "proposal_id": "proposal-1",
-                "proposed_diff_hash": "abc123",
             }
         if name == "request_human_approval":
             return {"proposal_id": "proposal-1", "status": "pending"}
         if name == "record_human_approval_decision":
             return {"proposal_id": "proposal-1", "decision": "approve"}
-        return {"applied_diff_hash": "abc123", "approval_context": "human_approved_evaluation_change"}
+        if name == "edd_do":
+            return {
+                "status": "success",
+                "changed_files": ["rubric.md"],
+                "diff_hash": "actual-diff-hash",
+            }
+        if name == "validate_candidate":
+            return {"candidate_id": "candidate-1", "status": "scope_valid"}
+        if name == "record_human_approved_evaluation_change":
+            assert args[1] == "actual-diff-hash"
+            return {
+                "applied_diff_hash": "actual-diff-hash",
+                "approval_context": "human_approved_evaluation_change",
+            }
+        return {}
 
     workflow = EddRefinementWorkflow()
     monkeypatch.setattr("edd_refinement_workflow.workflow.execute_activity", mock_execute)
@@ -455,8 +461,12 @@ async def test_workflow_records_only_the_exact_approved_diff(tmp_path, monkeypat
     result = await workflow.run(INPUT_DOCUMENT_PATH, "wf-1")
 
     assert "record_human_approved_evaluation_change" in calls
-    assert calls[-3:] == ["edd_do", "validate_candidate", "finalize_run"]
-    assert result["applied_change"]["applied_diff_hash"] == "abc123"
+    edd_do_index = calls.index("edd_do")
+    record_index = calls.index("record_human_approved_evaluation_change")
+    validate_index = calls.index("validate_candidate")
+    assert edd_do_index < record_index < validate_index
+    assert calls[-1] == "finalize_run"
+    assert result["applied_change"]["applied_diff_hash"] == "actual-diff-hash"
 
 
 @pytest.mark.asyncio
