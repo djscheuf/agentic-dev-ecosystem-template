@@ -116,8 +116,6 @@ class EddPlanRunner:
         repo_root: str,
         progress_record: dict,
         baseline: dict,
-        proposal_id: str | None = None,
-        proposed_diff_hash: str | None = None,
         input_path: str | None = None,
     ) -> PlanningResult:
         logger = _get_activity_logger()
@@ -198,9 +196,15 @@ class EddPlanRunner:
         }
 
         action = plan.get("action", "stop")
-        requires_approval = (
-            action == "propose_evaluation_expectation_change" and bool(proposed_diff_hash)
+        requires_approval = action == "propose_evaluation_expectation_change"
+        iteration_number = plan.get("iteration_number") or progress_record.get(
+            "logical_iteration_count", 0
         )
+        generated_proposal_id = f"{run_id}-plan-{iteration_number}"
+        proposal_id = (
+            plan.get("proposal_id") or generated_proposal_id if requires_approval else None
+        )
+        proposed_diff_hash = plan.get("proposed_diff_hash") if requires_approval else None
         modification_scope = progress_record.get("modification_scope") or []
         intended_files = plan.get("intended_files") or []
         checker = PathScopeChecker()
@@ -248,7 +252,12 @@ class EddPlanRunner:
                 out_of_scope_details=violation,
                 observation=output.observation or None,
             )
-        logger.info("planning selected action=%s (run_id=%s)", action, run_id)
+        logger.info(
+            "planning selected action=%s requires_approval=%s (run_id=%s)",
+            action,
+            requires_approval,
+            run_id,
+        )
         return PlanningResult(
             action=action,
             rationale=plan.get("rationale", ""),
@@ -259,7 +268,7 @@ class EddPlanRunner:
             stop_recommendation=plan.get("stop_recommendation", action == "stop"),
             taxonomy_version=plan.get("taxonomy_version", 1),
             proposal_id=proposal_id,
-            proposed_diff_hash=proposed_diff_hash if requires_approval else None,
+            proposed_diff_hash=proposed_diff_hash,
             iteration_number=plan.get("iteration_number"),
             iteration_start_baseline=plan.get("iteration_start_baseline"),
             plan_path=output.output_path,
@@ -278,8 +287,6 @@ async def edd_plan_action(
     repo_root: str,
     progress_record: dict,
     baseline: dict,
-    proposal_id: str | None = None,
-    proposed_diff_hash: str | None = None,
     input_path: str | None = None,
 ) -> dict:
     result = await asyncio.to_thread(
@@ -288,8 +295,6 @@ async def edd_plan_action(
         repo_root,
         progress_record,
         baseline,
-        proposal_id,
-        proposed_diff_hash,
         input_path,
     )
     if result.observation:
