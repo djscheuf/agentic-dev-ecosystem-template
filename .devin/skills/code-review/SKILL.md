@@ -10,7 +10,7 @@ A value-first review starts from *why the change exists*, not from syntax. Requi
 ## Inputs
 - **Target**: branch, PR, or diff. Default: the current branch against its merge-base with the default branch.
 - **Requirements location** (optional): story, ticket, spec, or doc paths. If not given, Phase 1 finds them.
-- **Output path**: ask the user at invocation. Default to `code-review-<branch>.yaml` in the working directory.
+- **Output path**: ask the user at invocation. Default to `{slug}.review.yaml` in the working directory.
 
 The code may be human- or AI-written. Apply `reference/ai-generated-code.md` only when it is relevant.
 

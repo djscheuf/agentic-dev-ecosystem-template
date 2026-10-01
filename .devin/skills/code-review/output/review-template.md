@@ -1,6 +1,6 @@
 # Review document template
 
-Write the review as a single YAML document. Ask the user for the output path at invocation; default to `code-review-<branch>.yaml` in the working directory.
+Write the review as a single YAML document. Ask the user for the output path at invocation; default to `{slug}.review.yaml` in the working directory.
 
 ## Schema
 
