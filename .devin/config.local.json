@@ -15,7 +15,8 @@
       "Exec(scripts/run_unit_tests.sh)",
       "Exec(date)",
       "Exec(.devin/skills/validate-json-schema/scripts/validate-json-schema.sh)",
-      "Exec(./.devin/skills/validate-json-schema/scripts/validate-json-schema.sh)"
+      "Exec(./.devin/skills/validate-json-schema/scripts/validate-json-schema.sh)",
+      "Exec(mkdir)"
     ]
   }
 }

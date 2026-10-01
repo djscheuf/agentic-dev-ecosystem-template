@@ -19,10 +19,21 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-014: Colocated Skill Activity Configuration and Template Method](decisions/ADR-014-colocated-skill-activity-template-method.md)
 - [ADR-015: Devin Cost Metric Capture Scope](decisions/ADR-015-devin-cost-metric-scope.md)
 - [ADR-016: Consolidated Story Analysis Run Reporting](decisions/ADR-016-consolidated-run-reporting.md)
+- [ADR-017: Agentic EDD Quality Ratchet](decisions/ADR-017-agentic-edd-quality-ratchet.md)
+- [ADR-018: Explicit Target Repository Context for Agentic Workflows](decisions/ADR-018-target-repository-context.md)
+- [ADR-019: EDD Multi-Iteration Loop](decisions/ADR-019-edd-multi-iteration-loop.md)
+- [ADR-020: Cadence Python SDK Serialization and Reconstruction Require JSON-Safe Types and Explicit Type Hints](decisions/ADR-020-cadence-python-sdk-serialization-and-types.md)
+- [ADR-021: EDD Evaluation Commands May Exit Non-Zero and Inspect Commands Return Raw Result Lists](decisions/ADR-021-edd-evaluation-command-contracts.md)
+- [ADR-022: Capture Raw EDD Evaluation Command Artifacts](decisions/ADR-022-edd-evaluation-command-artifacts.md)
+- [ADR-023: Persistent, Process-Safe Mutation Lease for EDD](decisions/ADR-023-persistent-process-safe-mutation-lease.md)
 
  
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)
 - [Devin ATIF usage exports](services/devin-atif.md)
+- [EDD Evaluation Commands](services/edd-evaluation-commands.md)
+- [EDD Refinement ProgressRecord](services/edd_refinement.md)
+- [grade-story-design eval-suite refinement process](services/grade-story-design-eval-refinement.md)
 - [NixOS development environment](services/nixos.md)
+- [Secret protection for env files](services/secret-protection.md)

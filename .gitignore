@@ -7,3 +7,5 @@ results.*.html
 *.done.json
 *.zip
 *.tar.gz
+
+.envrc

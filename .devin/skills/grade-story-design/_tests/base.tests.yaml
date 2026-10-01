@@ -7,6 +7,9 @@
       - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
       - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Canary Test (Reason)'
+  metadata:
+    covers_test_case_ids:
+      - "TC-001"
   assert:
     - type: icontains
       value: 'Reason'
@@ -32,6 +35,9 @@
       - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
       - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Happy Path'
+  metadata:
+    covers_test_case_ids:
+      - "TC-001"
   assert:
     # Core definition
     - type: javascript
@@ -56,6 +62,9 @@
       - '@../.devin/skills/grade-story-design/_tests/_data/add-user-badge.design.json'
       - '@../.devin/skills/grade-story-design/_tests/_data/improve-search-performance.design.json'
   description: 'Output Schema Validation - Script Based'
+  metadata:
+    covers_test_case_ids:
+      - "TC-001"
   assert:
     - type: javascript
       value: file://./eval-script.js:matchesSchema

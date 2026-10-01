@@ -1,0 +1,147 @@
+from concurrent.futures import ThreadPoolExecutor
+
+from edd_refinement_workflow.activities.update_durable_counters import UpdateDurableCountersActivity
+from edd_refinement_workflow.progress_record import ProgressRecordStore
+
+
+def test_update_durable_counters_with_retry_tracks_tokens_without_iteration_advance(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "logical_iteration_count": 0,
+            "cumulative_token_usage": 0,
+            "attempts": [],
+        },
+    )
+    activity = UpdateDurableCountersActivity(store)
+
+    activity.run(
+        "run-1",
+        {
+            "attempt_id": "attempt-1",
+            "step": "evaluation",
+            "logical_iteration_number": 1,
+            "is_retry": False,
+            "usage_metrics": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+            "status": "success",
+        },
+    )
+    result = activity.run(
+        "run-1",
+        {
+            "attempt_id": "attempt-2",
+            "step": "evaluation",
+            "logical_iteration_number": 1,
+            "is_retry": True,
+            "usage_metrics": {"prompt_tokens": 6, "completion_tokens": 4, "total_tokens": 10},
+            "status": "success",
+        },
+    )
+
+    assert result["logical_iteration_count"] == 1
+    assert result["cumulative_token_usage"] == 25
+    assert [attempt["attempt_id"] for attempt in result["attempts"]] == [
+        "attempt-1",
+        "attempt-2",
+    ]
+
+
+def test_update_durable_counters_with_missing_usage_records_zero_and_marker(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "logical_iteration_count": 0,
+            "cumulative_token_usage": 0,
+            "attempts": [],
+        },
+    )
+
+    result = UpdateDurableCountersActivity(store).run(
+        "run-1",
+        {
+            "attempt_id": "attempt-1",
+            "step": "evaluation",
+            "logical_iteration_number": 1,
+            "is_retry": False,
+            "status": "timeout",
+        },
+    )
+
+    assert result["cumulative_token_usage"] == 0
+    assert result["attempts"][0]["usage_missing"] is True
+    assert result["attempts"][0]["total_tokens"] == 0
+
+
+def test_update_durable_counters_accepts_input_output_token_aliases(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {
+            "logical_iteration_count": 0,
+            "cumulative_token_usage": 0,
+            "attempts": [],
+        },
+    )
+
+    result = UpdateDurableCountersActivity(store).run(
+        "run-1",
+        {
+            "attempt_id": "planning-run-1",
+            "step": "planning",
+            "logical_iteration_number": 1,
+            "is_retry": False,
+            "usage_metrics": {"input_tokens": 200, "output_tokens": 50, "total_tokens": 250, "cost_usd": 0.03},
+            "status": "success",
+        },
+    )
+
+    assert result["cumulative_token_usage"] == 250
+    assert result["logical_iteration_count"] == 0
+    assert result["attempts"][0]["prompt_tokens"] == 200
+    assert result["attempts"][0]["completion_tokens"] == 50
+    assert result["attempts"][0]["total_tokens"] == 250
+
+
+def test_update_durable_counters_counts_one_iteration_per_evaluation_attempt(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume(
+        "run-1",
+        {"logical_iteration_count": 0, "cumulative_token_usage": 0, "attempts": []},
+    )
+    activity = UpdateDurableCountersActivity(store)
+
+    for step in ["planning", "execution", "evaluation"]:
+        activity.run(
+            "run-1",
+            {
+                "attempt_id": f"{step}-run-1",
+                "step": step,
+                "logical_iteration_number": 0,
+                "is_retry": False,
+                "usage_metrics": {"prompt_tokens": 1, "completion_tokens": 0, "total_tokens": 1},
+                "status": "success",
+            },
+        )
+
+    result = store.create_or_resume("run-1", {})
+    assert result["cumulative_token_usage"] == 3
+    assert result["logical_iteration_count"] == 1
+
+
+def test_update_durable_counters_with_concurrent_attempts_preserves_every_update(tmp_path) -> None:
+    store = ProgressRecordStore(tmp_path)
+    store.create_or_resume("run-1", {"logical_iteration_count": 0, "cumulative_token_usage": 0, "attempts": []})
+    activity = UpdateDurableCountersActivity(store)
+
+    def update(index):
+        activity.run("run-1", {"attempt_id": f"attempt-{index}", "step": "evaluation", "logical_iteration_number": index, "is_retry": False, "usage_metrics": {"prompt_tokens": 1, "completion_tokens": 0, "total_tokens": 1}, "status": "success"})
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(update, range(20)))
+
+    result = store.create_or_resume("run-1", {})
+    assert len(result["attempts"]) == 20
+    assert result["cumulative_token_usage"] == 20
+    assert result["logical_iteration_count"] == 20

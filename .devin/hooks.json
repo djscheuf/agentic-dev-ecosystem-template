@@ -10,6 +10,15 @@
       ]
     },
     {
+      "matcher":"read",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash .devin/scripts/protect-secrets.sh"
+        }
+      ]
+    },
+    {
       "matcher": "exec",
       "hooks": [
         {
@@ -30,6 +39,11 @@
         {
           "type": "command",
           "command": "bash .devin/scripts/post-edit-verify-skill.sh"
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/scripts/validate-json-yaml.sh",
+          "timeout": 5
         }
       ]
     }

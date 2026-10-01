@@ -1,0 +1,309 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/story.md",
+  "title": "Confirm Regressions, Revert Harmful Changes, and Verify Recovery",
+  "story": {
+    "so_that": "flaky evidence cannot discard useful work and confirmed harmful changes cannot leave the repository degraded",
+    "as_a": "skill owner",
+    "i_want": "an apparently worse candidate re-evaluated unchanged, a confirmed regression reverted, and the restored accepted state verified before refinement continues"
+  },
+  "target_persona": {
+    "name": "Skill Owner",
+    "role": "Skill Owner",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "A candidate evaluation is observed to perform worse than the current best accepted state",
+      "during": "Re-evaluate the unchanged candidate, classify the combined evidence, revert on confirmed regression, and rerun the suite to verify recovery",
+      "after": "Autonomous refinement continues from a verified restored state, or the evidence is handed off to a human without further autonomous mutation"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Re-evaluate an unchanged candidate that performed worse than the current best accepted state, classify the combined evidence as confirmed regression, unstable result, suspected flakiness, or inconclusive, revert the repository on confirmed regression, rerun the suite to verify recovery, and preserve reverted-proposal context for future planning before allowing the next proposal.",
+    "inputs": [
+      "Initial candidate evaluation results",
+      "Second unchanged-candidate evaluation results",
+      "Current best accepted-state metrics and repository revision",
+      "Change summary for the reverted proposal",
+      "Recovery evaluation results for the restored state",
+      "Consecutive confirmed-regression counter and durable progress history",
+      "Human handoff and notification configuration"
+    ],
+    "outputs": [
+      "Recorded degraded evidence and change summary",
+      "Incremented consecutive-regression counter",
+      "Restored last accepted repository state",
+      "Recovery verification result",
+      "Human handoff or notification",
+      "Retained reverted-proposal context for future planning"
+    ],
+    "state_changes": [
+      "Consecutive confirmed-regression counter is incremented on confirmed regression",
+      "Repository is reset to the last accepted state on confirmed regression",
+      "Degraded evidence, confirmation result, and recovery result are recorded in durable history",
+      "Reverted-proposal context remains visible for future planning"
+    ],
+    "affected_components": {
+      "ui": [
+        "Regression confirmation and re-evaluation status view",
+        "Reverted-proposal context and history view",
+        "Human handoff notification and recovery result view"
+      ],
+      "api": [
+        "Unchanged-candidate re-evaluation Activity endpoint",
+        "Regression classification and evidence recording endpoint",
+        "Repository revert and accepted-state restore endpoint",
+        "Recovery evaluation and verification endpoint",
+        "Human handoff and notification endpoint"
+      ],
+      "database": [
+        "Best accepted state and metrics tracking",
+        "Consecutive-regression counter and durable progress history",
+        "Degraded evidence and reverted-proposal context store"
+      ],
+      "external_services": [
+        "Version control system for revert and restore operations",
+        "Evaluation provider or runner for re-evaluation and recovery",
+        "Workflow or Activity orchestration engine",
+        "Human notification channel"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a second evaluation run against the unchanged candidate also performs worse than the current best state, when the regression is confirmed, then both degraded results and the change summary are recorded, the consecutive-regression counter increments, the last accepted state is restored, and the suite is rerun to verify recovery.",
+      "gherkin": "Given a second evaluation run against the unchanged candidate also performs worse than the current best state when the regression is confirmed then both degraded results and the change summary are recorded the consecutive-regression counter increments the last accepted state is restored and the suite is rerun to verify recovery",
+      "type": "Functional",
+      "jtbd": "Confirm and recover from a harmful change",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the second evaluation run returns to or exceeds the current best state, when results are compared, then the result is treated as unstable, a human is notified, and no autonomous commit or revert decision is made.",
+      "gherkin": "Given the second evaluation run returns to or exceeds the current best state when results are compared then the result is treated as unstable a human is notified and no autonomous commit or revert decision is made",
+      "type": "Functional",
+      "jtbd": "Escalate unstable evidence to a human",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the second evaluation run errors, times out, or otherwise fails to establish stable equivalence, improvement, or regression, when results are classified, then the evidence is recorded as suspected flakiness, a human is notified, and autonomous refinement does not continue.",
+      "gherkin": "Given the second evaluation run errors times out or otherwise fails to establish stable equivalence improvement or regression when results are classified then the evidence is recorded as suspected flakiness a human is notified and autonomous refinement does not continue",
+      "type": "Error handling",
+      "jtbd": "Escalate inconclusive evidence to a human",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given a confirmed regression has been reverted, when the recovery evaluation runs, then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed.",
+      "gherkin": "Given a confirmed regression has been reverted when the recovery evaluation runs then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed",
+      "type": "Functional",
+      "jtbd": "Verify the restored accepted state matches prior performance",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the recovery evaluation cannot verify the restored performance, when recovery fails, then autonomous refinement stops and hands off to a human.",
+      "gherkin": "Given the recovery evaluation cannot verify the restored performance when recovery fails then autonomous refinement stops and hands off to a human",
+      "type": "Error handling",
+      "jtbd": "Stop and escalate when recovery fails",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given a proposal is reverted, when it is recorded, then its change summary, affected files, rationale, observed degradation, confirmation result, and recovery result remain visible to future planning steps.",
+      "gherkin": "Given a proposal is reverted when it is recorded then its change summary affected files rationale observed degradation confirmation result and recovery result remain visible to future planning steps",
+      "type": "Business rule",
+      "jtbd": "Preserve reverted proposal context for future planning",
+      "persona_served": "Skill Owner"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Second evaluation produces identical metrics to the first worse run",
+      "gherkin": "Given the unchanged candidate re-evaluation produces metrics identical to the first worse run when the classification runs then the regression is confirmed and the revert path proceeds",
+      "type": "Edge case",
+      "jtbd": "Handle repeated identical worse results",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Second evaluation returns exactly to the current best state",
+      "gherkin": "Given the second evaluation run returns exactly to the current best state when results are compared then the result is classified as unstable and escalated to a human",
+      "type": "Edge case",
+      "jtbd": "Treat equal results as unstable evidence",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Second evaluation errors or times out",
+      "gherkin": "Given the second evaluation run errors or exceeds the configured timeout when classification runs then the evidence is recorded as suspected flakiness and a human is notified",
+      "type": "Edge case",
+      "jtbd": "Handle re-evaluation failure without false regression",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Evaluation provider or configuration changes between first and second run",
+      "gherkin": "Given the evaluation provider or configuration differs from the original evaluation when the second run is attempted then the workflow records the deviation and retries with the original configuration",
+      "type": "Edge case",
+      "jtbd": "Maintain determinism across re-evaluation",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Current best accepted state is missing or corrupted",
+      "gherkin": "Given the current best accepted state metrics or revision cannot be found when the comparison runs then the workflow records the missing state and hands off to a human",
+      "type": "Edge case",
+      "jtbd": "Avoid automated decisions without a valid baseline",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Repository reset fails after regression confirmation",
+      "gherkin": "Given the repository revert fails after a regression is confirmed when the restore attempt completes then the workflow records the failure and stops for human intervention",
+      "type": "Edge case",
+      "jtbd": "Handle revert failures safely",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Recovery evaluation shows a different result from the previously recorded best state",
+      "gherkin": "Given the recovery evaluation does not reproduce the previously recorded accepted state performance when the recovery result is classified then the workflow stops and escalates to a human",
+      "type": "Edge case",
+      "jtbd": "Detect non-reproducible accepted state",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Human notification channel is unavailable",
+      "gherkin": "Given the human notification channel is unavailable when the workflow must hand off then the workflow records the handoff and retries notification according to policy",
+      "type": "Edge case",
+      "jtbd": "Ensure human escalation is durable",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Reverted proposal spans many files or multiple commits",
+      "gherkin": "Given a reverted proposal affects many files or multiple commits when the revert is applied then all affected files and commit references are recorded for future planning",
+      "type": "Edge case",
+      "jtbd": "Capture complex reverted changes",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Consecutive regression counter is already at a stop threshold",
+      "gherkin": "Given the consecutive confirmed-regression counter is already at a stop threshold when a new regression is confirmed then the workflow records the threshold and stops for human review",
+      "type": "Edge case",
+      "jtbd": "Respect iteration and budget limits",
+      "persona_served": "Skill Owner"
+    }
+  ],
+  "questions": [
+    {
+      "question": "How is the second unchanged-candidate evaluation invoked and guaranteed to use the exact same code, configuration, and provider as the first evaluation?",
+      "impacts": [
+        "Determinism of re-evaluation",
+        "Workflow activity configuration",
+        "Regression classification accuracy"
+      ]
+    },
+    {
+      "question": "What is the exact classification logic for distinguishing confirmed regression, unstable result, suspected flakiness, and inconclusive evidence?",
+      "impacts": [
+        "Regression classification service",
+        "Human handoff policy",
+        "Consecutive-regression counter behavior"
+      ]
+    },
+    {
+      "question": "How is the last accepted repository state identified and restored safely, including any uncommitted or staged changes?",
+      "impacts": [
+        "Repository state management",
+        "Revert and checkout logic",
+        "Mutation lease handling"
+      ]
+    },
+    {
+      "question": "What matching criteria does the recovery evaluation use to verify the restored state matches its previously recorded performance?",
+      "impacts": [
+        "Recovery verification logic",
+        "Metric comparison and tolerance",
+        "Decision to continue refinement"
+      ]
+    },
+    {
+      "question": "How is reverted-proposal context structured and linked to future planning steps?",
+      "impacts": [
+        "Progress record schema",
+        "Planning and next-proposal selection",
+        "Audit and observability"
+      ]
+    },
+    {
+      "question": "What human handoff path and notification content are used for unstable, flaky, inconclusive, and failed recovery outcomes?",
+      "impacts": [
+        "Notification service",
+        "Human review workflow",
+        "Autonomous stop criteria"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Candidate evaluation and quality-ratchet comparison",
+        "Progress record and best-accepted-state tracking",
+        "Consecutive-regression counter and mutation lease management",
+        "Repository checkout and restore utilities",
+        "Activity runner and timeout/retry framework",
+        "Human notification and handoff service"
+      ],
+      "new_code": [
+        "Unchanged-candidate re-evaluation orchestrator",
+        "Regression classification and evidence recording service",
+        "Confirmed-regression revert and accepted-state restore service",
+        "Recovery evaluation and verification service",
+        "Reverted-proposal context recorder"
+      ],
+      "infrastructure": [
+        "Progress record and durable history store",
+        "Best-accepted-state and metric store",
+        "Repository workspace",
+        "Activity runner",
+        "Notification channel"
+      ],
+      "external_services": [
+        "Version control system provider",
+        "Evaluation provider or runner",
+        "Workflow or Activity orchestration engine",
+        "Human notification channel"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Initialize a run, establish a baseline, and plan refinement",
+        "Evaluate candidates, advance the quality ratchet, and finalize the run"
+      ],
+      "blocks": [
+        "Enforce iteration and budget limits and terminate the run"
+      ],
+      "related": [
+        "EDD-009 Regression confirmation, revert, and recovery"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Regression confirmation and evidence classification rules",
+        "Unchanged-candidate re-evaluation policy",
+        "Best-accepted-state restore and recovery verification policy",
+        "Consecutive-regression counter and stop-threshold semantics",
+        "Human handoff and notification requirements"
+      ],
+      "technical_knowledge": [
+        "Git revert, checkout, and reset operations",
+        "Activity timeout, retry, and idempotency mechanics",
+        "Structured metric and progress-record schemas",
+        "Deterministic evaluation configuration and provider pinning"
+      ],
+      "stakeholder_questions": [
+        "What is the exact retry policy for the second unchanged-candidate evaluation?",
+        "How is the regression threshold and stop-threshold defined?",
+        "Who receives the human handoff and in what format?",
+        "What tolerance is allowed when comparing recovery results to the prior accepted state?",
+        "Are version control, evaluation provider, and notification services provisioned and accessible?",
+        "Which existing service owns the best-accepted-state and repository restore logic?"
+      ]
+    }
+  },
+  "in_sprint_assumptions": [
+    "The blocked-by stories 'Initialize a run, establish a baseline, and plan refinement' and 'Evaluate candidates, advance the quality ratchet, and finalize the run' are available before implementation.",
+    "Version control, evaluation provider, and notification services are provisioned and accessible.",
+    "The classification rules for regression, unstable, flaky, and inconclusive evidence are defined before the classification service is implemented.",
+    "The recovery-evaluation tolerance and success criteria are agreed upon before verification logic is implemented."
+  ]
+}

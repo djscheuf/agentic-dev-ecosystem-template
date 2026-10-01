@@ -59,6 +59,11 @@ require_deadline() {
 
 mkdir -p "$RUN_DIR"
 
+# Avoid stale Python bytecode shadowing source edits in a long-running worker.
+find "$REPO_ROOT/src" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find "$REPO_ROOT/src" -name "*.pyc" -delete 2>/dev/null || true
+export PYTHONDONTWRITEBYTECODE=1
+
 command -v docker >/dev/null 2>&1 || die "docker is not on PATH"
 command -v nix-shell >/dev/null 2>&1 || die "nix-shell is not on PATH"
 [[ -x "$REPO_ROOT/.venv/bin/python" ]] || die \

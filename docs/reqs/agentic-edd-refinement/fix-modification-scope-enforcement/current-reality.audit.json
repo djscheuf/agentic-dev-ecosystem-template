@@ -1,0 +1,197 @@
+{
+  "run_date": "20260925T184139Z",
+  "target_story": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/enforce-modification-scope-in-edd-refinement.analysis.json",
+  "project_structure": {
+    "root": "/mnt/data/0_repo/agentic-dev-ecosystem-template",
+    "description": "Agentic software factory template providing Cadence (Temporal) Python workflows, a skill activity harness, promptfoo-based evaluations, and a project wiki (vault) for decisions and runbooks.",
+    "tech_stack": {
+      "programming_languages": ["Python", "JavaScript"],
+      "frameworks": ["Cadence Python client (Temporal-style workflows)"],
+      "libraries": ["promptfoo"],
+      "unit_testing_tools": ["pytest", "promptfoo eval"]
+    },
+    "subprojects": [
+      {
+        "root": "src/common",
+        "description": "Shared utilities: preflight, target repository resolution, scoped path validation, mutation lease, skill/activity harness, workflow logging.",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": [],
+          "libraries": [],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "src/edd_refinement_workflow",
+        "description": "Cadence workflow and activities for the EDD quality-ratchet refinement loop: initialize, plan, do, validate, check, commit, regression handling, finalize.",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": ["Cadence Python client"],
+          "libraries": [],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "src/story_analysis_workflow",
+        "description": "Cadence workflow that extracts and analyzes user story intent using skill activities.",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": ["Cadence Python client"],
+          "libraries": [],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "src/story_design_workflow",
+        "description": "Cadence workflow that designs story implementations using skill activities.",
+        "tech_stack": {
+          "programming_language": "Python",
+          "frameworks": ["Cadence Python client"],
+          "libraries": [],
+          "unit_testing_tools": ["pytest"]
+        }
+      },
+      {
+        "root": "evals",
+        "description": "promptfoo evaluation suites for skill and workflow quality gating.",
+        "tech_stack": {
+          "programming_language": "JavaScript",
+          "frameworks": [],
+          "libraries": ["promptfoo"],
+          "unit_testing_tools": ["promptfoo eval"]
+        }
+      }
+    ]
+  },
+  "vault_audit": {
+    "decisions": [
+      {
+        "path": "vault/decisions/ADR-017-agentic-edd-quality-ratchet.md",
+        "why": "Defines the EDD loop's iteration/token/regression budgets and the deterministic comparison/acceptance rules that the new scope enforcement must integrate with without disturbing."
+      },
+      {
+        "path": "vault/decisions/ADR-018-target-repository-context.md",
+        "why": "Establishes target repository discovery, clean-worktree preflight, and mutation-lease conventions that scope enforcement will rely on for clean resets and lease release."
+      },
+      {
+        "path": "vault/decisions/ADR-019-edd-multi-iteration-loop.md",
+        "why": "Describes the while-loop structure in workflow.py where out-of-scope rejections currently exit quietly and need to be converted to exception-driven terminalization."
+      },
+      {
+        "path": "vault/decisions/ADR-023-persistent-process-safe-mutation-lease.md",
+        "why": "Documents the exception-driven finalize path in workflow.py that should be reused to guarantee lease release when an out-of-scope modification is detected."
+      }
+    ],
+    "persona": [],
+    "target_architecture": [
+      {
+        "path": "vault/services/edd_refinement.md",
+        "why": "Runbook and current-implementation log for the EDD refinement workflow, including ProgressRecord v5 schema, iteration start baseline threading, and the activities (initialize_run, edd_plan, edd_do, validate_candidate, finalize_run) that the scope enforcement must touch."
+      }
+    ]
+  },
+  "code_audit": {
+    "components": [
+      {
+        "path": "src/common/preflight.py",
+        "why": "Resolves target repository context and validates scoped_paths for containment inside the repo, but the resolved list is not returned or attached to PreflightResult."
+      },
+      {
+        "path": "src/common/scoped_path_validator.py",
+        "why": "Existing ScopedPathValidator checks that a single path is inside the repo root; it is the base primitive for building a list-based PathScopeChecker."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/initialize_run.py",
+        "why": "Creates the v5 progress record and writes refinement.yaml, but does not read or persist the EddRefinementInput modification_scope."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/edd_plan.py",
+        "why": "EddPlanRunner invokes the edd-plan skill and builds a PlanningResult from plan.json, but does not validate intended_files against the authorized modification_scope before allowing edd_do to run."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/edd_do.py",
+        "why": "Invokes the edd-do skill and measures the actual diff (git diff --name-only) and diff hash, providing the ground-truth changed_files for a scope check."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/validate_candidate.py",
+        "why": "Checks changed_files against planning['intended_files'] and reports 'out_of_scope', but has no access to the authorized modification_scope and no distinction between plan-out-of-scope and diff-out-of-scope."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/check_candidate.py",
+        "why": "Deterministic Check step that runs the evaluation and writes check.json; scope violations should not reach this step."
+      },
+      {
+        "path": "src/edd_refinement_workflow/finalize_run.py",
+        "why": "Restores the worktree only when a best_accepted_state exists and releases the mutation lease; it must also reset to starting_revision when no candidate was accepted."
+      },
+      {
+        "path": "src/edd_refinement_workflow/workflow.py",
+        "why": "The main EddRefinementWorkflow loop quietly returns when validate_candidate status is not 'scope_valid', bypassing finalize_run and lease release; needs to raise on out-of-scope to engage exception-driven finalize."
+      },
+      {
+        "path": "src/edd_refinement_workflow/progress_record.py",
+        "why": "ProgressRecordSerializer.for_v5 defines the allowed field allow-list for progress.json; modification_scope must be added here to survive round-trip save/load."
+      },
+      {
+        "path": "src/edd_refinement_workflow/candidate_results.py",
+        "why": "Defines ExecutionResult, CandidateValidationResult, and UsageMetrics dataclasses; rejection_reasons and result shapes may need extension."
+      }
+    ],
+    "services": [
+      {
+        "path": "src/edd_refinement_workflow/module.py",
+        "why": "Registers EddRefinementWorkflow and all activity entrypoints; any new or renamed activity (e.g., a worktree-revert helper) must be wired here."
+      }
+    ],
+    "models": [
+      {
+        "path": "src/edd_refinement_workflow/candidate_results.py",
+        "why": "Domain models for candidate execution and validation results."
+      },
+      {
+        "path": "src/edd_refinement_workflow/progress_record.py",
+        "why": "Progress record store and serializer that will carry the persisted modification_scope."
+      }
+    ],
+    "apis": [
+      {
+        "path": "src/edd_refinement_workflow/activities/initialize_run.py",
+        "why": "Cadence activity 'initialize_run' entrypoint."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/edd_plan.py",
+        "why": "Cadence activity 'edd_plan' entrypoint."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/edd_do.py",
+        "why": "Cadence activity 'edd_do' entrypoint."
+      },
+      {
+        "path": "src/edd_refinement_workflow/activities/validate_candidate.py",
+        "why": "Cadence activity 'validate_candidate' entrypoint."
+      },
+      {
+        "path": "src/edd_refinement_workflow/finalize_run.py",
+        "why": "Cadence activity 'finalize_run' entrypoint."
+      },
+      {
+        "path": "src/edd_refinement_workflow/workflow.py",
+        "why": "Cadence workflow 'EddRefinementWorkflow' with get_candidate_status and get_regression_status queries."
+      }
+    ],
+    "tests": [
+      {
+        "path": "src/edd_refinement_workflow/tests/test_workflow.py",
+        "why": "End-to-end workflow tests; currently only asserts query surface for out_of_scope candidate and does not verify finalize_run is invoked on scope violation."
+      },
+      {
+        "path": "src/edd_refinement_workflow/tests/test_validate_candidate.py",
+        "why": "ValidateCandidateActivity tests; currently cover intended_files vs changed_files mismatch but not authorized modification_scope."
+      },
+      {
+        "path": "src/common/tests",
+        "why": "Common utility tests, including the existing scoped path validator."
+      }
+    ]
+  }
+}

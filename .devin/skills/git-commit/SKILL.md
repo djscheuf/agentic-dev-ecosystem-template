@@ -12,7 +12,22 @@ description: Create conventional commits in this repository based on observed ma
 - Imperative, present-tense subject.
 - Optional body and footer separated by blank lines.
 - ALWAYS keep commit messages about the changes, not the tooling.
-- NEVER sign commits with AI/tooling attribution such as "Generated with ...", "Co-Authored-By: ...", "Signed-off-by: ...", or similar. These are not part of the repository's commit convention and will be rejected by the project.
+
+## Absolute rules
+
+### No AI/tooling attribution
+
+Commit messages describe the change, not who or what wrote it. Only the human author is accountable for commits in this repository. The message body and footer MUST NOT contain any AI/tooling attribution or provenance markers.
+
+Forbidden content includes, but is not limited to:
+
+- `Generated with [Devin](...)` or any similar tool citation
+- `Co-Authored-By: Devin <...>`
+- `Signed-off-by:` inserted by an assistant
+- `Reviewed-by:` or similar trailers added by tooling
+- Any footer line containing a URL to an AI assistant or automation platform
+
+Before committing, grep the drafted message for the patterns above. If any are present, delete them.
 
 ## Message format
 
@@ -106,7 +121,17 @@ Use the body to explain motivation and contrast with previous behavior. Use impe
 
 3. **Draft the message** using the format above. Focus on *why*, not *what*.
 
-4. **Commit** using a here-doc so the message can contain blank lines:
+4. **Scan the draft for forbidden attribution.** Run a quick check on the message you are about to commit:
+
+   ```bash
+   cat <<'MSG' | grep -iE 'Generated with|Co-Authored-By:|Signed-off-by:|Reviewed-by:|devin\.ai'
+   <paste your drafted message here>
+   MSG
+   ```
+
+   If the grep returns any matches, remove those lines before proceeding. This step is mandatory; the project will reject commits that contain AI/tooling attribution.
+
+5. **Commit** using a here-doc so the message can contain blank lines:
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -117,7 +142,14 @@ EOF
 )"
 ```
 
-5. **Verify** the result with `git log --oneline -5`.
+6. **Verify** the result:
+
+   ```bash
+   git log --oneline -5
+   git log -1 --format='%B%n---%n%(trailers)'
+   ```
+
+   Confirm that no forbidden attribution trailers appear in the body or footer.
 
 ## PR merge commits
 
@@ -148,7 +180,7 @@ tweak(extract skill): limit what is in initial story schema, depend on shell onl
 - Exceeding 72 characters on the first line.
 - Forgetting a blank line between subject and body.
 - Using PR merge style (`Type/scope description (#N)`) for normal commits.
-- Including AI/tooling attribution ("Generated with ...", "Co-Authored-By: ...", etc.) in the body or footer. Commit messages describe the change, not who or what wrote it.
+- Including AI/tooling attribution ("Generated with ...", "Co-Authored-By: ...", "Signed-off-by: ...", "Reviewed-by: ...", etc.) in the body or footer. This is the most common machine-generated mistake and is explicitly forbidden — remove these lines before committing.
 
 ## Notes
 

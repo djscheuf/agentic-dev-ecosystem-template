@@ -1,0 +1,407 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/04-refinement-execution-and-scope-validation/execute-and-validate-scoped-refinement-action.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/04-refinement-execution-and-scope-validation/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "RefinementExecutionRequested: the workflow holds a selected and, if required, human-approved refinement action. It invokes execute_refinement_action with the PlanningResult, approval evidence, and the resolved target repository context. The activity first rejects unapproved expectation-changing actions, then runs the selected action through the configured harness.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, approval_request (when requires_approval), approval_history, schema_version} -> selected/approved action context"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "ExecuteRefinementAction",
+          "data_shape": "{run_id, action, intended_files, requires_approval, proposal_id, proposed_diff_hash, approved_diff_hash, repo_root, harness_profile}"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "RefinementActivityCompleted: the harness-backed Activity finishes and returns a structured ExecutionResult. If the harness fails or the Activity runner is unavailable, the result carries a failure status and no candidate is produced.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ExecutionResult",
+          "data_shape": "{status: 'success'|'failed', usage_metrics, changed_files, diff_hash, failure_reason, atif_path}"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "CandidateValidationStarted: the workflow schedules validate_candidate with the PlanningResult, ExecutionResult, and the approved diff hash. The activity checks for empty results, malformed usage metrics, missing approval evidence, diff hash mismatch, authorized file scope, and test-weakening patterns.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "ValidateCandidate",
+          "data_shape": "{run_id, planning: PlanningResult, execution: ExecutionResult, approved_diff_hash, repo_root}"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "CandidateValidationDecided: the validation activity returns a CandidateValidationResult. Scope-valid candidates are persisted with status 'scope_valid' and the structured evidence. Rejected candidates are persisted with a rejection reason and no refinement commit is created.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "CandidateValidationResult",
+          "data_shape": "{candidate_id, run_id, status: 'scope_valid'|'rejected', usage_metrics, changed_files, diff_hash, rejection_reason, validated_at}"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{candidate, schema_version} -> updated durable state"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "WorkerResumptionPreservedContext: if a worker restarts between execution and validation, the resumed workflow reloads the progress record and continues from the same candidate and approval context without re-running the harness.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "ProgressRecord",
+          "data_shape": "{run_id, candidate, approval_request, schema_version} -> resumed state"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "RequestRefinementExecution",
+      "description": "Emitted when the workflow invokes the refinement execution Activity with the selected/approved action and target repository context.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "action", "description": "Selected refinement action." },
+        { "point": "requires_approval", "description": "Whether the action changes evaluation expectations." },
+        { "point": "proposal_id", "description": "Stable proposal identifier for this action." }
+      ]
+    },
+    {
+      "event_name": "RejectUnapprovedExpectationChange",
+      "description": "Emitted when an expectation-changing action is executed without a recorded 'approve' decision or matching diff hash.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "proposal_id", "description": "The proposal that was not approved." },
+        { "point": "reason", "description": "missing_approval or diff_hash_mismatch." }
+      ]
+    },
+    {
+      "event_name": "RefinementActivitySucceeded",
+      "description": "Emitted when the harness-backed refinement Activity returns successfully with usage metrics and changed files.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "duration_ms", "description": "Wall-clock time for the Activity." },
+        { "point": "changed_files_count", "description": "Number of files changed by the candidate." },
+        { "point": "model", "description": "Model used for the unattended skill." },
+        { "point": "permission_mode", "description": "Permission mode used for the unattended skill." }
+      ]
+    },
+    {
+      "event_name": "RefinementActivityFailed",
+      "description": "Emitted when the harness, Activity runner, or version control system is unavailable or exits non-zero.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "failure_reason", "description": "harness_failure, runner_unavailable, vcs_unavailable, etc." },
+        { "point": "exit_code", "description": "Harness exit code when available." }
+      ]
+    },
+    {
+      "event_name": "CandidateValidationStarted",
+      "description": "Emitted when the workflow begins validating the candidate against approved intent and authorized file scope.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for this candidate." },
+        { "point": "intended_files", "description": "Authorized file scope from the planning result." },
+        { "point": "changed_files", "description": "Files reported by the execution Activity." }
+      ]
+    },
+    {
+      "event_name": "CandidateScopeValidated",
+      "description": "Emitted when a candidate passes all validation gates and is marked scope_valid.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the validated candidate." },
+        { "point": "diff_hash", "description": "Canonical hash of the validated diff." },
+        { "point": "changed_files", "description": "List of files within the authorized scope." }
+      ]
+    },
+    {
+      "event_name": "CandidateRejected",
+      "description": "Emitted when a candidate fails a validation gate and no refinement commit is created.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the rejected candidate." },
+        { "point": "rejection_reason", "description": "no_op, out_of_scope, missing_approval, diff_mismatch, malformed_metrics, test_weakening, ambiguous_test_change, etc." },
+        { "point": "rejection_basis", "description": "The specific rule or contract that was violated." }
+      ]
+    },
+    {
+      "event_name": "DetectOutOfScopeChange",
+      "description": "Emitted when a changed file is outside the authorized file scope or the target worktree.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the candidate being validated." },
+        { "point": "unauthorized_path", "description": "The path that violated the authorized scope." },
+        { "point": "authorized_scope", "description": "The intended_files or target root that bounded the change." }
+      ]
+    },
+    {
+      "event_name": "DetectTestWeakening",
+      "description": "Emitted when a required test is removed, skipped, weakened, rewritten, or ambiguously modified.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "run_id", "description": "Durable EDD run identifier." },
+        { "point": "candidate_id", "description": "Stable identifier for the candidate being validated." },
+        { "point": "test_file", "description": "Path of the modified required test." },
+        { "point": "weakening_pattern", "description": "remove, skip, weaken_assertion, rewrite, ambiguous." }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Display the refinement execution trigger and the current run status, including whether execution is in progress, succeeded, or failed.",
+          "intent": "Execution trigger and status are presentation concerns; the frontend does not enforce gates."
+        },
+        {
+          "responsibility": "Show the returned usage metrics and changed-file evidence in a candidate validation result view.",
+          "intent": "Structured evidence is for human review; display is the frontend's role."
+        },
+        {
+          "responsibility": "Render the rejection reason clearly when a candidate is rejected, including the rule or scope that was violated.",
+          "intent": "Rejection messaging is a presentation concern."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Run the selected refinement action as a harness-backed unattended skill with the appropriate permission profile, returning structured usage metrics and changed files.",
+          "intent": "The backend owns the execution of the action and the Activity lifecycle."
+        },
+        {
+          "responsibility": "Verify approval evidence before running any expectation-changing action; reject the action if approval is missing or the diff hash does not match.",
+          "intent": "Security and business-rule enforcement belong in the defensible backend zone."
+        },
+        {
+          "responsibility": "Validate that the candidate diff stays within the authorized file scope by checking every changed file against the intended_files and the target worktree.",
+          "intent": "Scope enforcement is a backend security and integrity responsibility."
+        },
+        {
+          "responsibility": "Detect and reject any removal, skipping, weakening, rewriting, or ambiguous modification of required tests to prevent gaming the score.",
+          "intent": "The quality-ratchet business rule (ADR-017) must be enforced in the backend."
+        },
+        {
+          "responsibility": "Reject no-op candidates with no changed files and candidates with malformed usage metrics without creating a refinement commit.",
+          "intent": "No-op and malformed outputs do not warrant a commit; the backend owns the accept/reject gate."
+        },
+        {
+          "responsibility": "Handle concurrent candidate validation independently so that two candidates for the same skill do not conflate results.",
+          "intent": "Concurrency isolation is a backend correctness concern."
+        },
+        {
+          "responsibility": "Expose a query for the current candidate status and validation result so the frontend can poll without mutating state.",
+          "intent": "Read-only status observability is a backend concern."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist the candidate status, usage metrics, changed-file list, diff hash, and rejection reason in the schema-versioned ProgressRecord under .process/edd/<run_id>/progress.json.",
+          "intent": "Colocated durable state supports worker resumption and audit."
+        },
+        {
+          "responsibility": "Ensure each candidate has a stable identifier and is not overwritten by concurrent validation attempts for the same run.",
+          "intent": "Data integrity and concurrency safety are storage concerns."
+        },
+        {
+          "responsibility": "Redact credentials, paths, and environment variables before writing execution and validation records.",
+          "intent": "Security of persisted artifacts is a data-integrity concern shared with ProgressRecordSerializer."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ExecutionResult",
+      "description": "Structured output of the refinement execution Activity, capturing usage metrics, changed files, and the produced diff hash.",
+      "changes": {
+        "added": "status, usage_metrics, changed_files, diff_hash, failure_reason, atif_path, duration_ms",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "CandidateValidationResult",
+      "description": "Result of validating a refinement candidate against approved intent and authorized file scope.",
+      "changes": {
+        "added": "candidate_id, run_id, status, usage_metrics, changed_files, diff_hash, rejection_reason, validated_at",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "ProgressRecord",
+      "description": "Existing EDD progress record is extended to carry the current and historical candidates, execution artifacts, and validation outcomes.",
+      "changes": {
+        "added": "candidate, candidate_history, execution_artifacts",
+        "modified": "schema_version: bump to 3",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ExecuteRefinementAction",
+      "description": "Activity that verifies approval when required and runs the selected refinement action through the configured harness.",
+      "changes": {
+        "added": "input: {run_id, planning: PlanningResult, approved_diff_hash, repo_root}; output: ExecutionResult",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "ValidateCandidate",
+      "description": "Activity that checks the candidate against authorized scope, approval integrity, and test-weakening rules.",
+      "changes": {
+        "added": "input: {run_id, planning: PlanningResult, execution: ExecutionResult, repo_root}; output: CandidateValidationResult",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "GetCandidateStatusQuery",
+      "description": "Cadence Query that returns the current candidate status, changed files, and rejection reason.",
+      "changes": {
+        "added": "query name 'get_candidate_status' returning {candidate_id, status, changed_files, rejection_reason, validated_at}",
+        "modified": "",
+        "removed": ""
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "HarnessBackedUnattendedSkillExecution",
+      "description": "The refinement execution Activity reuses the SkillActivity lifecycle and DevinHarness, with accept-edits enabled through the colocated *.config.json profile.",
+      "changes": {
+        "added": "src/edd_refinement_workflow/activities/execute_refinement_action.py with adjacent execute_refinement_action.config.json",
+        "modified": "",
+        "removed": ""
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Run refinement execution as a harness-backed unattended Skill Activity with an adjacent colocated configuration file enabling accept-edits.",
+      "justification": "The selected refinement action is an artifact-producing unattended skill. ADR-012 requires it to opt into accept-edits explicitly, and ADR-014 places the configuration beside the Activity. Reusing the SkillActivity lifecycle avoids duplicating harness/sentinel/output handling.",
+      "basis": "ADR-012, ADR-014, pattern seen in src/common/skill_activity.py",
+      "impact": "A new execute_refinement_action Activity and execute_refinement_action.config.json are added to src/edd_refinement_workflow/activities/ and registered in module.py.",
+      "answers_open_question": "How is the agentic action actually executed in the target repository?"
+    },
+    {
+      "decision": "Validate the candidate in a separate Activity after execution so that scope, approval, and test-weakening checks live in the defensible backend zone.",
+      "justification": "Execution is an external, fallible operation that may take a long time. Separating validation lets it run with a different timeout and retry policy, keeps the validation logic independent of the harness, and makes the accept/reject gate explicit and testable.",
+      "basis": "Explicit Architectural Change from Story; ADR-013 three-layer workflow module architecture",
+      "impact": "Two new Activities (execute_refinement_action and validate_candidate) are added to the EDD workflow, with a new data contract between them.",
+      "answers_open_question": "Should validation happen inside the same Activity as execution?"
+    },
+    {
+      "decision": "Represent the authorized file scope by PlanningResult.intended_files and enforce it with the existing ScopedPathValidator.",
+      "justification": "The planning result already carries the intended files, and the common layer already provides a reusable path validator. Reusing it keeps file-scope enforcement consistent with preflight and target repository boundaries.",
+      "basis": "ADR-018, pattern seen in src/common/scoped_path_validator.py",
+      "impact": "validate_candidate resolves each changed file against the target root and checks that it is contained in intended_files; the workflow rejects mixed-scope or unbounded changes.",
+      "answers_open_question": "How is the authorized file scope represented and enforced?"
+    },
+    {
+      "decision": "Use the canonical diff hash as the binding key between approval, execution, and validation.",
+      "justification": "ApprovalService already records proposed_diff_hash for expectation-changing actions. The execution Activity must produce the exact same diff hash, and validation must match it before marking the candidate scope_valid. This prevents an approved action from being silently swapped for a different one.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/approval.py; explicit requirement from the story",
+      "impact": "execute_refinement_action returns a diff_hash; validate_candidate rejects on mismatch with the approved proposed_diff_hash.",
+      "answers_open_question": "How is approval evidence cryptographically tied to the selected action?"
+    },
+    {
+      "decision": "Reject candidates that modify required tests in any remove, skip, weaken, rewrite, or ambiguous way.",
+      "justification": "ADR-017 prohibits gaming required tests. Because ambiguous changes cannot be proven safe, the safest default is rejection. This conservative rule is enforced during validation before any candidate is accepted.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet",
+      "impact": "validate_candidate inspects diff hunks for required test files and rejects on any suspicious removal, skip, assertion weakening, or rewrite.",
+      "answers_open_question": "What is the precise definition of 'weakening' a required test?"
+    },
+    {
+      "decision": "Persist rejected candidates in the ProgressRecord for audit rather than discarding them.",
+      "justification": "Rejected iterations contain valuable evidence of attempted scope violations and test weakening. Colocating them with the run history supports debugging, compliance, and the quality-ratchet's memory of harmful patterns.",
+      "basis": "ADR-004, pattern seen in src/edd_refinement_workflow/progress_record.py",
+      "impact": "ProgressRecord gains a candidate_history list; rejected candidates are appended with status and rejection_reason.",
+      "answers_open_question": "Should rejected candidates be persisted for audit, or discarded?"
+    },
+    {
+      "decision": "Parse structured usage metrics from the ATIF usage export and the harness observation object, mirroring the BaselineResult contract.",
+      "justification": "The existing BaselineResult/BaselineResultParser already defines a structured metric contract. DevinHarness can export ATIF usage (devin-trajectory.json), and the SkillActivity observation object already captures duration, model, and permission mode. Mirroring the baseline contract keeps metrics consistent.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/baseline_result.py; ADR-015",
+      "impact": "ExecutionResult.usage_metrics follows the BaselineResult schema: duration_ms, model, permission_mode, and token/count fields as available.",
+      "answers_open_question": "What is the exact schema and required fields for the structured usage metrics?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the exact schema and required fields for the structured usage metrics?",
+      "answer": "ExecutionResult.usage_metrics mirrors the existing BaselineResult contract and is populated from the harness observation and ATIF usage export. Required fields are duration_ms, model, permission_mode, input_tokens, output_tokens, and total_tokens when available.",
+      "justification": "Reusing the established BaselineResult contract keeps execution metrics comparable to baseline metrics and avoids inventing a new schema.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/baseline_result.py"
+    },
+    {
+      "question": "How is the authorized file scope represented and enforced?",
+      "answer": "The authorized scope is the PlanningResult.intended_files list. validate_candidate resolves every changed file against the target worktree and checks that it is inside the intended files set using ScopedPathValidator.",
+      "justification": "The planning result already carries the intended files, and the common layer already provides a reusable scoped path validator. This keeps scope enforcement consistent with preflight and target repository boundaries.",
+      "basis": "Pattern seen in src/common/scoped_path_validator.py"
+    },
+    {
+      "question": "What is the precise definition of 'weakening' a required test?",
+      "answer": "A required test is weakened if it is removed, skipped, has its assertions reduced, is rewritten to improve its pass score, or is modified in any ambiguous way. The validation rule is conservative: any ambiguous or suspicious modification of a required test is rejected.",
+      "justification": "Conservative rejection of ambiguous changes is the safest way to prevent gaming while avoiding false acceptance of subtle test tampering.",
+      "basis": "ADR-017: Agentic EDD Quality Ratchet"
+    },
+    {
+      "question": "How is approval evidence cryptographically tied to the selected action?",
+      "answer": "The approval request records the canonical proposed_diff_hash. The execution Activity must produce the same diff hash, and validation rejects the candidate if the executed diff hash does not match the approved proposed_diff_hash.",
+      "justification": "A canonical diff hash is the strongest binding available without introducing additional cryptography. It ensures the human-approved diff is the only one that can pass validation.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/approval.py"
+    },
+    {
+      "question": "Should rejected candidates be persisted for audit, or discarded?",
+      "answer": "Rejected candidates are persisted in the ProgressRecord's candidate_history with status, rejection_reason, usage_metrics, and changed_files.",
+      "justification": "Rejected attempts contain evidence of scope violations and test-weakening attempts that the owner and the quality ratchet need for audit and future planning.",
+      "basis": "Pattern seen in src/edd_refinement_workflow/progress_record.py; ADR-004"
+    }
+  ]
+}

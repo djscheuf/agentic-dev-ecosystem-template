@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from common.harness import HarnessResult, HarnessUsage
+from common.preflight import TargetRepositoryContext
 from common.skill_activity import SkillActivity, SkillActivityError, SkillActivityInput
 from common.workflow_logger import WorkflowLoggerConfig
 
@@ -92,6 +93,32 @@ def test_build_prompt_applies_hook_after_output_directory_instruction(tmp_path) 
     ).build_prompt(SkillActivityInput(input_paths=["inputs/story.json"]))
 
     assert prompt.endswith("Do not remove the sentinel after verification.\nmodified")
+
+
+def test_build_prompt_instructs_the_modified_sentinel_path(tmp_path) -> None:
+    config_path = tmp_path / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {},
+    }))
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            return HarnessResult(0, "", "")
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("artifacts/custom.json")
+
+        def modify_sentinel_path(self, sentinel_path: Path) -> Path:
+            return tmp_path / "inputs-override" / ".process" / "custom.done.json"
+
+    prompt = CustomActivity(
+        config_path=config_path, harness=FakeHarness(), repo_root=tmp_path
+    ).build_prompt(SkillActivityInput(input_paths=["inputs/story.json"]))
+
+    assert "inputs-override/.process/custom.done.json" in prompt
+    assert "inputs/.process/custom.done.json" not in prompt
 
 
 def test_execute_returns_paths_for_created_activity_logs(tmp_path, monkeypatch) -> None:
@@ -276,3 +303,43 @@ def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
             "cost_usd": None,
         },
     }
+
+
+def test_execute_uses_target_context_repo_root(tmp_path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    config_path = target / "custom.config.json"
+    config_path.write_text(json.dumps({
+        "activity": {"skill_name": "custom", "output_path_key": "artifact"},
+        "harness": {},
+    }))
+
+    class FakeHarness:
+        def run(self, prompt, *, cwd, config):
+            sentinel = target / ".process" / "custom.done.json"
+            sentinel.parent.mkdir(parents=True)
+            sentinel.write_text(json.dumps({
+                "task": "custom", "verify_params": {"artifact": "artifact.json"}
+            }))
+            return HarnessResult(0, "", "")
+
+    class CustomActivity(SkillActivity):
+        def expected_output_path(self, skill_input: SkillActivityInput) -> Path:
+            return Path("unused.json")
+
+    context = TargetRepositoryContext(
+        repo_root=target,
+        anchor_path=str(target / "anchor.json"),
+        explicit_root=None,
+        branch="master",
+        starting_revision="abc123",
+    )
+    output = CustomActivity(
+        config_path=config_path,
+        harness=FakeHarness(),
+        repo_root=tmp_path,
+    ).execute(SkillActivityInput(target_context=context))
+
+    assert output.sentinel_path == ".process/custom.done.json"
+    assert (target / output.sentinel_path).exists()
+    assert output.target_context == context

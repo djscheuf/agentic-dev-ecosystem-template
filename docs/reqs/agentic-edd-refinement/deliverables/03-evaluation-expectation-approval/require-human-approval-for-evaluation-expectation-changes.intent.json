@@ -1,0 +1,81 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/03-evaluation-expectation-approval/story.md",
+  "title": "Require Human Approval for Evaluation Expectation Changes",
+  "story": {
+    "so_that": "automated refinement never silently redefines what passing means",
+    "as_a": "human approver",
+    "i_want": "every proposed evaluation expectation change to be bound to an explicit, durable approval decision before it is applied"
+  },
+  "target_persona": {
+    "name": "Human Approver - EDD Refinement Reviewer",
+    "role": "Approver",
+    "technical_level": "Expert",
+    "frequency_of_use": "Occasional",
+    "environment": "Web",
+    "permissions": "Review proposed evaluation expectation diffs or stable proposal identifiers; approve, reject, or leave pending proposed changes; view approval history and measurement context",
+    "journey": {
+      "before": "The approver is notified that an automated EDD refinement run has produced a selected action proposing to change an evaluation expectation, including an LLM rubric",
+      "during": "The approver inspects the exact proposed diff or stable proposal identifier, decides to approve, reject, or take no action, and records the decision in the durable approval channel",
+      "after": "The workflow either applies only the approved diff and records it as a human-approved evaluation change, or routes the rejection to planning or stops the run; timeout also prevents implicit approval"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Pause an EDD refinement workflow durably to request and await explicit human approval for a proposed evaluation expectation change before applying it",
+    "inputs": [
+      "Planning result identifying a proposed evaluation expectation change",
+      "Exact proposed diff or stable proposal identifier",
+      "Configured approval timeout policy",
+      "Durable workflow signaling mechanism",
+      "Human approval decision (approve / reject / none)"
+    ],
+    "outputs": [
+      "Durable approval request with proposal context",
+      "Recorded approve / reject / timeout decision",
+      "Applied, human-approved evaluation expectation diff",
+      "Reroute or stop signal on rejection/timeout"
+    ],
+    "state_changes": [
+      "Workflow state transitions to a durable waiting-for-approval state",
+      "Approval decision is persisted and bound to the exact diff or stable proposal identifier",
+      "Only the approved diff is applied and recorded as a human-approved evaluation change"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "EDD-005-AC1: Given the selected action proposes changing an evaluation expectation, including an LLM rubric, when the workflow reaches the approval step, then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier.",
+      "gherkin": "Given the selected action proposes changing an evaluation expectation including an LLM rubric when the workflow reaches the approval step then it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier",
+      "type": "Functional",
+      "jtbd": "Approve or reject a proposed evaluation expectation change",
+      "persona_served": "Human Approver - EDD Refinement Reviewer"
+    },
+    {
+      "criterion": "EDD-005-AC2: Given an approval request is pending, when no decision is received before the configured approval timeout, then the workflow treats the absence of a decision as no approval, never as implicit approval.",
+      "gherkin": "Given an approval request is pending when no decision is received before the configured approval timeout then the workflow treats the absence of a decision as no approval and never as implicit approval",
+      "type": "Business rule",
+      "jtbd": "Ensure missing decisions are not treated as approval",
+      "persona_served": "Human Approver - EDD Refinement Reviewer"
+    },
+    {
+      "criterion": "EDD-005-AC3: Given a human rejects the proposed evaluation change, when the rejection is recorded, then the workflow returns to planning or stops according to policy, and the change is not applied.",
+      "gherkin": "Given a human rejects the proposed evaluation change when the rejection is recorded then the workflow returns to planning or stops according to policy and the change is not applied",
+      "type": "Business rule",
+      "jtbd": "Reject unsafe evaluation changes with clear routing",
+      "persona_served": "Human Approver - EDD Refinement Reviewer"
+    },
+    {
+      "criterion": "EDD-005-AC4: Given a human approves the exact proposed diff, when execution proceeds, then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change.",
+      "gherkin": "Given a human approves the exact proposed diff when execution proceeds then only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change",
+      "type": "Business rule",
+      "jtbd": "Apply only the exact approved evaluation change",
+      "persona_served": "Human Approver - EDD Refinement Reviewer"
+    },
+    {
+      "criterion": "EDD-005-AC5: Given a worker restarts while a run is waiting for approval, when the workflow resumes, then it continues waiting on the same pending approval without losing the proposal context.",
+      "gherkin": "Given a worker restarts while a run is waiting for approval when the workflow resumes then it continues waiting on the same pending approval without losing the proposal context",
+      "type": "Non-functional",
+      "jtbd": "Preserve approval context across worker restarts",
+      "persona_served": "Human Approver - EDD Refinement Reviewer"
+    }
+  ]
+}

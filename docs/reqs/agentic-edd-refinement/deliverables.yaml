@@ -1,0 +1,395 @@
+workstream:
+  name: Agentic EDD Refinement
+  description: >
+    A bounded, durable Cadence workflow that automatically improves the evaluation-driven
+    development (EDD) test suite and implementation of an existing skill in a target
+    repository, operating as a quality ratchet that commits only measured improvements
+    and removes confirmed regressions.
+  source_scope: docs/reqs/agentic-edd-refinement/feature-description.md
+
+deliverables:
+  - id: EDD-001
+    title: Target repository resolution and preflight validation
+    deliverable_description: >
+      As a workflow requester, I want the workflow to resolve exactly one target
+      repository and validate that it and my inputs are safe to operate on before any
+      refinement begins, so that I never risk mutating the wrong repository or a dirty
+      workspace.
+    acceptance_criteria:
+      - id: EDD-001-AC1
+        given: a repository anchor path and no explicit target repository root
+        when: preflight runs
+        then: the workflow resolves the nearest containing Git worktree root and records its canonical path and starting revision
+        type: positive
+      - id: EDD-001-AC2
+        given: both an anchor-derived root and an explicit root are supplied and they identify different Git worktrees
+        when: preflight runs
+        then: the request is rejected before any agent is invoked
+        type: negative
+      - id: EDD-001-AC3
+        given: a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree
+        when: preflight validates it
+        then: the request is rejected
+        type: negative
+      - id: EDD-001-AC4
+        given: the target worktree has staged, unstaged, or untracked changes
+        when: preflight inspects repository status
+        then: the workflow rejects the request and leaves the worktree unchanged
+        type: negative
+      - id: EDD-001-AC5
+        given: another workflow run already holds the mutation lease for the same target repository
+        when: preflight runs
+        then: the workflow rejects or waits according to configured policy without starting refinement
+        type: edge_case
+      - id: EDD-001-AC6
+        given: the target skill does not exist, or exists but has no evaluation suite, in the target repository
+        when: preflight runs
+        then: the workflow rejects the request before refinement begins
+        type: negative
+      - id: EDD-001-AC7
+        given: required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid
+        when: preflight runs
+        then: preflight succeeds, acquires the repository mutation lease, and reports no other side effects
+        type: positive
+      - id: EDD-001-AC8
+        given: any precondition fails
+        when: preflight completes
+        then: the workflow reports every failed condition and releases any lease it had acquired
+        type: edge_case
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-002
+    title: Schema-versioned progress record initialization
+    deliverable_description: >
+      As a workflow requester, I want a durable, auditable progress record created as
+      soon as my run starts, so that I can inspect and trust the history of the run even
+      if a worker restarts partway through.
+    acceptance_criteria:
+      - id: EDD-002-AC1
+        given: preflight has succeeded for a run
+        when: the workflow initializes
+        then: a schema-versioned JSON progress record is created containing run identity, resolved repository identity, normalized inputs, authorized scope, limits, and an empty iteration history
+        type: positive
+      - id: EDD-002-AC2
+        given: the progress record is created
+        when: it is inspected
+        then: cumulative token usage and the consecutive confirmed-regression counter are initialized to zero
+        type: positive
+      - id: EDD-002-AC3
+        given: the run has access to secrets, credentials, or sensitive environment values
+        when: the progress record is written
+        then: none of those values appear in the document
+        type: negative
+      - id: EDD-002-AC4
+        given: a worker restarts immediately after initialization
+        when: the workflow resumes
+        then: the same progress record is reused rather than duplicated or recreated
+        type: edge_case
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-003
+    title: Baseline evaluation establishment
+    deliverable_description: >
+      As a workflow requester, I want the workflow to measure the skill's current
+      evaluation performance before making any change, so that every later claim of
+      improvement or regression has a trustworthy reference point.
+    acceptance_criteria:
+      - id: EDD-003-AC1
+        given: a valid initialized run
+        when: the workflow establishes its baseline
+        then: it invokes the complete evaluation suite through the deterministic evaluation command and pinned provider
+        type: positive
+      - id: EDD-003-AC2
+        given: the baseline evaluation completes
+        when: results are recorded
+        then: passing, failing, total, percentage, and required-test-case coverage metrics, along with failures, artifact references, duration, and outcome, are stored in the progress record
+        type: positive
+      - id: EDD-003-AC3
+        given: the baseline evaluation cannot be executed successfully
+        when: the workflow checks the outcome
+        then: refinement does not begin and the failure is recorded
+        type: negative
+      - id: EDD-003-AC4
+        given: the baseline evaluation exceeds its configured timeout
+        when: the timeout is reached
+        then: the attempt is recorded and handled per the configured retry policy without silently proceeding to refinement
+        type: edge_case
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-004
+    title: Refinement action planning
+    deliverable_description: >
+      As a skill owner relying on the ratchet, I want each iteration to choose exactly
+      one well-justified next action from an approved set of options, so that changes to
+      my skill and its evaluation suite stay controlled and explainable.
+    acceptance_criteria:
+      - id: EDD-004-AC1
+        given: the current progress record, latest evaluation evidence, required test cases, and remaining budgets
+        when: a planning step runs
+        then: it selects exactly one action from the authorized set (add/extend coverage, repair scripted checks, refine the skill, refine supporting documents, propose an evaluation expectation change, or stop)
+        type: positive
+      - id: EDD-004-AC2
+        given: a planning step completes
+        when: its result is recorded
+        then: it includes rationale and evidence, intended files or file classes, expected effect, whether human approval is required, and a stop recommendation when applicable
+        type: positive
+      - id: EDD-004-AC3
+        given: no defensible action remains, the objective is met, or a limit prevents another safe iteration
+        when: planning runs
+        then: the "stop" action is selected and no further refinement is scheduled
+        type: edge_case
+      - id: EDD-004-AC4
+        given: a planning result names an action outside the authorized set
+        when: the result is validated
+        then: the iteration is rejected and no refinement Activity is invoked for it
+        type: negative
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-005
+    title: Human approval for evaluation expectation changes
+    deliverable_description: >
+      As a human approver, I want to explicitly review and decide on any proposal that
+      changes what an evaluation expects, so that the ratchet never silently redefines
+      what "passing" means.
+    acceptance_criteria:
+      - id: EDD-005-AC1
+        given: the selected action proposes changing an evaluation expectation, including an LLM rubric
+        when: the workflow reaches the approval step
+        then: it pauses durably and waits for an explicit human decision bound to the exact proposed diff or a stable proposal identifier
+        type: positive
+      - id: EDD-005-AC2
+        given: an approval request is pending
+        when: no decision is received before the configured approval timeout
+        then: the workflow treats the absence of a decision as no approval, never as implicit approval
+        type: negative
+      - id: EDD-005-AC3
+        given: a human rejects the proposed evaluation change
+        when: the rejection is recorded
+        then: the workflow returns to planning or stops according to policy, and the change is not applied
+        type: negative
+      - id: EDD-005-AC4
+        given: a human approves the exact proposed diff
+        when: execution proceeds
+        then: only the approved diff is applied and it is recorded as a human-approved evaluation change distinct from a skill-behavior change
+        type: positive
+      - id: EDD-005-AC5
+        given: a worker restarts while a run is waiting for approval
+        when: the workflow resumes
+        then: it continues waiting on the same pending approval without losing the proposal context
+        type: edge_case
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-006
+    title: Refinement action execution and scope validation
+    deliverable_description: >
+      As a skill owner, I want every executed refinement action to touch only the files
+      I authorized, so that an automated change never spills outside its approved
+      boundary.
+    acceptance_criteria:
+      - id: EDD-006-AC1
+        given: a selected and (if required) approved action
+        when: the corresponding refinement Activity runs
+        then: it returns structured usage metrics and a list of changed files
+        type: positive
+      - id: EDD-006-AC2
+        given: the refinement Activity completes
+        when: its resulting diff is validated
+        then: the workflow confirms the diff matches the approved action and stays within the authorized file scope
+        type: positive
+      - id: EDD-006-AC3
+        given: an agent changes a file outside the authorized scope
+        when: candidate validation runs
+        then: the iteration is rejected and no refinement commit is created
+        type: negative
+      - id: EDD-006-AC4
+        given: a refinement action would remove, skip, weaken, or rewrite a failing required test to improve its score
+        when: candidate validation runs
+        then: the change is rejected rather than accepted as a repair
+        type: negative
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-007
+    title: Candidate state evaluation
+    deliverable_description: >
+      As a skill owner, I want every proposed change measured with the same rigor as
+      the baseline, so that acceptance decisions are based on comparable evidence.
+    acceptance_criteria:
+      - id: EDD-007-AC1
+        given: a refinement action has completed and passed scope validation
+        when: the candidate is evaluated
+        then: the same deterministic evaluation command, configuration, and pinned provider used for the baseline are invoked again
+        type: positive
+      - id: EDD-007-AC2
+        given: the candidate evaluation completes
+        when: results are recorded
+        then: structured passing, failing, total, percentage, and required-coverage metrics and artifact references are captured
+        type: positive
+      - id: EDD-007-AC3
+        given: the candidate evaluation exceeds its configured Activity timeout
+        when: the timeout is reached
+        then: the attempt is recorded, the configured retry policy is applied, and the attempt does not count as an additional logical iteration
+        type: edge_case
+      - id: EDD-007-AC4
+        given: the evaluation Activity errors for infrastructure reasons
+        when: the failure is recorded
+        then: it is not treated by itself as evidence of a product regression
+        type: negative
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-008
+    title: Quality ratchet comparison and acceptance decision
+    deliverable_description: >
+      As a skill owner, I want a candidate change accepted only when it demonstrably
+      improves passing evaluations or meaningfully extends required coverage without
+      losing ground, so that my accepted skill state only ever moves forward.
+    acceptance_criteria:
+      - id: EDD-008-AC1
+        given: a candidate increases the absolute number of passing evaluations without reducing required test-case coverage
+        when: comparison completes
+        then: the change is committed deterministically, the consecutive-regression counter resets, and the candidate becomes the new best accepted state
+        type: positive
+      - id: EDD-008-AC2
+        given: a candidate covers a previously uncovered required test case while preserving the prior absolute passing count
+        when: comparison completes
+        then: the change may be committed and accepted even if a larger denominator lowers the pass percentage
+        type: positive
+      - id: EDD-008-AC3
+        given: every required test case is already covered and a candidate only increases the total evaluation count
+        when: comparison completes
+        then: the candidate is not classified or committed as an improvement
+        type: negative
+      - id: EDD-008-AC4
+        given: a candidate performs worse than the current best accepted state
+        when: comparison completes
+        then: it is not immediately reverted or committed, and the workflow reruns the complete suite against the unchanged candidate before deciding
+        type: edge_case
+      - id: EDD-008-AC5
+        given: a candidate neither improves passing count nor adds meaningful coverage
+        when: comparison completes
+        then: no commit is made and the reason no qualifying value was added is recorded
+        type: negative
+      - id: EDD-008-AC6
+        given: an evaluation expectation change was applied with human approval
+        when: comparing before-change and after-change scores
+        then: the two measurement contexts are kept separate rather than treated as directly comparable
+        type: edge_case
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-009
+    title: Regression confirmation, revert, and recovery
+    deliverable_description: >
+      As a skill owner, I want an apparently worse result double-checked before
+      anything is reverted, and any confirmed regression automatically undone and
+      verified as recovered, so that a single flaky run can't wrongly discard my work
+      or leave my repository in a degraded state.
+    acceptance_criteria:
+      - id: EDD-009-AC1
+        given: a second evaluation run against the unchanged candidate also performs worse than the current best state
+        when: the regression is confirmed
+        then: both degraded results and the change summary are recorded, the consecutive-regression counter increments, the last accepted state is restored, and the suite is rerun to verify recovery
+        type: positive
+      - id: EDD-009-AC2
+        given: the second evaluation run returns to or exceeds the current best state
+        when: results are compared
+        then: the result is treated as unstable, a human is notified, and no autonomous commit or revert decision is made
+        type: edge_case
+      - id: EDD-009-AC3
+        given: the second evaluation run errors, times out, or otherwise fails to establish stable equivalence, improvement, or regression
+        when: results are classified
+        then: the evidence is recorded as suspected flakiness, a human is notified, and autonomous refinement does not continue
+        type: negative
+      - id: EDD-009-AC4
+        given: a confirmed regression has been reverted
+        when: the recovery evaluation runs
+        then: it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed
+        type: positive
+      - id: EDD-009-AC5
+        given: the recovery evaluation cannot verify the restored performance
+        when: recovery fails
+        then: autonomous refinement stops and hands off to a human
+        type: negative
+      - id: EDD-009-AC6
+        given: a proposal is reverted
+        when: it is recorded
+        then: its change summary, affected files, rationale, observed degradation, confirmation result, and recovery result remain visible to future planning steps
+        type: positive
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-010
+    title: Iteration and budget limit enforcement
+    deliverable_description: >
+      As a workflow requester, I want the run to respect my configured iteration and
+      token limits and to stop immediately after repeated harmful proposals, so that
+      cost and execution time stay bounded regardless of how the agent behaves.
+    acceptance_criteria:
+      - id: EDD-010-AC1
+        given: the cumulative token budget or maximum iteration count has been reached
+        when: the workflow checks its limits
+        then: it schedules no further refinement step and exits with the best accepted state
+        type: positive
+      - id: EDD-010-AC2
+        given: three consecutive proposed changes have each produced a confirmed regression
+        when: the third revert and recovery check complete
+        then: the workflow stops immediately regardless of remaining iteration or token budget and publishes a human handoff report of the three attempts
+        type: negative
+      - id: EDD-010-AC3
+        given: scheduling another agentic or evaluation step would exceed a known hard limit
+        when: the workflow checks before scheduling
+        then: that step is not scheduled
+        type: edge_case
+      - id: EDD-010-AC4
+        given: an Activity is retried after a timeout or worker restart
+        when: token usage is tallied
+        then: the retry does not count as an additional logical iteration, but its observable token usage still counts toward the cumulative budget
+        type: edge_case
+      - id: EDD-010-AC5
+        given: unresolved flaky or inconclusive evaluation evidence, or an unverified recovery, is pending
+        when: the workflow checks limits
+        then: it does not schedule another autonomous refinement step until the pending condition is resolved
+        type: negative
+    review_status: pending
+    review_notes: ""
+
+  - id: EDD-011
+    title: Run finalization and audit report
+    deliverable_description: >
+      As a workflow requester, I want a complete terminal report and a repository left
+      at its best accepted state, so that I can trust and act on the outcome without
+      re-deriving it myself.
+    acceptance_criteria:
+      - id: EDD-011-AC1
+        given: a run reaches any terminal outcome
+        when: finalization runs
+        then: it publishes a terminal progress record and workflow result containing baseline and final metrics, absolute changes, terminal reason, accepted iteration and commit references, and rejected or reverted iteration summaries
+        type: positive
+      - id: EDD-011-AC2
+        given: a run reaches any terminal outcome
+        when: finalization completes
+        then: the repository mutation lease is released and the progress record identifies the target repository and final accepted commit
+        type: positive
+      - id: EDD-011-AC3
+        given: a run finalizes
+        when: the terminal repository state is checked
+        then: it corresponds to the best accepted state, not merely the last attempted state
+        type: positive
+      - id: EDD-011-AC4
+        given: pending human decisions or flaky-result evidence exist at the time of termination
+        when: the report is published
+        then: those pending or resolved items are included in the report rather than silently dropped
+        type: edge_case
+      - id: EDD-011-AC5
+        given: the workflow terminates due to an unrecoverable error before any commit is accepted
+        when: finalization runs
+        then: the report still identifies the target repository, the failure reason, and that no accepted commit exists, and the lease is still released
+        type: negative
+    review_status: pending
+    review_notes: ""

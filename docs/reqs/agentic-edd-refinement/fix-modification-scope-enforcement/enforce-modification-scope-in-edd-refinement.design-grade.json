@@ -1,0 +1,27 @@
+{
+  "design_reasoning": {
+    "score": 3,
+    "reason": "All six architectural_decisions cite concrete anchors (ADR-017, ADR-023, requirements.md Requirements 1-6, and vault/services/edd_refinement.md patterns). Justifications avoid preference and instead explain why the chosen shape satisfies constraints such as resumption, sibling-prefix rejection, and exception-driven finalization.",
+    "recommendation": "Keep the ADR- and requirement-cite density intact during implementation; if any decision changes, update the basis field before implementation proceeds."
+  },
+  "workflow_changes": {
+    "score": 3,
+    "reason": "The workflow_sequence walks from EddInputReceived through RunFinalized with layer labels and data_shape handshake points for each step, and explicitly defines plan-time, diff-time, alarm, and cleanup divergences. The edge-case coverage from the analysis (empty scope, resumed run, git reset failure, sibling-prefix) is addressed by steps 3, 4, 8, and 10.",
+    "recommendation": "No major gaps; when sequencing stories, maintain this step/layer/data-shape format so acceptance criteria can continue to trace directly to workflow steps."
+  },
+  "interface_contracts": {
+    "score": 3,
+    "reason": "The contracts array lists six new or modified contracts (ProgressRecordV5, PlanningResult, CandidateValidationResult, PathScopeChecker, OutOfScopeWorkflowError, FinalizeRunCleanup) with added/modified/removed deltas and concrete data_shape payloads. Each workflow step maps to one or more of these contracts, giving a 1:1 trace.",
+    "recommendation": "Continue validating contract shapes against the schema before code review; the current level of detail is sufficient for implementation."
+  },
+  "layer_responsibilities": {
+    "score": 3,
+    "reason": "The layer_responsibilities section explicitly assigns ownership to Backend, Common, and Data, including the rationale for each. It reuses existing components (ProgressRecordV5, common/scoped_path_validator.py) and states why orchestration owns the terminal-halt decision.",
+    "recommendation": "Preserve the responsibility/rationale pairs when splitting the design into workstreams so cross-layer ownership does not drift."
+  },
+  "instrumentation": {
+    "score": 3,
+    "reason": "There are six instrumentation_events covering scope resolution, plan rejection, diff detection, error raise, worktree restoration, and lease release, each with relevant data_points and layer tags. This covers every major branch identified in the workflow.",
+    "recommendation": "When implementing, ensure the event names and data points appear verbatim in the telemetry schema so observability matches the design."
+  }
+}

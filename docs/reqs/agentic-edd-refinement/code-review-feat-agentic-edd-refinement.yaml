@@ -1,0 +1,360 @@
+code_review:
+  identified_requirements:
+    - title: "Agentic EDD Refinement (feature)"
+      intent: "A bounded, durable Cadence workflow that improves an existing skill's EDD suite via plan/do/check iterations, acting as a quality ratchet with human approval for evaluation-expectation changes."
+      acceptance_criteria:
+        - "Authorized refinement actions only; files outside authorized scope fail the iteration"
+        - "Quality ratchet accepts only passing-count or meaningful-coverage improvements"
+        - "Apparent regressions get a confirmation rerun; confirmed regressions revert and verify recovery"
+        - "Three consecutive confirmed regressions stop the run with a human handoff"
+        - "No evaluation expectation change without explicit human approval"
+      source: "docs/reqs/agentic-edd-refinement/feature-description.md"
+    - title: "Bring Agentic EDD Refinement to Ready"
+      intent: "Make the capability usable end-to-end: portable input document, workflow-owned preflight, run-lifetime mutation lease, multi-iteration durable loop, catalog/CLI/kickoff exposure, terminal audit record."
+      acceptance_criteria:
+        - "AC-1..AC-15 (kickoff start, repo derivation, path-escape rejection, single provider, exact-eval inspection, coverage calc, eval timeout, run-lifetime lease, multi-iteration, candidate resume, worker exposure, commit conventions, colocated progress, finalize every terminal branch, external-target proof)"
+        - "Public workflow input is the input-document path; preflight is scheduled as an Activity; no client constructs trusted repository context"
+        - "Lease held across iterations, waits, and restarts; renewed before expiration; released on every terminal path"
+      source: "docs/reqs/agentic-edd-refinement/bring-to-ready/requirements.md"
+    - title: "Fix the EDD Refinement Workflow"
+      intent: "Replace the non-functional workflow skeleton with a real plan-do-check loop driven by edd-plan/edd-do skills and deterministic check/regression/commit/limits activities."
+      acceptance_criteria:
+        - "Deterministic check activity runs eval + inspect + compare"
+        - "Regression confirmation reruns the unchanged candidate before classifying"
+        - "Iteration/token limits gate each agentic step"
+      source: "docs/reqs/agentic-edd-refinement/fix-edd-workflow/requirements.md"
+    - title: "Fix Modification-Scope Enforcement"
+      intent: "Persist the authorized modification_scope for the run's life and enforce it at plan time and against the real post-execution diff, escalating violations to a hard stop with a clean worktree."
+      acceptance_criteria:
+        - "Canonical scope persisted in the progress record"
+        - "Plan-time intended_files pre-check and validate_candidate ground-truth check"
+        - "Out-of-scope produces a distinct terminal_reason and finalize leaves a clean worktree"
+      source: "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/requirements.md"
+    - title: "Deliverables 01-07 (per-deliverable stories)"
+      intent: "Preflight, run initialization, approval gating, scoped execution, ratchet/finalization, regression recovery, and iteration/budget limits as separate deliverable stories."
+      acceptance_criteria: []
+      source: "docs/reqs/agentic-edd-refinement/deliverables/*/story.md, deliverables.yaml"
+  impacted_scope:
+    directly_changed:
+      - "src/edd_refinement_workflow/ (new module: workflow, 15 activities, CLI, approval, ratchet, coverage, progress record)"
+      - "src/common/ (new: preflight, target_repository, repository_status, scoped_path_validator, mutation_lease_*, skill_and_evaluation_discovery; modified: skill_activity)"
+      - ".devin/skills/edd-plan, .devin/skills/edd-do (new agentic skills + verify scripts)"
+      - "scripts/run-eval.js (new), scripts/inspect-eval.js (--compact-json, coverage metadata), scripts/kickoff-edd-refinement.sh (new)"
+      - "evals/ + .devin/skills/grade-story-design/_tests/ (eval suite accepted candidates from live refinement runs)"
+      - "src/orchestrator/workflow_catalog.json, requirements.txt, scripts/start-workflow-engine.sh, run_unit_tests.sh"
+      - ".devin/hooks.json, .devin/scripts/protect-secrets.sh, validate-json-yaml.sh"
+      - "vault/ (ADR-017..023, service pages), docs/reqs/agentic-edd-refinement/ (requirements corpus)"
+    dependents:
+      - "src/orchestrator catalog loader (imports edd_refinement_workflow.module)"
+      - "SkillActivity/run_skill callers (target_context parameter added; existing callers unaffected)"
+      - "grade-story-design skill consumers (rubric/tests evolved by refinement runs)"
+    contracts_touched:
+      - "EddRefinementWorkflow signature (PreflightResult + request dict), signals approve_evaluation_change, queries get_candidate_status/get_approval_status/get_regression_status"
+      - "EDD input document schema (edd_input.example.json), required test-case YAML contract, coverage_metadata_property convention"
+      - ".process/edd/<run_id>/ progress.json, refinement.yaml, terminal.json artifact contract; .process/mutation-leases.json"
+      - "progress record schema_version 5"
+    workflows_affected:
+      - "Engineer starts a bounded EDD refinement run against a target skill repo and receives a terminal audit record"
+      - "Human approver decides evaluation-expectation changes via CLI signals"
+      - "Operator recovers stale leases and handoffs"
+  general_commentary:
+    verdict: request-changes
+    summary: >
+      Six blocking items must be fixed before merge; several earlier findings
+      were reclassified after the team confirmed accepted trade-offs
+      (evaluation-expectation approval gating, untracked-file scope checks,
+      and full regression recovery are deprioritized; bailing out of the
+      workflow to punt to a human is acceptable at present). The remaining
+      blockers: preflight runs in the CLI client instead of as a workflow
+      Activity (contradicting the stated contract and AC for external
+      targets); the lease TTL is borrowed from eval_timeout_seconds and never
+      renewed; the max_tokens budget is silently unenforced; the baseline
+      evaluation runs inside initialize_run under a 5-minute activity
+      timeout; the plan/do skill activities are rooted at the orchestration
+      repo install path rather than the target repo; and there is no
+      automated external-target proof (AC-15). One residual suggestion worth
+      tracking: even accepted bail-outs should still finalize (terminal
+      record, restore, lease release). The architecture (three-layer module,
+      deterministic plan/do/check with agentic skills, durable progress
+      record, iteration-start baseline) is sound and well documented in the
+      vault; unit coverage is broad (258 tests green under nix-shell). Fix
+      the durability/target-root defects and add an external-target
+      end-to-end proof before merging.
+    limitations:
+      - "Diff is ~24.6k lines across 185 files / 286 commits; review prioritized the new EDD module, shared common/ helpers, scripts, and guardrail paths rather than every line."
+      - "No live Cadence run was executed; behavior claims about the workflow rely on code reading and the unit suite."
+      - "The accepted-candidate eval changes under .devin/skills/grade-story-design/_tests/ were reviewed at the level of intent, not per-assertion."
+      - "The untracked .devin/skills/code-review/ directory was excluded per user instruction."
+  review_comments:
+    - description: "Branch adds ~24,600 lines across 185 files in 286 commits, spanning a new workflow module, shared common/ helpers, two skills, scripts, hooks, eval-suite changes, vault docs, and the requirements corpus. Several logically separable changes (scope enforcement, eval tooling, secret protection hook) are folded into one branch."
+      type: design
+      impact: "A diff this size cannot be reviewed line-by-line with confidence; defects in guardrail code are more likely to slip through, and rollback of any one concern reverts all of them."
+      recommendation: "Keep this branch as the integration point, but for future work land deliverables as separate stacked branches per deliverables/01-07 so each guardrail is reviewed in isolation."
+      guidance: "Which of these changes could have shipped independently without the workflow module existing?"
+      priority: comment
+      locations:
+        - "."
+      in_diff: true
+    - description: "The public workflow signature is `run(preflight_result: PreflightResult, request: dict)` and the CLI executes `resolve_and_validate_target_repository` in the client process before calling `start_workflow`. Requirements state the public input must be the input-document path, that the workflow schedules preflight as an Activity, and that no client constructs trusted repository context on the workflow's behalf."
+      type: story
+      impact: "Violates the 'Workflow-owned preflight' contract: preflight is not durable, not retried, not replayed, and its result is trusted client-supplied state. A client crash between preflight and start loses the resolution entirely, and any caller can fabricate a PreflightResult. Breaks the replay/resume guarantees the rest of the design assumes."
+      recommendation: "Change the workflow signature to accept the input-document path (and optional workflow id). Schedule a `preflight` activity inside the workflow that resolves and validates the target repository, and keep the CLI limited to schema sanity-checks before contacting Cadence."
+      guidance: "If a worker restarts mid-run, which process re-validates that the repository context is still the one the run started with?"
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/cli.py:75-132"
+        - "src/edd_refinement_workflow/workflow.py:29-67"
+        - "src/common/preflight.py:30-150"
+      in_diff: true
+    - description: "The mutation-lease TTL is set from `limits.eval_timeout_seconds` (default 1200s) at CLI construction and passed through to `initialize_run`. Nothing in the codebase renews or heartbeats the lease (no renew/extend call exists on MutationLeaseStore or the policy handler)."
+      type: implementation
+      impact: "A run that waits on human approval (timeout 3600s) or runs more than a couple of 10-20 minute evaluations outlives its lease, after which a second mutating run can acquire the lease and modify the same worktree concurrently. Breaks AC-8 ('lease remains valid until finalization') and the at-most-one-mutating-run invariant."
+      recommendation: "Decouple lease TTL from eval_timeout_seconds; add a renew/extend operation to MutationLeaseStore and have the workflow (or an activity per iteration/wait) refresh `dead_by` while it is alive."
+      guidance: "How long can a single run legitimately hold the worktree, and who is responsible for proving it is still alive?"
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/cli.py:94"
+        - "src/edd_refinement_workflow/cli.py:124"
+        - "src/edd_refinement_workflow/activities/initialize_run.py:96-109"
+        - "src/common/mutation_lease_store.py:30-51"
+      in_diff: true
+    - description: "`check_refinement_limits` reads `budgets['token_budget']`, `budgets['hard_token_limit']`, and `budgets['regression_stop_threshold']`, but `record['budgets']` is populated from `profile['limits']`, whose keys are `max_iterations`, `max_tokens`, and `eval_timeout_seconds`. The token-budget and regression-threshold checks therefore never fire; only `max_iterations` is enforced."
+      type: implementation
+      impact: "A run configured with only `max_tokens` (a supported input combination) has no effective stop condition besides planning voluntarily choosing `stop` — the cumulative token guardrail the feature advertises is silently absent. Agent spend is unbounded in that configuration."
+      recommendation: "Align the checked keys with the input contract (`max_tokens`), or normalize limits into canonical budget keys during initialize_run and test both limit types end-to-end."
+      guidance: "Would a test that seeds budgets from the real `limits` shape have caught this? The current tests construct budgets with the keys the checker expects, so both sides are self-consistent and wrong together."
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/activities/check_refinement_limits.py:4-36"
+        - "src/edd_refinement_workflow/activities/initialize_run.py:188"
+        - "src/edd_refinement_workflow/cli.py:106"
+      in_diff: true
+    - description: "`requires_approval` in edd_plan is only set when `proposed_diff_hash` arrives via the workflow request (lines 196-198), and the CLI never populates `proposal_id` or `proposed_diff_hash` in the request dict. Consequently `propose_evaluation_expectation_change` reaches edd_do with `requires_approval=False`, and the approval/record activities on the workflow path are dead code — including `request['executed_diff_hash']` (workflow.py:200), which would raise KeyError if the branch ever fired."
+      type: story
+      impact: "The single most safety-critical guardrail in the feature — 'no evaluation expectation change may be applied or committed without direct human approval' — is unenforceable in production wiring. A planner that selects `propose_evaluation_expectation_change` gets it applied with no human in the loop."
+      recommendation: "Accepted trade-off for now. When the approval flow is needed, derive `requires_approval` from the selected action itself, generate proposal_id/diff hash deterministically, and bind approval to the diff edd_do actually executed — and remove or fix the dead `request['executed_diff_hash']` path."
+      guidance: ""
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/edd_plan.py:195-198"
+        - "src/edd_refinement_workflow/cli.py:113-125"
+        - "src/edd_refinement_workflow/workflow.py:163-204"
+      in_diff: true
+    - description: "Scope enforcement and diff measurement use `git diff` / `git diff --name-only`, which only see tracked, unstaged modifications. New files created by edd-do never appear in `changed_files` or the `diff_hash`, so they bypass `diff_out_of_scope`, the `unplanned` check, and the weakening heuristics — while `commit_accepted_candidate` then runs `git add -A`, sweeping those same invisible files (plus `.process/` run artifacts) into the accepted commit."
+      type: security
+      impact: "Accepted trade-off: the team does not want untracked-file checks. The residual exposure is that `git add -A` sweeps untracked files (including `.process/` artifacts) into accepted commits even though they were never validated — the guardrail gap is knowingly accepted, the commit-hygiene side effect is not necessarily intended."
+      recommendation: "Scope checking of untracked files may stay out by decision. Still worth considering staging only the validated changed files in commit_accepted_candidate so `.process/` run artifacts do not land in the target repository's history."
+      guidance: "Is committing the run's own `.process/` bookkeeping into the target's history acceptable, or only the untracked-scope-check exemption?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/edd_do.py:75-101"
+        - "src/edd_refinement_workflow/activities/validate_candidate.py:65-81"
+        - "src/edd_refinement_workflow/activities/validate_candidate.py:139-145"
+        - "src/edd_refinement_workflow/activities/commit_accepted_candidate.py:48-50"
+      in_diff: true
+    - description: "`revert_repository_to_best` runs `git reset --hard <commit>` then requires `git status --porcelain` to be empty. The run's own `.process/` artifact directory is inside the worktree and untracked, so the cleanliness check fails on every real run; and reset --hard cannot remove untracked candidate files anyway. Separately, `_handle_regression` receives `{'metrics': ...}` with no `commit` key when no accepted state exists yet, so `best_state['commit']` raises KeyError on a first-iteration regression."
+      type: implementation
+      impact: "Accepted trade-off: full regression recovery is deprioritized for now. In practice the path throws (cleanliness check fails on `.process/`, or `best_state['commit']` KeyErrors pre-first-accept) and the run exits via the generic workflow_exception path — which is acceptable while bail-out-on-regression is the intended behavior, but the regression is then recorded as an opaque workflow exception."
+      recommendation: "No immediate action required. If recovery is revisited: exclude `.process/` from the post-revert cleanliness check and default the revert target to `starting_revision` when no accepted commit exists."
+      guidance: ""
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:157-163"
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:73-87"
+        - "src/edd_refinement_workflow/workflow.py:349-367"
+      in_diff: true
+    - description: "A confirmed regression increments `consecutive_confirmed_regressions` twice: once inside `rerun_degraded_candidate` (lines 44-47) and again inside `record_confirmed_regression` (regression_recovery.py:139-143), which the workflow calls immediately afterward on the same evidence."
+      type: implementation
+      impact: "Accepted trade-off alongside the regression-recovery simplification: the three-strikes stop fires earlier than intended (after ~2 real regressions), which only makes the workflow bail out sooner — consistent with the current punt-to-human posture, but the recorded counter no longer means 'three confirmed regressions'."
+      recommendation: "No immediate action required. When revisited, make `record_confirmed_regression` the single owner of the counter and remove the increment from `rerun_degraded_candidate`."
+      guidance: ""
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/rerun_degraded_candidate.py:39-47"
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:134-154"
+        - "src/edd_refinement_workflow/workflow.py:337-374"
+      in_diff: true
+    - description: "`classify_regression_evidence` treats confirmation statuses `{'error','timeout','infrastructure_error'}` as suspected flakiness, but `evaluate_candidate` emits `infra_error` for infrastructure failures. An `infra_error` rerun falls through to the `passing` comparison where the metric dict always contains `passing` (0 on failure), so an infrastructure failure during the confirmation rerun is classified as a confirmed regression."
+      type: implementation
+      impact: "Accepted trade-off: a transient eval failure during confirmation currently lands on 'confirmed regression' and a bail-out, which is acceptable while bail-out is the intended posture — though the record then mislabels an infrastructure failure as a product regression."
+      recommendation: "No immediate action required. When revisited, align the status vocabulary (single shared enum or add `infra_error` to the non-product-failure set) and add a classification test for an infra-error metric record."
+      guidance: ""
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:90-102"
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:171-185"
+      in_diff: true
+    - description: "Several normal terminal branches return from `_run` without calling `finalize_run`: approval rejected, execution failed, candidate rejected by validate_candidate, regression handoff (pending_human_review), and the `budgets not in record` early return. Only the exception path and the explicit stop/budget branches finalize."
+      type: story
+      impact: "Bailing out of the workflow on these branches is accepted. What remains open is hygiene, not control flow: the run ends with no terminal.json, no restore-to-best, and the lease held until TTL expiry, leaving the worktree dirty with the rejected/failed candidate's changes. Audit completeness (AC-14's terminal record) is the part still owed."
+      recommendation: "Even while early bail-out stays accepted, route every exit through a shared finalization step (try/finally or `_finalize` helper) so the terminal record, restore, and lease release happen on every branch."
+      guidance: "If bail-out is the intended behavior, what should the worktree and the audit trail look like afterward — and which line guarantees it?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/workflow.py:190-194"
+        - "src/edd_refinement_workflow/workflow.py:230-250"
+        - "src/edd_refinement_workflow/workflow.py:368-384"
+      in_diff: true
+    - description: "`initialize_run` executes the full baseline evaluation inline via `CheckCandidateActivity.run`, but the workflow schedules `initialize_run` with `start_to_close_timeout=timedelta(minutes=5)` while `eval_timeout_seconds` is expected to accommodate 10-20 minute suites."
+      type: implementation
+      impact: "For any real evaluation suite, the baseline evaluation exceeds the activity timeout: the workflow either fails during initialize or Cadence retries the whole 20-minute eval under a 5-minute ceiling repeatedly. The baseline requirement ('does not begin refinement if the baseline cannot be evaluated') is unreachable for the suite sizes the input contract anticipates."
+      recommendation: "Restore `run_baseline_evaluation` as its own activity invocation in the workflow with a start-to-close timeout derived from `eval_timeout_seconds` (it is already registered in the module but never called), or pass the eval timeout to initialize_run."
+      guidance: "What timeout bounds the baseline step today, and where in the code would an operator look to find it?"
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/activities/initialize_run.py:111-122"
+        - "src/edd_refinement_workflow/activities/initialize_run.py:228-240"
+        - "src/edd_refinement_workflow/workflow.py:57-67"
+        - "src/edd_refinement_workflow/activities/run_baseline_evaluation.py:221-229"
+      in_diff: true
+    - description: "EDD_PLAN_ACTIVITY and EDD_DO_ACTIVITY are module-level singletons constructed with `REPO_ROOT` — `Path(__file__).resolve().parents[3]`, i.e. the orchestration repository where the code is installed. Neither `edd_plan` nor `edd_do` passes `SkillActivityInput.target_context`, so `SkillActivity._repo_root` falls back to this install-location root: prompts, sentinel paths, output paths, and the agent harness `cwd` all resolve against the wrong repository for any target that is not the orchestration repo itself."
+      type: design
+      impact: "Directly violates the invariant 'Activity implementations must not retain a process-global repository root selected from their installed source location' and AC-15 (external target run). Self-refinement runs mask the defect because target == orchestration repo; against a separate target repo the agent works in the wrong tree entirely."
+      recommendation: "Build the SkillActivity (or at least its repo root) from the activity's `repo_root` argument at invocation time, and populate `SkillActivityInput.target_context` from the workflow's resolved TargetRepositoryContext."
+      guidance: "The plumbing for target_context was added to SkillActivity in this same branch — which call site was meant to use it?"
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/activities/harness_instance.py:20-21"
+        - "src/edd_refinement_workflow/activities/edd_plan.py:62-64"
+        - "src/edd_refinement_workflow/activities/edd_plan.py:152-165"
+        - "src/edd_refinement_workflow/activities/edd_do.py:23-25"
+        - "src/common/skill_activity.py:93-96"
+      in_diff: true
+    - description: "When regression evidence is inconclusive or not reproduced, `_handle_regression` records a human_handoff and returns `pending_human_review`, after which the workflow returns its result and completes. There is no durable wait for a human decision on the flaky/inconclusive evidence — the workflow simply ends, and no signal exists to resume it."
+      type: design
+      impact: "Accepted trade-off: punting to the human and letting the workflow bail out is the intended posture for now. The narrower residual gap is that the exit is unlabeled — there is no signal to resume and no explicit human-handoff terminal state, and the candidate's changes remain in the worktree."
+      recommendation: "No immediate action required. If this is revisited, either park durably on a signal with a timeout, or finalize explicitly as a human-handoff terminal state so the audit record names the outcome."
+      guidance: ""
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/workflow.py:413-429"
+        - "src/edd_refinement_workflow/workflow.py:368-369"
+      in_diff: true
+    - description: "The input contract requires rejecting a required-test-case document with duplicate or missing IDs (validation criterion 9), but `_load_required_ids` silently dedupes into a set and does not validate the required `id`/`description`/`given`/`when`/`then` fields. `EddRefinementInput.from_path` validates that `test_cases` exists as a path but never parses its content."
+      type: implementation
+      impact: "A malformed or duplicate-ID test-case file is accepted at start, and the duplicate silently collapses — coverage bookkeeping then under-reports required cases, which can make 'meaningful coverage improvement' easier to claim than intended."
+      recommendation: "Validate the test-case document during input validation (or initialize_run): reject duplicate/missing IDs and enforce the required non-empty fields before the baseline runs."
+      guidance: "Where is the cheapest place to fail this — CLI schema check, or the preflight activity — given the file must exist inside the target worktree?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/coverage.py:26-45"
+        - "src/edd_refinement_workflow/input.py:106-129"
+      in_diff: true
+    - description: "Coverage is only computed when the inspect command emits a dict containing the dotted metadata property — i.e. only the `--compact-json --coverage-metadata-property` mode of inspect-eval.js. If the requester supplies `--all --json` (the documented example in edd_input.example.json), the result is a raw list: `_summarize_eval_results` drops all metadata and `required_coverage` becomes empty; worse, `--json` without `--all` returns only failing results, so `passing` counts as 0."
+      type: implementation
+      impact: "The example input document steers a user toward an inspect configuration where coverage tracking silently does nothing (or where every run reads as 0 passing → permanent apparent regression). The identity-chain contract does not defend against it."
+      recommendation: "Fail closed: reject candidate evidence when coverage metadata is absent but a coverage_metadata_property was configured, and document/enforce that inspect_command must emit the compact aggregate form. Consider validating the inspect command flags at preflight."
+      guidance: "Should the workflow trust the requester to pair inspect flags correctly, or is this a contract the code should verify?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:50-63"
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:151-152"
+        - "docs/reqs/agentic-edd-refinement/edd_input.example.json"
+        - "scripts/inspect-eval.js"
+      in_diff: true
+    - description: "`RepositoryStatusInspector.inspect` counts `??`, unstaged `M` in column 2, and staged letters in column 1 — but misses unstaged deletions (` D`), unstaged renames/type-changes, and unmerged (`U`) states. A worktree with a deleted tracked file reports `is_clean=True`."
+      type: implementation
+      impact: "The clean-worktree guardrail (preflight and the exclusion rules around run artifacts) can pass on a dirty repository, so a baseline can be recorded against a state the run did not start from."
+      recommendation: "Treat any non-empty porcelain line not excluded by scratch_globs as unclean rather than enumerating a subset of status letters."
+      guidance: "Is there a reason to classify the columns at all, rather than just filtering run-owned paths?"
+      priority: suggestion
+      locations:
+        - "src/common/repository_status.py:28-44"
+      in_diff: true
+    - description: "`ProgressRecordStore.save` writes progress.json with a direct `write_text` — no tmp+rename, no lock — while `terminal.json` correctly uses tmp+replace. The record contract requires atomic, idempotent updates; concurrent activity processes (lease file is explicitly cross-process) can interleave a torn write."
+      type: implementation
+      impact: "A worker killed mid-write leaves a corrupt progress.json; every subsequent `create_or_resume` then fails on json.loads, wedging the run in a state even resume cannot fix."
+      recommendation: "Write progress.json via the same tmp+replace pattern used for terminal.json, and consider the same advisory lock used by MutationLeaseStore for read-modify-write sequences."
+      guidance: "What happens today if two activity processes call create_or_resume/save for the same run_id concurrently?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/progress_record.py:94-107"
+        - "src/edd_refinement_workflow/finalize_run.py:66-70"
+      in_diff: true
+    - description: "finalize_run calls `self.release_lease(run_id)` unguarded and unconditionally records `lease_released: true` / `lease_released_at`, even though `MutationLeaseStore.release` returns a bool that is discarded and can itself raise on I/O failure — in which case the terminal report is never written."
+      type: implementation
+      impact: "The audit record can claim the lease was released when it was not, and a release exception skips the terminal record entirely — the opposite of the requirement that release failure be recorded and surfaced."
+      recommendation: "Capture the release() return value into the report (`lease_released: <bool>`), and wrap the call so a failure is recorded in terminal.json rather than aborting finalization."
+      guidance: "If the operator's recovery procedure relies on terminal.json being accurate, what should 'released: false' look like?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/finalize_run.py:39-74"
+      in_diff: true
+    - description: "The regression machinery classifies evidence in two places with different vocabularies (`rerun_degraded_candidate` emits `flaky_evidence`; `classify_regression_evidence` emits `unstable_result`/`suspected_flakiness`/`inconclusive`), and `run_baseline_evaluation` is a full duplicate of the evaluate/check pipeline that is registered in the module but never invoked."
+      type: refactor
+      impact: "Two sources of truth for the same decision drift (as the infra_error/confirmed_regression bug above shows), and ~230 lines of dead baseline code invite future fixes to be applied to only one copy."
+      recommendation: "Delete `run_baseline_evaluation` (or wire it as the baseline step and delete the in-initialize baseline), and keep classification solely in `classify_regression_evidence`."
+      guidance: "After removing the duplicate counting, what remains in rerun_degraded_candidate that isn't just 'run the eval again'?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/activities/run_baseline_evaluation.py"
+        - "src/edd_refinement_workflow/activities/rerun_degraded_candidate.py:27-52"
+        - "src/edd_refinement_workflow/module.py:34"
+      in_diff: true
+    - description: "The workflow mutates `record` in process (`record['best_accepted_state']`, `candidate_history`, `consecutive_confirmed_regressions`) after commit_accepted_candidate already persisted the same updates, and threads a partially-duplicated record into every subsequent activity call."
+      type: design
+      impact: "The progress record now has two writers whose views can diverge (the durable store and the workflow's local dict); a replay or a missed field update produces a record that disagrees with terminal.json and refinement.yaml."
+      recommendation: "Re-read the record after each mutating activity (or return the persisted record from those activities, as update_durable_counters already does) instead of patching the local copy."
+      guidance: "Which of these two write paths should be the single source of truth for best_accepted_state?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/workflow.py:327-335"
+        - "src/edd_refinement_workflow/workflow.py:370-381"
+        - "src/edd_refinement_workflow/activities/commit_accepted_candidate.py:35-44"
+      in_diff: true
+    - description: "No automated test exercises the workflow against a target repository separate from the orchestration repository (AC-15). All workflow tests mock activities; the real SkillActivity path is never run against a foreign repo_root — which is why the harness_instance REPO_ROOT defect is invisible to the suite."
+      type: testing
+      impact: "The headline guarantee of the feature — every operation runs against the intended target and the orchestration worktree stays untouched — has no automated evidence and currently fails by inspection."
+      recommendation: "Add an integration test that initializes a scratch git repo as the target, runs the skill-activity path (or at minimum verifies cwd/sentinel/output resolution), and asserts the orchestration tree is unchanged. Wire `scratch_globs` for `.process/` while doing so."
+      guidance: "What is the smallest harness fake that would let the real SkillActivity execute against a tmp_path repo?"
+      priority: blocking
+      locations:
+        - "src/edd_refinement_workflow/tests/test_workflow.py"
+        - "src/edd_refinement_workflow/activities/harness_instance.py:20"
+      in_diff: true
+    - description: "The edd-do diff-weakening heuristics match raw substrings like `-def test_` and `+    assert True` against a `git diff` that already excludes untracked files and staged changes."
+      type: implementation
+      impact: "Within the accepted tracked-files-only scope, the heuristics still cover a narrow set of patterns — a weakened assertion written with different indentation or a staged change produces no signal, giving false confidence in the check."
+      recommendation: "Prefer detecting skip-markers and assertion removals structurally (e.g. git diff -G) rather than by fixed indentation substrings."
+      guidance: "Which forms of 'making the bar lower' can this check realistically catch, and which belong to the ratchet or human review instead?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/validate_candidate.py:27-40"
+        - "src/edd_refinement_workflow/activities/validate_candidate.py:139-145"
+      in_diff: true
+    - description: "test_sentinel_contracts.py drops the assertion that verify instructions retain the completion sentinel ('must not be removed after verification'), weakening a contract test without a stated requirement."
+      type: testing
+      impact: "Skill verify scripts can now silently regress to deleting their sentinels — breaking downstream activities that poll for them — with no test failure to reveal it."
+      recommendation: "Restore the retention check, or replace it with a check on the new sentinel-path convention if the wording intentionally changed."
+      guidance: "Was the wording removal driven by a real convention change, or to make a new skill pass?"
+      priority: suggestion
+      locations:
+        - "tests/unit/test_sentinel_contracts.py:14-18"
+      in_diff: true
+    - description: "`initialize_run` bundles record creation, lease acquisition, the full baseline evaluation, and refinement-context authoring into one activity; `run_baseline_evaluation` exists for the middle responsibility but is unused."
+      type: design
+      impact: "Beyond the timeout problem, a retry of initialize_run redoes lease acquisition and baseline work under one idempotency boundary, and the activity's real responsibilities are hard to test in isolation."
+      recommendation: "Split into initialize (record + lease + context) and baseline activities; each becomes independently retryable with its own timeout."
+      guidance: "If baseline eval had been its own activity from the start, would the 5-minute timeout bug have been possible?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/initialize_run.py:154-251"
+      in_diff: true
+    - description: "The kickoff script silently searches the repo for a same-named file when the argument path doesn't exist, choosing the file if exactly one match is found."
+      type: implementation
+      impact: "A typo'd path launches a refinement run against an unintended input document; the run then mutates a real repository — a costly outcome for a convenience fallback."
+      recommendation: "Require the exact path (fail with 'not found'); if discovery is kept, print and require confirmation or restrict it to a conventional location such as docs/reqs/*/."
+      guidance: "What does the requester gain from basename discovery that tab-completion or the documented path doesn't provide?"
+      priority: comment
+      locations:
+        - "scripts/kickoff-edd-refinement.sh:24-44"
+      in_diff: true
+    - description: "The workflow has no Continue-As-New handling: a long multi-iteration run grows a single workflow history with every activity result (including full metric dicts and check artifacts) embedded in `result`."
+      type: performance
+      impact: "Long runs accumulate history and a growing `result` dict returned only at the end; Cadence history limits become the practical iteration ceiling rather than the configured budgets. The requirements permit Continue-As-New, so this is a deferred scaling risk, not a defect."
+      recommendation: "Track as follow-up: when iteration counts or history size approach Cadence limits, carry forward normalized request, best state, counters, and progress reference via Continue-As-New."
+      guidance: "At what iteration count does the history size start to matter for your expected eval-suite durations?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/workflow.py:100-384"
+      in_diff: true

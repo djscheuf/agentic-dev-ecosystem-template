@@ -1,0 +1,393 @@
+{
+  "story_path": "docs/reqs/agentic-edd-refinement/deliverables/01-target-repository-preflight/resolve-and-validate-the-target-repository.analysis.json",
+  "repo_state_before_design": "docs/reqs/agentic-edd-refinement/deliverables/01-target-repository-preflight/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": "1",
+      "description": "Workflow receives an EDD preflight request carrying a repository anchor, optional explicit target root, scoped paths, target skill, required test cases, deterministic evaluation command, execution provider, and iteration/token limits.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Client",
+          "to_layer": "Backend",
+          "contract_used": "PreflightRequest",
+          "data_shape": "object with anchor_path, explicit_root, scoped_paths, skill_name, evaluation_config, provider, limits, lease_policy"
+        }
+      ]
+    },
+    {
+      "step": "2",
+      "description": "Resolve one canonical Git worktree from the anchor and any explicit root, rejecting missing anchors or conflicting roots before any further validation.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Git/FileSystem",
+          "contract_used": "WorktreeResolution",
+          "data_shape": "realpath absolute worktree root, branch or detached state, and starting commit SHA"
+        }
+      ]
+    },
+    {
+      "step": "3",
+      "description": "Canonicalize every scoped input, skill, evaluation, and authorized-scope path and verify it is contained by the resolved worktree, rejecting parent-directory or symlink traversal that escapes it.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "FileSystem",
+          "contract_used": "ScopedPathValidation",
+          "data_shape": "list of normalized absolute paths and a containment result"
+        }
+      ]
+    },
+    {
+      "step": "4",
+      "description": "Inspect Git status and reject the request if staged, unstaged, or untracked changes exist outside configured scratch directories.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Git",
+          "contract_used": "RepositoryStatusCheck",
+          "data_shape": "status summary including modified, staged, untracked, and scratch-ignored flags"
+        }
+      ]
+    },
+    {
+      "step": "5",
+      "description": "Confirm the target skill and its evaluation suite exist in the target repository.",
+      "layers_involved": ["Backend"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "FileSystem",
+          "contract_used": "SkillAndEvaluationDiscovery",
+          "data_shape": "boolean existence and filesystem location of the skill and its evaluation suite"
+        }
+      ]
+    },
+    {
+      "step": "6",
+      "description": "Acquire a repository-scoped mutation lease for the resolved worktree under the configured concurrency policy.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "LeaseStore",
+          "contract_used": "MutationLeaseAcquisition",
+          "data_shape": "lease token with repo key, run id, acquired_at, and TTL"
+        }
+      ]
+    },
+    {
+      "step": "7",
+      "description": "Record the validated target repository context and starting revision, then return it to the workflow for use by all downstream activities.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "PreflightResultStore",
+          "data_shape": "TargetRepositoryContext record"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "PreflightSuccessResult",
+          "data_shape": "TargetRepositoryContext with lease token"
+        }
+      ]
+    },
+    {
+      "step": "8",
+      "description": "On any validation or lease failure, report every failed condition and release any acquired lease without starting refinement.",
+      "layers_involved": ["Backend", "Data"],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "PreflightResultStore",
+          "data_shape": "PreflightFailureReport with failed_conditions and released_lease flag"
+        },
+        {
+          "from_layer": "Backend",
+          "to_layer": "Client",
+          "contract_used": "PreflightFailureReport",
+          "data_shape": "list of failed preconditions"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "ResolveTargetRepository",
+      "description": "Emitted when a target worktree is discovered from an anchor or explicit root.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "anchor_path", "description": "Original repository anchor path" },
+        { "point": "explicit_root", "description": "Caller-supplied explicit root if any" },
+        { "point": "resolved_root", "description": "Canonical absolute worktree root" },
+        { "point": "starting_revision", "description": "HEAD commit SHA at preflight time" }
+      ]
+    },
+    {
+      "event_name": "ValidateScopedPaths",
+      "description": "Emitted after all scoped paths are canonicalized and checked for containment.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "resolved_root", "description": "Target worktree root" },
+        { "point": "scoped_paths", "description": "Number of paths validated" },
+        { "point": "rejected_paths", "description": "Paths that resolve outside the worktree" }
+      ]
+    },
+    {
+      "event_name": "CheckRepositoryStatus",
+      "description": "Emitted when Git status is inspected for cleanness.",
+      "layers_involved": ["Backend"],
+      "data_points": [
+        { "point": "resolved_root", "description": "Target worktree root" },
+        { "point": "is_clean", "description": "Boolean indicating no unexpected changes" },
+        { "point": "scratch_ignored", "description": "Whether only scratch-directory changes exist" }
+      ]
+    },
+    {
+      "event_name": "AcquireMutationLease",
+      "description": "Emitted when the repository-scoped mutation lease is acquired.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "repo_key", "description": "Canonical key identifying the repository" },
+        { "point": "run_id", "description": "Workflow run id holding the lease" },
+        { "point": "expires_at", "description": "Lease expiry timestamp" }
+      ]
+    },
+    {
+      "event_name": "ReleaseMutationLease",
+      "description": "Emitted when a lease is released, including on failure cleanup.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "repo_key", "description": "Canonical repository key" },
+        { "point": "run_id", "description": "Workflow run id that held the lease" },
+        { "point": "released", "description": "Whether the release succeeded" }
+      ]
+    },
+    {
+      "event_name": "CompletePreflight",
+      "description": "Emitted at the end of preflight with the aggregate result.",
+      "layers_involved": ["Backend", "Data"],
+      "data_points": [
+        { "point": "outcome", "description": "success or failure" },
+        { "point": "failed_conditions", "description": "List of failed preconditions" },
+        { "point": "target_repo_root", "description": "Canonical target root when successful" }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Frontend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Render the preflight success/failure report",
+          "intent": "The requester must see a clear report of what passed and what failed."
+        },
+        {
+          "responsibility": "Adapt the request form based on the caller's role",
+          "intent": "Role may determine whether explicit root or advanced limits are exposed, but not enforce them."
+        }
+      ]
+    },
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Resolve the nearest Git worktree from the anchor or explicit root",
+          "intent": "Git root discovery logic is in the defensible zone and must not depend on client path manipulation."
+        },
+        {
+          "responsibility": "Canonicalize and validate all repository-scoped paths",
+          "intent": "Security enforcement and path traversal prevention belong in the backend."
+        },
+        {
+          "responsibility": "Inspect repository status and enforce clean-worktree policy",
+          "intent": "Only the backend can safely execute git status and decide whether to mutate."
+        },
+        {
+          "responsibility": "Discover the target skill and its evaluation suite",
+          "intent": "Business logic for whether a skill is present and runnable."
+        },
+        {
+          "responsibility": "Apply the repository-scoped mutation lease policy",
+          "intent": "Concurrency and lease duration are business rules."
+        },
+        {
+          "responsibility": "Release any acquired lease on failure",
+          "intent": "Operational safety and correctness of the lease contract."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Persist mutation leases and enforce uniqueness by repository key",
+          "intent": "The lease store is the source of truth for concurrent access."
+        },
+        {
+          "responsibility": "Store the preflight result and target repository context",
+          "intent": "Provides an auditable record and a hand-off artifact for downstream activities."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "TargetRepositoryContext",
+      "description": "Immutable snapshot of the resolved and validated target worktree.",
+      "changes": {
+        "added": "Fields: repo_root (realpath absolute), anchor_path, explicit_root, branch, starting_revision, is_clean, clean_status_details, lease_token, lease_expires_at, preflight_status, failed_conditions",
+        "modified": "Will be passed as an optional field on SkillActivityInput/SkillActivityOutput so that activities no longer depend on a fixed REPO_ROOT",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "MutationLease",
+      "description": "Record representing a repository-scoped mutation lease held by one workflow run.",
+      "changes": {
+        "added": "Fields: repo_key (realpath absolute target root), run_id, acquired_at, expires_at, token",
+        "modified": "Lease store must key by repo_key and run_id",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "PreflightResult",
+      "description": "Aggregate result of the target repository preflight step.",
+      "changes": {
+        "added": "Fields: status (success/failure), target_context (TargetRepositoryContext or null), failed_conditions (list of condition objects), duration_ms",
+        "modified": "Used by workflow to gate refinement",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "resolve_and_validate_target_repository",
+      "description": "Synchronous Cadence activity that runs all preflight checks and returns a PreflightResult.",
+      "changes": {
+        "added": "Inputs: anchor_path, explicit_root, scoped_paths, skill_name, evaluation_config, limits, lease_policy; Outputs: PreflightResult",
+        "modified": "Workflow must call this activity before any mutating skill",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "MutationLeaseStore",
+      "description": "Persistence interface for acquiring and releasing mutation leases.",
+      "changes": {
+        "added": "Operations: acquire(repo_key, run_id, ttl), release(repo_key, run_id), is_held(repo_key)",
+        "modified": "None",
+        "removed": "None"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "Preflight-then-Refine",
+      "description": "EDD workflow invokes preflight first and only proceeds to refinement when the returned status is success.",
+      "changes": {
+        "added": "Workflow gates EDD-002, EDD-003, and EDD-004 on preflight success",
+        "modified": "Skill activities receive TargetRepositoryContext instead of implicit REPO_ROOT",
+        "removed": "None"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Resolve the nearest Git worktree using git rev-parse --show-toplevel from the anchor, and compare it with an optional explicit root after canonicalization.",
+      "justification": "The nearest containing worktree is deterministic and matches ADR-018. Canonicalization before comparison catches relative, absolute, and symlinked forms that refer to the same worktree.",
+      "basis": "ADR-018: Explicit Target Repository Context for Agentic Workflows",
+      "impact": "New TargetWorktreeResolver in src/common; change to SkillActivityInput to accept target context.",
+      "answers_open_question": "What is the canonicalization policy for repository and scope paths?"
+    },
+    {
+      "decision": "Canonicalize all repository-scoped paths using Path.resolve() (realpath + absolute) and verify containment with Path.relative_to against the target root.",
+      "justification": "Path.resolve() removes symlinks and parent-directory traversal in one step. relative_to raises ValueError for paths outside the root, which is a simple and platform-aware containment check.",
+      "basis": "ADR-018 and filesystem path normalization best practices",
+      "impact": "New ScopedPathValidator in src/common; validation is performed before any skill is invoked.",
+      "answers_open_question": "What is the canonicalization policy for repository and scope paths?"
+    },
+    {
+      "decision": "Acquire the mutation lease only after all other preconditions pass.",
+      "justification": "This ordering avoids lock churn and unnecessary contention. Because the lease is the final step, there is no later validation that could require its release under normal flow.",
+      "basis": "Lease acquisition best practice and the story acceptance criteria",
+      "impact": "Preflight validator executes checks in a strict sequence; any failure before the lease step does not touch the lease store.",
+      "answers_open_question": "If preflight acquires the lease and then a later check fails, is lease release guaranteed even if the workflow process crashes?"
+    },
+    {
+      "decision": "Persist mutation leases with a short TTL and release them explicitly on every terminal path, with TTL as a fail-safe.",
+      "justification": "A TTL guarantees that a crashed worker cannot hold a lease indefinitely. Explicit release in a try/finally block keeps the common case fast and auditable.",
+      "basis": "ADR-018 and Cadence activity retry safety patterns",
+      "impact": "LeaseStore schema requires repo_key, run_id, acquired_at, and expires_at; workflow wraps the lease in a context manager.",
+      "answers_open_question": "How long does a repository-scoped mutation lease remain valid, and what triggers automatic release?"
+    },
+    {
+      "decision": "Use an immediate-reject concurrency policy when another run holds the lease for the same repository.",
+      "justification": "Immediate reject is the simplest policy to implement and reason about. Wait queues and force-after-grace can be added later without changing the lease store schema.",
+      "basis": "Open concurrency question in the story analysis",
+      "impact": "LeaseStore.acquire returns a conflict rather than blocking; the workflow maps this to a failed precondition.",
+      "answers_open_question": "What is the concurrency policy when another run holds the lease?"
+    },
+    {
+      "decision": "Allow a configured scratch or process directory to be ignored in dirty-worktree checks only when all unexpected changes are confined to that directory.",
+      "justification": "This lets the workflow write operational artifacts without failing its own preflight, while still detecting changes outside the controlled area.",
+      "basis": "Open scratch-directory question in the story analysis",
+      "impact": "RepositoryStatusInspector accepts a scratch_globs list; git status results are filtered before producing the clean/dirty verdict.",
+      "answers_open_question": "Which files or directories are treated as scratch or process output that may be ignored in dirty-worktree checks?"
+    },
+    {
+      "decision": "Preflight validates the presence of the target skill and its evaluation suite, but not the syntactic or semantic correctness of test cases or the evaluation command.",
+      "justification": "Semantic validation belongs to the refinement and execution steps. Preflight is a safety gate, not a deep parser, and should reject fast on missing prerequisites.",
+      "basis": "Open validation-depth question in the story analysis and the skills-based architecture in ADR-003",
+      "impact": "SkillAndEvaluationDiscovery checks for the expected skill directory and evaluation suite; detailed parsing is left to downstream activities.",
+      "answers_open_question": "Should preflight validate that the required test cases and evaluation command are syntactically or semantically valid, or only that they are present?"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the canonicalization policy for repository and scope paths?",
+      "answer": "Use Path.resolve() to obtain the real, absolute path, then compare using Path.relative_to. Case sensitivity follows the underlying filesystem.",
+      "justification": "Realpath plus absolute removes symlinks, relative components, and parent-directory traversal in one step. relative_to gives a simple containment test.",
+      "basis": "ADR-018 and Python pathlib conventions"
+    },
+    {
+      "question": "How long does a repository-scoped mutation lease remain valid, and what triggers automatic release?",
+      "answer": "The lease has a configurable TTL. It is explicitly released on every terminal path, and the TTL provides an automatic expiry if the worker crashes.",
+      "justification": "Explicit release is fast and auditable; TTL is a fail-safe against orphaned leases.",
+      "basis": "Architectural decision 4 in this design document"
+    },
+    {
+      "question": "What is the concurrency policy when another run holds the lease?",
+      "answer": "Immediate reject. Queuing and force-after-grace are deferred to future work.",
+      "justification": "The simplest policy that satisfies the AC and can be extended later.",
+      "basis": "Architectural decision 5 in this design document"
+    },
+    {
+      "question": "If preflight acquires the lease and then a later check fails, is lease release guaranteed even if the workflow process crashes?",
+      "answer": "The lease is the final preflight check, so no later validation can fail after acquisition. A workflow-level try/finally releases the lease on terminal paths, and the TTL limits the impact of a crash.",
+      "justification": "Moving acquisition last removes the failure-after-lease scenario from the normal path; the combination of explicit release and TTL handles the exception path.",
+      "basis": "Architectural decision 3 in this design document"
+    },
+    {
+      "question": "Which files or directories are treated as scratch or process output that may be ignored in dirty-worktree checks?",
+      "answer": "A configurable list of scratch or process-directory globs, defaulting to the target repository's .process/ directory, may be ignored when all unexpected changes are confined to those globs.",
+      "justification": "Operational artifacts must not fail preflight, but changes outside the controlled area must still be rejected.",
+      "basis": "Architectural decision 6 in this design document"
+    },
+    {
+      "question": "Should preflight validate that the required test cases and evaluation command are syntactically or semantically valid, or only that they are present?",
+      "answer": "Preflight only checks presence, not syntactic or semantic validity.",
+      "justification": "Preflight is a fast safety gate. Deep validation is a refinement concern and will fail with meaningful feedback during execution.",
+      "basis": "Architectural decision 7 in this design document"
+    }
+  ]
+}

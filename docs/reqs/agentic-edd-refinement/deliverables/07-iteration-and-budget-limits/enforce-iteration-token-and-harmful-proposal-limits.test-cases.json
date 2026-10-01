@@ -1,0 +1,170 @@
+{
+  "target_story": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.analysis.json",
+  "source_workstream": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/enforce-iteration-token-and-harmful-proposal-limits.plan.json",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Durable limits and attempt accounting",
+      "tests": [
+        {
+          "id": 1,
+          "name": "InitializeRun_WithLimitConfiguration_SeedsDurableLimitState",
+          "status": "passing",
+          "description": "A new run persists configured budgets and zero-valued counters.",
+          "arrange": "Provide successful preflight context and a profile containing refinement limits.",
+          "act": "Initialize the EDD refinement run.",
+          "assert": "Budgets, logical iteration count, cumulative usage, pending flags, attempts, and handoffs are initialized."
+        },
+        {
+          "id": 2,
+          "name": "UpdateDurableCounters_WithRetry_TracksTokensWithoutIterationAdvance",
+          "status": "passing",
+          "description": "Every attempt consumes observed tokens while retries do not create logical iterations.",
+          "arrange": "Persist a run and create one normal attempt followed by a retry attempt.",
+          "act": "Update durable counters for both attempts.",
+          "assert": "Both attempt token totals accumulate and only the normal attempt advances the logical iteration."
+        },
+        {
+          "id": 3,
+          "name": "UpdateDurableCounters_WithMissingUsage_RecordsZeroAndMarker",
+          "status": "passing",
+          "description": "Missing usage is auditable without inflating the token budget.",
+          "arrange": "Persist a run and provide an attempt with no usage metrics.",
+          "act": "Update durable counters.",
+          "assert": "Zero tokens are added and the attempt is marked as missing usage."
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Pre-scheduling limit gate",
+      "tests": [
+        {
+          "id": 4,
+          "name": "CheckRefinementLimits_AtConfiguredBoundary_BlocksWithReason",
+          "status": "passing",
+          "description": "Iteration, token, hard-token, and regression boundaries stop scheduling deterministically.",
+          "arrange": "Create records at each configured boundary and one record below every boundary.",
+          "act": "Check refinement limits.",
+          "assert": "Each boundary returns its stable stop reason while the below-limit record schedules."
+        },
+        {
+          "id": 5,
+          "name": "CheckRefinementLimits_WithPendingEvidence_PausesUntilResolved",
+          "status": "passing",
+          "description": "Unresolved evidence blocks autonomous work and clearing it permits work.",
+          "arrange": "Create otherwise in-budget records with pending evidence set and cleared.",
+          "act": "Check refinement limits.",
+          "assert": "Pending evidence blocks with its stop reason and the cleared record schedules."
+        },
+        {
+          "id": 6,
+          "name": "Workflow_BeforeAgenticStep_UsesLimitGateAndFinalizesWhenBlocked",
+          "status": "passing",
+          "description": "The workflow does not schedule planning or later agentic work after the centralized gate blocks.",
+          "arrange": "Mock initialization and a blocking limit decision containing the best accepted state.",
+          "act": "Run the workflow.",
+          "assert": "The gate runs before planning, finalization receives the stop reason, and no planning step is scheduled."
+        }
+      ]
+    },
+    {
+      "description": "Priority 3: Regression stop and worker contracts",
+      "tests": [
+        {
+          "id": 7,
+          "name": "RegressionRecovery_WithSuccessfulProposal_ResetsConsecutiveCounter",
+          "status": "passing",
+          "description": "A successful accepted proposal breaks the consecutive harmful-proposal sequence.",
+          "arrange": "Persist a nonzero confirmed-regression count.",
+          "act": "Record a successful proposal outcome.",
+          "assert": "The consecutive confirmed-regression counter becomes zero."
+        },
+        {
+          "id": 8,
+          "name": "PublishHumanHandoff_AtRegressionThreshold_RecordsThreeAttempts",
+          "status": "passing",
+          "description": "Threshold termination publishes a structured report containing the harmful attempts.",
+          "arrange": "Persist three confirmed harmful attempt records and best accepted state.",
+          "act": "Publish the human handoff.",
+          "assert": "A structured report with stop reason, counters, best state, and three attempts is persisted."
+        },
+        {
+          "id": 9,
+          "name": "WorkflowModule_WithLimitActivities_RegistersContracts",
+          "status": "passing",
+          "description": "Workers register the new limit, counter, and handoff Activity contracts.",
+          "arrange": "Load the EDD refinement module specification.",
+          "act": "Inspect and register the module.",
+          "assert": "All new Activity names and callable entrypoints are declared and registered."
+        }
+      ]
+    },
+    {
+      "description": "Priority 4: Completion coverage for durable orchestration",
+      "tests": [
+        {
+          "id": 10,
+          "name": "ProgressRecordV5_WithLimitState_SerializesAndRedacts",
+          "status": "passing",
+          "description": "Schema-v5 limit state survives serialization while sensitive attempt data is redacted.",
+          "arrange": "Create a complete schema-v5 record containing budgets, counters, pending flags, attempts, and handoffs with sensitive values.",
+          "act": "Serialize and deserialize the record.",
+          "assert": "All limit fields remain present and sensitive nested attempt values are redacted."
+        },
+        {
+          "id": 11,
+          "name": "Workflow_AfterTokenConsumingSteps_AccountsUsageAndRegates",
+          "status": "passing",
+          "description": "The workflow accounts each token-consuming result and checks limits again before subsequent autonomous work.",
+          "arrange": "Mock an in-budget run, execution usage, updated durable records, and a gate that blocks before evaluation.",
+          "act": "Run the workflow.",
+          "assert": "Counter updates follow token-consuming steps and the blocking gate prevents evaluation."
+        },
+        {
+          "id": 12,
+          "name": "RegressionRecovery_WithUnresolvedAndRecoveredEvidence_UpdatesPendingFlags",
+          "status": "passing",
+          "description": "Regression evidence blocks autonomous work until recovery is verified.",
+          "arrange": "Persist a run, record inconclusive evidence, then record successful recovery.",
+          "act": "Update the durable pending-evidence state for both outcomes.",
+          "assert": "The flag is added while unresolved and removed after verified recovery."
+        },
+        {
+          "id": 13,
+          "name": "Workflow_AtThirdConfirmedRegression_PublishesStructuredHandoff",
+          "status": "passing",
+          "description": "The third confirmed harmful proposal stops recovery work and publishes the structured three-attempt report.",
+          "arrange": "Mock confirmed evidence and a threshold-reaching regression record.",
+          "act": "Handle the regression.",
+          "assert": "Structured handoff publication occurs immediately and no restore or evaluation is scheduled."
+        },
+        {
+          "id": 14,
+          "name": "UpdateDurableCounters_WithConcurrentAttempts_PreservesEveryUpdate",
+          "status": "passing",
+          "description": "Concurrent attempt completion cannot lose token or iteration updates.",
+          "arrange": "Create one run and synchronize two concurrent counter updates.",
+          "act": "Complete both updates concurrently.",
+          "assert": "Both attempts and token totals persist with the correct logical iteration count."
+        },
+        {
+          "id": 15,
+          "name": "EvaluateCandidate_WithUsageAndRetryContext_ReturnsAccountingFields",
+          "status": "passing",
+          "description": "Evaluation results expose observable usage and retry identity for durable accounting.",
+          "arrange": "Run candidate evaluation with usage metrics and retry context.",
+          "act": "Evaluate the candidate.",
+          "assert": "The result includes normalized usage metrics, logical iteration number, and retry status."
+        },
+        {
+          "id": 16,
+          "name": "Workflow_AcrossExecutionAndEvaluation_AccountsAndGatesEachStep",
+          "status": "passing",
+          "description": "Execution and evaluation are each followed by accounting and a limit gate before further autonomous work.",
+          "arrange": "Run a budgeted workflow with successful execution and evaluation results.",
+          "act": "Execute the workflow.",
+          "assert": "Accounting and limit checks occur after execution and evaluation, and a blocked gate terminates before the next step."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/07-iteration-and-budget-limits/story.md",
+  "title": "Enforce Iteration, Token, and Harmful-Proposal Limits",
+  "story": {
+    "so_that": "agentic refinement remains bounded in cost and execution regardless of agent behavior",
+    "as_a": "workflow requester",
+    "i_want": "the workflow to enforce iteration and token limits, account for retry usage, and stop after repeated confirmed harmful proposals"
+  },
+  "target_persona": {
+    "name": "Workflow Requester - Agentic EDD Operator",
+    "role": "Workflow requester",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "Submits or starts an agentic EDD refinement workflow and expects it to run safely within configured bounds",
+      "during": "Monitors or awaits the outcome, expecting the workflow to self-limit and hand off when limits or repeated regressions are reached",
+      "after": "Receives the best accepted state produced so far, plus a human-readable handoff report if the workflow could not continue autonomously"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Bounds autonomous refinement by checking iteration count, cumulative token usage, consecutive regression history, and unresolved evidence before scheduling each next step",
+    "inputs": [
+      "Current logical iteration count",
+      "Maximum logical iteration limit",
+      "Cumulative token usage count",
+      "Cumulative token budget limit",
+      "Observable token usage for every Activity attempt, including retries",
+      "Consecutive confirmed-regression count",
+      "Completed revert and recovery check results",
+      "Pending flaky/inconclusive evaluation evidence or unverified recovery state",
+      "Best accepted state tracked so far",
+      "Hard limits for proposed next agentic or evaluation step"
+    ],
+    "outputs": [
+      "Decision to schedule or stop the next refinement step",
+      "Best accepted state at exit",
+      "Human handoff report when stopped by consecutive regressions"
+    ],
+    "state_changes": [
+      "Durable logical iteration counter is updated",
+      "Cumulative token counter is updated",
+      "Consecutive confirmed-regression counter is updated",
+      "Workflow enters a halted or handoff terminal state",
+      "Best accepted state is preserved for exit"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given the cumulative token budget or maximum iteration count has been reached, when the workflow checks its limits, then it schedules no further refinement step and exits with the best accepted state.",
+      "gherkin": "Given the cumulative token budget or maximum iteration count has been reached When the workflow checks its limits Then it schedules no further refinement step and exits with the best accepted state",
+      "type": "Functional",
+      "jtbd": "Keep refinement within configured budget and iteration bounds",
+      "persona_served": "Workflow Requester - Agentic EDD Operator"
+    },
+    {
+      "criterion": "Given three consecutive proposed changes have each produced a confirmed regression, when the third revert and recovery check complete, then the workflow stops immediately regardless of remaining iteration or token budget and publishes a human handoff report of the three attempts.",
+      "gherkin": "Given three consecutive proposed changes have each produced a confirmed regression When the third revert and recovery check completes Then the workflow stops immediately regardless of remaining budget or iterations and publishes a human handoff report of the three attempts",
+      "type": "Functional",
+      "jtbd": "Receive a human handoff after repeated harmful regression attempts",
+      "persona_served": "Workflow Requester - Agentic EDD Operator"
+    },
+    {
+      "criterion": "Given scheduling another agentic or evaluation step would exceed a known hard limit, when the workflow checks before scheduling, then that step is not scheduled.",
+      "gherkin": "Given scheduling another agentic or evaluation step would exceed a known hard limit When the workflow checks before scheduling Then that step is not scheduled",
+      "type": "Business rule",
+      "jtbd": "Prevent known limit violations before scheduling",
+      "persona_served": "Workflow Requester - Agentic EDD Operator"
+    },
+    {
+      "criterion": "Given an Activity is retried after a timeout or worker restart, when token usage is tallied, then the retry does not count as an additional logical iteration, but its observable token usage still counts toward the cumulative budget.",
+      "gherkin": "Given an Activity is retried after a timeout or worker restart When token usage is tallied Then the retry does not count as an additional logical iteration but its observable token usage still counts toward the cumulative budget",
+      "type": "Functional",
+      "jtbd": "Account for retry cost without inflating iteration count",
+      "persona_served": "Workflow Requester - Agentic EDD Operator"
+    },
+    {
+      "criterion": "Given unresolved flaky or inconclusive evaluation evidence, or an unverified recovery, is pending, when the workflow checks limits, then it does not schedule another autonomous refinement step until the pending condition is resolved.",
+      "gherkin": "Given unresolved flaky or inconclusive evaluation evidence or an unverified recovery is pending When the workflow checks limits Then it does not schedule another autonomous refinement step until the pending condition is resolved",
+      "type": "Constraint",
+      "jtbd": "Pause autonomous refinement until pending evidence is resolved",
+      "persona_served": "Workflow Requester - Agentic EDD Operator"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ description: Design the implementation of a new user story based on the current 
 ### 3. Create the design document
 - Create a design document in the same directory, as the provided analysis and audit json files, named `{story title}.design.json`.
 - The design document will follow the schema defined in `/schema/design.schema.json`.
+- Write the design document directly with the write tool, without using any other tools.
 
 ### 4. Model the user's flow 
 Model the user's flow through the system as a sequence of domain events (not UI clicks). This shows how the story modifies the current reality workflow, focusing on "current reality + one step."

@@ -1,0 +1,86 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/fix-modification-scope-enforcement/requirements.md",
+  "title": "Fix Modification-Scope Enforcement in EDD Refinement",
+  "story": {
+    "so_that": "out-of-scope writes are detected and halted before they can silently corrupt the workflow source, ensuring the run fails audibly and the repository is left clean",
+    "as_a": "Agentic EDD Refinement Operator / Maintainer",
+    "i_want": "the EDD refinement workflow to persist the authorized modification_scope and enforce it at both plan and do time, converting any out-of-scope modification into a hard, alarmed stop with a clean worktree"
+  },
+  "target_persona": {
+    "name": "Jordan - Platform Reliability Engineer",
+    "role": "Workflow Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "EDD refinement runs can drift out of scope and modify the workflow's own source without detection or cleanup",
+      "during": "The operator kicks off a refinement run and monitors for out-of-scope plan proposals and unauthorized file changes",
+      "after": "Any out-of-scope attempt fails fast with a diagnostic terminal report, the worktree is reset, and the mutation lease is released"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Persist and validate the authorized modification_scope against planned and actual file changes, raising a hard stop and cleaning the worktree on any violation",
+    "inputs": [
+      "edd_input.json modification_scope entries",
+      "plan.json intended_files list",
+      "git diff --name-only changed_files from edd-do execution",
+      "starting revision and best accepted state for worktree reset"
+    ],
+    "outputs": [
+      "Progress record with resolved repo-relative modification_scope",
+      "Planning and validation results with distinct out-of-scope rejection reasons",
+      "OutOfScopeModificationError raised into the finalize path",
+      "Terminal report with terminal_reason 'out_of_scope_modification'",
+      "Restored worktree and released mutation lease"
+    ],
+    "state_changes": [
+      "ProgressRecord gains a modification_scope field",
+      "EddPlanRunner may reject a plan before edd-do runs",
+      "validate_candidate may reject a candidate after edd-do runs",
+      "workflow.py raises and finalizes on out-of-scope instead of quietly returning"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "At initialize_run the modification_scope from the input is resolved to repo-relative POSIX entries and stored in the progress record, then threaded to all scope-checking activities the same way iteration_start_baseline is already threaded",
+      "gherkin": "Given an EddRefinementInput with a modification_scope list When initialize_run executes Then the resolved repo-relative scope is stored in the progress record and is available to edd_plan and validate_candidate on fresh or resumed runs",
+      "type": "Functional",
+      "jtbd": "Persist authorized scope for the life of the run",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "A shared path-containment helper accepts a repo-relative candidate when it exactly matches a scope entry or is nested under a directory prefix, using path-aware containment and not naive string prefixing",
+      "gherkin": "Given a repo-relative candidate path and an authorized scope list containing files and directory prefixes When the helper checks containment Then exact matches and descendants of directory prefixes pass while sibling or partial-prefix paths fail",
+      "type": "Functional",
+      "jtbd": "Check file paths against authorized scope",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "After EddPlanRunner reads the skill's plan.json it validates every intended_files entry against the persisted modification_scope and, if any is out of scope, does not invoke edd-do and captures the diagnostic details for hard-stop handling",
+      "gherkin": "Given an edd-plan whose plan.json includes intended_files outside the authorized scope When the plan is parsed Then edd-do is skipped and a plan-time out-of-scope result is produced with the offending action, rationale, evidence, and paths",
+      "type": "Functional",
+      "jtbd": "Prevent out-of-scope plan from executing",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "In validate_candidate, every execution.changed_files entry is checked against the persisted modification_scope in addition to the existing intended_files check, with a rejection reason distinguishable from the plan-time case",
+      "gherkin": "Given an executed candidate with changed files outside the authorized scope When validate_candidate runs Then a diff_out_of_scope rejection is produced naming the offending path(s)",
+      "type": "Functional",
+      "jtbd": "Detect unauthorized files in the actual diff",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "When an out-of-scope result is confirmed the workflow reverts any uncommitted worktree changes, captures the diagnostic payload, raises OutOfScopeModificationError, and finalize_run records the terminal_reason 'out_of_scope_modification'",
+      "gherkin": "Given a plan-time or diff-time out-of-scope detection When workflow.py handles it Then it triggers the existing exception-driven finalize path, restores the worktree, writes the terminal report, and releases the mutation lease",
+      "type": "Functional",
+      "jtbd": "Halt the run on scope violation",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    },
+    {
+      "criterion": "FinalizeRunActivity.run restores the worktree to the starting_revision whenever there is no best_accepted_state, regardless of terminal reason",
+      "gherkin": "Given a run ends before any candidate has been accepted When finalize_run executes Then the worktree is reset to the starting revision and no stray uncommitted changes remain",
+      "type": "Functional",
+      "jtbd": "Leave a clean worktree after any stop",
+      "persona_served": "Jordan - Platform Reliability Engineer"
+    }
+  ]
+}

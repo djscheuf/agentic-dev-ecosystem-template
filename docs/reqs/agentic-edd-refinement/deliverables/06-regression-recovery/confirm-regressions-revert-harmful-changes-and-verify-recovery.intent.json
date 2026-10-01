@@ -1,0 +1,87 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/06-regression-recovery/story.md",
+  "title": "Confirm Regressions, Revert Harmful Changes, and Verify Recovery",
+  "story": {
+    "so_that": "flaky evidence cannot discard useful work and confirmed harmful changes cannot leave the repository degraded",
+    "as_a": "skill owner",
+    "i_want": "an apparently worse candidate re-evaluated unchanged, a confirmed regression reverted, and the restored accepted state verified before refinement continues"
+  },
+  "target_persona": {
+    "name": "Skill Owner",
+    "role": "Skill Owner",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "A candidate evaluation is observed to perform worse than the current best accepted state",
+      "during": "Re-evaluate the unchanged candidate, classify the combined evidence, revert on confirmed regression, and rerun the suite to verify recovery",
+      "after": "Autonomous refinement continues from a verified restored state, or the evidence is handed off to a human without further autonomous mutation"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Re-evaluate an unchanged worse-performing candidate, confirm or refute a regression, revert harmful changes, and verify the restored accepted state before allowing the next proposal",
+    "inputs": [
+      "Initial candidate evaluation results",
+      "Second unchanged-candidate evaluation results",
+      "Current best accepted-state metrics and repository revision",
+      "Change summary for the reverted proposal",
+      "Recovery evaluation results for the restored state"
+    ],
+    "outputs": [
+      "Recorded degraded evidence and change summary",
+      "Incremented consecutive-regression counter",
+      "Restored last accepted repository state",
+      "Recovery verification result",
+      "Human handoff or notification",
+      "Retained reverted-proposal context for future planning"
+    ],
+    "state_changes": [
+      "Consecutive confirmed-regression counter is incremented",
+      "Repository is reset to the last accepted state on confirmed regression",
+      "Degraded evidence, confirmation result, and recovery result are recorded in durable history"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a second evaluation run against the unchanged candidate also performs worse than the current best state, when the regression is confirmed, then both degraded results and the change summary are recorded, the consecutive-regression counter increments, the last accepted state is restored, and the suite is rerun to verify recovery.",
+      "gherkin": "Given the unchanged candidate is re-evaluated and performs worse than the current best state When the regression is confirmed Then degraded results and the change summary are recorded, the consecutive-regression counter increments, the last accepted state is restored, and the suite is rerun to verify recovery",
+      "type": "functional",
+      "jtbd": "Confirm and recover from harmful changes",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the second evaluation run returns to or exceeds the current best state, when results are compared, then the result is treated as unstable, a human is notified, and no autonomous commit or revert decision is made.",
+      "gherkin": "Given the second evaluation run returns to or exceeds the current best state When results are compared Then the result is treated as unstable, a human is notified, and no autonomous commit or revert decision is made",
+      "type": "functional",
+      "jtbd": "Escalate unstable evidence to a human",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the second evaluation run errors, times out, or otherwise fails to establish stable equivalence, improvement, or regression, when results are classified, then the evidence is recorded as suspected flakiness, a human is notified, and autonomous refinement does not continue.",
+      "gherkin": "Given the second evaluation run errors, times out, or fails to establish stable equivalence, improvement, or regression When results are classified Then the evidence is recorded as suspected flakiness, a human is notified, and autonomous refinement does not continue",
+      "type": "functional",
+      "jtbd": "Escalate inconclusive evidence to a human",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given a confirmed regression has been reverted, when the recovery evaluation runs, then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed.",
+      "gherkin": "Given a confirmed regression has been reverted When the recovery evaluation runs Then it must demonstrate that the restored accepted state matches its previously recorded performance before another proposal is allowed",
+      "type": "functional",
+      "jtbd": "Verify restored accepted state matches prior performance",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given the recovery evaluation cannot verify the restored performance, when recovery fails, then autonomous refinement stops and hands off to a human.",
+      "gherkin": "Given the recovery evaluation cannot verify the restored performance When recovery fails Then autonomous refinement stops and hands off to a human",
+      "type": "functional",
+      "jtbd": "Stop and escalate when recovery fails",
+      "persona_served": "Skill Owner"
+    },
+    {
+      "criterion": "Given a proposal is reverted, when it is recorded, then its change summary, affected files, rationale, observed degradation, confirmation result, and recovery result remain visible to future planning steps.",
+      "gherkin": "Given a proposal is reverted When it is recorded Then its change summary, affected files, rationale, observed degradation, confirmation result, and recovery result remain visible to future planning steps",
+      "type": "business rule",
+      "jtbd": "Preserve reverted proposal context for future planning",
+      "persona_served": "Skill Owner"
+    }
+  ]
+}

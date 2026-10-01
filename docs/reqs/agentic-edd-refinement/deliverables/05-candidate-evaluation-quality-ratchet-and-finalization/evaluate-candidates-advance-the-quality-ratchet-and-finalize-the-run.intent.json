@@ -1,0 +1,153 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/05-candidate-evaluation-quality-ratchet-and-finalization/story.md",
+  "title": "Evaluate Candidates, Advance the Quality Ratchet, and Finalize the Run",
+  "story": {
+    "so_that": "accepted skill state only moves forward and every terminal outcome remains independently auditable",
+    "as_a": "skill owner and workflow requester",
+    "i_want": "each valid candidate evaluated comparably, accepted only when it adds qualifying value, and summarized with the repository left at its best accepted state"
+  },
+  "target_persona": {
+    "name": "Skill Owner and Workflow Requester",
+    "role": "Skill owner and workflow requester",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "A refinement action has produced a scope-valid candidate, and a baseline or current-best accepted state with metrics has been recorded.",
+      "during": "The owner triggers the deterministic candidate evaluation, reviews the quality-ratchet comparison, and confirms the finalization report.",
+      "after": "The owner sees the repository restored to its best accepted state, the mutation lease released, and a complete terminal audit report published."
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Evaluate a candidate using the same deterministic configuration as the baseline, compare it with the current best accepted state, accept only qualifying improvements, and finalize the run with an audit report and repository cleanup.",
+    "inputs": [
+      "Scope-valid candidate",
+      "Baseline or current-best accepted state and metrics",
+      "Deterministic evaluation command, configuration, and pinned provider",
+      "Configured Activity timeout and retry policy",
+      "Required test-case coverage mapping",
+      "Human-approved evaluation expectation changes",
+      "Git commit and best-accepted-state tracking",
+      "Mutation lease and repository context"
+    ],
+    "outputs": [
+      "Recorded candidate metrics and artifact references",
+      "Acceptance or rejection decision for the candidate",
+      "Committed best accepted state or unchanged state",
+      "Terminal progress record and workflow result",
+      "Released repository mutation lease"
+    ],
+    "state_changes": [
+      "The best accepted state is updated to the qualifying candidate or kept unchanged",
+      "A terminal progress record is published for every terminal outcome",
+      "The repository mutation lease is released",
+      "The repository is restored to the best accepted state on termination"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "EDD-007-AC1: Given a refinement action has completed and passed scope validation, when the candidate is evaluated, then the same deterministic evaluation command, configuration, and pinned provider used for the baseline are invoked again.",
+      "gherkin": "Given a refinement action has completed and passed scope validation when the candidate is evaluated then the same deterministic evaluation command configuration and pinned provider used for the baseline are invoked again",
+      "type": "Functional",
+      "jtbd": "Evaluate a candidate with the baseline configuration",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-007-AC2: Given the candidate evaluation completes, when results are recorded, then structured passing, failing, total, percentage, and required-coverage metrics and artifact references are captured.",
+      "gherkin": "Given the candidate evaluation completes when results are recorded then structured passing failing total percentage and required-coverage metrics and artifact references are captured",
+      "type": "Functional",
+      "jtbd": "Record structured candidate evaluation metrics",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-007-AC3: Given the candidate evaluation exceeds its configured Activity timeout, when the timeout is reached, then the attempt is recorded, the configured retry policy is applied, and the attempt does not count as an additional logical iteration.",
+      "gherkin": "Given the candidate evaluation exceeds its configured Activity timeout when the timeout is reached then the attempt is recorded the configured retry policy is applied and the attempt does not count as an additional logical iteration",
+      "type": "Functional",
+      "jtbd": "Apply timeout and retry policy to long-running evaluations",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-007-AC4: Given the evaluation Activity errors for infrastructure reasons, when the failure is recorded, then it is not treated by itself as evidence of a product regression.",
+      "gherkin": "Given the evaluation Activity errors for infrastructure reasons when the failure is recorded then it is not treated by itself as evidence of a product regression",
+      "type": "Business rule",
+      "jtbd": "Avoid classifying infrastructure failures as regressions",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC1: Given a candidate increases the absolute number of passing evaluations without reducing required test-case coverage, when comparison completes, then the change is committed deterministically, the consecutive-regression counter resets, and the candidate becomes the new best accepted state.",
+      "gherkin": "Given a candidate increases the absolute number of passing evaluations without reducing required test-case coverage when comparison completes then the change is committed deterministically the consecutive-regression counter resets and the candidate becomes the new best accepted state",
+      "type": "Functional",
+      "jtbd": "Accept a candidate that increases absolute passing count",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC2: Given a candidate covers a previously uncovered required test case while preserving the prior absolute passing count, when comparison completes, then the change may be committed and accepted even if a larger denominator lowers the pass percentage.",
+      "gherkin": "Given a candidate covers a previously uncovered required test case while preserving the prior absolute passing count when comparison completes then the change may be committed and accepted even if a larger denominator lowers the pass percentage",
+      "type": "Business rule",
+      "jtbd": "Accept meaningful new coverage even if percentage falls",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC3: Given every required test case is already covered and a candidate only increases the total evaluation count, when comparison completes, then the candidate is not classified or committed as an improvement.",
+      "gherkin": "Given every required test case is already covered and a candidate only increases the total evaluation count when comparison completes then the candidate is not classified or committed as an improvement",
+      "type": "Business rule",
+      "jtbd": "Reject candidates that only inflate total evaluations",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC4: Given a candidate performs worse than the current best accepted state, when comparison completes, then it is not immediately reverted or committed, and the workflow reruns the complete suite against the unchanged candidate before deciding.",
+      "gherkin": "Given a candidate performs worse than the current best accepted state when comparison completes then it is not immediately reverted or committed and the workflow reruns the complete suite against the unchanged candidate before deciding",
+      "type": "Functional",
+      "jtbd": "Confirm a degraded candidate by rerunning the suite",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC5: Given a candidate neither improves passing count nor adds meaningful coverage, when comparison completes, then no commit is made and the reason no qualifying value was added is recorded.",
+      "gherkin": "Given a candidate neither improves passing count nor adds meaningful coverage when comparison completes then no commit is made and the reason no qualifying value was added is recorded",
+      "type": "Functional",
+      "jtbd": "Record why a non-qualifying candidate was rejected",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-008-AC6: Given an evaluation expectation change was applied with human approval, when comparing before-change and after-change scores, then the two measurement contexts are kept separate rather than treated as directly comparable.",
+      "gherkin": "Given an evaluation expectation change was applied with human approval when comparing before-change and after-change scores then the two measurement contexts are kept separate rather than treated as directly comparable",
+      "type": "Business rule",
+      "jtbd": "Keep human-approved expectation changes in separate contexts",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-011-AC1: Given a run reaches any terminal outcome, when finalization runs, then it publishes a terminal progress record and workflow result containing baseline and final metrics, absolute changes, terminal reason, accepted iteration and commit references, and rejected or reverted iteration summaries.",
+      "gherkin": "Given a run reaches any terminal outcome when finalization runs then it publishes a terminal progress record and workflow result containing baseline and final metrics absolute changes terminal reason accepted iteration and commit references and rejected or reverted iteration summaries",
+      "type": "Functional",
+      "jtbd": "Publish a terminal progress record and workflow result",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-011-AC2: Given a run reaches any terminal outcome, when finalization completes, then the repository mutation lease is released and the progress record identifies the target repository and final accepted commit.",
+      "gherkin": "Given a run reaches any terminal outcome when finalization completes then the repository mutation lease is released and the progress record identifies the target repository and final accepted commit",
+      "type": "Functional",
+      "jtbd": "Release the mutation lease and identify the final accepted commit",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-011-AC3: Given a run finalizes, when the terminal repository state is checked, then it corresponds to the best accepted state, not merely the last attempted state.",
+      "gherkin": "Given a run finalizes when the terminal repository state is checked then it corresponds to the best accepted state not merely the last attempted state",
+      "type": "Functional",
+      "jtbd": "Restore the repository to the best accepted state",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-011-AC4: Given pending human decisions or flaky-result evidence exist at the time of termination, when the report is published, then those pending or resolved items are included in the report rather than silently dropped.",
+      "gherkin": "Given pending human decisions or flaky-result evidence exist at the time of termination when the report is published then those pending or resolved items are included in the report rather than silently dropped",
+      "type": "Functional",
+      "jtbd": "Include pending or flaky items in the final report",
+      "persona_served": "Skill Owner and Workflow Requester"
+    },
+    {
+      "criterion": "EDD-011-AC5: Given the workflow terminates due to an unrecoverable error before any commit is accepted, when finalization runs, then the report still identifies the target repository, the failure reason, and that no accepted commit exists, and the lease is still released.",
+      "gherkin": "Given the workflow terminates due to an unrecoverable error before any commit is accepted when finalization runs then the report still identifies the target repository the failure reason and that no accepted commit exists and the lease is still released",
+      "type": "Functional",
+      "jtbd": "Finalize gracefully after unrecoverable errors",
+      "persona_served": "Skill Owner and Workflow Requester"
+    }
+  ]
+}

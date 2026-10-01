@@ -1,0 +1,11 @@
+{
+  "activity": {
+    "skill_name": "edd-do",
+    "output_path_key": "plan_path"
+  },
+  "harness": {
+    "devin": {
+      "permission_mode": "accept-edits"
+    }
+  }
+}

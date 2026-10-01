@@ -1,0 +1,229 @@
+code_review:
+  identified_requirements:
+    - title: "Agentic EDD Refinement follow-up"
+      intent: "Verify the six previously blocking items from the prior review are resolved in the delta since commit 131458; requirements corpus is unchanged."
+      acceptance_criteria:
+        - "Preflight is scheduled as a workflow-owned activity, not run in the CLI client"
+        - "Mutation lease TTL is independent of eval_timeout_seconds and is renewed during long runs"
+        - "max_tokens from the input contract is enforced by check_refinement_limits"
+        - "Baseline evaluation runs as its own activity with the configured eval timeout"
+        - "edd_plan and edd_do resolve files and run harnesses against the target repository, not the orchestration repo"
+        - "An automated proof exercises the skill-activity path against a target repository separate from the orchestration repo"
+      source: "docs/reqs/agentic-edd-refinement/code-review-feat-agentic-edd-refinement.yaml; commits 300cf25..24c4347"
+  impacted_scope:
+    directly_changed:
+      - "src/edd_refinement_workflow/workflow.py (workflow-owned preflight, central _finalize, lease renew, baseline activity)"
+      - "src/edd_refinement_workflow/cli.py (client only validates input document, passes path to workflow)"
+      - "src/edd_refinement_workflow/activities/preflight.py (new activity)"
+      - "src/edd_refinement_workflow/activities/renew_mutation_lease.py (new activity)"
+      - "src/edd_refinement_workflow/activities/run_baseline_evaluation.py (separate activity, backfills refinement.yaml baseline)"
+      - "src/edd_refinement_workflow/activities/initialize_run.py (no longer runs baseline inline)"
+      - "src/edd_refinement_workflow/activities/edd_plan.py (per-invocation target-rooted skill activity)"
+      - "src/edd_refinement_workflow/activities/edd_do.py (per-invocation target-rooted skill activity)"
+      - "src/edd_refinement_workflow/activities/check_refinement_limits.py (max_tokens key)"
+      - "src/edd_refinement_workflow/finalize_run.py (lease release failure is non-fatal, recorded)"
+      - "src/edd_refinement_workflow/module.py (register preflight and renew_mutation_lease)"
+      - "src/common/mutation_lease_store.py (renew operation)"
+      - "src/common/repository_status.py (Path.full_match for ** globs)"
+      - "src/edd_refinement_workflow/tests/test_workflow.py (new test cases for fixes)"
+      - "src/edd_refinement_workflow/tests/test_external_target_integration.py (AC-15 proof)"
+      - "src/edd_refinement_workflow/tests/test_cli.py, test_initialize_run.py, test_refinement_limits.py, test_edd_do.py, test_edd_plan.py, test_finalize_run.py"
+      - "src/common/tests/test_mutation_lease_store.py"
+      - ".devin/skills/git-commit/SKILL.md (forbid AI/tooling attribution)"
+      - "vault/decisions/ADR-023-persistent-process-safe-mutation-lease.md (renewal, wall-clock TTL)"
+      - "vault/services/edd_refinement.md (hardening notes)"
+    dependents:
+      - "Cadence worker registry (two new activity types registered)"
+    contracts_touched:
+      - "EddRefinementWorkflow.run signature: (input_document_path: str, workflow_id: str = '') instead of (PreflightResult, request dict)"
+      - "New Cadence activity contracts: preflight, renew_mutation_lease"
+      - "Progress record mutation_lease.dead_by now a wall-clock epoch timestamp"
+      - "terminal.json now records lease_released bool and lease_release_error string"
+    workflows_affected:
+      - "Engineer starts an EDD refinement run from a portable input document; the workflow resolves the target repository"
+      - "Long-running iterations and approval waits keep the mutation lease alive via renewal"
+      - "Every terminal branch now produces a terminal.json and attempts lease release"
+  general_commentary:
+    verdict: approve-with-suggestions
+    summary: >
+      All six blocking items from the previous review are resolved.
+      Preflight now runs as the first workflow activity; the CLI only validates the input document schema.
+      The mutation lease TTL is decoupled from eval_timeout_seconds, and a new renew_mutation_lease activity
+      extends the lease each iteration and before approval waits. check_refinement_limits now reads the
+      input-contract key `max_tokens`. The baseline evaluation is scheduled as its own activity with the
+      configured eval timeout. edd_plan and edd_do build their SkillActivity instances from the activity's
+      repo_root argument so they run against the target repository. A new integration test exercises a
+      real plan+do iteration against a scratch git repo and asserts the orchestration worktree is unchanged,
+      satisfying AC-15. Every terminal branch routes through a central `_finalize` helper, so terminal.json
+      and lease release happen on exceptions, approval rejection, execution failure, candidate rejection,
+      regression handoff, and normal stop/limit branches. The full unit suite passes (439 tests).
+      A few residual non-blocking gaps from the prior review remain open (approval-gating wiring still
+      depends on CLI-supplied proposal metadata; `git add -A` in commit_accepted_candidate still sweeps
+      run artifacts; regression counter can still double-count; some dirty-worktree states are still
+      missed; progress writes are not atomic; test-case duplicate/missing-id validation is absent). None
+      of these are regressions and all were previously accepted as comments or suggestions.
+    limitations:
+      - "Follow-up review focused on the delta since commit 131458 and the previously blocking items; earlier non-blocking items were re-checked but not exhaustively re-reviewed line-by-line."
+      - "No live Cadence execution was run; behavior relies on the unit suite and code reading."
+      - "The AC-15 integration test uses a mock harness for the agentic skills, which is sufficient to prove target-rooted execution but does not exercise the real Devin harness."
+  review_comments:
+    - description: "Preflight now runs inside the workflow as the `preflight` activity, and the CLI only validates the input document before calling `start_workflow` with the document path."
+      type: story
+      impact: "Restores the 'workflow-owned preflight' contract: repository resolution and validation are durable, retryable, and replay-safe, and the client cannot fabricate a PreflightResult."
+      recommendation: "Keep the current split; ensure any new CLI subcommands continue to treat repository context as workflow-derived."
+      guidance: "What validation, if any, should remain in the client once the workflow can reject malformed input via the preflight activity?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/cli.py:66-89"
+        - "src/edd_refinement_workflow/workflow.py:81-114"
+        - "src/edd_refinement_workflow/activities/preflight.py:1-76"
+      in_diff: true
+    - description: "`MutationLeaseStore.renew` extends the wall-clock `dead_by` only for the current holder, and the workflow schedules `renew_mutation_lease` once per loop iteration and before each approval wait."
+      type: implementation
+      impact: "The at-most-one-mutating-run invariant now survives multi-iteration runs and hour-long approval waits; the TTL is no longer tied to a single evaluation timeout."
+      recommendation: "No change required. Consider surfacing `dead_by` in operator-facing queries so a held lease is observable."
+      guidance: "How should an operator distinguish a live run from a stale lease when both look 'held'?"
+      priority: comment
+      locations:
+        - "src/common/mutation_lease_store.py:56-67"
+        - "src/edd_refinement_workflow/activities/renew_mutation_lease.py:9-32"
+        - "src/edd_refinement_workflow/workflow.py:154-163"
+        - "src/edd_refinement_workflow/workflow.py:216-226"
+      in_diff: true
+    - description: "`check_refinement_limits` now enforces `max_tokens` from the input limits, and the workflow accounts token usage after planning, execution, and evaluation."
+      type: implementation
+      impact: "A run configured with only `max_tokens` now has an effective stop condition; unbounded token spend is closed."
+      recommendation: "No change required. Add an end-to-end test that seeds budgets from a real `EddRefinementInput` limits dict to prevent key-name drift."
+      guidance: "Would a contract test between input.py and check_refinement_limits catch a future rename?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/check_refinement_limits.py:4-36"
+        - "src/edd_refinement_workflow/workflow.py:164-178"
+        - "src/edd_refinement_workflow/workflow.py:197-207"
+        - "src/edd_refinement_workflow/workflow.py:278-288"
+        - "src/edd_refinement_workflow/workflow.py:344-354"
+        - "src/edd_refinement_workflow/workflow.py:445-470"
+      in_diff: true
+    - description: "`initialize_run` no longer evaluates the baseline inline; the workflow schedules `run_baseline_evaluation` with `start_to_close_timeout=timedelta(seconds=profile['timeout'])`."
+      type: implementation
+      impact: "Real evaluation suites that take 10-20 minutes are no longer squeezed into a 5-minute activity timeout."
+      recommendation: "No change required. Consider whether `run_baseline_evaluation` and `evaluate_candidate` should share the same harness invocation helper to avoid divergent behavior."
+      guidance: "What happens to a baseline that times out after the configured timeout — is it treated as a terminal failure or retried?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/initialize_run.py:141-234"
+        - "src/edd_refinement_workflow/activities/run_baseline_evaluation.py:90-187"
+        - "src/edd_refinement_workflow/workflow.py:139-153"
+      in_diff: true
+    - description: "`EddPlanRunner` and `EddDoRunner` now build fresh `SkillActivity` instances per invocation using `repo_root=Path(repo_root)` from the activity argument, replacing the process-global REPO_ROOT singleton."
+      type: design
+      impact: "Skill prompts, sentinels, output paths, and harness cwd now resolve against the target repository for external-target runs."
+      recommendation: "No change required. Watch that the edd-plan completion sentinel path (derived from `input_parent`) stays inside the target repo when the input document is placed there by convention."
+      guidance: "If a user stores the input document outside the target repository, where should the edd-plan sentinel land?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/edd_plan.py:81-89"
+        - "src/edd_refinement_workflow/activities/edd_plan.py:162-169"
+        - "src/edd_refinement_workflow/activities/edd_do.py:38-68"
+      in_diff: true
+    - description: "`tests/test_external_target_integration.py` exercises a full plan+do iteration against a scratch git repo, asserts artifacts land inside the target, verifies `.process/**` scratch globs keep the tree clean, and checks the orchestration repo is byte-for-byte unchanged."
+      type: testing
+      impact: "AC-15 now has automated evidence that the skill-activity path runs against the intended target repository."
+      recommendation: "No change required. Consider extending the test to exercise the real Devin harness in an integration environment."
+      guidance: "What is the smallest integration target that would let us run this end-to-end with the real harness without mutating the orchestration repo?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/tests/test_external_target_integration.py:1-184"
+      in_diff: true
+    - description: "`EddRefinementWorkflow` now finalizes on every terminal path: a central `_finalize` helper is called after `_run` returns for early exits, and the exception handler finalizes before re-raising."
+      type: implementation
+      impact: "Every terminal branch now produces terminal.json and attempts lease release, fixing the audit/lease-hygiene gap noted in the prior review."
+      recommendation: "No change required."
+      guidance: "Should the terminal report distinguish between 'completed without changes' and 'completed with accepted candidate' in a single field?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/workflow.py:35-79"
+        - "src/edd_refinement_workflow/workflow.py:208-214"
+        - "src/edd_refinement_workflow/workflow.py:289-311"
+        - "src/edd_refinement_workflow/workflow.py:349-354"
+      in_diff: true
+    - description: "`requires_approval` in `EddPlanRunner.run` is still gated on `bool(proposed_diff_hash)`, and `proposed_diff_hash` is supplied from `request.get('proposed_diff_hash')`. The CLI never populates `proposal_id` or `proposed_diff_hash`, so the approval path remains unreachable for normal CLI-initiated runs; if reached, `workflow.py:262` references `request['executed_diff_hash']`, which is also never set by preflight."
+      type: story
+      impact: "The safety-critical 'no evaluation expectation change without human approval' guardrail is not wired for the primary CLI workflow. This is an accepted trade-off noted in the prior review, not a new regression."
+      recommendation: "When the approval flow is needed, derive `requires_approval` from the selected action itself, generate the proposal id and diff hash deterministically inside the workflow/activity, and bind approval to the diff edd_do actually executed."
+      guidance: "Should the CLI gain a `--propose-expectation-change` mode, or should the workflow always own proposal generation?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/edd_plan.py:200-203"
+        - "src/edd_refinement_workflow/workflow.py:216-266"
+        - "src/edd_refinement_workflow/cli.py:42-64"
+      in_diff: false
+    - description: "`commit_accepted_candidate` still runs `git add -A` before committing, which sweeps any untracked files (including `.process/` run artifacts) into the accepted commit."
+      type: security
+      impact: "Run bookkeeping can leak into the target repository's history. This was an accepted trade-off in the prior review, but the commit-hygiene side effect remains."
+      recommendation: "Stage only the validated changed files, or at least exclude `.process/` from the commit."
+      guidance: "Is committing the run's own `.process/` bookkeeping into the target history intentional, or only the untracked-scope-check exemption?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/commit_accepted_candidate.py:48-50"
+      in_diff: false
+    - description: "`rerun_degraded_candidate` increments `consecutive_confirmed_regressions` when its own comparison confirms a regression, and `record_confirmed_regression` increments it again on the same evidence."
+      type: implementation
+      impact: "The three-strikes stop fires after roughly two real regressions rather than three. This was an accepted trade-off in the prior review."
+      recommendation: "Make `record_confirmed_regression` the single owner of the counter and remove the increment from `rerun_degraded_candidate`."
+      guidance: "After removing the duplicate counting, what remains in `rerun_degraded_candidate` that isn't just 'run the eval again'?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/rerun_degraded_candidate.py:44-47"
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:139-142"
+      in_diff: false
+    - description: "`classify_regression_evidence` treats `{'error','timeout','infrastructure_error'}` as suspected flakiness, but `evaluate_candidate` emits status `infra_error` for infrastructure failures."
+      type: implementation
+      impact: "An infrastructure failure during confirmation still falls through to the passing comparison and is classified as a confirmed regression. This was an accepted trade-off in the prior review."
+      recommendation: "Align the status vocabulary (single shared enum, or add `infra_error` to the non-product-failure set) and add a classification test for an infra-error metric record."
+      guidance: "Would a shared status-constant module prevent this kind of vocabulary drift?"
+      priority: comment
+      locations:
+        - "src/edd_refinement_workflow/activities/regression_recovery.py:90-102"
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:171-185"
+      in_diff: false
+    - description: "`RepositoryStatusInspector.inspect` still classifies only `??`, unstaged `M`, and staged letters in column 1, missing unstaged deletions (` D`), renames/type-changes, and unmerged states."
+      type: implementation
+      impact: "The clean-worktree guardrail can pass on a repository with tracked-file deletions or unmerged paths, so a baseline can be recorded against a state the run did not start from."
+      recommendation: "Treat any non-empty porcelain line not excluded by scratch_globs as unclean rather than enumerating a subset of status letters."
+      guidance: "Is there a reason to classify the columns at all, rather than just filtering run-owned paths?"
+      priority: suggestion
+      locations:
+        - "src/common/repository_status.py:28-44"
+      in_diff: false
+    - description: "`ProgressRecordStore.save` writes `progress.json` with a direct `write_text`, while `terminal.json` already uses tmp+replace."
+      type: implementation
+      impact: "A worker killed mid-write can leave a corrupt progress.json and wedge resume. Concurrent activity processes sharing the lease file increase the chance of a torn write."
+      recommendation: "Write progress.json via the same tmp+replace pattern used for terminal.json, and reuse the advisory lock from `MutationLeaseStore` for read-modify-write sequences."
+      guidance: "What happens today if two activity processes call create_or_resume/save for the same run_id concurrently?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/progress_record.py:94-107"
+        - "src/edd_refinement_workflow/finalize_run.py:66-70"
+      in_diff: false
+    - description: "`_load_required_ids` silently dedupes test-case IDs into a set and does not validate the required `id`/`description`/`given`/`when`/`then` fields; `EddRefinementInput.from_path` only checks that `test_cases` exists as a path."
+      type: implementation
+      impact: "Malformed or duplicate-ID test-case files are accepted, causing coverage bookkeeping to under-report required cases and making 'meaningful coverage improvement' easier to claim than intended."
+      recommendation: "Validate the test-case document during input validation or initialize_run: reject duplicate/missing IDs and enforce required non-empty fields before the baseline runs."
+      guidance: "Where is the cheapest place to fail this — CLI schema check, or the preflight activity — given the file must exist inside the target worktree?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/coverage.py:26-45"
+        - "src/edd_refinement_workflow/input.py:106-129"
+      in_diff: false
+    - description: "Coverage tracking only works when the inspect command emits a dict containing the dotted `coverage_metadata_property`. The example input document and the documented inspect flags can return raw lists or only failing results."
+      type: implementation
+      impact: "A user following the example can end up with empty or misleading coverage metadata, which either silently disables the ratchet or reads every run as zero passing."
+      recommendation: "Fail closed when coverage metadata is absent but a property was configured, and document/enforce that inspect_command must emit the compact aggregate form."
+      guidance: "Should the workflow trust the requester to pair inspect flags correctly, or is this a contract the code should verify?"
+      priority: suggestion
+      locations:
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:50-63"
+        - "src/edd_refinement_workflow/activities/evaluate_candidate.py:151-152"
+        - "docs/reqs/agentic-edd-refinement/edd_input.example.json"
+      in_diff: false

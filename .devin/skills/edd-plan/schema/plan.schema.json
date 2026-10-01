@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "iteration_number": {
+      "type": "integer",
+      "description": "Iteration number",
+      "examples": [
+        3
+      ]
+    },
+    "action": {
+      "type": "string",
+      "description": "Selected refinement action",
+      "enum": [
+        "refine_skill",
+        "repair",
+        "add_coverage",
+        "refine_supporting_docs",
+        "propose_evaluation_expectation_change",
+        "stop"
+      ],
+      "examples": [
+        "repair"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Why this action was chosen over the alternatives",
+      "examples": [
+        "3 of 12 evaluations fail on the layer-responsibilities dimension because gradeDesignChecks.js coerces score_floor: 0 to undefined; this is a helper bug, not a model gap."
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Evaluation evidence supporting the decision",
+      "properties": {
+        "failing_test_cases": {
+          "type": "array",
+          "description": "Required test case IDs currently failing",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "TC-07",
+              "TC-11"
+            ]
+          ]
+        },
+        "uncovered_test_cases": {
+          "type": "array",
+          "description": "Required test case IDs with no covering assertion",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "TC-14"
+            ]
+          ]
+        },
+        "repeated_from_iteration": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Iteration number this failure pattern was first observed in, if not new",
+          "examples": [
+            2
+          ]
+        }
+      },
+      "examples": [
+        {
+          "failing_test_cases": [
+            "TC-07",
+            "TC-11"
+          ],
+          "uncovered_test_cases": [],
+          "repeated_from_iteration": null
+        }
+      ]
+    },
+    "intended_files": {
+      "type": "array",
+      "description": "Repository-relative files edd-do is authorized to change this iteration; must be a subset of the run's modification_scope",
+      "items": {
+        "type": "string"
+      },
+      "examples": [
+        [
+          ".devin/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml",
+          ".devin/skills/grade-story-design/_tests/gradeDesignChecks.js"
+        ]
+      ]
+    },
+    "expected_effect": {
+      "type": "string",
+      "description": "Specific, falsifiable prediction of what should change after edd-do and check_candidate run",
+      "examples": [
+        "TC-07 and TC-11 pass because score_floor: 0 is no longer coerced to a missing value"
+      ]
+    },
+    "iteration_start_baseline": {
+      "type": "object",
+      "description": "The frozen metric snapshot this iteration is trying to beat; either the current best_accepted_state.metrics or the original baseline",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "best_accepted_state",
+            "baseline"
+          ]
+        },
+        "candidate_id": {
+          "type": "string",
+          "examples": [
+            "baseline"
+          ]
+        },
+        "passing": {
+          "type": "integer"
+        },
+        "failing": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "required_coverage": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "source",
+        "passing",
+        "failing",
+        "total"
+      ],
+      "examples": [
+        {
+          "source": "best_accepted_state",
+          "candidate_id": "candidate-2",
+          "passing": 9,
+          "failing": 3,
+          "total": 12,
+          "required_coverage": {
+            "TC-07": 0,
+            "TC-11": 0,
+            "TC-14": 1
+          }
+        }
+      ]
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "description": "True only when action is propose_evaluation_expectation_change",
+      "examples": [
+        false
+      ]
+    },
+    "stop_recommendation": {
+      "type": "boolean",
+      "description": "True when action is stop",
+      "examples": [
+        false
+      ]
+    },
+    "taxonomy_version": {
+      "type": "integer",
+      "examples": [
+        1
+      ]
+    }
+  },
+  "required": [
+    "iteration_number",
+    "action",
+    "rationale",
+    "intended_files",
+    "expected_effect",
+    "iteration_start_baseline",
+    "requires_approval",
+    "stop_recommendation"
+  ],
+  "examples": [
+    {
+      "iteration_number": 3,
+      "action": "repair",
+      "rationale": "3 of 12 evaluations fail on the layer-responsibilities dimension because gradeDesignChecks.js coerces score_floor: 0 to undefined; this is a helper bug, not a model gap.",
+      "evidence": {
+        "failing_test_cases": [
+          "TC-07",
+          "TC-11"
+        ],
+        "uncovered_test_cases": [],
+        "repeated_from_iteration": null
+      },
+      "intended_files": [
+        ".devin/skills/grade-story-design/_tests/gradeDesignChecks.js"
+      ],
+      "expected_effect": "TC-07 and TC-11 pass because score_floor: 0 is no longer coerced to a missing value",
+      "iteration_start_baseline": {
+        "source": "best_accepted_state",
+        "candidate_id": "candidate-2",
+        "passing": 9,
+        "failing": 3,
+        "total": 12,
+        "required_coverage": {
+          "TC-07": 0,
+          "TC-11": 0,
+          "TC-14": 1
+        }
+      },
+      "requires_approval": false,
+      "stop_recommendation": false,
+      "taxonomy_version": 1
+    }
+  ]
+}

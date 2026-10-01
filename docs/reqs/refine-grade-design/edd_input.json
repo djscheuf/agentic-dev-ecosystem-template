@@ -1,0 +1,32 @@
+{
+    "schema_version": 1,
+    "skill_folder": "../../../.devin/skills/grade-story-design",
+    "eval_config": "../../../evals/gradeDesign.tests.yaml",
+    "related_content": [
+        "../../../.devin/skills/grade-story-design/_tests/test_cases.md"
+    ],
+    "test_command": [
+        "node",
+        "scripts/run-eval.js",
+        "gradeDesign.tests.yaml"
+    ],
+    "inspect_command": [
+        "scripts/inspect-eval.js",
+        "{evaluation_id}",
+        "--compact-json",
+        "--coverage-metadata-property",
+        "metadata.covers_test_case_ids"
+    ],
+    "test_cases": "../../../.devin/skills/grade-story-design/_tests/test-cases.yaml",
+    "coverage_metadata_property": "metadata.covers_test_case_ids",
+    "modification_scope": [
+        "../../../.devin/skills/grade-story-design/",
+        "../../../evals/gradeDesign.tests.yaml"
+    ],
+    "limits": {
+        "max_iterations": 5,
+        "max_tokens": 1000000,
+        "eval_timeout_seconds": 1800
+    },
+    "proposed_action": "refine"
+}

@@ -1,0 +1,296 @@
+{
+  "raw_request": "docs/reqs/agentic-edd-refinement/deliverables/01-target-repository-preflight/story.md",
+  "title": "Resolve and Validate the Target Repository",
+  "story": {
+    "so_that": "automated refinement never mutates the wrong repository or overwrites unrelated work",
+    "as_a": "workflow requester",
+    "i_want": "the workflow to resolve exactly one target Git worktree and validate all safety preconditions before refinement begins"
+  },
+  "target_persona": {
+    "name": "Workflow Requester - Automation Orchestrator",
+    "role": "Workflow Requester",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Prepares a refinement request with a repository anchor or explicit target root, scoped inputs, required test cases, evaluation configuration, and execution limits",
+      "during": "Submits the request and expects the workflow to discover one canonical Git worktree, validate all safety preconditions, and acquire a repository-scoped mutation lease",
+      "after": "Receives either a validated, clean, leased target repository with a recorded starting revision, or a complete report of every failed precondition with no side effects"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Resolve and validate exactly one target Git worktree and all preflight safety conditions before refinement begins",
+    "inputs": [
+      "Repository anchor path or explicit target repository root",
+      "Scoped inputs, skills, evaluations, and authorized-scope paths",
+      "Required test cases",
+      "Deterministic evaluation command configuration",
+      "Single execution provider",
+      "Iteration and token limits",
+      "Repository-scoped mutation lease policy"
+    ],
+    "outputs": [
+      "Canonical target worktree path",
+      "Recorded starting revision",
+      "Repository-scoped mutation lease",
+      "Preflight success or failure report"
+    ],
+    "state_changes": [
+      "Acquire a repository-scoped mutation lease when preflight succeeds",
+      "Record the canonical worktree path and starting revision"
+    ],
+    "affected_components": {
+      "ui": [
+        "Preflight success/failure report"
+      ],
+      "api": [
+        "Preflight validation endpoint",
+        "Repository worktree resolution endpoint",
+        "Mutation lease acquire/release endpoint"
+      ],
+      "database": [
+        "Mutation lease store",
+        "Preflight result log"
+      ],
+      "external_services": [
+        "Git command-line interface",
+        "File system"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Given a repository anchor path and no explicit target repository root, when preflight runs, then the workflow resolves the nearest containing Git worktree root and records its canonical path and starting revision",
+      "gherkin": "Given a repository anchor path and no explicit target repository root when preflight runs then the workflow resolves the nearest containing Git worktree root and records its canonical path and starting revision",
+      "type": "Functional",
+      "jtbd": "Resolve the correct target repository",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given both an anchor-derived root and an explicit root are supplied and they identify different Git worktrees, when preflight runs, then the request is rejected before any agent is invoked",
+      "gherkin": "Given an anchor-derived root and an explicit root that identify different Git worktrees when preflight runs then the workflow rejects the request before invoking an agent",
+      "type": "Business rule",
+      "jtbd": "Reject conflicting repository roots",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree, when preflight validates it, then the request is rejected",
+      "gherkin": "Given a scoped input, skill, evaluation, or authorized-scope path resolves outside the target worktree when preflight validates it then the workflow rejects the request",
+      "type": "Constraint",
+      "jtbd": "Keep scoped inputs inside the target worktree",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given the target worktree has staged, unstaged, or untracked changes, when preflight inspects repository status, then the workflow rejects the request and leaves the worktree unchanged",
+      "gherkin": "Given the target worktree has staged, unstaged, or untracked changes when preflight inspects repository status then the workflow rejects the request and leaves the worktree unchanged",
+      "type": "Error handling",
+      "jtbd": "Prevent mutation of dirty worktrees",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given another workflow run already holds the mutation lease for the same target repository, when preflight runs, then the workflow rejects or waits according to configured policy without starting refinement",
+      "gherkin": "Given another workflow run already holds the mutation lease for the same target repository when preflight runs then the workflow rejects or waits according to configured policy without starting refinement",
+      "type": "Business rule",
+      "jtbd": "Avoid concurrent refinement",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given the target skill does not exist, or exists but has no evaluation suite, in the target repository, when preflight runs, then the workflow rejects the request before refinement begins",
+      "gherkin": "Given the target skill does not exist or exists without an evaluation suite in the target repository when preflight runs then the workflow rejects the request before refinement begins",
+      "type": "Error handling",
+      "jtbd": "Require a valid skill and evaluation suite",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given required test cases, a deterministic evaluation command, a single execution provider, and iteration or token limits are all supplied and valid, when preflight runs, then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
+      "gherkin": "Given required test cases, a deterministic evaluation command, a single execution provider, and valid iteration and token limits when preflight runs then preflight succeeds, acquires the repository mutation lease, and reports no other side effects",
+      "type": "Functional",
+      "jtbd": "Pass preflight validation",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Given any precondition fails, when preflight completes, then the workflow reports every failed condition and releases any lease it had acquired",
+      "gherkin": "Given any precondition fails when preflight completes then the workflow reports every failed condition and releases any lease it had acquired",
+      "type": "Error handling",
+      "jtbd": "Report every failed precondition",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Both repository anchor and explicit target root are missing or empty",
+      "gherkin": "Given both repository anchor and explicit target root are missing when preflight runs then the workflow rejects the request with a clear validation error",
+      "type": "Edge case",
+      "jtbd": "Reject missing target identification",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Anchor path is not inside any Git worktree",
+      "gherkin": "Given an anchor path outside any Git worktree when preflight runs then the workflow rejects the request and reports that no repository could be resolved",
+      "type": "Edge case",
+      "jtbd": "Detect out-of-tree anchors",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Anchor and explicit root resolve to the same worktree through different path forms",
+      "gherkin": "Given an anchor and explicit root are represented by different relative, absolute, or symlinked paths that resolve to the same worktree when preflight runs then the workflow accepts the resolved target",
+      "type": "Edge case",
+      "jtbd": "Normalize equivalent paths",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Scoped path contains parent-directory traversal that escapes the target worktree",
+      "gherkin": "Given a scoped path contains '..' or symlink traversal that resolves outside the target worktree when preflight validates it then the workflow rejects the request",
+      "type": "Edge case",
+      "jtbd": "Prevent path-escape attacks",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Target worktree is a nested Git repository inside another worktree",
+      "gherkin": "Given an anchor path is inside a nested Git repository when preflight runs then the workflow resolves the innermost containing worktree as the target",
+      "type": "Edge case",
+      "jtbd": "Handle nested repositories",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Target worktree is dirty because of preflight-created files in a known scratch directory",
+      "gherkin": "Given the only changes in the target worktree are in a configured scratch or process directory when preflight inspects status then the workflow ignores those changes and does not reject on that basis",
+      "type": "Edge case",
+      "jtbd": "Tolerate controlled scratch files",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Current workflow already holds the mutation lease for the target repository",
+      "gherkin": "Given the current workflow run already holds a mutation lease for the same target repository when preflight runs then the workflow treats it as already acquired rather than rejecting",
+      "type": "Edge case",
+      "jtbd": "Support re-entrant preflight",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Lease store is temporarily unavailable during preflight",
+      "gherkin": "Given the mutation lease store is unavailable when preflight attempts to acquire the lease then the workflow reports the lease failure without invoking an agent or mutating the worktree",
+      "type": "Edge case",
+      "jtbd": "Handle lease store unavailability",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Git executable is absent or returns a non-zero exit code",
+      "gherkin": "Given the Git executable is missing or fails when preflight queries repository status or revision then the workflow reports a git failure and rejects the request",
+      "type": "Edge case",
+      "jtbd": "Survive git command failures",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    },
+    {
+      "criterion": "Target worktree is on a read-only or full filesystem",
+      "gherkin": "Given the target worktree is on a read-only or full filesystem when preflight validates it then the workflow reports the filesystem condition and rejects the request",
+      "type": "Edge case",
+      "jtbd": "Detect unwriteable repositories",
+      "persona_served": "Workflow Requester - Automation Orchestrator"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the canonicalization policy for repository and scope paths (realpath, absolute path, symlink resolution, case sensitivity)?",
+      "impacts": [
+        "Path comparison accuracy",
+        "Security",
+        "Cross-platform behavior"
+      ]
+    },
+    {
+      "question": "How long does a repository-scoped mutation lease remain valid, and what triggers automatic release?",
+      "impacts": [
+        "Lease store design",
+        "Failure recovery",
+        "Concurrency policy"
+      ]
+    },
+    {
+      "question": "What is the concurrency policy when another run holds the lease (immediate reject, wait with timeout, queue, or force after grace period)?",
+      "impacts": [
+        "User experience",
+        "Lease manager implementation",
+        "Preflight API contract"
+      ]
+    },
+    {
+      "question": "If preflight acquires the lease and then a later check fails, is lease release guaranteed even if the workflow process crashes?",
+      "impacts": [
+        "Lease store durability",
+        "Error handling",
+        "Operational safety"
+      ]
+    },
+    {
+      "question": "Which files or directories are treated as scratch or process output that may be ignored in dirty-worktree checks?",
+      "impacts": [
+        "Status inspection logic",
+        "Security",
+        "Workflow self-management"
+      ]
+    },
+    {
+      "question": "Should preflight validate that the required test cases and evaluation command are syntactically or semantically valid, or only that they are present?",
+      "impacts": [
+        "Scope of preflight",
+        "Validation error messages",
+        "Refinement success rate"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Git command wrapper or worktree discovery service",
+        "Path canonicalization utility",
+        "Mutation lease store or manager",
+        "Skill and evaluation-suite discovery",
+        "Workflow request parser"
+      ],
+      "new_code": [
+        "Repository preflight validator",
+        "Target worktree resolver",
+        "Scoped path validator",
+        "Mutation lease policy handler",
+        "Preflight result reporter"
+      ],
+      "infrastructure": [
+        "Git command-line tools",
+        "File system access",
+        "Lease persistence store"
+      ],
+      "external_services": [
+        "None"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "EDD-000 — Workflow request definition and submission"
+      ],
+      "blocks": [
+        "EDD-002 — Initialize progress state and run baseline evaluation",
+        "EDD-003 — Plan refinement actions",
+        "EDD-004 — Execute and compare candidate changes"
+      ],
+      "related": [
+        "EDD-005 — Compare, commit, or revert candidate changes",
+        "EDD-006 — Repository-scoped mutation lease management"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Git worktree semantics and root discovery",
+        "Repository-scoped mutation lease policy",
+        "Preflight validation ordering and idempotence"
+      ],
+      "technical_knowledge": [
+        "Git command-line or libgit2 repository status and revision commands",
+        "Filesystem path normalization and traversal attacks",
+        "Lease acquisition and release patterns"
+      ],
+      "stakeholder_questions": [
+        "What is the maximum acceptable wait time when a lease is held by another run?",
+        "Which directories or file patterns are considered safe scratch output during preflight?",
+        "Should the recorded starting revision be a commit SHA, HEAD reference, or symbolic ref?"
+      ]
+    }
+  }
+}
