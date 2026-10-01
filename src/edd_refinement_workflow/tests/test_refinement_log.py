@@ -217,7 +217,7 @@ async def test_edd_do_activity_appends_atif_observation_to_refinement_yaml(
         type("FakeRunner", (), {"run": lambda self, *a: expected})(),
     )
 
-    await edd_do_action("run-1", {"action": "repair"}, None, str(tmp_path))
+    await edd_do_action("run-1", {"action": "repair"}, str(tmp_path))
 
     outcomes = _read(path)["iterations"][0]["outcomes"]
     assert outcomes == [{"event": "agentic_activity_trail", "step": "edd_do", **observation}]
@@ -244,6 +244,6 @@ async def test_edd_do_activity_does_not_append_on_harness_failure(tmp_path, monk
         type("FakeRunner", (), {"run": lambda self, *a: failed})(),
     )
 
-    await edd_do_action("run-1", {"action": "repair"}, None, str(tmp_path))
+    await edd_do_action("run-1", {"action": "repair"}, str(tmp_path))
 
     assert _read(path)["iterations"][0].get("outcomes") is None

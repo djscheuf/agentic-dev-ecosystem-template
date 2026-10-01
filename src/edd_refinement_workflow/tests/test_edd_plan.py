@@ -255,7 +255,7 @@ def test_edd_plan_persists_iteration_start_baseline_into_progress_json(
     assert persisted["iteration_start_baseline"] == plan["iteration_start_baseline"]
 
 
-def test_edd_plan_only_requires_approval_for_expectation_change_with_diff_hash(
+def test_edd_plan_requires_approval_for_expectation_change_and_generates_proposal_id(
     tmp_path,
 ) -> None:
     plan_path = tmp_path / "plan.json"
@@ -263,6 +263,37 @@ def test_edd_plan_only_requires_approval_for_expectation_change_with_diff_hash(
         plan_path,
         action="propose_evaluation_expectation_change",
         requires_approval=True,
+        iteration_number=2,
+    )
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path="plan.json",
+            sentinel_path=".process/edd-plan.done.json",
+            duration_ms=5,
+        )
+    )
+    runner = EddPlanRunner(skill)
+    progress_record = {
+        "budgets": {"remaining_iterations": 3},
+        "consecutive_confirmed_regressions": 0,
+        "logical_iteration_count": 2,
+    }
+
+    progress_record["modification_scope"] = ["skill/"]
+    result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+    assert result.requires_approval is True
+    assert result.proposal_id == "run-1-plan-2"
+    assert result.proposed_diff_hash is None
+
+
+def test_edd_plan_uses_proposal_id_from_skill_output_when_present(tmp_path) -> None:
+    plan_path = tmp_path / "plan.json"
+    _write_plan(
+        plan_path,
+        action="propose_evaluation_expectation_change",
+        requires_approval=True,
+        proposal_id="skill-proposal-1",
     )
     skill = FakeSkillActivity(
         output=SkillActivityOutput(
@@ -279,23 +310,9 @@ def test_edd_plan_only_requires_approval_for_expectation_change_with_diff_hash(
     }
 
     progress_record["modification_scope"] = ["skill/"]
-    without_hash = runner.run(
-        "run-1", str(tmp_path), progress_record, {"passing": 5}, proposed_diff_hash=""
-    )
-    assert without_hash.requires_approval is False
-    assert without_hash.proposed_diff_hash is None
-
-    with_hash = runner.run(
-        "run-1",
-        str(tmp_path),
-        progress_record,
-        {"passing": 5},
-        proposal_id="proposal-1",
-        proposed_diff_hash="abc123",
-    )
-    assert with_hash.requires_approval is True
-    assert with_hash.proposal_id == "proposal-1"
-    assert with_hash.proposed_diff_hash == "abc123"
+    result = runner.run("run-1", str(tmp_path), progress_record, {"passing": 5})
+    assert result.requires_approval is True
+    assert result.proposal_id == "skill-proposal-1"
 
 
 def test_edd_plan_raises_on_missing_plan_json(tmp_path) -> None:

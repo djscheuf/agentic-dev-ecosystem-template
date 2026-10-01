@@ -18,6 +18,7 @@ from edd_refinement_workflow.activities.regression_recovery import (
         ({"status": "success", "passing": 4, "measurement_context": "baseline"}, "confirmed_regression"),
         ({"status": "success", "passing": 5, "measurement_context": "baseline"}, "unstable_result"),
         ({"status": "timeout", "passing": 0, "measurement_context": "baseline"}, "suspected_flakiness"),
+        ({"status": "infra_error", "passing": 0, "measurement_context": "baseline"}, "suspected_flakiness"),
         ({"status": "success", "passing": 4, "measurement_context": "changed"}, "suspected_flakiness"),
         ({"status": "success", "measurement_context": "baseline"}, "inconclusive"),
     ],

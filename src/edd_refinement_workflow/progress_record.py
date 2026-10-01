@@ -1,3 +1,5 @@
+import contextlib
+import fcntl
 import json
 import re
 from pathlib import Path
@@ -94,14 +96,33 @@ class ProgressRecordStore:
     def _record_path(self, run_id: str) -> Path:
         return self.target_root / ".process" / "edd" / run_id / "progress.json"
 
+    def _write_atomic(self, path: Path, record: dict) -> None:
+        temporary_path = path.with_suffix(".tmp")
+        temporary_path.write_text(json.dumps(record, indent=2, sort_keys=True))
+        temporary_path.replace(path)
+
+    @contextlib.contextmanager
+    def _locked(self, run_id: str):
+        # Advisory lock shared across worker processes, same pattern as
+        # MutationLeaseStore: separate open() file descriptions flock the
+        # same on-disk .lock file so read-modify-write sequences serialize.
+        lock_path = self._record_path(run_id).with_suffix(".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
     def create_or_resume(self, run_id: str, record: dict) -> dict:
-        path = self._record_path(run_id)
-        if path.exists():
-            return json.loads(path.read_text())
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(record, indent=2, sort_keys=True))
-        return record
+        with self._locked(run_id):
+            path = self._record_path(run_id)
+            if path.exists():
+                return json.loads(path.read_text())
+            self._write_atomic(path, record)
+            return record
 
     def save(self, run_id: str, record: dict) -> None:
-        path = self._record_path(run_id)
-        path.write_text(json.dumps(record, indent=2, sort_keys=True))
+        with self._locked(run_id):
+            self._write_atomic(self._record_path(run_id), record)

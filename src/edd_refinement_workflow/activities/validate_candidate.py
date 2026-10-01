@@ -126,7 +126,6 @@ async def validate_candidate_activity(
     run_id: str,
     planning: dict,
     execution: dict,
-    approved_diff_hash: str | None,
     repo_root: str,
 ) -> dict:
     usage = execution["usage_metrics"]
@@ -146,5 +145,5 @@ async def validate_candidate_activity(
     result = ValidateCandidateActivity(
         diff_provider=diff_provider,
         store=ProgressRecordStore(repo_root),
-    ).run(run_id, planning, execution_result, approved_diff_hash)
+    ).run(run_id, planning, execution_result)
     return dataclasses.asdict(result)

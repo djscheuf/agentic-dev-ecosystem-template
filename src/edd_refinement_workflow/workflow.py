@@ -184,8 +184,6 @@ class EddRefinementWorkflow:
                 repo_root,
                 record,
                 baseline,
-                request.get("proposal_id"),
-                request.get("proposed_diff_hash"),
                 request.get("input_path"),
                 start_to_close_timeout=timedelta(minutes=5),
             )
@@ -213,7 +211,7 @@ class EddRefinementWorkflow:
                 )
                 return result
 
-            approved_diff_hash = None
+            approval_decision = None
             if planning.get("requires_approval"):
                 timeout_seconds = request.get("approval_timeout_seconds", 3600)
                 await execute_activity(
@@ -233,13 +231,13 @@ class EddRefinementWorkflow:
                     repo_root,
                     start_to_close_timeout=timedelta(minutes=5),
                 )
-                decision = await self._await_approval(timedelta(seconds=timeout_seconds))
+                approval_decision = await self._await_approval(timedelta(seconds=timeout_seconds))
                 approval = await execute_activity(
                     "record_human_approval_decision",
                     dict,
                     record["run_id"],
                     planning["proposal_id"],
-                    decision,
+                    approval_decision,
                     self._pending_approval_decision.get("notes", "")
                     if self._pending_approval_decision
                     else "",
@@ -247,34 +245,33 @@ class EddRefinementWorkflow:
                     start_to_close_timeout=timedelta(minutes=5),
                 )
                 self._approval_request = approval
-                result.update(approval=approval, approved=decision == "approve")
-                if decision != "approve":
+                result.update(approval=approval, approved=approval_decision == "approve")
+                if approval_decision != "approve":
                     result["next_state"] = request.get(
                         "approval_rejection_policy", "planning"
                     )
-                    self._terminal_reason = f"approval_{decision}"
+                    self._terminal_reason = f"approval_{approval_decision}"
                     return result
-                approved_diff_hash = planning["proposed_diff_hash"]
-                applied_change = await execute_activity(
-                    "record_human_approved_evaluation_change",
-                    dict,
-                    record["run_id"],
-                    request["executed_diff_hash"],
-                    repo_root,
-                    start_to_close_timeout=timedelta(minutes=5),
-                )
-                result["applied_change"] = applied_change
 
             execution = await execute_activity(
                 "edd_do",
                 dict,
                 record["run_id"],
                 planning,
-                approved_diff_hash,
                 repo_root,
                 start_to_close_timeout=timedelta(minutes=30),
             )
             result["execution"] = execution
+            if planning.get("requires_approval") and approval_decision == "approve":
+                applied_change = await execute_activity(
+                    "record_human_approved_evaluation_change",
+                    dict,
+                    record["run_id"],
+                    execution["diff_hash"],
+                    repo_root,
+                    start_to_close_timeout=timedelta(minutes=5),
+                )
+                result["applied_change"] = applied_change
             if "budgets" in record:
                 record, limit_decision = await self._account_and_check_limits(
                     record, execution, "execution", repo_root
@@ -296,7 +293,6 @@ class EddRefinementWorkflow:
                 record["run_id"],
                 planning,
                 execution,
-                approved_diff_hash,
                 repo_root,
                 start_to_close_timeout=timedelta(minutes=5),
             )

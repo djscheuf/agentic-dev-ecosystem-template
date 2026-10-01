@@ -145,7 +145,6 @@ def test_external_target_iteration_leaves_orchestration_tree_unchanged(
     execution = do_runner.run(
         RUN_ID,
         {"action": plan.action, "plan_path": plan.plan_path},
-        None,
         str(target),
     )
 

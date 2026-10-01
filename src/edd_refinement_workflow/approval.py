@@ -10,11 +10,11 @@ class ApprovalService:
         self,
         record: dict,
         proposal_id: str,
-        proposed_diff_hash: str,
-        timeout_seconds: int,
-        requested_at: str,
+        proposed_diff_hash: str | None = None,
+        timeout_seconds: int = 60,
+        requested_at: str = "",
     ) -> dict:
-        if not proposal_id or not proposed_diff_hash:
+        if not proposal_id:
             raise ValueError("approval requires stable proposal context")
         existing = record.get("approval_request")
         if existing and existing.get("status") == "pending":
@@ -72,7 +72,8 @@ class ApprovalService:
         approval_request = record["approval_request"]
         if approval_request.get("decision") != "approve":
             raise DiffIntegrityError("evaluation change has not been approved")
-        if approval_request["proposed_diff_hash"] != applied_diff_hash:
+        proposed_diff_hash = approval_request.get("proposed_diff_hash")
+        if proposed_diff_hash is not None and proposed_diff_hash != applied_diff_hash:
             raise DiffIntegrityError("applied diff does not match approved diff")
         applied_change = {
             "approval_request_id": approval_request["approval_request_id"],
@@ -102,7 +103,7 @@ async def request_human_approval_activity(
     return ApprovalService(store).request(
         record,
         planning["proposal_id"],
-        planning["proposed_diff_hash"],
+        planning.get("proposed_diff_hash"),
         timeout_seconds,
         datetime.now(timezone.utc).isoformat(),
     )

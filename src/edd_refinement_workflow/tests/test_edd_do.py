@@ -28,36 +28,39 @@ class _CompletedProcess:
         self.stdout = stdout
 
 
-def test_edd_do_rejects_unapproved_expectation_change() -> None:
-    skill = FakeSkillActivity()
+def test_edd_do_runs_expectation_change_without_approved_diff_hash(monkeypatch, tmp_path) -> None:
+    plan_path = tmp_path / ".process" / "edd" / "run-1" / "iterations" / "1" / "plan.json"
+    plan_path.parent.mkdir(parents=True)
+    plan_path.write_text("{}")
+
+    skill = FakeSkillActivity(
+        output=SkillActivityOutput(
+            status="success",
+            output_path=str(plan_path),
+            sentinel_path=".process/edd/run-1/iterations/1/.process/edd-do.done.json",
+            duration_ms=10,
+        )
+    )
     runner = EddDoRunner(skill)
+
+    outputs = iter(
+        [_CompletedProcess("diff --git a/rubric.md b/rubric.md\n"), _CompletedProcess("rubric.md\n")]
+    )
+    monkeypatch.setattr(
+        "edd_refinement_workflow.activities.edd_do.subprocess.run",
+        lambda *args, **kwargs: next(outputs),
+    )
+
     planning = {
         "action": "propose_evaluation_expectation_change",
         "requires_approval": True,
-        "proposed_diff_hash": "abc123",
-        "plan_path": ".process/edd/run-1/iterations/1/plan.json",
+        "plan_path": str(plan_path),
     }
+    result = runner.run("run-1", planning, str(tmp_path))
 
-    with pytest.raises(ValueError, match="missing_approval"):
-        runner.run("run-1", planning, None, "/repo")
-
-    assert skill.calls == []
-
-
-def test_edd_do_rejects_approval_diff_hash_mismatch() -> None:
-    skill = FakeSkillActivity()
-    runner = EddDoRunner(skill)
-    planning = {
-        "action": "propose_evaluation_expectation_change",
-        "requires_approval": True,
-        "proposed_diff_hash": "abc123",
-        "plan_path": ".process/edd/run-1/iterations/1/plan.json",
-    }
-
-    with pytest.raises(ValueError, match="diff_hash_mismatch"):
-        runner.run("run-1", planning, "different", "/repo")
-
-    assert skill.calls == []
+    assert result.status == "success"
+    assert result.changed_files == ["rubric.md"]
+    assert result.diff_hash is not None
 
 
 def test_edd_do_reports_missing_plan_path() -> None:
@@ -65,7 +68,7 @@ def test_edd_do_reports_missing_plan_path() -> None:
     runner = EddDoRunner(skill)
 
     with pytest.raises(SkillActivityError, match="plan_path"):
-        runner.run("run-1", {"action": "repair"}, None, "/repo")
+        runner.run("run-1", {"action": "repair"}, "/repo")
 
 
 def test_edd_do_invokes_edd_do_skill_and_measures_the_diff(
@@ -104,7 +107,6 @@ def test_edd_do_invokes_edd_do_skill_and_measures_the_diff(
     result = runner.run(
         "run-1",
         {"action": "repair", "plan_path": str(plan_path)},
-        None,
         str(tmp_path),
     )
 
@@ -152,7 +154,6 @@ def test_edd_do_writes_do_json_next_to_plan(monkeypatch, tmp_path) -> None:
     result = runner.run(
         "run-1",
         {"action": "repair", "plan_path": str(plan_path)},
-        None,
         str(tmp_path),
     )
 
@@ -206,7 +207,6 @@ def test_edd_do_roots_harness_sentinel_and_diff_in_target_repository(tmp_path) -
     result = runner.run(
         "run-1",
         {"action": "repair", "plan_path": plan_rel},
-        None,
         str(target),
     )
 
@@ -233,7 +233,6 @@ def test_edd_do_reports_harness_failure_as_failed_result(tmp_path) -> None:
     result = runner.run(
         "run-1",
         {"action": "repair", "plan_path": str(plan_path)},
-        None,
         str(tmp_path),
     )
 
@@ -262,6 +261,6 @@ async def test_edd_do_activity_entrypoint_runs_configured_runner(monkeypatch) ->
         "edd_refinement_workflow.activities.edd_do.EDD_DO_RUNNER", FakeRunner()
     )
 
-    result = await edd_do_action("run-1", {"action": "repair"}, None, "/repo")
+    result = await edd_do_action("run-1", {"action": "repair"}, "/repo")
 
     assert result["diff_hash"] == "abc123"
