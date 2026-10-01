@@ -137,13 +137,13 @@ See [[decisions/ADR-017-agentic-edd-quality-ratchet.md]] and [[decisions/ADR-018
 - `activities/edd_plan.py` defines `EddPlanSkillActivity(SkillActivity)` and the Cadence
   activity `edd_plan`, colocated with `edd_plan.config.json`
   (`skill_name: "edd-plan"`, `output_path_key: "plan_path"`, `accept-edits`). It invokes
-  `.devin/skills/edd-plan`, pointing it at `.process/edd/<run_id>/progress.json` as the
+  `.agents/skills/edd-plan`, pointing it at `.process/edd/<run_id>/progress.json` as the
   anchor input path (so the skill's own sentinel convention nests under
   `.process/edd/<run_id>/.process/`), then reads the `plan.json` the skill wrote to build
   a `PlanningResult`.
 - `activities/edd_do.py` defines `EddDoSkillActivity(SkillActivity)` and the Cadence
   activity `edd_do`, colocated with `edd_do.config.json` (same shape, `skill_name:
-  "edd-do"`). It invokes `.devin/skills/edd-do` pointed at the current iteration's
+  "edd-do"`). It invokes `.agents/skills/edd-do` pointed at the current iteration's
   `plan_path` (from `edd_plan`'s output), then measures `git diff`/`git diff --name-only`
   itself to produce the `ExecutionResult` — the skill only edits files, it does not
   report the diff hash.

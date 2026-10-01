@@ -161,7 +161,7 @@ async def test_run_returns_handoff_failed_when_audit_artifact_is_invalid():
         ambiguity=False,
         rule=GuardrailRule.SCHEMA_VIOLATION,
         artifact_path="docs/current-reality.audit.json",
-        schema_path=".devin/skills/audit-current-reality/schema/audit.schema.json",
+        schema_path=".agents/skills/audit-current-reality/schema/audit.schema.json",
     )
     engine = make_engine(activities)
 
@@ -185,14 +185,14 @@ async def test_run_returns_handoff_failed_when_design_artifact_is_invalid():
         ambiguity=False,
         rule=GuardrailRule.PASSED,
         artifact_path="docs/current-reality.audit.json",
-        schema_path=".devin/skills/audit-current-reality/schema/audit.schema.json",
+        schema_path=".agents/skills/audit-current-reality/schema/audit.schema.json",
     )
     design_handoff = HandoffValidationResult(
         valid=False,
         ambiguity=False,
         rule=GuardrailRule.MALFORMED_JSON,
         artifact_path="docs/foo.design.json",
-        schema_path=".devin/skills/design-story-implementation/schema/design.schema.json",
+        schema_path=".agents/skills/design-story-implementation/schema/design.schema.json",
     )
 
     async def validate_handoff(output_path, schema_path):
@@ -267,7 +267,7 @@ async def test_run_validates_plan_after_drafting():
     assert result.final_status == "passed"
     assert result.plan_path == "docs/foo.plan.json"
     assert result.design_path == "docs/foo.design.json"
-    assert ("validate_handoff", "docs/foo.plan.json", ".devin/skills/draft-implementation-plan/schema/plan.schema.json") in activities.calls
+    assert ("validate_handoff", "docs/foo.plan.json", ".agents/skills/draft-implementation-plan/schema/plan.schema.json") in activities.calls
 
 
 @pytest.mark.asyncio
@@ -387,7 +387,7 @@ async def test_run_invalid_plan_preserves_design_path_and_score():
         ambiguity=False,
         rule=GuardrailRule.SCHEMA_VIOLATION,
         artifact_path="docs/foo.plan.json",
-        schema_path=".devin/skills/draft-implementation-plan/schema/plan.schema.json",
+        schema_path=".agents/skills/draft-implementation-plan/schema/plan.schema.json",
     )
     engine = StoryDesignEngine(
         validate_source_document=activities.validate_source_document,

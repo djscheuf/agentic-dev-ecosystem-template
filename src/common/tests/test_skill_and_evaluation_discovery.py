@@ -9,7 +9,7 @@ from common.skill_and_evaluation_discovery import (
 def test_discover_returns_ok_when_skill_and_evaluation_exist(tmp_path) -> None:
     target = tmp_path / "target"
     target.mkdir()
-    skill_dir = target / ".devin" / "skills" / "custom"
+    skill_dir = target / ".agents" / "skills" / "custom"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text("# Custom")
     eval_file = target / "evals" / "custom.tests.yaml"
@@ -34,7 +34,7 @@ def test_discover_rejects_zero_or_multiple_providers_and_returns_single(
 ) -> None:
     target = tmp_path / "target"
     target.mkdir()
-    skill_dir = target / ".devin" / "skills" / "custom"
+    skill_dir = target / ".agents" / "skills" / "custom"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text("# Custom")
     eval_file = target / "evals" / "custom.tests.yaml"

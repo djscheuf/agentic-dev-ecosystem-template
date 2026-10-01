@@ -32,8 +32,8 @@ def test_preflight_succeeds_for_clean_target_with_skill(tmp_path) -> None:
         text=True,
     )
 
-    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
-    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / ".agents" / "skills" / "custom").mkdir(parents=True)
+    (target / ".agents" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
     (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"
@@ -91,8 +91,8 @@ def test_preflight_rejects_evaluation_path_outside_target_repository(tmp_path) -
         cwd=str(target), check=True, capture_output=True, text=True,
     )
 
-    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
-    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / ".agents" / "skills" / "custom").mkdir(parents=True)
+    (target / ".agents" / "skills" / "custom" / "SKILL.md").write_text("#")
 
     outside_eval = outside / "custom.tests.yaml"
     outside_eval.write_text("providers:\n  - openai:gpt-4o\n")
@@ -131,8 +131,8 @@ def test_preflight_rejects_test_cases_path_outside_target_repository(tmp_path) -
         cwd=str(target), check=True, capture_output=True, text=True,
     )
 
-    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
-    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / ".agents" / "skills" / "custom").mkdir(parents=True)
+    (target / ".agents" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
     (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
 
@@ -237,8 +237,8 @@ def test_preflight_emits_instrumentation_events(tmp_path) -> None:
         text=True,
     )
 
-    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
-    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / ".agents" / "skills" / "custom").mkdir(parents=True)
+    (target / ".agents" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
     (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"
@@ -316,8 +316,8 @@ def test_preflight_emits_status_and_scoped_path_events(tmp_path) -> None:
         text=True,
     )
 
-    (target / ".devin" / "skills" / "custom").mkdir(parents=True)
-    (target / ".devin" / "skills" / "custom" / "SKILL.md").write_text("#")
+    (target / ".agents" / "skills" / "custom").mkdir(parents=True)
+    (target / ".agents" / "skills" / "custom" / "SKILL.md").write_text("#")
     (target / "evals" / "custom.tests.yaml").parent.mkdir(parents=True)
     (target / "evals" / "custom.tests.yaml").write_text("providers:\n  - openai:gpt-4o\n")
     anchor = target / "anchor.json"

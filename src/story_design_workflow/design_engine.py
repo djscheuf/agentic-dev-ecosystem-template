@@ -29,9 +29,9 @@ class ActivityFailure(RuntimeError):
     """Raised when a skill Activity exhausts its Cadence RetryPolicy."""
 
 
-AUDIT_SCHEMA_PATH = ".devin/skills/audit-current-reality/schema/audit.schema.json"
-DESIGN_SCHEMA_PATH = ".devin/skills/design-story-implementation/schema/design.schema.json"
-PLAN_SCHEMA_PATH = ".devin/skills/draft-implementation-plan/schema/plan.schema.json"
+AUDIT_SCHEMA_PATH = ".agents/skills/audit-current-reality/schema/audit.schema.json"
+DESIGN_SCHEMA_PATH = ".agents/skills/design-story-implementation/schema/design.schema.json"
+PLAN_SCHEMA_PATH = ".agents/skills/draft-implementation-plan/schema/plan.schema.json"
 
 
 @dataclass(frozen=True)

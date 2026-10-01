@@ -24,7 +24,7 @@ This repository is developed on NixOS. Use `nix-shell` as the default way to pro
 
 ## JSON Schema validation utility (2026-09-04)
 
-- `.devin/skills/validate-json-schema/scripts/validate-json-schema.sh <schema.json> <document.json>` validates JSON with `python313Packages.jsonschema` supplied by `nix-shell`.
+- `.agents/skills/validate-json-schema/scripts/validate-json-schema.sh <schema.json> <document.json>` validates JSON with `python313Packages.jsonschema` supplied by `nix-shell`.
 - The script prints concise validation errors and exits nonzero on invalid schemas or documents; no arguments or `--help` prints usage.
 
 ## `shellHook` must not write to stdout (2026-09-04)

@@ -1,6 +1,6 @@
 """Score a `design-grade.json` document against the fixed-floor pass threshold.
 
-Per the Design Quality Rubric and `.devin/skills/grade-story-design/rubric.md`:
+Per the Design Quality Rubric in the `grade-story-design` skill:
 each of the 5 dimensions is scored 0-3, and the design passes if the total score
 is at least `PASS_THRESHOLD` (80%) of the maximum possible.
 """

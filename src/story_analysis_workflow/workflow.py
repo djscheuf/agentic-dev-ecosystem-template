@@ -4,7 +4,7 @@ Thin glue: wires `StoryAnalysisEngine` (all the sequencing/decision logic, unit
 tested in `tests/test_story_analysis_engine.py`) to real Cadence primitives --
 `execute_activity` for the four SDLC skill Activities, `sleep`/`wait_condition`
 for the bounded human-escalation wait (the Python client has no `Selector`;
-see `.devin/skills/cadence-workflow-orchestration/03-python-client/feature-gaps.md`),
+see the `cadence-workflow-orchestration` skill's `03-python-client/feature-gaps.md`),
 and a `human_response` Signal + `get_status` Query for the human-in-the-loop
 acceptance criteria.
 

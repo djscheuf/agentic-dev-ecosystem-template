@@ -1,6 +1,6 @@
 """Score an `analysis-grade.json` document against the fixed-floor pass threshold.
 
-Per ADR-006 (Grader Skill Pattern) and `.devin/skills/grade-story-analysis/rubric.md`:
+Per ADR-006 (Grader Skill Pattern) and the `grade-story-analysis` skill rubric:
 each of the 5 dimensions is scored 0-3, and the analysis passes if the total score
 is at least `PASS_THRESHOLD` (80%) of the maximum possible.
 """
