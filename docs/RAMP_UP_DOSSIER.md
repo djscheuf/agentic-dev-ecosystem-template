@@ -15,7 +15,7 @@ The current branch extends that template with durable Cadence orchestration. Two
 ## Domain Terminology
 
 - **Software factory**: The combined rules, skills, workflows, documentation, and runtime patterns that help humans and agents progress from intent to working code ([ADR-002](../vault/decisions/ADR-002-software-factory-dual-audience.md)).
-- **Skill**: A self-contained, composable unit of agent work with explicit inputs, an output schema, verification, and a completion sentinel ([ADR-003](../vault/decisions/ADR-003-skills-based-architecture.md), [`.devin/skills/`](../.devin/skills/)).
+- **Skill**: A self-contained, composable unit of agent work with explicit inputs, an output schema, verification, and a completion sentinel ([ADR-003](../vault/decisions/ADR-003-skills-based-architecture.md), [`.agents/skills/`](../.agents/skills/)).
 - **Workflow**: A coordinator that sequences skills, passes artifacts between them, and handles branches, retries, and completion ([ADR-003](../vault/decisions/ADR-003-skills-based-architecture.md)).
 - **Skill Activity**: A Cadence Activity adapter that runs a canonical Devin skill through the Harness boundary. Concrete Activities own adjacent JSON configuration and specialize the common lifecycle ([ADR-014](../vault/decisions/ADR-014-colocated-skill-activity-template-method.md), [`common/skill_activity.py`](../src/common/skill_activity.py)).
 - **Sentinel**: A persistent `<first-input-parent>/.process/<skill-name>.done.json` file containing the completed task and verification parameters. The runtime removes only the exact stale sentinel before invocation ([ADR-004](../vault/decisions/ADR-004-skill-output-contracts.md)).
@@ -192,7 +192,7 @@ Sources: [`scripts/run_unit_tests.sh`](../scripts/run_unit_tests.sh), [`scripts/
 
 ### Common Workflows
 
-- Browse executable agent workflows in [`.devin/skills/`](../.devin/skills/), including story extraction, analysis, grading/repair, current-reality audit, design, planning, TDD, schema validation, Promptfoo, and Cadence references.
+- Browse executable agent workflows in [`.agents/skills/`](../.agents/skills/), including story extraction, analysis, grading/repair, current-reality audit, design, planning, TDD, schema validation, Promptfoo, and Cadence references.
 - Follow the repository knowledge protocol in [`AGENTS.md`](../AGENTS.md): query [`vault/INDEX.md`](../vault/INDEX.md) before non-trivial work and update the vault when durable knowledge changes.
 - Use the [Development Process Map](Development%20Process%20Map/Software%20Development%20Process%20-%20Business%20Case%20to%20Deployed%20Code.md) for the documented path from business case through deployed code.
 - Use [Mapping Cadence Workflows and Devin Skill Activities](mapping-workflows-and-skill-activities.md) for workflow/activity concepts, but prefer ADR implementation-status sections and current source where older “current constraints” in that guide conflict with the completed module refactor.
@@ -212,7 +212,7 @@ Sources: [`scripts/run_unit_tests.sh`](../scripts/run_unit_tests.sh), [`scripts/
 **Development Guidelines:**
 - [Agent and vault conventions](../AGENTS.md)
 - [Repository rules](../.devin/rules/)
-- [Skill definitions](../.devin/skills/)
+- [Skill definitions](../.agents/skills/)
 - [E2E debugging guide](e2e-debugging-workflow-guide.md)
 - [Hooks overview](hooks-overview.md)
 
@@ -225,4 +225,4 @@ Sources: [`scripts/run_unit_tests.sh`](../scripts/run_unit_tests.sh), [`scripts/
 
 **Known Documentation Gaps:**
 - A repository-level CI/CD implementation is not present.
-- The root README still describes some historical skill names and a `.devin/workflows/` layout that are not present in the current tree; use the current `.devin/skills/`, source modules, scripts, and vault index as the operational references.
+- The root README still describes some historical skill names and a `.devin/workflows/` layout that are not present in the current tree; use the current `.agents/skills/`, source modules, scripts, and vault index as the operational references.

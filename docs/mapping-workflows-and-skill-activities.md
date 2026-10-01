@@ -44,7 +44,7 @@ orchestrator.worker
                 |
                 | devin -p --permission-mode ... --model ...
                 v
-        .devin/skills/<skill>/SKILL.md
+        .agents/skills/<skill>/SKILL.md
                 |
                 +-- output artifact
                 +-- .process/<skill>.done.json
@@ -114,7 +114,7 @@ A skill Activity has two names with different conventions:
 | Name | Example | Used by |
 |---|---|---|
 | Cadence Activity wire name | `analyze_story` | `execute_activity`, registry, Cadence history. |
-| Canonical Devin skill name | `analyze-story` | Prompt invocation, `.devin/skills`, sentinel name, profile config. |
+| Canonical Devin skill name | `analyze-story` | Prompt invocation, `.agents/skills`, sentinel name, profile config. |
 
 The Activity adapter is responsible for translating between them.
 
@@ -122,7 +122,7 @@ The Activity adapter is responsible for translating between them.
 
 Each skill should provide:
 
-- `.devin/skills/<canonical-name>/SKILL.md`;
+- `.agents/skills/<canonical-name>/SKILL.md`;
 - a clear input document/path contract;
 - its own output schema;
 - a deterministic output naming convention;

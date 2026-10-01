@@ -1,0 +1,46 @@
+{
+  "target_story": "path/to/analysis/file",
+  "source_workstream": "path/to/workstream",
+  "priority_groups": [
+    {
+      "description": "Priority 1: Happy Path",
+      "tests": [
+        {
+          "id": 1,
+          "name": "Register_WithValidEmail_CreatesUser",
+          "status": "pending",
+          "description": "Valid email and password should create a user",
+          "arrange": "Valid email, password meeting requirements",
+          "act": "Call Register()",
+          "assert": "User created, returns success, welcome email queued"
+        }
+      ]
+    },
+    {
+      "description": "Priority 2: Validation Errors",
+      "tests": [
+        {
+          "id": 2,
+          "name": "Register_WithEmptyEmail_ReturnsValidationError",
+          "status": "pending",
+          "description": "Empty email should return validation error",
+          "arrange": "Empty email, valid password",
+          "act": "Call Register()",
+          "assert": "Returns validation error, user not created"
+        },
+        {
+          "id": 3,
+          "name": "Register_WithInvalidEmailFormat_ReturnsValidationError",
+          "status": "pending",
+          "description": "Invalid email format should return validation error",
+          "arrange": "Invalid email format, valid password",
+          "act": "Call Register()",
+          "assert": "Returns validation error, user not created"
+        },
+        {
+          ...
+        }
+      ]
+    }
+  ]
+}

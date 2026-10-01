@@ -1,0 +1,6 @@
+{
+    "workstream_paths": [
+        "path/to/workstream1.json",
+        "path/to/workstream2.json"
+    ]
+}

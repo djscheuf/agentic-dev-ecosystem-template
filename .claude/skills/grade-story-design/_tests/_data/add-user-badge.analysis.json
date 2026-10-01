@@ -1,0 +1,241 @@
+{
+  "raw_request": "docs/reqs/36 - Add User Badge/story.md",
+  "title": "Add User Badge",
+  "story": {
+    "so_that": "I can quickly confirm who I am using the System",
+    "as_a": "User",
+    "i_want": "see my name and role shown in the header"
+  },
+  "target_persona": {
+    "name": "System User",
+    "role": "User (any role including Proofreader)",
+    "technical_level": "Novice",
+    "journey": {
+      "before": "User logs in and navigates to the Search page or Tactic Detail Page without any indication of their identity or role",
+      "during": "User is actively using the Search page or Tactic Detail Page and needs to confirm their identity and role",
+      "after": "User can see their name and role displayed in the header (top-right), confirming their identity and maintaining awareness of their permissions"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Display user name and role in a badge component in the header",
+    "inputs": [
+      "User name from authentication/authorization state",
+      "User role from authentication/authorization state"
+    ],
+    "outputs": [
+      "User badge component visible in header (top-right)",
+      "Badge displays user name and role",
+      "Badge uses a simple user icon"
+    ],
+    "state_changes": [
+      "No state changes - this is a read-only display feature"
+    ],
+    "affected_components": {
+      "ui": [
+        "Header component in tactic-builder interface",
+        "User badge display component (new)",
+        "Layout adjustments to accommodate badge in top-right"
+      ],
+      "api": [
+        "No API changes required - user data already available in application state from authentication/authorization flow"
+      ],
+      "database": [
+        "No database schema changes required",
+        "No new data storage needed"
+      ],
+      "external_services": [
+        "No external service changes required"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "User sees their name and role in the header when using the Search page",
+      "gherkin": "Given I am a User When I use the Search page Then I see my name and role shown in the header",
+      "type": "Functional",
+      "jtbd": "Confirm my identity while using the Search page",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "Proofreader user sees their name and role in the header when using the Tactic Detail Page",
+      "gherkin": "Given I am a User with the Proofreader Role When I am using the Tactic Detail Page Then I can see my name and role shown in the header",
+      "type": "Functional",
+      "jtbd": "Confirm my identity and role while reviewing tactics",
+      "persona_served": "System User (Proofreader)"
+    },
+    {
+      "criterion": "Existing Tactic Detail functionality remains unaffected",
+      "gherkin": "Given I am a User with the Proofreader Role When I am using the Tactic Detail Page Then existing Tactic Detail functionality works as before",
+      "type": "Non-functional",
+      "jtbd": "Maintain existing functionality while adding new feature",
+      "persona_served": "System User (Proofreader)"
+    },
+    {
+      "criterion": "User badge is only applied to the tactic-builder interface",
+      "gherkin": "Given the application has multiple interfaces When the user badge feature is deployed Then it only appears in the tactic-builder interface",
+      "type": "Non-functional",
+      "jtbd": "Limit feature scope to tactic-builder",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "User badge appears in the top-right of the page",
+      "gherkin": "Given a user is logged in When they view any page in tactic-builder Then the user badge appears in the top-right corner",
+      "type": "Functional",
+      "jtbd": "Locate user identity information in expected location",
+      "persona_served": "System User"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "User with very long name",
+      "gherkin": "Given a user with a name longer than 30 characters When they view the tactic-builder Then the badge displays the name without truncation or overflow",
+      "type": "Edge case",
+      "jtbd": "Handle long user names gracefully",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "User with special characters in name",
+      "gherkin": "Given a user with special characters (accents, unicode) in their name When they view the tactic-builder Then the badge displays the name correctly",
+      "type": "Edge case",
+      "jtbd": "Display names with special characters correctly",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "User with very long role name",
+      "gherkin": "Given a user with a role name longer than 20 characters When they view the tactic-builder Then the badge displays the role without truncation or overflow",
+      "type": "Edge case",
+      "jtbd": "Handle long role names gracefully",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "User session expires while viewing page",
+      "gherkin": "Given a user is viewing the tactic-builder When their session expires Then the badge should either update or redirect appropriately",
+      "type": "Edge case",
+      "jtbd": "Handle expired sessions gracefully",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "User with no role assigned",
+      "gherkin": "Given a user with no assigned role When they view the tactic-builder Then the badge displays their name and shows an appropriate default or empty role indicator",
+      "type": "Edge case",
+      "jtbd": "Handle users without assigned roles",
+      "persona_served": "System User"
+    },
+    {
+      "criterion": "Badge visibility on mobile/small screens",
+      "gherkin": "Given a user viewing tactic-builder on a small screen When the page is rendered Then the badge remains visible and usable without obscuring critical content",
+      "type": "Edge case",
+      "jtbd": "Ensure badge is responsive on small screens",
+      "persona_served": "System User"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the exact format for displaying the role name? Should it be the role's display name or system identifier?",
+      "impacts": [
+        "UI display",
+        "user experience",
+        "localization considerations"
+      ]
+    },
+    {
+      "question": "Should the badge be clickable/interactive (e.g., to open user profile or logout menu)?",
+      "impacts": [
+        "UI design",
+        "user experience",
+        "navigation flow"
+      ]
+    },
+    {
+      "question": "What should happen if user data is not available in the application state?",
+      "impacts": [
+        "error handling",
+        "user experience",
+        "fallback behavior"
+      ]
+    },
+    {
+      "question": "Should the badge update in real-time if the user's role changes during their session?",
+      "impacts": [
+        "state management",
+        "real-time updates",
+        "user experience"
+      ]
+    },
+    {
+      "question": "Are there any accessibility requirements for the badge (ARIA labels, keyboard navigation)?",
+      "impacts": [
+        "accessibility compliance",
+        "WCAG standards",
+        "keyboard navigation"
+      ]
+    },
+    {
+      "question": "What icon library or design system should be used for the user icon?",
+      "impacts": [
+        "UI design",
+        "design consistency",
+        "implementation approach"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Header component in tactic-builder",
+        "Authentication/authorization service providing user data",
+        "Application state management (Redux/Context/etc) containing user information"
+      ],
+      "new_code": [
+        "UserBadge component (new React/Vue/Angular component)",
+        "Component styling (CSS/SCSS/Tailwind)",
+        "Integration of badge into header layout"
+      ],
+      "infrastructure": [
+        "No new infrastructure required",
+        "Existing authentication system must provide user name and role"
+      ],
+      "external_services": [
+        "No external services required"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Authentication/authorization system must be fully functional and providing user data"
+      ],
+      "blocks": [
+        "Any features that depend on user identity being visible in the UI"
+      ],
+      "related": [
+        "Story 35 - Admin Tactic Types (may share header/layout components)",
+        "Authentication/authorization implementation",
+        "User profile or settings features"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "User roles in the tactic management system",
+        "How roles affect user permissions and workflows"
+      ],
+      "technical_knowledge": [
+        "Frontend framework used in tactic-builder (React/Vue/Angular)",
+        "Application state management approach",
+        "Header component architecture",
+        "CSS/styling approach used in the project"
+      ],
+      "stakeholder_questions": [
+        "What is the priority of this feature relative to other work?",
+        "Are there specific design mockups or style guidelines for the badge?",
+        "Should the badge be visible to all users or only certain roles?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 2,
+    "risk_level": "Low",
+    "uncertainty": "Low"
+  },
+  "open_questions": [],
+  "recommendation": "This is a straightforward UI feature with low complexity and risk. The implementation is well-scoped and depends only on existing authentication/authorization data. Recommended for early sprint inclusion as it provides immediate user experience value with minimal technical risk."
+}
+
