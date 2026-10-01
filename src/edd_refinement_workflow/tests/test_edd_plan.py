@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -77,6 +78,10 @@ def test_edd_plan_stops_after_three_consecutive_regressions() -> None:
 class RecordingHarness:
     """Harness that records the invocation cwd and writes the plan.json +
     sentinel a real edd-plan run would, relative to that cwd."""
+
+    config_namespace: ClassVar[str] = "devin"
+    default_model: ClassVar[str] = "swe-1.7-medium"
+    default_permission_mode: ClassVar[str] = "auto"
 
     def __init__(self):
         self.calls = []

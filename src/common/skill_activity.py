@@ -180,9 +180,13 @@ class SkillActivity(ABC):
             activity_log_path = get_activity_log_path() or ""
             devin_log_path = get_devin_log_path() or ""
             info = _resolve_activity_info()
-            harness_namespace = self.harness_config.get("devin", {})
+            harness_namespace = self.harness_config.get(self.harness.config_namespace, {})
             usage = getattr(result, "usage", None)
             artifact_dir = get_activity_artifact_dir()
+            trajectory_filename = (
+                "claude-trajectory.jsonl" if self.harness.config_namespace == "claude"
+                else "devin-trajectory.json"
+            )
             observation = {
                 "workflow_id": getattr(info, "workflow_id", ""),
                 "run_id": getattr(info, "workflow_run_id", ""),
@@ -194,12 +198,12 @@ class SkillActivity(ABC):
                 "started_at": started_at,
                 "duration_ms": duration_ms,
                 "outcome": "success",
-                "model": harness_namespace.get("model", "SWE-1.7"),
-                "permission_mode": harness_namespace.get("permission_mode", "auto"),
+                "model": harness_namespace.get("model", self.harness.default_model),
+                "permission_mode": harness_namespace.get("permission_mode", self.harness.default_permission_mode),
                 "output_path": resolved_output_path,
                 "activity_log_path": activity_log_path,
                 "devin_log_path": devin_log_path,
-                "atif_path": str(artifact_dir / "devin-trajectory.json")
+                "atif_path": str(artifact_dir / trajectory_filename)
                 if usage is not None and artifact_dir is not None
                 else None,
                 "usage": asdict(usage) if usage is not None else None,

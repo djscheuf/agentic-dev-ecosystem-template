@@ -13,6 +13,7 @@ Asserts:
 import json
 import subprocess
 from pathlib import Path
+from typing import ClassVar
 
 from common.harness import HarnessResult
 from common.repository_status import RepositoryStatusInspector
@@ -54,6 +55,10 @@ class PlanHarness:
     """Stands in for the agentic edd-plan skill: writes plan.json plus its
     completion sentinel relative to the cwd it is handed."""
 
+    config_namespace: ClassVar[str] = "devin"
+    default_model: ClassVar[str] = "swe-1.7-medium"
+    default_permission_mode: ClassVar[str] = "auto"
+
     def __init__(self):
         self.calls = []
 
@@ -93,6 +98,10 @@ class PlanHarness:
 class DoHarness:
     """Stands in for the agentic edd-do skill: mutates a tracked file and
     writes the edd-do sentinel next to the plan, relative to cwd."""
+
+    config_namespace: ClassVar[str] = "devin"
+    default_model: ClassVar[str] = "swe-1.7-medium"
+    default_permission_mode: ClassVar[str] = "auto"
 
     def __init__(self):
         self.calls = []

@@ -187,6 +187,10 @@ def test_edd_do_roots_harness_sentinel_and_diff_in_target_repository(tmp_path) -
     harness_calls = []
 
     class DoHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
+
         def run(self, prompt, *, cwd, config=None):
             cwd = Path(cwd)
             harness_calls.append(cwd)
