@@ -54,7 +54,7 @@ import jsonschema
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REPORT_SCHEMA_PATH = REPO_ROOT / "src/story_analysis_workflow/schemas/story-analysis-report-v1.schema.json"
-SKILLS_DIR = REPO_ROOT / ".devin/skills"
+SKILLS_DIR = REPO_ROOT / ".agents/skills"
 
 # step_name -> (verify_params key, output JSON Schema path)
 SKILL_SPECS = {

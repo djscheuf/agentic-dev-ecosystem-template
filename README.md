@@ -29,8 +29,8 @@ The current orchestration implementation demonstrates the first two SDLC phases,
 
 When joining or modifying an existing codebase, begin by establishing current reality:
 
-1. Use [Explore Codebase](.devin/skills/explore-codebase/SKILL.md) to identify architecture, conventions, dependencies, and testing patterns.
-2. Use [Query Code](.devin/skills/query-code/SKILL.md) for focused follow-up exploration during analysis or design.
+1. Use [Explore Codebase](.agents/skills/explore-codebase/SKILL.md) to identify architecture, conventions, dependencies, and testing patterns.
+2. Use [Query Code](.agents/skills/query-code/SKILL.md) for focused follow-up exploration during analysis or design.
 3. Record durable architectural knowledge and constraints in the repository documentation or vault before designing changes.
 
 This sequence reduces the risk of proposing work that conflicts with existing patterns or rediscovering decisions already captured by the project.
@@ -41,7 +41,7 @@ For a new project, establish the development system before scaling agentic work:
 
 1. Define the target architecture, coding standards, quality expectations, and repository conventions with an active human-agent design conversation.
 2. Capture those decisions as repository rules and architecture documentation.
-3. Adapt the skills and output contracts in `.devin/skills/` to the new domain.
+3. Adapt the skills and output contracts in `.agents/skills/` to the new domain.
 4. Add representative evaluation cases before treating a skill as reusable.
 5. Introduce orchestration when several stable skills need sequencing, retries, quality gates, or durable state.
 
@@ -54,7 +54,7 @@ The current feature-development path combines durable orchestration with a skill
 1. **Analysis orchestration** — validate a Markdown story, extract intent, analyze it, grade the analysis, and retry or request human intervention when necessary.
 2. **Design orchestration** — audit the current repository, validate handoffs, design the implementation, grade the design, and produce an implementation plan.
 3. **Design clarification** — when the design does not pass or requires human judgment, use the manual [Design Buddy](.devin/rules/design-buddy.md) to challenge assumptions, clarify trade-offs, and refine the intended design before continuing.
-4. **Implementation handoff** — use the [TDD Workflow](.devin/skills/tdd-workflow/SKILL.md) as the current working reference for implementing the approved plan through Think, Red, Green, and Refactor cycles.
+4. **Implementation handoff** — use the [TDD Workflow](.agents/skills/tdd-workflow/SKILL.md) as the current working reference for implementing the approved plan through Think, Red, Green, and Refactor cycles.
 
 The durable orchestration currently ends with the Design outputs and implementation plan. It does **not yet orchestrate the TDD implementation phase**. See [Orchestration: Analysis and Design](docs/orchestration.md) for the operating guide, execution model, and extension points.
 
@@ -108,10 +108,10 @@ The runtime uses three implementation layers:
 
 ## A skill at a glance
 
-A mature artifact-producing skill is a small, self-contained capability rather than just a prompt file. Representative skills such as [Analyze Story](.devin/skills/analyze-story/) and [Design Story Implementation](.devin/skills/design-story-implementation/) use this structure:
+A mature artifact-producing skill is a small, self-contained capability rather than just a prompt file. Representative skills such as [Analyze Story](.agents/skills/analyze-story/) and [Design Story Implementation](.agents/skills/design-story-implementation/) use this structure:
 
 ```text
-.devin/skills/<skill-name>/
+.agents/skills/<skill-name>/
 ├── SKILL.md                 # Purpose, inputs, process, outputs, and completion contract
 ├── schema/
 │   ├── <output>.schema.json # Machine-readable output contract
@@ -145,7 +145,7 @@ Cross-skill evaluation results and Evaluation-Driven Development guidance are co
 
 | Path | Purpose |
 |---|---|
-| `.devin/skills/` | Reusable capabilities, skill contracts, schemas, verification, and colocated evaluations |
+| `.agents/skills/` | Reusable capabilities, skill contracts, schemas, verification, and colocated evaluations |
 | `.devin/rules/` | Repository and interaction guidance used by agents and human collaborators |
 | `src/common/` | Workflow-independent Activity, harness, usage, and logging infrastructure |
 | `src/orchestrator/` | Workflow catalog, registry composition, and Worker runtime |

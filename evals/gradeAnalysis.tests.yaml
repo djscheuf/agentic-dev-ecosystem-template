@@ -3,7 +3,7 @@ description: EDD on Grade Story Analysis
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://../.devin/skills/grade-story-analysis/_tests/prompt.md
+  - file://../.agents/skills/grade-story-analysis/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -37,12 +37,12 @@ providers:
   
 # Test cases loaded from external file
 tests: 
-  - file://../.devin/skills/grade-story-analysis/_tests/base.tests.yaml
-  - file://../.devin/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
-  - file://../.devin/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
-  - file://../.devin/skills/grade-story-analysis/_tests/dependencies-quality.tests.yaml
-  - file://../.devin/skills/grade-story-analysis/_tests/exemplary-score.tests.yaml
-  - file://../.devin/skills/grade-story-analysis/_tests/robustness.tests.yaml
+  - file://../.agents/skills/grade-story-analysis/_tests/base.tests.yaml
+  - file://../.agents/skills/grade-story-analysis/_tests/incomplete-analysis.tests.yaml  
+  - file://../.agents/skills/grade-story-analysis/_tests/scope-criteria.tests.yaml
+  - file://../.agents/skills/grade-story-analysis/_tests/dependencies-quality.tests.yaml
+  - file://../.agents/skills/grade-story-analysis/_tests/exemplary-score.tests.yaml
+  - file://../.agents/skills/grade-story-analysis/_tests/robustness.tests.yaml
 
 # Output configuration
 outputPath: results.gradeAnalysis.html

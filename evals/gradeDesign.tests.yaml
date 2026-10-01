@@ -3,7 +3,7 @@ description: EDD on Grade Design
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://../.devin/skills/grade-story-design/_tests/prompt.md
+  - file://../.agents/skills/grade-story-design/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -41,11 +41,11 @@ providers:
   
 # Test cases loaded from external file
 tests: 
-  - file://../.devin/skills/grade-story-design/_tests/base.tests.yaml
-  - file://../.devin/skills/grade-story-design/_tests/incomplete-design.tests.yaml
-  - file://../.devin/skills/grade-story-design/_tests/interface-contracts.tests.yaml
-  - file://../.devin/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml
-  - file://../.devin/skills/grade-story-design/_tests/instrumentation-observability.tests.yaml
+  - file://../.agents/skills/grade-story-design/_tests/base.tests.yaml
+  - file://../.agents/skills/grade-story-design/_tests/incomplete-design.tests.yaml
+  - file://../.agents/skills/grade-story-design/_tests/interface-contracts.tests.yaml
+  - file://../.agents/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml
+  - file://../.agents/skills/grade-story-design/_tests/instrumentation-observability.tests.yaml
 
 # Output configuration
 outputPath: results.gradeDesign.html
