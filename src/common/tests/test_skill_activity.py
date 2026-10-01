@@ -319,6 +319,8 @@ def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
         "output_path": "artifact.json",
         "activity_log_path": output.activity_log_path,
         "devin_log_path": output.devin_log_path,
+        "agent_log_path": output.agent_log_path,
+        "trajectory_path": output.observation["trajectory_path"],
         "atif_path": output.observation["atif_path"],
         "usage": {
             "prompt_tokens": 10,

@@ -269,6 +269,52 @@ def get_devin_log_path() -> Optional[str]:
     return _relative_or_absolute(bundle.devin_path)
 
 
+def get_claude_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.claude_path is None:
+        return None
+    return _relative_or_absolute(bundle.claude_path)
+
+
+def get_agent_logger() -> logging.Logger:
+    from .invocation_context import get_current_harness
+
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return logging.getLogger("workflow.activity")
+
+    harness = get_current_harness()
+    if harness is None:
+        return bundle.activity
+
+    config_namespace = getattr(harness, "config_namespace", "devin")
+    if config_namespace == "claude":
+        return bundle.claude
+    return bundle.devin
+
+
+def get_agent_log_path() -> Optional[str]:
+    from .invocation_context import get_current_harness
+
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return None
+
+    harness = get_current_harness()
+    if harness is None:
+        return None
+
+    config_namespace = getattr(harness, "config_namespace", "devin")
+    if config_namespace == "claude":
+        if bundle.claude_path is None:
+            return None
+        return _relative_or_absolute(bundle.claude_path)
+    else:
+        if bundle.devin_path is None:
+            return None
+        return _relative_or_absolute(bundle.devin_path)
+
+
 @contextmanager
 def workflow_log_context(
     workflow_info: Any = None,
