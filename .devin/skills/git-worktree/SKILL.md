@@ -27,4 +27,9 @@ description: Create, manage, clean up, and troubleshoot Git worktrees for parall
 - `ref/configuration.md` — shared vs. per-worktree config and relevant `git-config` variables.
 - `ref/troubleshooting.md` — repair scenarios, cleanup, locks, and common gotchas.
 
+## Utility Scripts
+
+- `scripts/create_worktree.sh` — create a linked worktree for a branch at the conventional path `{parent}/worktrees/{repo}_{branch}`. Supports `--dry-run`.
+- `scripts/clean_worktree.sh` — remove the worktree for a branch after confirming the branch is merged; optionally delete the branch. Supports `--dry-run` and `--force`.
+
 [Source: https://git-scm.com/docs/git-worktree]
