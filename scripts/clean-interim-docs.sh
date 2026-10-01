@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clean up interim documentation artifacts (sentinels, audits, grades, plans).
+# Clean up interim documentation artifacts (sentinels, audits, grades, plans, reviews).
 #
 # Usage: scripts/clean-interim-docs.sh [--delete] [--ending <ending>] [<directory>]
 #
@@ -19,6 +19,7 @@ DEFAULT_ENDINGS=(
   ".design-grade.json"
   ".plan.json"
   ".plan.test-cases.json"
+  ".review.yaml"
 )
 
 DELETE=0
