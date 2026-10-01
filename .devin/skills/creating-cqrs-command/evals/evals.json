@@ -1,0 +1,23 @@
+{
+  "skill_name": "creating-cqrs-command",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to add a new endpoint to the Tactic Management API. When a ProofReader reviews a tactic and wants to send it back to the requester for revisions, they should be able to reject it with a reason. The endpoint should be POST /api/v1/tactics/{tacticId}/reject-proof with a request body containing 'rejectionReason' (required string, max 500 chars). The tactic must be in PROOF_READY status and should transition to DRAFT status. Return the tacticId and new status in the response. Make sure only ProofReaders can call this endpoint.",
+      "expected_output": "Creates a complete CQRS command implementation including: RejectProofCommand record with tacticId, userId, and RejectProofRequest; RejectProofRequest with rejectionReason property; RejectProofResponse with tacticId and status; RejectProofCommandHandler that validates status is PROOF_READY, transitions to DRAFT, saves rejectionReason to tactic, updates audit fields; RejectProofRequestValidator that validates rejectionReason is not empty and max 500 chars; Controller action with [HttpPost], [Authorize(Roles=\"ProofReader\")], proper error handling, and correlation ID logging.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We need to implement a feature where Requesters can update the budget allocation for a tactic. Create a PATCH endpoint at /api/v1/tactics/{tacticId}/budget that accepts faceValue (decimal, optional, must be > 0), circulationQuantity (int, optional, must be > 0), redemptionRate (decimal, optional, must be between 0 and 1), and nonworkingBudget (decimal, optional, must be >= 0). Only Requesters should be able to call this. The tactic can be in any status. Use field-level authorization to check which fields the user can modify. Return the tacticId and the updated budget values in the response.",
+      "expected_output": "Creates UpdateTacticBudgetCommand with tacticId, userId, and UpdateTacticBudgetRequest; Request DTO with nullable decimal/int properties; Response DTO with tacticId and all budget fields; Handler that uses IFieldAuthorizationService for field-level authorization, validates business rules, updates only provided fields, sets LastModified/LastModifiedBy; Validator with conditional rules checking ranges (faceValue > 0, circulationQuantity > 0, redemptionRate between 0-1, nonworkingBudget >= 0); Controller PATCH action with Requester role authorization.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Add a command to mark a tactic as archived. This should be a POST to /api/v1/tactics/{tacticId}/archive. Only Admins can archive tactics. The tactic must be in COMPLETED or CANCELLED status. When archived, set the status to ARCHIVED and record the archiveDate (UTC) and archivedBy (userId). The operation should be idempotent - if already archived, just return success. Include proper logging with correlation IDs and return a response with tacticId, success boolean, and an optional message.",
+      "expected_output": "Creates ArchiveTacticCommand with tacticId and userId; ArchiveTacticResponse with tacticId, success, and optional message; ArchiveTacticCommandHandler that checks if already ARCHIVED (idempotent), validates current status is COMPLETED or CANCELLED (throws ValidationException if not), sets status to ARCHIVED, sets archiveDate to DateTime.UtcNow, sets archivedBy to userId, includes correlation ID logging; No validator needed (no request body); Controller POST action with [Authorize(Roles=\"Admin\")], proper exception handling for KeyNotFoundException and ValidationException, structured logging.",
+      "files": []
+    }
+  ]
+}

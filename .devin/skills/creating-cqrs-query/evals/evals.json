@@ -1,0 +1,23 @@
+{
+  "skill_name": "creating-cqrs-query",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to add a GET endpoint to retrieve all attachments for a specific tactic. The endpoint should be GET /api/v1/tactics/{tacticId}/attachments and return a list of attachments with their id, fileName, attachmentTypeId, uploadedDate, and uploadedBy. Only users who have read access to the tactic should be able to see its attachments. If the tactic doesn't exist or the user doesn't have access, return 404. The response should be a simple list, no pagination needed since tactics typically have only a few attachments.",
+      "expected_output": "Creates GetTacticAttachmentsQuery record with tacticId and userId parameters implementing IRequest<List<AttachmentDto>>; AttachmentDto class with Id, FileName, AttachmentTypeId, UploadedDate, UploadedBy properties; GetTacticAttachmentsQueryHandler that loads tactic, checks authorization via ITacticReadAuthorizationService (returns 404 if no access), loads attachments from repository, maps to DTOs with proper null handling; Controller GET action with route [HttpGet(\"{tacticId:guid}/attachments\")], [Authorize] attribute, proper error handling for TacticNotFoundException, correlation ID logging.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We need a paginated search endpoint for tactics. Create GET /api/v1/tactics/search that accepts query parameters: searchTerm (optional string), statusFilter (optional string), tacticTypeIds (optional list of ints), ownerId (optional string), page (int, default 1), pageSize (int, default 20, max 100), sortBy (string, default 'created'), sortOrder (string, 'asc' or 'desc', default 'desc'). Return a paginated response with items (list of TacticSearchResultDto containing id, description, offerCode, status, ownerId, created), totalCount, page, pageSize, totalPages, hasPreviousPage, hasNextPage. Users should only see tactics they're authorized to view based on their roles. Normalize and validate all pagination parameters.",
+      "expected_output": "Creates GetTacticsSearchQuery record with all filter and pagination parameters implementing IRequest<PaginatedResponseDto<TacticSearchResultDto>>; TacticSearchResultDto class with minimal fields for search results; GetTacticsSearchQueryHandler that validates/normalizes pagination (enforce max 100 pageSize, default 20, normalize page to min 1), normalizes sort parameters, gets user context via IUserContextService, builds role-based authorization filters, queries repository with all filters, gets total count, maps to DTOs; PaginatedResponseDto with Items, TotalCount, Page, PageSize, TotalPages (calculated), HasPreviousPage, HasNextPage properties; Controller GET action with all query parameters using [FromQuery], proper default values, correlation ID logging.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Add a cached reference data endpoint for delivery methods. Create GET /api/v1/reference/delivery-methods that returns all available delivery methods sorted by displayOrder. Each delivery method should have id (int), name (string), description (optional string), and displayOrder (int). This data changes very rarely so cache it for 15 minutes using IMemoryCache. The endpoint should be accessible to all authenticated users. Include proper logging showing whether data came from cache or database.",
+      "expected_output": "Creates GetDeliveryMethodsQuery record with no parameters (or just empty record) implementing IRequest<List<DeliveryMethodDto>>; DeliveryMethodDto class with Id, Name, Description (nullable), DisplayOrder properties; GetDeliveryMethodsQueryHandler that injects IMemoryCache, checks cache with key 'DeliveryMethods', returns cached data if found (with debug log), otherwise loads from IDeliveryMethodRepository, orders by DisplayOrder, maps to DTOs, caches with 15 minute expiration, logs cache miss; Controller GET action with route [HttpGet(\"delivery-methods\")] or similar, [Authorize] attribute, returns Ok(result), correlation ID logging indicating cache hit/miss.",
+      "files": []
+    }
+  ]
+}
