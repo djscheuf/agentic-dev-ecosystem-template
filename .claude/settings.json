@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(nix-shell *)",
+      "Exec(ls)",
+      "Exec(mkdir)",
+      "Exec(git status)",
+      "Exec(scripts/*.sh)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
