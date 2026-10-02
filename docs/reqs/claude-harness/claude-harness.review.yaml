@@ -31,7 +31,7 @@ code_review:
       - "Any skill Activity configured to use ClaudeHarness via <WORKFLOW>_HARNESS=module:ClaudeHarness"
       - "Log/report consumers reading devin_log_path/atif_path or the new agent_log_path/trajectory_path fields"
   general_commentary:
-    verdict: approve-with-suggestions
+    verdict: approve
     summary: >
       The config validation, namespace isolation, and usage-parsing pieces are solid and well tested
       (parity with DevinHarnessConfig's validation style, correct MappingProxyType handling, correct
@@ -42,10 +42,12 @@ code_review:
       NDJSON to export_path before parsing usage, with tests covering the durable and temporary
       storage modes (commit 54e9136); and the duplicated _token/_cost coercion helpers were extracted
       into common/harness_usage.py, unit-tested in isolation, and both atif_usage.py and
-      claude_harness.py now import from there (commit aaf1c91). The remaining suggestion/comment-level
-      items (duplicate get_claude_log_path definition, Harness Protocol not declaring
-      config_namespace/default_model/default_permission_mode, missing ADR for the config_namespace
-      decision) are non-blocking and left open below.
+      claude_harness.py now import from there (commit aaf1c91). All suggestion-priority items have
+      since been resolved too: the duplicate get_claude_log_path definition was deleted with an
+      AST-based regression guard (commit a9ef7cb); the Harness Protocol now declares
+      config_namespace/default_model/default_permission_mode (commit 80d235c); and the trajectory
+      test gap was closed as a side effect of the first blocking fix. Only the comment-priority item
+      (missing ADR for the config_namespace decision) remains open below.
     limitations:
       - "Tests were read but not executed in this review; pytest was not run against the branch."
       - "The audit/design/grading JSON files under docs/reqs/claude-harness/ were used as supporting context, not as authoritative requirements."
@@ -80,6 +82,8 @@ code_review:
       recommendation: "Delete one of the two definitions; keep get_claude_log_path next to get_claude_logger for consistency with get_devin_log_path/get_devin_logger's existing placement."
       guidance: ""
       priority: suggestion
+      status: resolved
+      resolution: "Deleted the earlier definition beside get_devin_log_path; kept the one beside get_claude_logger. Added test_no_duplicate_top_level_function_definitions (an AST-based guard against reintroduction) and test_get_claude_log_path_reports_activity_scoped_claude_log (previously-missing behavioral coverage) to src/common/tests/test_workflow_logger.py. Commit a9ef7cb."
       locations:
         - "src/common/workflow_logger.py:272-276"
         - "src/common/workflow_logger.py:444-448"
@@ -90,6 +94,8 @@ code_review:
       recommendation: "Extend the Harness Protocol in src/common/harness.py to declare config_namespace, default_model, and default_permission_mode as required attributes, so the structural contract matches what SkillActivity actually depends on."
       guidance: "If a third harness were added next month by someone who only read harness.py, would they know these three attributes were required?"
       priority: suggestion
+      status: resolved
+      resolution: "Harness Protocol in src/common/harness.py now declares config_namespace: str, default_model: str, and default_permission_mode: str alongside run(). Added test_harness_protocol_declares_skill_activity_required_attributes asserting these via typing.get_type_hints(Harness). Protocol is not @runtime_checkable, so existing FakeHarness instances used purely as Harness-typed values (not run through SkillActivity) are unaffected. Commit 80d235c."
       locations:
         - "src/common/harness.py:24-33"
         - "src/common/skill_activity.py:190-199"
@@ -110,6 +116,8 @@ code_review:
       recommendation: "Add tests mirroring Devin's: one asserting the trajectory file exists under the activity artifact directory when activity_log_context is active, and one asserting a temporary file is parsed and removed when it is not."
       guidance: "If the trajectory write were removed by accident (as appears to have happened here), which test would fail?"
       priority: suggestion
+      status: resolved
+      resolution: "Resolved as a side effect of fixing the first blocking comment: test_run_without_activity_context_writes_parses_and_cleans_temporary_trajectory and test_run_with_activity_context_retains_trajectory_beside_activity_logs were added to src/common/tests/test_claude_harness.py (commit 54e9136), now exercising the WorkflowLoggerConfig/activity_log_context imports that were previously unused. Both tests fail if the export_path.write_text() call is ever removed."
       locations:
         - "src/common/tests/test_claude_harness.py:1-20"
       in_diff: true
