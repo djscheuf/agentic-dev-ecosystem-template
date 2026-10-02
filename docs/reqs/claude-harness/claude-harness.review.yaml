@@ -31,21 +31,21 @@ code_review:
       - "Any skill Activity configured to use ClaudeHarness via <WORKFLOW>_HARNESS=module:ClaudeHarness"
       - "Log/report consumers reading devin_log_path/atif_path or the new agent_log_path/trajectory_path fields"
   general_commentary:
-    verdict: request-changes
+    verdict: approve-with-suggestions
     summary: >
       The config validation, namespace isolation, and usage-parsing pieces are solid and well tested
       (parity with DevinHarnessConfig's validation style, correct MappingProxyType handling, correct
       rejection of Devin-shaped permission modes). The two structural decisions called out in the
       requirements — generalizing the log-path surfaces and threading config_namespace through
-      SkillActivity — are implemented and mostly match the intended shape. However, the harness never
-      writes the NDJSON trajectory to the file it computes and logs as the "export path," which means
-      the durable-trajectory requirement (§2.4, explicitly required and explicitly tested in the
-      requirements doc's §3.10) is not met; the trajectory_path/atif_path fields now point at a file
-      that was never created when ClaudeHarness runs. The explicit requirement to extract shared
-      _token/_cost coercion helpers (§2.4.1) was not followed — the helpers were duplicated instead,
-      the opposite of what the requirements and the design doc both call for. workflow_logger.py also
-      ended up with get_claude_log_path defined twice. These need to be fixed before merge; the
-      rest of the change is in good shape.
+      SkillActivity — are implemented and mostly match the intended shape. Both blocking issues from
+      the initial review have since been fixed via TDD: ClaudeHarness.run() now writes the captured
+      NDJSON to export_path before parsing usage, with tests covering the durable and temporary
+      storage modes (commit 54e9136); and the duplicated _token/_cost coercion helpers were extracted
+      into common/harness_usage.py, unit-tested in isolation, and both atif_usage.py and
+      claude_harness.py now import from there (commit aaf1c91). The remaining suggestion/comment-level
+      items (duplicate get_claude_log_path definition, Harness Protocol not declaring
+      config_namespace/default_model/default_permission_mode, missing ADR for the config_namespace
+      decision) are non-blocking and left open below.
     limitations:
       - "Tests were read but not executed in this review; pytest was not run against the branch."
       - "The audit/design/grading JSON files under docs/reqs/claude-harness/ were used as supporting context, not as authoritative requirements."
@@ -56,6 +56,8 @@ code_review:
       recommendation: "Write result.stdout to export_path after the subprocess call (e.g. export_path.write_text(result.stdout)), inside the same durable/temporary ExitStack-managed directory already being computed, before computing trajectory_path downstream."
       guidance: "What would a future caller see if they opened the trajectory_path from a completed ClaudeHarness run today?"
       priority: blocking
+      status: resolved
+      resolution: "src/common/claude_harness.py now calls export_path.write_text(result.stdout) immediately after the subprocess call, before parsing usage. Added test_run_without_activity_context_writes_parses_and_cleans_temporary_trajectory and test_run_with_activity_context_retains_trajectory_beside_activity_logs to src/common/tests/test_claude_harness.py, mirroring DevinHarness's trajectory retention/cleanup coverage. Commit 54e9136."
       locations:
         - "src/common/claude_harness.py:120-198"
         - "src/common/skill_activity.py:190-200"
@@ -66,6 +68,8 @@ code_review:
       recommendation: "Extract _token/_cost into a shared module (e.g. common/harness_usage.py) and have both atif_usage.py and claude_harness.py import from it, per §2.4.1."
       guidance: "The design doc for this story explicitly listed reusing '_token()/_cost() helpers' as an architectural decision — what made the implementation diverge from that?"
       priority: blocking
+      status: resolved
+      resolution: "Extracted coerce_token/coerce_cost into new src/common/harness_usage.py; both atif_usage.py and claude_harness.py now import from it and their local _token/_cost definitions were deleted. Added src/common/tests/test_harness_usage.py exercising the helpers in isolation. Commit aaf1c91."
       locations:
         - "src/common/claude_harness.py:49-56"
         - "src/common/atif_usage.py:8-15"
