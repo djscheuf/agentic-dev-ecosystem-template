@@ -1,0 +1,488 @@
+{
+  "raw_request": "docs/reqs/claude-harness/claude-harness.requirements.md",
+  "title": "Implement ClaudeHarness adapter for swappable vendor harnesses",
+  "story": {
+    "as_a": "Infrastructure engineer maintaining the agentic workflow orchestration system",
+    "i_want": "Implement a ClaudeHarness class that implements the common.harness.Harness protocol and is swappable with DevinHarness via environment variable indirection",
+    "so_that": "The Claude CLI can be used as an alternative harness provider for skill activities, providing identical interface and behavior parity with DevinHarness"
+  },
+  "target_persona": {
+    "role": "Platform/DevOps Engineer, Framework Maintainer",
+    "technical_level": "Expert",
+    "journey": {
+      "before": "Currently only Devin harness is available for skill-activity invocations; adding a second harness provider requires code changes to multiple modules and every skill config file",
+      "during": "Configure Claude as an alternative harness via <WORKFLOW>_HARNESS environment variable; implement protocol-compliant adapter; verify feature parity with Devin behavior",
+      "after": "Multiple harness providers (Devin, Claude) are available and swappable at runtime via environment variable; workflows can run with either CLI without code changes; trajectory telemetry and usage metrics are captured consistently regardless of harness"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Implement a Claude CLI harness adapter (src/common/claude_harness.py) that conforms to the common.harness.Harness protocol, enabling drop-in replacement of DevinHarness via environment variable indirection",
+    "inputs": [
+      "Skill prompt text (from SkillActivity.build_prompt()) passed as final positional argument after --",
+      "Claude harness configuration block (from *.config.json under 'claude' namespace) with optional model and permission_mode fields",
+      "Working directory (cwd) for subprocess invocation",
+      "Process environment including ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN for authentication",
+      "Optional Activity logging context (Cadence-specific) from workflow_logger for determining trajectory storage mode"
+    ],
+    "outputs": [
+      "HarnessResult containing: exit_code (int), stdout (text or NDJSON), stderr (text), and optional HarnessUsage telemetry (prompt_tokens, completion_tokens, cached_tokens, cost_usd)",
+      "NDJSON trajectory file written to activity artifact directory (durable) when Activity context exists, containing system/init, assistant/user/tool_result events, and terminal result event",
+      "Structured logging events: SelectClaudeTelemetrySource (before invocation), StartClaudeInvocation, CompleteClaudeInvocation (after)",
+      "Per-invocation Claude-specific log file (claude.log) with debug-level stdout/stderr capture"
+    ],
+    "state_changes": [
+      "Trajectory artifact written to get_activity_artifact_dir()/claude-trajectory.jsonl when Activity context active, retained for audit",
+      "Activity log populated with harness execution metadata: skill name, model, permission_mode, exit_code, duration, usage availability boolean",
+      "Claude-specific log file created in activity artifact directory with DEBUG-level content",
+      "Config structure supports both 'devin' and 'claude' namespaces in same file without conflict"
+    ],
+    "affected_components": {
+      "ui": [
+        "No UI changes required - this is backend harness infrastructure"
+      ],
+      "api": [
+        "common.harness.Harness protocol (no changes - protocol is structural)",
+        "No external API changes - harness interface is internal"
+      ],
+      "database": [
+        "No database schema changes required - harness uses existing artifact/log storage via workflow_logger"
+      ],
+      "external_services": [
+        "Claude CLI (claude -p --output-format stream-json --verbose ...) invoked as subprocess",
+        "Anthropic authentication (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) must be pre-configured in environment",
+        "No new external services - uses Claude CLI only"
+      ]
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "ClaudeHarness implements Harness protocol with correct method signature",
+      "gherkin": "Given a ClaudeHarness instance When run(prompt, *, cwd=path, config=mapping) is called Then it returns HarnessResult with exit_code, stdout, stderr, and usage fields matching the protocol",
+      "type": "Functional",
+      "jtbd": "Conform to the Harness interface contract",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Zero-argument constructor enables environment-variable instantiation",
+      "gherkin": "Given <WORKFLOW>_HARNESS env var set to module:ClaudeHarness When harness_instance.py loads and calls cls() Then ClaudeHarness() is successfully instantiated without arguments",
+      "type": "Functional",
+      "jtbd": "Enable harness swapping via environment variable",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Subprocess invocation uses 'claude -p --output-format stream-json --verbose' with explicit --permission-mode and --model",
+      "gherkin": "Given a skill activity invocation When ClaudeHarness.run() is called Then subprocess.run(['claude', '-p', '--permission-mode', mode, '--model', model, '--output-format', 'stream-json', '--verbose', '--', prompt], cwd=cwd, capture_output=True, text=True) is executed",
+      "type": "Functional",
+      "jtbd": "Invoke Claude CLI in non-interactive mode with explicit configuration",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Config namespace isolation: reads only 'claude' namespace, ignores 'devin' and other namespaces",
+      "gherkin": "Given a config dict with 'claude' and 'devin' namespaces When ClaudeHarnessConfig.from_mapping() is called Then only 'claude' keys are parsed, 'devin' is ignored, no error is raised, and MappingProxyType configs are accepted",
+      "type": "Functional",
+      "jtbd": "Support both harness providers in a single config file during migration",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Permission modes validated against Claude-specific supported set",
+      "gherkin": "Given an invalid permission_mode When ClaudeHarnessConfig.from_mapping() is called Then error is raised with error_category='invalid_value: claude.permission_mode'; valid modes are {default, acceptEdits, plan, auto, dontAsk, bypassPermissions}",
+      "type": "Functional",
+      "jtbd": "Enforce least-privilege permission defaults",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Default permission mode is secure: 'dontAsk' (fail-closed, never prompts)",
+      "gherkin": "Given a config without permission_mode When ClaudeHarnessConfig.from_mapping() is called Then permission_mode defaults to 'dontAsk' (no interactive approval possible)",
+      "type": "Functional",
+      "jtbd": "Apply secure defaults that fail closed",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Model field validated: rejects non-string or blank values",
+      "gherkin": "Given a config with non-string, blank, or missing model When ClaudeHarnessConfig.from_mapping() is called Then validation succeeds with explicit model value, or error_category='invalid_value: claude.model' is raised",
+      "type": "Functional",
+      "jtbd": "Prevent invalid model configuration",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Captures NDJSON stream from --output-format stream-json --verbose",
+      "gherkin": "Given claude -p --output-format stream-json --verbose invocation When subprocess completes Then stdout contains NDJSON lines: system/init event, alternating assistant/user/tool_result events, and terminal result event",
+      "type": "Functional",
+      "jtbd": "Capture full execution trajectory for audit and analysis",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Trajectory written to durable artifact directory when Activity context exists",
+      "gherkin": "Given an Activity logging context active When run() completes Then trajectory NDJSON is written to get_activity_artifact_dir()/claude-trajectory.jsonl and retained indefinitely",
+      "type": "Functional",
+      "jtbd": "Retain execution trajectory for audit",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Trajectory parsed then deleted when no Activity context exists",
+      "gherkin": "Given no Activity logging context When run() completes Then trajectory is written to tempfile.TemporaryDirectory(), parsed for usage, deleted before returning, and exit_code/stdout/stderr are preserved",
+      "type": "Functional",
+      "jtbd": "Avoid accumulating temporary trajectory files",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Usage metrics extracted from terminal 'result' event only, best-effort parsing",
+      "gherkin": "Given NDJSON stream with terminal result event When read_claude_usage_result() parses stream Then only the final result event's usage fields are extracted; no summing or per-turn processing; missing/malformed/truncated stream returns usage=None with sanitized error_category, no exception raised",
+      "type": "Functional",
+      "jtbd": "Extract cost and token metrics from execution",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Only four HarnessUsage fields normalized: prompt_tokens, completion_tokens, cached_tokens, cost_usd",
+      "gherkin": "Given result event with additional fields When HarnessUsage is constructed Then only the four named fields are populated; booleans presented as token counts are rejected; unknown fields are dropped; all field values use shared _token()/_cost() coercion helpers",
+      "type": "Functional",
+      "jtbd": "Extract standardized cost metrics",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Process result passed through unchanged regardless of telemetry outcome",
+      "gherkin": "Given non-zero exit, truncated trajectory, malformed JSON, or missing result event When run() returns Then exit_code, stdout, stderr are unchanged from subprocess; usage is None; no exception is raised; telemetry failure is logged as warning only",
+      "type": "Functional",
+      "jtbd": "Preserve process result independently from telemetry extraction",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "OSError on process launch converted to RuntimeError('claude_launch_failed')",
+      "gherkin": "Given claude binary not found, permission denied, or other OSError When subprocess.run() raises OSError Then RuntimeError('claude_launch_failed') is raised after logging error_category=claude_launch_failed to both loggers",
+      "type": "Error handling",
+      "jtbd": "Detect and report harness launch failures",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Logging emits sanitized metadata without leaking sensitive content",
+      "gherkin": "Given a complete invocation When logs are written Then storage mode, exit code, duration, usage-availability boolean are logged at INFO level; prompt text, raw NDJSON, tool arguments are never logged at INFO level; raw output logged at DEBUG level only to harness-specific logger",
+      "type": "Non-functional",
+      "jtbd": "Maintain audit trail without exposing sensitive content",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Logging emits same event taxonomy as DevinHarness",
+      "gherkin": "Given a harness invocation When logging occurs Then SelectClaudeTelemetrySource event emitted before invocation (storage mode), StartClaudeInvocation event emitted with skill_name/model/permission_mode, CompleteClaudeInvocation event emitted with exit_code/duration/usage_available",
+      "type": "Functional",
+      "jtbd": "Enable consistent log parsing and analysis across harness types",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Shared coercion helpers extracted to vendor-neutral module",
+      "gherkin": "Given _token() and _cost() functions When both DevinHarness and ClaudeHarness parse usage Then both import from common/harness_usage.py; no duplication of boolean-rejection or type-coercion logic",
+      "type": "Non-functional",
+      "jtbd": "Eliminate code duplication between vendor parsers",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Config accepts MappingProxyType (frozen read-only mappings) without mutability assumptions",
+      "gherkin": "Given MappingProxyType config (as produced by SkillActivityConfig._freeze) When ClaudeHarnessConfig.from_mapping() is called Then parsing succeeds using .get() and membership checks only; no dict(config) copies; no isinstance(x, dict) checks that reject MappingProxyType",
+      "type": "Functional",
+      "jtbd": "Accept frozen configs from activity loader",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Refactored logger accessor: generalized agent_log_path replaces devin_log_path",
+      "gherkin": "Given SkillActivityOutput with agent_log_path field When getters are called Then the path points to the harness-specific log file; common.workflow_logger exposes get_agent_logger()/get_agent_log_path() as generalized accessors; underlying file renamed to agent.log (not vendor-specific)",
+      "type": "Functional",
+      "jtbd": "Provide harness-agnostic log path accessor",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Refactored trajectory accessor: generalized trajectory_path replaces atif_path",
+      "gherkin": "Given SkillActivityOutput with trajectory_path field When getters are called Then the path points to devin-trajectory.json or claude-trajectory.jsonl depending on which harness ran; both field names are available as harness-agnostic accessors",
+      "type": "Functional",
+      "jtbd": "Provide harness-agnostic trajectory path accessor",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Usage metrics are populated for Claude (improvement over current Devin which returns None cost_usd)",
+      "gherkin": "Given a successful claude -p invocation When HarnessUsage is parsed Then cost_usd is populated from terminal result event (non-None), providing real cost visibility unlike current Devin implementation which always returns None",
+      "type": "Functional",
+      "jtbd": "Capture real USD cost from Claude API usage",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Test coverage matches DevinHarness test suite parity",
+      "gherkin": "Given test_claude_harness.py When tests run Then all 11 test scenarios from test_devin_harness.py are covered: namespace isolation, successful run with usage, non-zero exit with partial usage, missing/truncated/malformed output, boolean rejection, logging sanitization, OSError handling, artifact directory isolation, HarnessResult structure, durable vs temporary trajectory, and read_claude_usage_result() unit tests",
+      "type": "Non-functional",
+      "jtbd": "Ensure implementation completeness via test parity",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Claude binary not found in PATH",
+      "gherkin": "Given claude command not installed When subprocess.run() is called Then OSError is raised and caught, RuntimeError('claude_launch_failed') is raised to caller",
+      "type": "Edge case",
+      "jtbd": "Handle missing harness binary",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "NDJSON stream truncated or incomplete (subprocess killed mid-output)",
+      "gherkin": "Given subprocess killed before result event is emitted When trajectory is parsed Then usage=None is returned; process exit_code is preserved; no exception is raised",
+      "type": "Edge case",
+      "jtbd": "Handle interrupted trajectory stream",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "NDJSON contains malformed JSON on one or more lines",
+      "gherkin": "Given stream with unparseable line When read_claude_usage_result() parses Then error is caught; usage=None is returned; exit_code/stdout/stderr are unchanged",
+      "type": "Edge case",
+      "jtbd": "Handle malformed JSON in trajectory",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Terminal result event is missing from stream entirely",
+      "gherkin": "Given NDJSON stream without result event When usage is extracted Then usage=None returned with error_category='missing_result_event'; process result preserved",
+      "type": "Edge case",
+      "jtbd": "Handle missing terminal result event",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Result event present but missing usage fields",
+      "gherkin": "Given result event without usage object or with partial fields When HarnessUsage is constructed Then missing fields are treated as None; no exception is raised",
+      "type": "Edge case",
+      "jtbd": "Handle incomplete usage metrics",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Token counts presented as boolean instead of integer",
+      "gherkin": "Given result event with prompt_tokens=true (boolean) When _token() coercion is applied Then boolean is rejected; field is set to None; related fields may succeed",
+      "type": "Edge case",
+      "jtbd": "Reject invalid token count types",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Token counts are negative or very large numbers",
+      "gherkin": "Given result event with negative or very large token counts When _token() coercion is applied Then numeric type is accepted (no rejection based on magnitude); value is stored as-is",
+      "type": "Edge case",
+      "jtbd": "Accept numeric token counts regardless of magnitude",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Config contains empty 'claude' block (no model, no permission_mode)",
+      "gherkin": "Given config={'claude': {}} When ClaudeHarnessConfig.from_mapping() is called Then model defaults to secure model value; permission_mode defaults to 'dontAsk'",
+      "type": "Edge case",
+      "jtbd": "Apply safe defaults to minimal config",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Permission mode maps incorrectly between Devin and Claude naming",
+      "gherkin": "Given Devin mode 'auto' (everything, no asking) is confused with Claude mode 'auto' (background classifier) When permission_mode is validated Then only Claude-native modes are accepted; Devin modes are rejected or require explicit migration",
+      "type": "Edge case",
+      "jtbd": "Prevent mode confusion between harness vendors",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Activity logging context is set but artifact directory is inaccessible or read-only",
+      "gherkin": "Given get_activity_artifact_dir() returns read-only path When trajectory is written Then write fails; exception is caught; usage is still extracted and returned; exit_code/stdout/stderr preserved",
+      "type": "Edge case",
+      "jtbd": "Handle inaccessible artifact directory",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Temporary directory creation fails (disk full, permissions denied)",
+      "gherkin": "Given tempfile.TemporaryDirectory() raises exception When trajectory is parsed Then exception is caught; usage=None is returned; process result preserved",
+      "type": "Edge case",
+      "jtbd": "Handle temporary file creation failure",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Skill prompt contains arguments that look like flags (starts with -)",
+      "gherkin": "Given skill prompt text starting with '--' When run() constructs subprocess command Then prompt is passed after -- separator to prevent misinterpretation as CLI flags",
+      "type": "Edge case",
+      "jtbd": "Prevent prompt text from being parsed as CLI flags",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Skill prompt is extremely large (millions of characters)",
+      "gherkin": "Given very large prompt text When passed to claude -p Then subprocess may hit command-line length limits; no special handling is added (same behavior as Devin)",
+      "type": "Edge case",
+      "jtbd": "Acknowledge command-line length constraints",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Claude API rate limiting or quota exceeded during execution",
+      "gherkin": "Given claude CLI hits rate limit When subprocess exits with error status Then exit_code is preserved; stdout contains CLI error message; usage may be None or partially extracted; no exception is raised",
+      "type": "Edge case",
+      "jtbd": "Handle API rate limiting transparently",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Authentication token (ANTHROPIC_API_KEY) is missing or invalid",
+      "gherkin": "Given missing or invalid auth token When claude CLI is invoked Then subprocess exits with error; stdout/stderr contain auth error; exit_code is preserved; usage=None",
+      "type": "Edge case",
+      "jtbd": "Handle authentication failures",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    },
+    {
+      "criterion": "Cost field is absent from terminal result event",
+      "gherkin": "Given result event without total_cost_usd field When HarnessUsage is constructed Then cost_usd=None is returned; token counts may still be populated",
+      "type": "Edge case",
+      "jtbd": "Handle missing cost field",
+      "persona_served": "Infrastructure/Workflow Orchestration Engineer"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What exactly should HarnessResult.stdout contain: only the terminal result event's text field, or the full raw NDJSON blob?",
+      "decision": "Use full raw NDJSON output for richer content and complete trajectory access",
+      "impacts": [
+        "HarnessResult contract and documentation",
+        "Downstream consumers of stdout (skill implementations, workflow debugging)",
+        "Trajectory availability (if stdout=NDJSON, trajectory already available; if stdout=text, full stream is separate)",
+        "API parity with Devin (whose stdout is plain text, not JSON)"
+      ]
+    },
+    {
+      "question": "How should SkillActivity.execute() select which config namespace to read ('devin' vs 'claude') when multiple harnesses could be active, without requiring edits to every *.config.json file?",
+      "decision": "Create a Worker-level config that selects the relevant namespace and harness when SkillActivities are invoked; SkillActivity.execute() reads the selected harness class and uses it to determine which namespace to read from the config",
+      "impacts": [
+        "Config file migration burden (do all files need a 'claude' block added, or can one harness be selected dynamically?)",
+        "SkillActivity.execute() coupling to harness class (need a way to know which namespace to read)",
+        "Multiple candidate solutions (§2.7 lists four) with different trade-offs on future extensibility"
+      ]
+    },
+    {
+      "question": "Should --bare flag be used to suppress .claude/ skill/hook/MCP discovery during unattended skill-activity invocations, or will that break skill prompts that depend on project-level configuration?",
+      "impacts": [
+        "Trust dialog handling (undiscovered dialogs could block non-interactive runs)",
+        "Skill prompt content and dependencies (some skills may need .claude/ config to resolve correctly)",
+        "Safety vs functionality trade-off (fail closed with --bare, or trust skill prompts are self-contained?)"
+      ]
+    },
+    {
+      "question": "Is per-message usage in --output-format stream-json cumulative across the session (like ATIF's pattern), or per-turn deltas (like standard Anthropic Messages API)?",
+      "impacts": [
+        "Usage extraction logic (if cumulative, take final event; if deltas, must sum all events)",
+        "Test validation (need real multi-turn trace to confirm assumption)",
+        "Accuracy of token/cost reporting (if wrong assumption, totals could be N× off for N-turn sessions)"
+      ]
+    },
+    {
+      "question": "Should raw trajectory NDJSON be retained by default (like ATIF's ADR-015 recommendation), or is the plain result event sufficient for audit?",
+      "decision": "Retain raw trajectory NDJSON the same way Devin ATIF is retained — written to the activity's process subfolder for indefinite retention, following ADR-015 pattern",
+      "impacts": [
+        "Audit trail completeness (full per-step stream vs aggregate result only)",
+        "Storage overhead (NDJSON can be significantly larger than ATIF steps array)",
+        "Compliance/retention requirements (do full transcripts need to be kept indefinitely?)"
+      ]
+    },
+    {
+      "question": "Does renaming devin_log_path→agent_log_path in story-analysis-report-v1.schema.json require a version bump to v2, or can it be an in-place migration?",
+      "impacts": [
+        "Existing report artifacts that validate against v1 schema",
+        "Schema version management and migration tooling",
+        "Backward compatibility requirements for archived reports"
+      ]
+    },
+    {
+      "question": "Are there any skill prompts in .claude/skills/ or elsewhere that depend on project-level Claude Code configuration (.claude/) being loaded, or are all skill prompts self-contained text?",
+      "impacts": [
+        "Safety of --bare flag default (§2.2)",
+        "Scope of skill prompt dependencies",
+        "Whether configuration needs to be passed through to claude CLI or not"
+      ]
+    },
+    {
+      "question": "Should --no-session-persistence be added to avoid accumulating ~/.claude/projects/ transcripts in CI/worker environments, or are those transcripts desired for audit?",
+      "impacts": [
+        "Disk usage in CI (accumulated transcripts per invocation across all workflows)",
+        "Audit trail retention (are project-level transcripts part of compliance requirements?)",
+        "Local development behavior (does --no-session-persistence change behavior in local vs CI?)"
+      ]
+    },
+    {
+      "question": "What are the confirmed field names for prompt/completion/cached token counts and cost in the terminal result event returned by --output-format stream-json?",
+      "impacts": [
+        "Usage parsing implementation (read_claude_usage_result hardcoding)",
+        "Documentation and field mapping",
+        "Compatibility if Claude CLI field names change in future versions"
+      ]
+    },
+    {
+      "question": "When SkillActivity.execute() reports model/permission_mode to observation dict, should it read from the config, from the harness instance, or from some other source of truth?",
+      "impacts": [
+        "Config-namespace coupling in SkillActivity",
+        "Observation dict accuracy (reported mode should match what was actually used)",
+        "Harness-agnostic access to configuration parameters"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "common.harness.Harness (protocol definition, must be implemented)",
+        "common.skill_activity.SkillActivity (must read harness config generically, update field names)",
+        "common.skill_activity.SkillActivityConfig (no changes needed, already harness-agnostic)",
+        "common.workflow_logger (add generalized get_agent_logger/get_agent_log_path, keep existing Devin accessors for compatibility)",
+        "common.atif_usage.read_atif_usage_result (extract _token/_cost helpers to shared module)",
+        "story_analysis_workflow/activities/harness_instance.py (no changes, harness loaded via env-var already)",
+        "story_design_workflow/activities/harness_instance.py (no changes, harness loaded via env-var already)",
+        "edd_refinement_workflow/activities/harness_instance.py (no changes, harness loaded via env-var already)",
+        "story-analysis-report-v1.schema.json (rename devin_log_path to agent_log_path, atif_path to trajectory_path)"
+      ],
+      "new_code": [
+        "src/common/claude_harness.py (new file: ClaudeHarness class, ClaudeHarnessConfig, protocol implementation)",
+        "src/common/harness_usage.py (new file: shared _token/_cost coercion helpers extracted from atif_usage.py)",
+        "src/common/tests/test_claude_harness.py (new file: 11 test scenarios matching DevinHarness test parity)",
+        "read_claude_usage_result() function in harness_usage.py (NDJSON parser for Claude output)"
+      ],
+      "infrastructure": [
+        "No infrastructure changes required - uses existing artifact/log storage via workflow_logger",
+        "No database schema changes required - trajectory stored as files, not in DB",
+        "No queue/cache changes required"
+      ],
+      "external_services": [
+        "Claude CLI (claude -p --output-format stream-json) as subprocess invocation",
+        "Anthropic authentication (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) pre-configured in environment",
+        "Claude API for actual invocations (no harness-level changes, handled by CLI)"
+      ]
+    },
+    "story": {
+      "blocked_by": [
+        "Characterization of --output-format stream-json schema and cumulative-usage assumption (§4, open question 1) - must run real invocations to confirm field names before implementation",
+        "Decision on stdout semantics (§4, open question 2) - affects HarnessResult contract and downstream consumers",
+        "Decision on config namespace selection mechanism (§4, open question 5) - blocks SkillActivity.execute() updates",
+        "Verification that --bare flag is safe or alternative approach if not (§4, open question 4)"
+      ],
+      "blocks": [
+        "Any workflow/skill that wants to use Claude CLI instead of Devin",
+        "Cost reporting improvements (Claude provides real USD cost, unlike Devin)",
+        "Multi-vendor harness strategy and extensibility patterns"
+      ],
+      "related": [
+        "ADR-012: skill-activity-invocation-configuration (config loading patterns)",
+        "ADR-015: devin-cost-metric-scope (trajectory/usage telemetry patterns)",
+        "docs/reqs/capture-cost-metrics/proposed-architecture.md (harness telemetry architecture)",
+        "docs/reqs/capture-cost-metrics/streams/devin-atif-characterization.md (example of CLI characterization methodology)"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Harness protocol and Cadence activity lifecycle (skill invocation model)",
+        "Trajectory vs aggregate telemetry (ATIF and NDJSON concepts)",
+        "Usage metrics and cost attribution (what fields to extract, how totals are calculated)",
+        "Vendor differences (Devin vs Claude CLIs, permission modes, output formats)",
+        "Audit and compliance requirements (what telemetry must be retained, for how long)"
+      ],
+      "technical_knowledge": [
+        "Python subprocess.run() and capture_output handling",
+        "NDJSON format and streaming JSON parsing",
+        "MappingProxyType and frozen config handling",
+        "Cadence activity logging context (workflow_logger integration)",
+        "structlog and structured logging patterns used in codebase",
+        "TypedDict, Protocol, and Python type hints for protocol definition",
+        "Config validation patterns (from_mapping, error_category conventions)"
+      ],
+      "stakeholder_questions": [
+        "What is the priority of getting Claude harness working - is this for immediate production use or future-proofing?",
+        "Are there specific skill activities or workflows that should be tested first with Claude harness?",
+        "What is the retention/compliance requirement for trajectory telemetry (how long must it be kept)?",
+        "Should both Devin and Claude harnesses be available simultaneously during migration, or is this a full replacement?",
+        "What is the approved list of Claude permission modes for different skill categories (e.g., file-modifying vs read-only)?"
+      ]
+    }
+  }
+}

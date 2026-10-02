@@ -16,6 +16,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import ClassVar
 
 from common.harness import HarnessResult
 
@@ -37,6 +38,10 @@ def _make_grade_document(passed: bool) -> dict:
 
 class FakeHarness:
     """``Harness`` implementation that simulates skill execution for tests."""
+
+    config_namespace: ClassVar[str] = "devin"
+    default_model: ClassVar[str] = "swe-1.7-medium"
+    default_permission_mode: ClassVar[str] = "auto"
 
     def __init__(self):
         self.grade_results = self._parse_bool_list("STORY_ANALYSIS_GRADE_RESULTS", [True])

@@ -33,6 +33,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 ## Services
 
 - [Cadence local SQLite stack](services/cadence.md)
+- [ClaudeHarness (claude CLI adapter)](services/claude-harness.md)
 - [Devin ATIF usage exports](services/devin-atif.md)
 - [EDD Evaluation Commands](services/edd-evaluation-commands.md)
 - [EDD Refinement ProgressRecord](services/edd_refinement.md)

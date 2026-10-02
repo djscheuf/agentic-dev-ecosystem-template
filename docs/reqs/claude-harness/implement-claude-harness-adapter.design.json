@@ -1,0 +1,484 @@
+{
+  "story_path": "docs/reqs/claude-harness/implement-claude-harness-adapter.analysis.json",
+  "repo_state_before_design": "docs/reqs/claude-harness/current-reality.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "Worker selects a harness implementation via <WORKFLOW>_HARNESS env var indirection (current reality, unchanged) and instantiates it once as self.harness on SkillActivity.",
+      "layers_involved": [
+        "Worker Bootstrap (harness_instance.py)",
+        "Harness Adapter"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Worker Bootstrap (harness_instance.py)",
+          "to_layer": "SkillActivity Orchestration",
+          "contract_used": "Harness protocol (zero-arg constructor)",
+          "data_shape": "Harness instance: ClaudeHarness() or DevinHarness()"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "SkillActivity.execute() resolves which config namespace to read using self.harness.config_namespace instead of the hardcoded 'devin' literal at skill_activity.py:183 \u2014 this is the story's one-step change to current reality.",
+      "layers_involved": [
+        "SkillActivity Orchestration",
+        "Harness Adapter"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Harness Adapter",
+          "to_layer": "SkillActivity Orchestration",
+          "contract_used": "Harness.config_namespace accessor",
+          "data_shape": "str ('claude' | 'devin')"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "SkillActivity.execute() calls harness.run(prompt, cwd=repo_root, config=harness_config) exactly as it does today for DevinHarness \u2014 the Harness.run() protocol signature is unchanged.",
+      "layers_involved": [
+        "SkillActivity Orchestration",
+        "Harness Adapter"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "SkillActivity Orchestration",
+          "to_layer": "Harness Adapter",
+          "contract_used": "Harness.run protocol",
+          "data_shape": "run(prompt: str, *, cwd: Path, config: Mapping[str, object]) -> HarnessResult{exit_code, stdout, stderr, usage}"
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "ClaudeHarness.run() validates config via ClaudeHarnessConfig.from_mapping(), reading only the 'claude' namespace (ignoring 'devin') and applying secure defaults (permission_mode='dontAsk').",
+      "layers_involved": [
+        "Harness Adapter",
+        "Config Schema"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Config Schema",
+          "to_layer": "Harness Adapter",
+          "contract_used": "ClaudeHarnessConfig.from_mapping()",
+          "data_shape": "Mapping[str, object] (may be MappingProxyType) -> ClaudeHarnessConfig(model, permission_mode)"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "ClaudeHarness selects trajectory storage mode (activity_artifact vs temporary) and emits SelectClaudeTelemetrySource, mirroring DevinHarness's existing SelectDevinExportPath event.",
+      "layers_involved": [
+        "Harness Adapter",
+        "Workflow Logging Infrastructure"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Logging Infrastructure",
+          "to_layer": "Harness Adapter",
+          "contract_used": "get_activity_artifact_dir() / activity_log_context()",
+          "data_shape": "Path | None"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "description": "ClaudeHarness invokes subprocess.run(['claude','-p','--permission-mode',mode,'--model',model,'--output-format','stream-json','--verbose','--',prompt], cwd=cwd, capture_output=True, text=True), emitting StartClaudeInvocation before, and converting OSError to RuntimeError('claude_launch_failed') on launch failure.",
+      "layers_involved": [
+        "Harness Adapter"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Harness Adapter",
+          "to_layer": "Claude CLI (external process)",
+          "contract_used": "Claude CLI subprocess invocation contract",
+          "data_shape": "list[str] command -> subprocess.CompletedProcess[str]"
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "description": "ClaudeHarness parses stdout (the full NDJSON stream) for the terminal 'result' event via read_claude_usage_result(), using the shared _token()/_cost() coercion helpers from harness_usage.py, and either retains or parses-then-deletes the trajectory file per ADR-015.",
+      "layers_involved": [
+        "Harness Adapter",
+        "Shared Usage Parsing"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Shared Usage Parsing",
+          "to_layer": "Harness Adapter",
+          "contract_used": "read_claude_usage_result() / HarnessUsage",
+          "data_shape": "str (NDJSON stdout) -> tuple[HarnessUsage | None, str | None]"
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "description": "ClaudeHarness emits CompleteClaudeInvocation and returns HarnessResult(exit_code, stdout=full NDJSON, stderr, usage) unchanged from the subprocess result regardless of telemetry outcome.",
+      "layers_involved": [
+        "Harness Adapter",
+        "Workflow Logging Infrastructure"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Harness Adapter",
+          "to_layer": "SkillActivity Orchestration",
+          "contract_used": "HarnessResult (Harness protocol return type)",
+          "data_shape": "HarnessResult{exit_code: int, stdout: str, stderr: str, usage: HarnessUsage | None}"
+        }
+      ]
+    },
+    {
+      "step": 9,
+      "description": "SkillActivity.execute() builds the observation dict and SkillActivityOutput using generalized agent_log_path/trajectory_path fields (replacing devin_log_path/atif_path), reporting model/permission_mode via self.harness.default_model/default_permission_mode and the resolved namespace instead of hardcoded Devin-only fallbacks.",
+      "layers_involved": [
+        "SkillActivity Orchestration",
+        "Workflow Logging Infrastructure"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Workflow Logging Infrastructure",
+          "to_layer": "SkillActivity Orchestration",
+          "contract_used": "get_agent_logger() / get_agent_log_path()",
+          "data_shape": "logging.Logger / Optional[str]"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "SelectClaudeTelemetrySource",
+      "description": "Emitted before subprocess invocation to record whether trajectory telemetry will be written durably (activity artifact dir) or to a temporary directory that is parsed then deleted.",
+      "layers_involved": [
+        "Harness Adapter",
+        "Workflow Logging Infrastructure"
+      ],
+      "data_points": [
+        {
+          "point": "storage_mode",
+          "description": "'activity_artifact' or 'temporary'"
+        },
+        {
+          "point": "export_path",
+          "description": "Resolved path to claude-trajectory.jsonl for this invocation"
+        }
+      ]
+    },
+    {
+      "event_name": "StartClaudeInvocation",
+      "description": "Emitted immediately before subprocess.run() launches the claude CLI, capturing which skill, model, and permission mode are in effect for this call.",
+      "layers_involved": [
+        "Harness Adapter"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Current skill name from get_current_skill_name()"
+        },
+        {
+          "point": "model",
+          "description": "Resolved ClaudeHarnessConfig.model"
+        },
+        {
+          "point": "permission_mode",
+          "description": "Resolved ClaudeHarnessConfig.permission_mode"
+        }
+      ]
+    },
+    {
+      "event_name": "CompleteClaudeInvocation",
+      "description": "Emitted after subprocess completes (success or failure), capturing outcome and whether usage telemetry was extractable, without leaking prompt text or raw NDJSON content at INFO level.",
+      "layers_involved": [
+        "Harness Adapter"
+      ],
+      "data_points": [
+        {
+          "point": "exit_code",
+          "description": "subprocess return code, preserved unchanged"
+        },
+        {
+          "point": "duration_ms",
+          "description": "Wall-clock duration of the subprocess call"
+        },
+        {
+          "point": "usage_available",
+          "description": "bool \u2014 whether HarnessUsage was successfully extracted"
+        },
+        {
+          "point": "agent_log_path",
+          "description": "Path to the harness-specific DEBUG log (claude.log) for this invocation"
+        }
+      ]
+    },
+    {
+      "event_name": "FailClaudeInvocationLaunch",
+      "description": "Emitted when subprocess.run() raises OSError (binary missing, permission denied, or similar) before RuntimeError('claude_launch_failed') is raised to the caller.",
+      "layers_involved": [
+        "Harness Adapter"
+      ],
+      "data_points": [
+        {
+          "point": "skill_name",
+          "description": "Current skill name from get_current_skill_name()"
+        },
+        {
+          "point": "error_category",
+          "description": "Fixed value 'claude_launch_failed'"
+        }
+      ]
+    },
+    {
+      "event_name": "RejectClaudeTelemetry",
+      "description": "Emitted as a warning (mirrors DevinHarness's existing RejectAtifTelemetry) when read_claude_usage_result() cannot extract usage \u2014 truncated stream, malformed JSON, or missing result event \u2014 without raising an exception or altering the preserved process result.",
+      "layers_involved": [
+        "Harness Adapter",
+        "Shared Usage Parsing"
+      ],
+      "data_points": [
+        {
+          "point": "storage_mode",
+          "description": "'activity_artifact' or 'temporary', same value as SelectClaudeTelemetrySource"
+        },
+        {
+          "point": "error_category",
+          "description": "One of: missing_result_event, malformed_json, truncated_stream, invalid_document"
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Harness Adapter (src/common/claude_harness.py)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Construct and run the claude CLI subprocess with explicit --permission-mode, --model, --output-format stream-json, --verbose, and a '--' prompt separator.",
+          "intent": "ClaudeHarness is the only module that should know Claude's command-line surface; keeps the Harness protocol itself vendor-neutral (same placement as DevinHarness's command construction)."
+        },
+        {
+          "responsibility": "Delegate NDJSON terminal-result parsing to read_claude_usage_result() and surface HarnessUsage/error_category.",
+          "intent": "Usage extraction is vendor-specific wire-format knowledge; keeping it next to the subprocess call mirrors DevinHarness + atif_usage.py's existing split."
+        },
+        {
+          "responsibility": "Write/retain the trajectory file under the activity artifact dir when an Activity context exists; otherwise write to a TemporaryDirectory, parse, and delete before returning.",
+          "intent": "Mirrors DevinHarness's existing ExitStack/tempfile export lifecycle (ADR-015) so the two harnesses share one retention policy."
+        },
+        {
+          "responsibility": "Expose config_namespace, default_model, and default_permission_mode as class-level constants.",
+          "intent": "Lets SkillActivity report accurate config provenance and select the right config namespace without knowing ClaudeHarness's internals \u2014 the harness class is the one place that knows its own vendor identity, so it is the natural owner of that metadata."
+        }
+      ]
+    },
+    {
+      "layer": "Shared Usage Parsing (src/common/harness_usage.py)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Host _token()/_cost() coercion helpers (boolean-rejecting, numeric-magnitude-agnostic) as the single source of truth for both ATIF JSON parsing and Claude NDJSON parsing.",
+          "intent": "Story AC explicitly calls out eliminating duplicated coercion logic between vendor parsers; this module is the vendor-neutral home for it."
+        }
+      ]
+    },
+    {
+      "layer": "SkillActivity Orchestration (src/common/skill_activity.py)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Replace the hardcoded self.harness_config.get('devin', {}) lookup with self.harness_config.get(self.harness.config_namespace, {}).",
+          "intent": "SkillActivity must stay harness-agnostic; the harness instance (already selected per-Worker via env var in harness_instance.py) is the only place that knows which namespace it needs \u2014 responsibility follows where the information already originates."
+        },
+        {
+          "responsibility": "Report model/permission_mode in the observation dict using self.harness.default_model/default_permission_mode as fallbacks instead of the current hardcoded 'SWE-1.7'/'auto' literals.",
+          "intent": "The current fallback literals are already wrong for DevinHarness's real defaults (swe-1.7-medium/auto); generalizing via the harness's own constants fixes this for both vendors instead of adding a second wrong literal for Claude."
+        },
+        {
+          "responsibility": "Rename devin_log_path/atif_path fields to generalized agent_log_path/trajectory_path in both SkillActivityOutput and the observation dict.",
+          "intent": "Downstream report consumers (ADR-016 consolidated reporting) need one vendor-agnostic field regardless of which harness ran a given activity."
+        }
+      ]
+    },
+    {
+      "layer": "Workflow Logging Infrastructure (src/common/workflow_logger.py)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Add a claude-specific file logger/path (claude.log) alongside the existing devin logger/path, created the same way inside activity_log_context().",
+          "intent": "Story outputs explicitly require a 'Per-invocation Claude-specific log file (claude.log) with debug-level stdout/stderr capture', parallel to devin.log."
+        },
+        {
+          "responsibility": "Add get_agent_logger()/get_agent_log_path() generalized accessors that resolve to whichever vendor-specific logger/path matches the currently active harness.",
+          "intent": "Cross-cutting logging infra should expose one vendor-agnostic accessor so SkillActivity and any future harness don't need per-vendor branching."
+        }
+      ]
+    },
+    {
+      "layer": "Config Schema (*.config.json files)",
+      "new_responsibilities": [
+        {
+          "responsibility": "Allow 'claude' and 'devin' namespaces to coexist in the same config file without conflict or validation error.",
+          "intent": "Config files are shared infra artifacts migrated independently of code; both namespaces must be representable simultaneously so swapping <WORKFLOW>_HARNESS requires zero file edits."
+        }
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "DataModel",
+      "name": "ClaudeHarnessConfig",
+      "description": "New frozen dataclass mirroring DevinHarnessConfig's shape but scoped to the 'claude' namespace with Claude-specific defaults and validation.",
+      "changes": {
+        "added": "ClaudeHarnessConfig(model: str, permission_mode: str) with from_mapping() reading config.get('claude', {}) via .get()/membership checks only (MappingProxyType-safe, no dict(config) copy, no isinstance(x, dict) rejection); default model is a named secure Claude model constant; default permission_mode='dontAsk'; validates permission_mode against {default, acceptEdits, plan, auto, dontAsk, bypassPermissions}; rejects non-string or blank model with error_category='invalid_value: claude.model'.",
+        "modified": "none \u2014 new type, does not alter DevinHarnessConfig's fields or validation.",
+        "removed": "none."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "HarnessUsage (reused, unchanged)",
+      "description": "Existing frozen dataclass from harness.py \u2014 ClaudeHarness populates it with the same four fields DevinHarness already uses.",
+      "changes": {
+        "added": "none.",
+        "modified": "none in shape; ClaudeHarness is expected to populate cost_usd as non-None in the normal case, unlike DevinHarness which currently always returns None \u2014 this is a data-value improvement, not a schema change.",
+        "removed": "none."
+      }
+    },
+    {
+      "contract_type": "APIContract",
+      "name": "Harness protocol class-level metadata (config_namespace, default_model, default_permission_mode)",
+      "description": "Minimal structural addition so SkillActivity can resolve a harness's config namespace and reporting defaults without vendor-specific knowledge.",
+      "changes": {
+        "added": "ClassVar[str] config_namespace, default_model, default_permission_mode on ClaudeHarness ('claude', <secure claude model>, 'dontAsk').",
+        "modified": "DevinHarness gains the same three class attributes for symmetry (config_namespace='devin', default_model='swe-1.7-medium', default_permission_mode='auto') \u2014 no behavior change to DevinHarness.run().",
+        "removed": "none."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "Harness-agnostic namespace selection in SkillActivity.execute()",
+      "description": "Replaces the hardcoded namespace lookup at skill_activity.py:183 with a lookup driven by the harness instance itself.",
+      "changes": {
+        "added": "self.harness_config.get(self.harness.config_namespace, {}) lookup.",
+        "modified": "model/permission_mode fallbacks in the observation dict now read self.harness.default_model/default_permission_mode instead of hardcoded literals.",
+        "removed": "the hardcoded 'devin' string literal and the 'SWE-1.7'/'auto' fallback literals at skill_activity.py:183."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "Claude CLI subprocess invocation",
+      "description": "Exact command construction for non-interactive, single-shot Claude execution, matching the acceptance criterion's literal argument list.",
+      "changes": {
+        "added": "['claude', '-p', '--permission-mode', mode, '--model', model, '--output-format', 'stream-json', '--verbose', '--', prompt] via subprocess.run(cwd=cwd, capture_output=True, text=True); prompt is always passed after '--' so prompt text starting with '-' is never parsed as a flag.",
+        "modified": "none \u2014 no prior Claude invocation existed in this codebase.",
+        "removed": "none."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "harness_usage.py shared coercion helpers",
+      "description": "Extraction of _token()/_cost() out of atif_usage.py into a new vendor-neutral module, imported by both the existing ATIF parser and the new Claude NDJSON parser.",
+      "changes": {
+        "added": "src/common/harness_usage.py: _token(value: object) -> int | None, _cost(value: object) -> float | None, with identical boolean-rejecting semantics to the current atif_usage.py implementation.",
+        "modified": "atif_usage.py imports _token/_cost from harness_usage instead of defining them locally; no behavioral change to read_atif_usage_result().",
+        "removed": "the duplicate _token()/_cost() definitions that would otherwise need to be re-implemented inside the Claude usage parser."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "read_claude_usage_result() NDJSON parser",
+      "description": "Claude-specific counterpart to read_atif_usage_result(), parsing the full NDJSON stdout string (not a file path \u2014 Claude's output streams to stdout rather than exporting to a file) for the terminal 'result' event only.",
+      "changes": {
+        "added": "read_claude_usage_result(ndjson_text: str) -> tuple[HarnessUsage | None, str | None]; iterates lines, best-effort json.loads per line, keeps only the last event whose type=='result' (no summation across turns, per story AC), extracts usage.input_tokens->prompt_tokens, usage.output_tokens->completion_tokens, usage.cache_read_input_tokens->cached_tokens, total_cost_usd->cost_usd via the shared _token()/_cost() helpers; returns error_category in {missing_result_event, malformed_json, truncated_stream} on failure instead of raising.",
+        "modified": "none \u2014 new function.",
+        "removed": "none."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "SkillActivityOutput generalized fields (agent_log_path, trajectory_path)",
+      "description": "Adds vendor-agnostic field names so downstream report consumers don't need to branch on which harness ran a given activity.",
+      "changes": {
+        "added": "SkillActivityOutput.agent_log_path: str (populated from get_agent_log_path()); SkillActivityOutput.trajectory_path: str (populated from the observation dict's new 'trajectory_path' key, which holds devin-trajectory.json or claude-trajectory.jsonl depending on which harness ran).",
+        "modified": "observation dict keys 'devin_log_path' and 'atif_path' are replaced by 'agent_log_path' and 'trajectory_path'; SkillActivityOutput.devin_log_path is kept as a deprecated alias equal to agent_log_path (not a duplicated stored field) so existing callers reading devin_log_path do not break in this migration cycle.",
+        "removed": "the construction in skill_activity.py that hardcodes the 'devin-trajectory.json' suffix when building observation['atif_path'] \u2014 replaced by a harness-reported trajectory filename."
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "get_agent_logger()/get_agent_log_path() in workflow_logger.py",
+      "description": "Generalized accessors added alongside (not replacing) the existing vendor-specific devin and new claude loggers/paths, so callers can retrieve 'the active harness's debug log' without per-vendor branching.",
+      "changes": {
+        "added": "get_agent_logger() -> logging.Logger and get_agent_log_path() -> Optional[str], resolved from whichever _LogBundle field matches the currently active harness's config_namespace (e.g. bundle.claude/bundle.claude_path when ClaudeHarness is active, bundle.devin/bundle.devin_path when DevinHarness is active).",
+        "modified": "_LogBundle gains claude/claude_path fields alongside the existing devin/devin_path fields; activity_log_context() creates both file handles, but get_agent_logger() only ever returns the one matching the active harness.",
+        "removed": "none \u2014 this intentionally does NOT rename devin.log/claude.log to a single physical agent.log file, diverging from the audit's literal 'renamed to agent.log' phrasing (see architectural_decisions for the rationale)."
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Expose config_namespace/default_model/default_permission_mode as class-level constants on each Harness implementation, and have SkillActivity.execute() read self.harness.config_namespace instead of a hardcoded 'devin' string literal.",
+      "justification": "Resolves the open question of how SkillActivity should select a config namespace for an arbitrary harness without introducing a new 'Worker-level config' abstraction or requiring edits to every *.config.json file. The harness class is already selected per-Worker via <WORKFLOW>_HARNESS env var indirection (harness_instance.py), so attaching namespace/default metadata to that same class keeps the single source of truth at the point where the information already originates.",
+      "justification_detail": "Catch-ball negotiation: SkillActivity (consumer) needs to know a namespace string; Harness (producer, already vendor-aware) is the cheapest place to put it \u2014 no new config layer needed.",
+      "basis": "Audit design_decisions_resolved[1] (Worker-level config selects harness and namespace); ADR-012 (skill-activity-invocation-configuration) per-skill override pattern",
+      "impact": "skill_activity.py:183 changes from harness_config.get('devin', {}) to harness_config.get(self.harness.config_namespace, {}); DevinHarness and ClaudeHarness each gain three class attributes; no changes to *.config.json files or SkillActivityConfig are required.",
+      "answers_open_question": "analysis.questions[1] (how should SkillActivity select config namespace) and analysis.questions[8] (where should model/permission_mode be read from for observation reporting)"
+    },
+    {
+      "decision": "ClaudeHarness.run()'s HarnessResult.stdout contract is the full raw NDJSON stream, not just the terminal result event's text field.",
+      "justification": "Richer content preserves complete trajectory access for downstream consumers even in the no-Activity-context case, where the trajectory file itself is parsed then deleted \u2014 stdout remains the only surviving copy of the full stream.",
+      "basis": "Audit design_decisions_resolved[0]",
+      "impact": "HarnessResult.stdout differs in shape between DevinHarness (plain text) and ClaudeHarness (NDJSON) \u2014 any caller that prints or logs stdout verbatim must not assume plain text; documented as a vendor-specific caveat on an otherwise-identical protocol field.",
+      "answers_open_question": "analysis.questions[0]"
+    },
+    {
+      "decision": "Retain claude-trajectory.jsonl indefinitely under get_activity_artifact_dir() when an Activity context exists; otherwise write to tempfile.TemporaryDirectory(), parse, and delete before returning \u2014 a structural mirror of DevinHarness's existing export lifecycle.",
+      "justification": "Keeps the two harness implementations' audit/retention behavior symmetric, satisfying ADR-015's retention intent without introducing a second retention policy to maintain.",
+      "basis": "ADR-015 (Devin Cost Metric Capture Scope); audit design_decisions_resolved[2]",
+      "impact": "claude_harness.py duplicates the ExitStack/tempfile pattern already present in devin_harness.py; no new infrastructure required.",
+      "answers_open_question": "analysis.questions[4]"
+    },
+    {
+      "decision": "Default permission_mode is 'dontAsk', and the supported set is exactly {default, acceptEdits, plan, auto, dontAsk, bypassPermissions} \u2014 Devin's modes (auto, accept-edits, dangerous, bypass) are never accepted by ClaudeHarnessConfig, even though 'auto' is spelled identically to one of Devin's modes.",
+      "justification": "Prevents the exact mode-confusion edge case called out in the story's edge_cases: Claude's 'auto' is a background-classifier mode, not Devin's 'everything, no asking' mode. Accepting Devin literals as valid Claude input would silently change a workflow's security posture during migration.",
+      "basis": "Story acceptance_criteria 'Permission modes validated against Claude-specific supported set' and 'Default permission mode is secure'; ADR-012 secure-defaults pattern",
+      "impact": "ClaudeHarnessConfig.from_mapping() validates permission_mode against a set disjoint from DevinHarnessConfig.SUPPORTED_PERMISSION_MODES; a config block written for Devin cannot accidentally validate as Claude config even if a 'claude' key is mistyped as 'auto'.",
+      "answers_open_question": "analysis.edge_cases 'Permission mode maps incorrectly between Devin and Claude naming'"
+    },
+    {
+      "decision": "Add get_agent_logger()/get_agent_log_path() to workflow_logger.py as additive generalized accessors that resolve to whichever vendor-specific logger/path matches the active harness's config_namespace, rather than literally renaming devin.log/claude.log to one physical agent.log file.",
+      "justification": "The audit's own code_locations_needing_changes marks workflow_logger.py changes as 'optional for this story, may be deferred,' while the story's outputs explicitly require a 'Per-invocation Claude-specific log file (claude.log)' with DEBUG-level capture. Those two requirements are only reconcilable by keeping per-vendor physical log files and adding a thin, vendor-agnostic accessor on top \u2014 not by collapsing them into a single file. This is an explicit, intentional deviation from the audit's literal 'renamed to agent.log' phrasing.",
+      "basis": "Explicit Architectural Change from Story \u2014 reconciling acceptance_criteria 'Refactored logger accessor' (agent_log_path/get_agent_logger()) against the outputs spec's explicit claude.log requirement and 'Logging emits same event taxonomy as DevinHarness'",
+      "impact": "workflow_logger.py: _LogBundle gains claude/claude_path fields; activity_log_context() creates a claude.log file handle; SkillActivityOutput.agent_log_path reads from get_agent_log_path(), which internally selects by config_namespace; devin_log_path is retained as a deprecated alias equal to agent_log_path for the Devin case so existing callers do not break.",
+      "answers_open_question": "analysis.questions[5] (does renaming devin_log_path->agent_log_path require a v2 schema bump) \u2014 answered at the code level: the field is additive and devin_log_path stays as an alias, so no v2 bump is required for this story"
+    },
+    {
+      "decision": "Claude CLI invocation does not pass --bare; project-level .claude/ discovery is left enabled, matching DevinHarness's lack of any analogous config-suppression flag.",
+      "justification": "This is the audit's still-BLOCKING open question. No skill prompt in .claude/skills/ has been confirmed self-contained, and DevinHarness sets no analogous suppression flag today, so defaulting to 'leave discovery on' preserves current behavior and avoids silently breaking skills that lean on project-level configuration. The fail-closed alternative (passing --bare) risks breaking functionality for an unconfirmed, speculative isolation gain.",
+      "basis": "Audit open_design_questions_still_blocking[0]; precedent = absence of any analogous flag in devin_harness.py's command construction",
+      "impact": "The claude command list does not include --bare; trust-dialog risk during unattended runs is accepted for this story and tracked as a follow-up (requires auditing .claude/skills/ prompts for project-config dependencies), not a merge blocker.",
+      "answers_open_question": "analysis.questions[2]"
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "Is per-message usage in --output-format stream-json cumulative across the session, or per-turn deltas?",
+      "answer": "Assume the terminal 'result' event's usage object already represents the cumulative total for the entire invocation, not a delta requiring summation across turns.",
+      "justification": "The story's own acceptance criterion ('Usage metrics extracted from terminal result event only... no summing or per-turn processing') and edge_cases already commit to reading only the final event. Treating it as cumulative is the only interpretation consistent with that constraint \u2014 if it were per-turn deltas, 'no summing' would silently under-report multi-turn cost.",
+      "basis": "Pattern seen in atif_usage.read_atif_usage_result(), which reads only document['final_metrics'] (cumulative totals) and never sums per-step entries; the same shape is assumed for Claude's terminal result event."
+    },
+    {
+      "question": "What are the confirmed field names for prompt/completion/cached tokens and cost in the terminal result event returned by --output-format stream-json?",
+      "answer": "Assume usage.input_tokens -> prompt_tokens, usage.output_tokens -> completion_tokens, usage.cache_read_input_tokens -> cached_tokens, and top-level total_cost_usd -> cost_usd, matching the Claude Code CLI's documented stream-json result event shape.",
+      "justification": "These are the field names the Claude Code CLI itself uses in its own cost summaries for --output-format stream-json; using them keeps read_claude_usage_result() aligned with the CLI's own self-reported telemetry rather than inventing new field names.",
+      "basis": "Claude Code CLI --output-format stream-json result event schema (same CLI this harness wraps). The audit's implementation_prerequisites flags this as CRITICAL and requires confirmation via a characterization run (same methodology as docs/reqs/capture-cost-metrics/streams/devin-atif-characterization.md) before this parsing logic ships \u2014 recorded here as an assumption to validate, not a confirmed fact."
+    },
+    {
+      "question": "Should --no-session-persistence be added to avoid accumulating ~/.claude/projects/ transcripts in CI/worker environments?",
+      "answer": "Do not add it for this story; leave default session-persistence behavior unchanged.",
+      "justification": "No current evidence this accumulation causes a problem in CI today (DevinHarness has no analogous flag or complaint on record), and adding an unverified flag risks suppressing transcripts that could matter for audit. The smallest change from current reality is to leave this knob untouched until a concrete disk-usage or compliance issue is reported.",
+      "basis": "Minimal-change principle applied in the absence of a documented incident; no vault ADR currently addresses CI transcript retention for any harness."
+    },
+    {
+      "question": "Does renaming devin_log_path->agent_log_path in story-analysis-report-v1.schema.json require a version bump to v2, or can it be an in-place migration?",
+      "answer": "No version bump \u2014 add agent_log_path and trajectory_path as new, additive fields in the existing v1 schema; keep devin_log_path/atif_path present as deprecated aliases rather than removing them.",
+      "justification": "Schema versioning should be reserved for breaking changes; since this story adds fields and does not remove or repurpose existing ones, existing v1 report artifacts remain valid and an in-place migration is safe.",
+      "basis": "ADR-020 (Cadence Python SDK Serialization) convention of explicit, additive, JSON-safe field evolution; no existing ADR mandates a version bump for additive schema changes."
+    }
+  ]
+}

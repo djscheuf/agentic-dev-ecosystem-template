@@ -3,16 +3,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from .harness import HarnessUsage
-
-
-def _token(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
-def _cost(value: object) -> float | None:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return float(value)
-    return None
+from .harness_usage import coerce_cost, coerce_token
 
 
 def read_atif_usage_result(path: Path) -> tuple[HarnessUsage | None, str | None]:
@@ -32,10 +23,10 @@ def read_atif_usage_result(path: Path) -> tuple[HarnessUsage | None, str | None]
     if not isinstance(metrics, Mapping):
         return None, "invalid_final_metrics"
     return HarnessUsage(
-        prompt_tokens=_token(metrics.get("total_prompt_tokens")),
-        completion_tokens=_token(metrics.get("total_completion_tokens")),
-        cached_tokens=_token(metrics.get("total_cached_tokens")),
-        cost_usd=_cost(metrics.get("total_cost_usd")),
+        prompt_tokens=coerce_token(metrics.get("total_prompt_tokens")),
+        completion_tokens=coerce_token(metrics.get("total_completion_tokens")),
+        cached_tokens=coerce_token(metrics.get("total_cached_tokens")),
+        cost_usd=coerce_cost(metrics.get("total_cost_usd")),
     ), None
 
 

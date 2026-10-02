@@ -6,7 +6,7 @@ import time
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Callable, ClassVar, Mapping
 
 from .atif_usage import read_atif_usage_result
 from .harness import HarnessResult
@@ -47,6 +47,10 @@ class DevinHarnessConfig:
 
 
 class DevinHarness:
+    config_namespace: ClassVar[str] = "devin"
+    default_model: ClassVar[str] = DEFAULT_MODEL
+    default_permission_mode: ClassVar[str] = DEFAULT_PERMISSION_MODE
+
     def __init__(
         self,
         *,

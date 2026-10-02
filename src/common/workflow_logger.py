@@ -29,6 +29,7 @@ DEFAULT_LEVELS = {
     "client": "INFO",
     "activity": "DEBUG",
     "devin": "DEBUG",
+    "claude": "DEBUG",
 }
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 _SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]+")
@@ -43,6 +44,7 @@ class WorkflowLoggerConfig:
     client_level: str = DEFAULT_LEVELS["client"]
     activity_level: str = DEFAULT_LEVELS["activity"]
     devin_level: str = DEFAULT_LEVELS["devin"]
+    claude_level: str = DEFAULT_LEVELS["claude"]
 
     @classmethod
     def load(cls, config_path: Path = DEFAULT_CONFIG_PATH) -> "WorkflowLoggerConfig":
@@ -69,6 +71,7 @@ class WorkflowLoggerConfig:
             client_level=levels.get("client", DEFAULT_LEVELS["client"]),
             activity_level=levels.get("activity", DEFAULT_LEVELS["activity"]),
             devin_level=levels.get("devin", DEFAULT_LEVELS["devin"]),
+            claude_level=levels.get("claude", DEFAULT_LEVELS["claude"]),
         )
 
 
@@ -76,11 +79,13 @@ class WorkflowLoggerConfig:
 class _LogBundle:
     activity: logging.Logger
     devin: logging.Logger
+    claude: logging.Logger
     workflow: logging.Logger
     client: logging.Logger
     artifact_dir: Optional[Path] = None
     activity_path: Optional[Path] = None
     devin_path: Optional[Path] = None
+    claude_path: Optional[Path] = None
     workflow_path: Optional[Path] = None
     client_path: Optional[Path] = None
 
@@ -175,6 +180,7 @@ def _fallback_bundle() -> _LogBundle:
     return _LogBundle(
         activity=logging.getLogger("workflow.activity"),
         devin=logging.getLogger("workflow.devin"),
+        claude=logging.getLogger("workflow.claude"),
         workflow=logging.getLogger("workflow.execution"),
         client=logging.getLogger("workflow.client"),
     )
@@ -211,6 +217,7 @@ def activity_log_context(
     )
     activity_path = base_dir / "activity.log"
     devin_path = base_dir / "devin.log"
+    claude_path = base_dir / "claude.log"
 
     activity_logger = _create_file_logger(
         "workflow.activity", activity_path, _parse_level(cfg.activity_level)
@@ -218,15 +225,20 @@ def activity_log_context(
     devin_logger = _create_file_logger(
         "workflow.devin", devin_path, _parse_level(cfg.devin_level)
     )
+    claude_logger = _create_file_logger(
+        "workflow.claude", claude_path, _parse_level(cfg.claude_level)
+    )
 
     bundle = _LogBundle(
         activity=activity_logger,
         devin=devin_logger,
+        claude=claude_logger,
         workflow=logging.getLogger("workflow.execution"),
         client=logging.getLogger("workflow.client"),
         artifact_dir=base_dir,
         activity_path=activity_path,
         devin_path=devin_path,
+        claude_path=claude_path,
     )
     token = _CURRENT_BUNDLE.set(bundle)
     try:
@@ -235,6 +247,7 @@ def activity_log_context(
         _CURRENT_BUNDLE.reset(token)
         _close_logger(activity_logger)
         _close_logger(devin_logger)
+        _close_logger(claude_logger)
 
 
 def get_activity_artifact_dir() -> Optional[Path]:
@@ -254,6 +267,45 @@ def get_devin_log_path() -> Optional[str]:
     if bundle is None or bundle.devin_path is None:
         return None
     return _relative_or_absolute(bundle.devin_path)
+
+
+def get_agent_logger() -> logging.Logger:
+    from .invocation_context import get_current_harness
+
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return logging.getLogger("workflow.activity")
+
+    harness = get_current_harness()
+    if harness is None:
+        return bundle.activity
+
+    config_namespace = getattr(harness, "config_namespace", "devin")
+    if config_namespace == "claude":
+        return bundle.claude
+    return bundle.devin
+
+
+def get_agent_log_path() -> Optional[str]:
+    from .invocation_context import get_current_harness
+
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return None
+
+    harness = get_current_harness()
+    if harness is None:
+        return None
+
+    config_namespace = getattr(harness, "config_namespace", "devin")
+    if config_namespace == "claude":
+        if bundle.claude_path is None:
+            return None
+        return _relative_or_absolute(bundle.claude_path)
+    else:
+        if bundle.devin_path is None:
+            return None
+        return _relative_or_absolute(bundle.devin_path)
 
 
 @contextmanager
@@ -284,6 +336,7 @@ def workflow_log_context(
     bundle = _LogBundle(
         activity=logging.getLogger("workflow.activity"),
         devin=logging.getLogger("workflow.devin"),
+        claude=logging.getLogger("workflow.claude"),
         workflow=workflow_logger,
         client=logging.getLogger("workflow.client"),
         workflow_path=workflow_path,
@@ -326,6 +379,7 @@ def client_log_context(
     bundle = _LogBundle(
         activity=logging.getLogger("workflow.activity"),
         devin=logging.getLogger("workflow.devin"),
+        claude=logging.getLogger("workflow.claude"),
         workflow=logging.getLogger("workflow.execution"),
         client=client_logger,
         client_path=client_path,
@@ -371,6 +425,20 @@ def get_devin_logger() -> logging.Logger:
     if bundle is None:
         return logging.getLogger("workflow.devin")
     return bundle.devin
+
+
+def get_claude_logger() -> logging.Logger:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None:
+        return logging.getLogger("workflow.claude")
+    return bundle.claude
+
+
+def get_claude_log_path() -> Optional[str]:
+    bundle = _CURRENT_BUNDLE.get()
+    if bundle is None or bundle.claude_path is None:
+        return None
+    return _relative_or_absolute(bundle.claude_path)
 
 
 def setup_worker_logging(config: WorkflowLoggerConfig | None = None) -> None:

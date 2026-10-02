@@ -21,6 +21,9 @@ def test_sentinel_path_with_relative_input_uses_first_input_parent(tmp_path) -> 
     }))
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             sentinel = tmp_path / "inputs" / ".process" / "custom.done.json"
             sentinel.parent.mkdir(parents=True)
@@ -50,6 +53,9 @@ def test_missing_sentinel_raises_after_successful_harness_run(tmp_path) -> None:
     calls = []
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             calls.append(config)
             return HarnessResult(0, "", "")
@@ -74,6 +80,9 @@ def test_build_prompt_applies_hook_after_output_directory_instruction(tmp_path) 
     }))
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             return HarnessResult(0, "", "")
 
@@ -103,6 +112,9 @@ def test_build_prompt_instructs_the_modified_sentinel_path(tmp_path) -> None:
     }))
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             return HarnessResult(0, "", "")
 
@@ -141,6 +153,9 @@ def test_execute_returns_paths_for_created_activity_logs(tmp_path, monkeypatch) 
     )
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             (tmp_path / ".process").mkdir(exist_ok=True)
             (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
@@ -169,6 +184,9 @@ def test_execute_applies_lifecycle_extension_hooks(tmp_path) -> None:
     calls = []
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             calls.append(config)
             (tmp_path / ".process").mkdir(exist_ok=True)
@@ -213,6 +231,9 @@ def test_execute_maps_explicit_ambiguity_sentinel(tmp_path) -> None:
     }))
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             (tmp_path / ".process").mkdir(exist_ok=True)
             (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
@@ -264,6 +285,9 @@ def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
     )
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             (tmp_path / ".process").mkdir(exist_ok=True)
             (tmp_path / ".process" / "custom.done.json").write_text(json.dumps({
@@ -295,6 +319,8 @@ def test_execute_returns_attempt_observation_with_identity_profile_and_usage(
         "output_path": "artifact.json",
         "activity_log_path": output.activity_log_path,
         "devin_log_path": output.devin_log_path,
+        "agent_log_path": output.agent_log_path,
+        "trajectory_path": output.observation["trajectory_path"],
         "atif_path": output.observation["atif_path"],
         "usage": {
             "prompt_tokens": 10,
@@ -315,6 +341,9 @@ def test_execute_uses_target_context_repo_root(tmp_path) -> None:
     }))
 
     class FakeHarness:
+        config_namespace = "devin"
+        default_model = "swe-1.7-medium"
+        default_permission_mode = "auto"
         def run(self, prompt, *, cwd, config):
             sentinel = target / ".process" / "custom.done.json"
             sentinel.parent.mkdir(parents=True)

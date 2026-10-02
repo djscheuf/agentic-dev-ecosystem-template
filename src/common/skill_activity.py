@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable, Mapping, Optional
 
 from .harness import Harness, HarnessResult
-from .invocation_context import skill_invocation_context
+from .invocation_context import harness_invocation_context, skill_invocation_context
 from .preflight import TargetRepositoryContext
 from .skill_activity_config import SkillActivityConfig
 from .workflow_logger import (
@@ -19,6 +19,7 @@ from .workflow_logger import (
     get_activity_artifact_dir,
     get_activity_log_path,
     get_activity_logger,
+    get_agent_log_path,
     get_devin_log_path,
 )
 
@@ -48,6 +49,8 @@ class SkillActivityOutput:
     duration_ms: int
     activity_log_path: str = ""
     devin_log_path: str = ""
+    agent_log_path: str = ""
+    trajectory_path: str = ""
     ambiguity_reason: str = ""
     observation: dict = field(default_factory=dict)
     target_context: Optional[TargetRepositoryContext] = None
@@ -131,11 +134,12 @@ class SkillActivity(ABC):
             with self.modify_invocation_context(
                 skill_invocation_context(self.skill_name)
             ):
-                result = self.harness.run(
-                    self.build_prompt(skill_input),
-                    cwd=repo_root,
-                    config=self.modify_harness_config(self.harness_config),
-                )
+                with harness_invocation_context(self.harness):
+                    result = self.harness.run(
+                        self.build_prompt(skill_input),
+                        cwd=repo_root,
+                        config=self.modify_harness_config(self.harness_config),
+                    )
             duration_ms = int((time.monotonic() - start) * 1000)
             if not isinstance(result, HarnessResult) and not all(
                 hasattr(result, field) for field in ("exit_code", "stdout", "stderr")
@@ -179,10 +183,20 @@ class SkillActivity(ABC):
             )
             activity_log_path = get_activity_log_path() or ""
             devin_log_path = get_devin_log_path() or ""
+            agent_log_path = get_agent_log_path() or ""
             info = _resolve_activity_info()
-            harness_namespace = self.harness_config.get("devin", {})
+            harness_namespace = self.harness_config.get(self.harness.config_namespace, {})
             usage = getattr(result, "usage", None)
             artifact_dir = get_activity_artifact_dir()
+            trajectory_filename = (
+                "claude-trajectory.jsonl" if self.harness.config_namespace == "claude"
+                else "devin-trajectory.json"
+            )
+            trajectory_path = (
+                str(artifact_dir / trajectory_filename)
+                if usage is not None and artifact_dir is not None
+                else ""
+            )
             observation = {
                 "workflow_id": getattr(info, "workflow_id", ""),
                 "run_id": getattr(info, "workflow_run_id", ""),
@@ -194,12 +208,14 @@ class SkillActivity(ABC):
                 "started_at": started_at,
                 "duration_ms": duration_ms,
                 "outcome": "success",
-                "model": harness_namespace.get("model", "SWE-1.7"),
-                "permission_mode": harness_namespace.get("permission_mode", "auto"),
+                "model": harness_namespace.get("model", self.harness.default_model),
+                "permission_mode": harness_namespace.get("permission_mode", self.harness.default_permission_mode),
                 "output_path": resolved_output_path,
                 "activity_log_path": activity_log_path,
                 "devin_log_path": devin_log_path,
-                "atif_path": str(artifact_dir / "devin-trajectory.json")
+                "agent_log_path": agent_log_path,
+                "trajectory_path": trajectory_path,
+                "atif_path": str(artifact_dir / trajectory_filename)
                 if usage is not None and artifact_dir is not None
                 else None,
                 "usage": asdict(usage) if usage is not None else None,
@@ -211,6 +227,8 @@ class SkillActivity(ABC):
                 duration_ms=duration_ms,
                 activity_log_path=activity_log_path,
                 devin_log_path=devin_log_path,
+                agent_log_path=agent_log_path,
+                trajectory_path=trajectory_path,
                 ambiguity_reason=ambiguity_reason,
                 observation=observation,
                 target_context=skill_input.target_context,
