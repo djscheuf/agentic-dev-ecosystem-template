@@ -269,13 +269,6 @@ def get_devin_log_path() -> Optional[str]:
     return _relative_or_absolute(bundle.devin_path)
 
 
-def get_claude_log_path() -> Optional[str]:
-    bundle = _CURRENT_BUNDLE.get()
-    if bundle is None or bundle.claude_path is None:
-        return None
-    return _relative_or_absolute(bundle.claude_path)
-
-
 def get_agent_logger() -> logging.Logger:
     from .invocation_context import get_current_harness
 

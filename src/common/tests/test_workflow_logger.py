@@ -1,17 +1,59 @@
+import ast
+import inspect
 import logging
 from types import SimpleNamespace
 
+import common.workflow_logger as workflow_logger
 from common.workflow_logger import (
     WorkflowLoggerConfig,
     activity_log_context,
     client_log_context,
     get_activity_artifact_dir,
+    get_claude_log_path,
     get_client_log_path,
     get_workflow_log_path,
     setup_worker_logging,
     worker_log_context,
     workflow_log_context,
 )
+
+
+def test_no_duplicate_top_level_function_definitions() -> None:
+    """workflow_logger-dup: guards against silently shadowed re-definitions."""
+    tree = ast.parse(inspect.getsource(workflow_logger))
+    names = [
+        node.name
+        for node in ast.iter_child_nodes(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+
+    duplicates = {name for name in names if names.count(name) > 1}
+
+    assert duplicates == set()
+
+
+def test_get_claude_log_path_reports_activity_scoped_claude_log(tmp_path) -> None:
+    config = WorkflowLoggerConfig(log_root=tmp_path / "logs")
+    info = SimpleNamespace(
+        workflow_id="wf-1",
+        workflow_run_id="run-1",
+        activity_type="extract_story_intent",
+        activity_id="act-1",
+        attempt=1,
+    )
+
+    with activity_log_context(activity_info=info, config=config):
+        claude_log_path = get_claude_log_path()
+
+    assert claude_log_path == str(
+        tmp_path
+        / "logs"
+        / "wf-1"
+        / "run-1"
+        / "activities"
+        / "extract_story_intent_act-1_1"
+        / "claude.log"
+    )
 
 
 def test_missing_logging_config_uses_defaults_and_warns(tmp_path, caplog) -> None:
