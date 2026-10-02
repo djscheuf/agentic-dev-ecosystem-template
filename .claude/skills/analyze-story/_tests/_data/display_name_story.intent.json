@@ -1,0 +1,63 @@
+{
+  "raw_request": "docs/ex/fe-only/display_name_story.md",
+  "user_story": {
+    "benefit": "see human-readable names instead of IDs for promotion types",
+    "role": "User",
+    "capability": "the system to display display names instead of internal IDs"
+  },
+  "target_persona": {
+    "persona_name": "Internal Requester",
+    "role": "Internal Requester",
+    "technical_level": "Intermediate",
+    "frequency_of_use": "Regular",
+    "environment": "Web Application",
+    "permissions": "Can view tactics, search tactics, filter by promotion type",
+    "context": "Uses the system to view and manage tactics with promotion type information",
+    "journey": "User navigates to view tactics → searches or filters by promotion type → expects to see human-readable names instead of IDs"
+  },
+  "capability_breakdown": {
+    "core_action": "Display human-readable promotion type names instead of internal IDs across the UI",
+    "inputs_required": [
+      "Promotion type ID",
+      "Promotion type display name (from backend)"
+    ],
+    "outputs_expected": [
+      "Human-readable promotion type name displayed in tactic view",
+      "Human-readable promotion type name displayed in search results table",
+      "Human-readable promotion type name displayed in filter dropdown"
+    ],
+    "state_changes": [
+      "UI rendering changes to show display_name field instead of ID"
+    ],
+    "side_effects": [
+      "Consistent display across all views (tactic view, search table, filter select)"
+    ],
+    "affected_components": []
+  },
+  "acceptance_criteria": [
+    {
+      "verbatim": "Given I am a registered Internal Requester When I view a Tactic THEN the promotion type is displayed as a human-readable name AND the display name is consistent across all views",
+      "gherkin_scenario": "View Tactic with Promotion Type Display Name",
+      "type": "functional",
+      "jtbd": "View promotion type as human-readable name",
+      "persona_served": "Internal Requester",
+      "value": "Understand promotion type at a glance without needing to reference ID mappings"
+    },
+    {
+      "verbatim": "Given I am an Internal Requester When I search for tactics Then the search table displays promotion types as human-readable names",
+      "gherkin_scenario": "Search Results Display Promotion Type Names",
+      "type": "functional",
+      "jtbd": "See promotion type names in search results",
+      "persona_served": "Internal Requester",
+      "value": "Quickly identify promotion types in search results without ID lookup"
+    },
+    {
+      "verbatim": "Given I am an Internal Requester When I open the select filter for promotion type Then the filter displays promotion types as human-readable names AND the Search filter works as before",
+      "gherkin_scenario": "Filter by Promotion Type Display Names",
+      "type": "functional",
+      "jtbd": "Filter tactics by human-readable promotion type names",
+      "persona_served": "Internal Requester",
+      "value": "Filter tactics intuitively using readable names while maintaining existing filter functionality"
+    }
+  ]
+}

@@ -1,0 +1,291 @@
+{
+  "story_path": "./improve-search-performance.analysis.json",
+  "repo_state_before_design": "./improve-search-performance.audit.json",
+  "workflow_sequence": [
+    {
+      "step": 1,
+      "description": "CURRENT REALITY: Internal Requester submits a search (term/filters/page) from the List page. use-tactic-table.ts debounces the term 300ms and calls tactics-api.ts getTactics(), unchanged.",
+      "layers_involved": [
+        "Frontend"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Frontend",
+          "to_layer": "Backend",
+          "contract_used": "GetTactics API Contract",
+          "data_shape": "{ term, status, tacticTypeIds, statusCodes, userId[], page, pageSize, sortBy, sortOrder }"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "CURRENT REALITY: TacticsController.GetTactics dispatches GetUserTacticsQuery via MediatR to GetUserTacticsQueryHandler, unchanged.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "GetUserTacticsQuery (MediatR)",
+          "data_shape": "GetUserTacticsQuery record (unchanged)"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "CURRENT REALITY (root cause of slow search): the handler branches on role (Admin vs. other) and calls one of three duplicated, hand-rolled repository methods (GetAllTacticsAsync, GetUserTacticsWithFiltersAsync, GetUserTacticsAsync), each re-implementing identical filter predicates. Each path issues two separate round trips (a *Count variant, then the paged variant), the paged variant eagerly `.Include()`s ProductRows/DigitalProvider/CreativeAgency/Printer while Skip/Take is applied to a query that already has the tracked full aggregate, and SearchTermFilterStrategy-equivalent inline predicates call `.ToLower()` on both sides of every `Contains`, which forces a scalar function over the column and defeats query optimization / any future index usage. No behavior changes to filters or the API contract are required here.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "EF Core LINQ query (ad-hoc, duplicated per role branch)",
+          "data_shape": "IQueryable<Tactic> with inline predicates + tracked navigation includes"
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "STORY CHANGE (current reality + one step): Replace the three duplicated ad-hoc repository methods with the already-implemented, already-unit-tested strategy-based path (TacticRepository.GetTacticsAsync + TacticFilterStrategyFactory + TacticSortStrategyFactory + TacticFilterCriteria), which today exists in the codebase but is dead code (not called by any controller or handler). The handler builds a single TacticFilterCriteria (RoleFilters = null/empty for Admin, or the existing BuildReadAuthorizationFiltersAsync()-produced role filters for all other roles; SearchTerm, Status, TacticTypeIds, StatusCodes populated 1:1 from the existing query fields) and a single TacticSortCriteria, then calls GetTacticsAsync once. That method already: (a) queries AsNoTracking, (b) filters/counts on an ID-only projection with no navigation includes (avoiding the collection-include cartesian expansion during pagination), (c) sorts, (d) Skip/Takes IDs only, then (e) hydrates exactly one page of full aggregates via HydrateTacticsAsync. This removes the duplicated count/select round trips per branch and the premature eager-loading during filtering, without changing filter semantics or API response shape.",
+      "layers_involved": [
+        "Backend",
+        "Data"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Data",
+          "contract_used": "TacticRepository.GetTacticsAsync(TacticFilterCriteria, TacticSortCriteria, page, pageSize)",
+          "data_shape": "PaginatedResult<Tactic> { Items, TotalCount, TotalPages, CurrentPage, PageSize }"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "STORY CHANGE: SearchTermFilterStrategy.Apply drops the redundant `.ToLower()` calls on both column and search term. SQL Server's default collation (case-insensitive) already makes `Contains`/`==` case-insensitive; the `ToLower()` wrapping forces a non-indexable scalar function over every row instead. Behavior (case-insensitive match) is preserved; only the generated SQL changes.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": []
+    },
+    {
+      "step": 6,
+      "description": "STORY CHANGE: Add a non-clustered index on Tactic.OfferCode (IX_Tactics_OfferCode) via a new DbUp migration. OfferCode exact-match search (the numeric branch of SearchTermFilterStrategy) currently has no supporting index and falls back to a table scan.",
+      "layers_involved": [
+        "Data"
+      ],
+      "handshake_points": []
+    },
+    {
+      "step": 7,
+      "description": "STORY CHANGE (satisfies AC 'Results Update on new Search' by construction, not by mitigation): No result-set caching is introduced for search. A newly created tactic is immediately visible to the next search because the query always hits the database with no intermediate cache layer to invalidate. This is an explicit decision to diverge from the reference-data IMemoryCache pattern (ADR-013) for this endpoint.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": []
+    },
+    {
+      "step": 8,
+      "description": "STORY CHANGE: Instrument search duration and result-set size around the unified GetTacticsAsync call so the 3-second SLA can be measured and regressions detected post-deploy.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "handshake_points": [
+        {
+          "from_layer": "Backend",
+          "to_layer": "Backend",
+          "contract_used": "ILogger structured logging (existing pattern in GetUserTacticsQueryHandler)",
+          "data_shape": "{ durationMs, totalCount, pageSize, hasSearchTerm, filterCount }"
+        }
+      ]
+    }
+  ],
+  "instrumentation_events": [
+    {
+      "event_name": "SearchExecuted",
+      "description": "Logged after every GetTactics search completes, capturing timing and result shape to validate the 3-second SLA and detect regressions.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "data_points": [
+        {
+          "point": "durationMs",
+          "description": "Wall-clock time for the unified GetTacticsAsync call (filter+count+sort+page+hydrate)"
+        },
+        {
+          "point": "totalCount",
+          "description": "Total matching rows before pagination, indicates result-set size for the query"
+        },
+        {
+          "point": "pageSize",
+          "description": "Requested page size, to normalize duration expectations"
+        },
+        {
+          "point": "hasSearchTerm",
+          "description": "Whether a free-text/offer-code search term was supplied"
+        },
+        {
+          "point": "role",
+          "description": "Admin vs. role-filtered path, to compare performance characteristics across authorization strategies"
+        }
+      ]
+    },
+    {
+      "event_name": "SearchSlowThresholdExceeded",
+      "description": "Warning-level log emitted when a search's durationMs exceeds the 3-second SLA, enabling alerting/monitoring without waiting for user complaints.",
+      "layers_involved": [
+        "Backend"
+      ],
+      "data_points": [
+        {
+          "point": "durationMs",
+          "description": "Actual duration that exceeded the 3000ms threshold"
+        },
+        {
+          "point": "searchTerm",
+          "description": "The search term used (for reproduction), logged at debug/warning per existing PII logging conventions"
+        },
+        {
+          "point": "filterCount",
+          "description": "Number of active filters (tacticTypeIds, statusCodes, requesterUserIds, status) combined with the search"
+        }
+      ]
+    }
+  ],
+  "layer_responsibilities": [
+    {
+      "layer": "Backend",
+      "new_responsibilities": [
+        {
+          "responsibility": "Rewire GetUserTacticsQueryHandler to call the existing TacticRepository.GetTacticsAsync(TacticFilterCriteria, TacticSortCriteria) strategy-based path instead of the three duplicated ad-hoc repository methods (GetAllTacticsAsync, GetUserTacticsWithFiltersAsync, GetUserTacticsAsync + their *CountAsync siblings).",
+          "intent": "Business/query logic and performance optimization decisions belong in the backend; this consolidates already-written, already-tested optimized code into the live request path instead of leaving it as dead code."
+        },
+        {
+          "responsibility": "Delete the now-unused duplicated repository methods and their count counterparts once the handler is migrated.",
+          "intent": "Removing duplicated logic eliminates a source of future drift/bugs (three near-identical predicate sets to keep in sync) and reduces the surface area that must be performance-tuned."
+        },
+        {
+          "responsibility": "Remove redundant `.ToLower()` calls in SearchTermFilterStrategy.",
+          "intent": "Query optimization is a backend/data-access concern; the change is invisible to the frontend contract and callers."
+        },
+        {
+          "responsibility": "Add SearchExecuted/SearchSlowThresholdExceeded instrumentation around the search query.",
+          "intent": "Performance monitoring against the 3-second SLA is a backend cross-cutting concern; frontend has no visibility into server-side query timing."
+        },
+        {
+          "responsibility": "Explicitly do not add caching for search results.",
+          "intent": "Caching/paging decisions belong to the backend; the AC requiring newly-created tactics to appear on next search is a correctness requirement that a cache would jeopardize (this deliberately diverges from ADR-013's reference-data caching pattern)."
+        }
+      ]
+    },
+    {
+      "layer": "Data",
+      "new_responsibilities": [
+        {
+          "responsibility": "Add non-clustered index IX_Tactics_OfferCode via new DbUp migration script.",
+          "intent": "Storage/indexing decisions for supporting exact-match query performance belong to the data layer; OfferCode search currently has no supporting index."
+        },
+        {
+          "responsibility": "Document (not implement) that Description/Notes/OfferVerbiage/Comments are NVARCHAR(MAX), which cannot be key columns in a standard B-tree index; any further improvement to free-text substring search requires SQL Server Full-Text Search, which is out of scope for this 'current reality + one step' change.",
+          "intent": "Data integrity/schema constraints are a data-layer concern; flagging this avoids a false expectation that ordinary indexing alone can accelerate `Contains()` search on MAX columns."
+        }
+      ]
+    },
+    {
+      "layer": "Frontend",
+      "new_responsibilities": []
+    }
+  ],
+  "contracts": [
+    {
+      "contract_type": "APIContract",
+      "name": "GET /api/v1/tactics (GetTactics)",
+      "description": "Existing search/filter/pagination endpoint used by the List page. Per AC 'Existing Filters continue to work,' this contract is explicitly preserved byte-for-byte: same query params, same PaginatedResponseDto<TacticListItemDto> response shape.",
+      "changes": {
+        "added": "none",
+        "modified": "none (request/response contract unchanged; only server-side query execution path changes)",
+        "removed": "none"
+      }
+    },
+    {
+      "contract_type": "InteractionPattern",
+      "name": "GetUserTacticsQueryHandler -> ITacticRepository search call",
+      "description": "Internal backend interaction pattern between the CQRS query handler and the repository. Moves from three duplicated ad-hoc query methods (each running its own Count + Select round trip) to a single unified call built on the existing filter/sort strategy factories with ID-projection-then-hydrate pagination.",
+      "changes": {
+        "added": "Handler builds one TacticFilterCriteria { RoleFilters, SearchTerm, Status, TacticTypeIds, StatusCodes } and one TacticSortCriteria { SortBy, SortOrder } per request, then calls ITacticRepository.GetTacticsAsync(criteria, sortCriteria, page, pageSize, ct) once.",
+        "modified": "Admin's 'see all tactics' behavior is now expressed as RoleFilters = null/empty (already a no-op in RoleBasedFilterStrategy) rather than a separate GetAllTacticsAsync code path.",
+        "removed": "TacticRepository.GetAllTacticsAsync/-CountAsync, GetUserTacticsWithFiltersAsync/-CountAsync, GetUserTacticsAsync and their corresponding ITacticRepository interface members and unit tests are deleted once the handler migration is verified against the existing GetTacticsAsync test suite."
+      }
+    },
+    {
+      "contract_type": "DataModel",
+      "name": "Tactics table indexing",
+      "description": "Supporting indexes for the Tactic entity used by search/filter queries.",
+      "changes": {
+        "added": "IX_Tactics_OfferCode (non-clustered index on OfferCode) via new DbUp migration script.",
+        "modified": "none",
+        "removed": "none"
+      }
+    }
+  ],
+  "architectural_decisions": [
+    {
+      "decision": "Consolidate search onto the existing (already implemented and unit-tested) strategy-based repository path (GetTacticsAsync + TacticFilterStrategyFactory/TacticSortStrategyFactory) rather than writing new optimized query logic from scratch.",
+      "justification": "The optimized, AsNoTracking, ID-projection-then-hydrate pattern already exists in TacticRepository.cs and is covered by TacticRepository.GetTacticsAsyncTests.cs, but is never invoked by the production request path (GetUserTacticsQueryHandler still calls three older duplicated methods). Wiring up existing, tested code is the minimal, lowest-risk 'current reality + one step' change.",
+      "basis": "docs/adrs/20251022-02-cqrs-api-contracts.md (CQRS query handler pattern); existing code precedent in src/api/src/TacticManagement.Infrastructure/Repositories/TacticRepository.cs and its strategy factories",
+      "impact": "Backend-only change: GetUserTacticsQueryHandler.cs, TacticRepository.cs (deletion of dead/duplicated methods), ITacticRepository.cs (interface cleanup). No API contract, DTO, or database schema change beyond the new index.",
+      "answers_open_question": "What are the current filter types and complexity? How are they implemented? -> Answered: filters are already fully implemented as an ITacticFilterStrategy pipeline (RoleBasedFilterStrategy, TacticTypeFilterStrategy, StatusCodesFilterStrategy, StatusFilterStrategy, SearchTermFilterStrategy) with a factory; the performance gap is that the CQRS handler bypasses that pipeline for three older duplicated implementations."
+    },
+    {
+      "decision": "Do not introduce any caching (TTL-based or otherwise) for search result pages.",
+      "justification": "AC 'Results Update on new Search' requires a tactic created moments ago to appear in the very next search. Any cache with a TTL (even the 5-minute TTL suggested generically in this skill's design.example.json, or the reference-data IMemoryCache pattern from ADR-013) would risk masking newly created tactics until expiration, violating that AC. The reference-data caching ADR itself scopes caching to small, quarterly-changing lookup tables (tactic types, GL codes, etc.), not to per-request, high-cardinality search results.",
+      "basis": "docs/adrs/20251218-20-reference-data-memory-caching.md (explicitly scoped to reference/lookup data, not search results); AC 'Results Update on new Search' in improve-search-performance.analysis.json",
+      "impact": "No new cache keys, invalidation logic, or IMemoryCache dependency added to the search path. Explicitly diverges from the design.example.json template's illustrative 'searches cached with 5 min TTL' answer.",
+      "answers_open_question": "Are there any caching strategies already in place that should be leveraged? -> Answered: ADR-013's IMemoryCache pattern exists for reference/lookup data only and is intentionally NOT extended to search results, because doing so would conflict with the 'new tactic must appear on next search' acceptance criterion."
+    },
+    {
+      "decision": "Remove `.ToLower()` calls on both sides of Contains() in SearchTermFilterStrategy; do not add computed/persisted lower-case shadow columns or change collation.",
+      "justification": "The database uses SQL Server's default case-insensitive collation, so `Description.Contains(searchTerm)` is already case-insensitive at the SQL level. Wrapping both operands in `.ToLower()` forces SQL Server to apply a scalar function to every row, which is unnecessary CPU work and would prevent index usage even if a supporting index were added later.",
+      "basis": "Existing behavior of SQL_Latin1_General_CP1_CI_AS-class default collation on this SQL Server instance (docs/adrs/20260205-31-database-generated-offer-codes.md confirms SQL Server as the platform); observed code in SearchTermFilterStrategy.cs",
+      "impact": "Single-file change (SearchTermFilterStrategy.cs), no behavior change to case-sensitivity, verified by existing SearchTermFilterStrategyTests.cs.",
+      "answers_open_question": "What is the current baseline search performance? Are there specific queries that are slow? -> Partially answered: the free-text Contains search across Description/Notes/OfferVerbiage/Comments (all NVARCHAR(MAX)) plus the ToLower() wrapping and the duplicated Include-then-paginate pattern in the currently-wired handler path are the concretely identifiable slow paths; exact baseline timings require a runtime profiling pass, which is out of scope for design and recommended as a pre-implementation spike."
+    },
+    {
+      "decision": "Add a single new index (IX_Tactics_OfferCode) and explicitly defer SQL Server Full-Text Search (for Description/Notes/OfferVerbiage/Comments substring search) as a future consideration rather than implementing it now.",
+      "justification": "OfferCode exact-match search has no supporting index today and is a low-risk, high-value, minimal addition. Description/Notes/OfferVerbiage/Comments are NVARCHAR(MAX), which SQL Server cannot use as B-tree index key columns, so genuinely indexing substring search would require introducing Full-Text Search infrastructure (FTS catalogs, CONTAINS/FREETEXT predicates) -- a larger architectural change than 'current reality + one step' for an 8-point story, and one that changes query semantics (tokenized/stemmed search) rather than preserving the existing Contains() behavior required by AC 'Existing Filters continue to work.'",
+      "basis": "docs/api/ARCHITECTURE.md (documents current CQRS/API architecture, no FTS infrastructure mentioned); schema observed in TacticDbContext.cs (Description/Notes/OfferVerbiage/Comments as NVARCHAR(MAX)); AC 'Existing Filters continue to work' constrains behavior preservation",
+      "impact": "One new migration adding IX_Tactics_OfferCode. Full-Text Search is explicitly out of scope and called out as a stakeholder question for a future story if the OfferCode index + query-path consolidation do not achieve the 3-second SLA under real data volume.",
+      "answers_open_question": "What is the expected data volume (number of tactics) for the search? -> Not directly answered (no volume data found in codebase/audit); flagged as an explicit open question for stakeholders below, since it determines whether index+query consolidation alone meets the 3-second SLA or whether Full-Text Search becomes necessary."
+    }
+  ],
+  "questions_addressed": [
+    {
+      "question": "What is the current baseline search performance? Are there specific queries that are slow?",
+      "answer": "No profiling data exists in the repository. The concretely identifiable slow path is GetUserTacticsQueryHandler's use of three duplicated repository methods that each run separate Count+Select round trips, eagerly `.Include()` collection navigation properties (ProductRows) while filtering/paginating, and wrap Contains() predicates in redundant `.ToLower()` calls that block index usage.",
+      "justification": "This is directly observable in TacticRepository.cs (GetAllTacticsAsync/GetUserTacticsWithFiltersAsync/GetUserTacticsAsync) versus the unused, already-optimized GetTacticsAsync method, and in SearchTermFilterStrategy.cs's ToLower() usage.",
+      "basis": "Code audit of src/api/src/TacticManagement.Infrastructure/Repositories/TacticRepository.cs and Filters/Strategies/SearchTermFilterStrategy.cs"
+    },
+    {
+      "question": "What are the current filter types and complexity? How are they implemented?",
+      "answer": "Filters are: search term (text Contains across Description/Notes/OfferVerbiage/Comments, or exact match on OfferCode if numeric), status, tacticTypeIds, statusCodes, and requesterUserIds (Requester-role OpCo-scoped). They are already implemented twice: once inline in the three duplicated repository methods (currently wired to production), and once as a clean ITacticFilterStrategy pipeline (RoleBasedFilterStrategy, TacticTypeFilterStrategy, StatusCodesFilterStrategy, StatusFilterStrategy, SearchTermFilterStrategy) that is fully unit-tested but unused in production.",
+      "justification": "Confirmed by reading TacticRepository.cs, TacticFilterCriteria.cs, and the Filters/Strategies directory alongside GetUserTacticsQueryHandler.cs's actual call sites.",
+      "basis": "Code audit; TacticRepository.GetTacticsAsyncTests.cs proves the strategy pipeline is production-ready but not production-wired"
+    },
+    {
+      "question": "What is the expected data volume (number of tactics) for the search?",
+      "answer": "Unknown -- no volume figures exist in the codebase, ADRs, or audit. This remains an open question for stakeholders and determines whether index+query-consolidation alone meets the 3-second SLA at real scale, or whether Full-Text Search (out of scope for this story) becomes necessary.",
+      "justification": "No seed data, load test, or capacity documentation references a target row count for the Tactics table.",
+      "basis": "Absence of evidence in docs/ and scripts/seeding/; flagged explicitly rather than assumed"
+    },
+    {
+      "question": "Are there any caching strategies already in place that should be leveraged?",
+      "answer": "Yes -- ADR-013 (docs/adrs/20251218-20-reference-data-memory-caching.md) establishes an IMemoryCache pattern, but it is explicitly scoped to small, infrequently-changing reference/lookup data (tactic types, delivery methods, GL/WBS codes, entities). It is intentionally NOT leveraged for search results, because caching paginated search results would conflict with the AC requiring a newly created tactic to appear in the very next search.",
+      "justification": "ADR-013's own 'Characteristics of Reference Data' section (read-heavy, write-rarely, small, stable) does not describe search results, which are high-cardinality and must reflect writes immediately.",
+      "basis": "docs/adrs/20251218-20-reference-data-memory-caching.md; AC 'Results Update on new Search' in improve-search-performance.analysis.json"
+    }
+  ]
+}

@@ -14,10 +14,10 @@ See also:
 
 **Inputs:**
 - The top-level eval config: `evals/gradeDesign.tests.yaml`
-- The required test-case catalog: `.devin/skills/grade-story-design/_tests/test-cases.yaml`
+- The required test-case catalog: `.agents/skills/grade-story-design/_tests/test-cases.yaml`
 - The rubric the skill is graded against (in the skill's prompt or `SKILL.md`)
-- The grading helper: `.devin/skills/grade-story-design/_tests/gradeDesignChecks.js`
-- Existing fixtures under `.devin/skills/grade-story-design/_tests/_data/`
+- The grading helper: `.agents/skills/grade-story-design/_tests/gradeDesignChecks.js`
+- Existing fixtures under `.agents/skills/grade-story-design/_tests/_data/`
 - Any recent evaluation artifacts or prior run summaries the user shares
 
 **Outputs:**
@@ -83,15 +83,15 @@ node -e "
 const yaml = require('js-yaml');
 const fs = require('fs');
 [
-  '.devin/skills/grade-story-design/_tests/incomplete-design.tests.yaml',
-  '.devin/skills/grade-story-design/_tests/interface-contracts.tests.yaml',
-  '.devin/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml',
-  '.devin/skills/grade-story-design/_tests/instrumentation-observability.tests.yaml'
+  '.agents/skills/grade-story-design/_tests/incomplete-design.tests.yaml',
+  '.agents/skills/grade-story-design/_tests/interface-contracts.tests.yaml',
+  '.agents/skills/grade-story-design/_tests/layer-responsibilities.tests.yaml',
+  '.agents/skills/grade-story-design/_tests/instrumentation-observability.tests.yaml'
 ].forEach(f => { yaml.load(fs.readFileSync(f, 'utf8')); console.log(f, 'OK'); });
 "
 
 # JSON fixture validity
-python3 -c "import json; json.load(open('.devin/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json')); print('JSON OK')"
+python3 -c "import json; json.load(open('.agents/skills/grade-story-design/_tests/_data/admin-tactic-types.design.json')); print('JSON OK')"
 
 # Helper unit-level sanity checks (e.g. score_floor: 0 is not coerced to undefined)
 node -e "<quick inline test of _pullVarFromAssertConfig>"

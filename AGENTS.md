@@ -50,6 +50,20 @@ When the session produced a decision, solved a non-obvious problem, or establish
 - `wiki-query` — called first, reads relevant vault pages for the current intent.
 - `wiki-update` — called last, writes new or updated pages before session ends.
 
+## Shared Skills
+
+Canonical skills live in `.agents/skills/<name>/`. Always create and edit skills
+there — never in the generated mirror.
+
+- **Devin** discovers `.agents/skills/` natively. This repo has no `.devin/skills/`.
+- **Claude Code** reads only `.claude/skills/`, which is a generated mirror.
+- After adding or editing a skill, run `scripts/sync-agent-skills.sh` to refresh
+  `.claude/skills/` (use `--dry-run` to preview). The mirror is protected by a
+  manifest; if you accidentally edit `.claude/skills/` by hand the sync reports
+  a conflict instead of overwriting.
+- Skill instructions should reference `.agents/skills/…` paths; the sync script
+  rewrites them to `.claude/skills/…` for the Claude mirror.
+
 ## Environment
 
 This repository runs in a NixOS environment (NixOS 25.11, `nix-shell` 2.31.3). `nix-shell` is installed and should be preferred for pulling in terminal/command-line dependencies instead of `apt`, `brew`, or global package installs. In this workspace `Exec(nix-shell)` is already allowed; use `nix-shell` when ad-hoc tools are missing.

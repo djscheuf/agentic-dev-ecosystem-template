@@ -1,0 +1,107 @@
+{
+  "type": "object",
+  "properties": {
+    "business_value": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
+    },
+    "acceptance_criteria": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
+    },
+    "story_format": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "reason",
+        "recommendation"
+      ]
+    }
+  },
+  "required": [
+    "business_value",
+    "scope",
+    "acceptance_criteria",
+    "story_format",
+    "dependencies"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "raw_request": "docs/ex/tactic_story.md",
+  "title": "Create New Digital Tactic with Validation",
+  "story": {
+    "so_that": "start capturing a new Digital Tactic",
+    "as_a": "Internal Requester",
+    "i_want": "request a new tactic, selecting fixed info (like Tactic Type) from a list, and have the system validate selections, and edit the tactic before sending it to Proof-readers"
+  },
+  "target_persona": {
+    "name": "Internal Requester",
+    "role": "Internal Requester",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "User is registered in the system and needs to create new Digital Tactics for distribution",
+      "during": "User selects tactic type from predefined list, sets start date, provides title, optionally assigns alternative owner, and edits tactic details before submission",
+      "after": "Tactic is created in DRAFT status with unique ID and sent to proof-readers for review"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Create and submit a new Digital Tactic with validation",
+    "inputs": [
+      "Owner (defaults to current user, can be overridden)",
+      "Tactic Type (from fixed list: CouponMachine, InternetPrintout, MobileCoupon)",
+      "Start Date",
+      "Title"
+    ],
+    "outputs": [
+      "Unique tactic ID assigned",
+      "Tactic stored in DRAFT status",
+      "Confirmation message to user",
+      "Validation error messages if required fields missing"
+    ],
+    "state_changes": [
+      "New tactic record created",
+      "Tactic status set to DRAFT",
+      "Owner assigned (either user or alternative owner)",
+      "Requester logged"
+    ],
+    "affected_components": {}
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Submit new tactic with default owner",
+      "gherkin": "Given I am a registered Internal Requester And I provide Owner (defaulting to my user ID) And I provide Tactic Type And I provide Start Date And I provide Title When I submit the new Tactic Then the tactic is assigned a unique Id And the tactic is captured in DRAFT status",
+      "type": "Functional",
+      "jtbd": "Submit a new tactic with default owner and receive confirmation",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Submit new tactic with alternative owner",
+      "gherkin": "Given I am a registered Internal Requester And I provide Tactic Type And I provide Start Date And I provide Title And I provide an alternative Internal Owner When I submit the new Tactic Then the tactic is assigned a unique Id And the tactic is captured in DRAFT status And the alternative Owner is assigned as Current Owner And I am logged as the Requester",
+      "type": "Functional",
+      "jtbd": "Submit a new tactic with alternative owner and have ownership properly assigned",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Reject submission with missing required information",
+      "gherkin": "Given I am a registered Internal Requester And I do not provide all required Tactic Info When I attempt to submit the new Tactic Then the tactic is NOT assigned a unique Id And the tactic is NOT captured in DRAFT status And I receive a relevant warning message regarding the missing information",
+      "type": "Error handling",
+      "jtbd": "Receive validation feedback when required fields are missing",
+      "persona_served": "Internal Requester"
+    }
+  ]
+}

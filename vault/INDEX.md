@@ -27,6 +27,7 @@ This vault captures architectural decisions, patterns, and operational knowledge
 - [ADR-022: Capture Raw EDD Evaluation Command Artifacts](decisions/ADR-022-edd-evaluation-command-artifacts.md)
 - [ADR-023: Persistent, Process-Safe Mutation Lease for EDD](decisions/ADR-023-persistent-process-safe-mutation-lease.md)
 - [ADR-024: Approval for Evaluation-Expectation Changes is Decoupled from Diff Hash](decisions/ADR-024-approval-decoupled-from-diff-hash.md)
+- [ADR-025: Shared Skills Live in `.agents/skills/` with a Generated `.claude/skills/` Mirror](decisions/ADR-025-shared-skills-canonical-agents-dir.md)
 
 
 ## Services

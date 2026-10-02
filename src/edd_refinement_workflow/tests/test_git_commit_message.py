@@ -10,7 +10,7 @@ def test_builder_falls_back_to_conventional_commit_without_skill(tmp_path) -> No
 
 
 def test_builder_uses_template_from_git_commit_skill(tmp_path) -> None:
-    skill_dir = tmp_path / ".devin" / "skills" / "git-commit"
+    skill_dir = tmp_path / ".agents" / "skills" / "git-commit"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
         "---\nname: git-commit\n---\n\n"
@@ -23,7 +23,7 @@ def test_builder_uses_template_from_git_commit_skill(tmp_path) -> None:
 
 
 def test_builder_ignores_skill_without_template_and_uses_fallback(tmp_path) -> None:
-    skill_dir = tmp_path / ".devin" / "skills" / "git-commit"
+    skill_dir = tmp_path / ".agents" / "skills" / "git-commit"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text("# Git Commit Skill\n\nNo template here.\n")
 

@@ -29,7 +29,7 @@ docker compose exec cadence \
 
 ## Python client SDK gap: no `TestWorkflowEnvironment` on PyPI yet (2026-08-28)
 
-`.devin/skills/cadence-workflow-orchestration/03-python-client/testing.md` documents
+`.agents/skills/cadence-workflow-orchestration/03-python-client/testing.md` documents
 `cadence.testing.TestWorkflowEnvironment` as supported, but **the latest PyPI release
 (`cadence-python-client` 0.3.0, confirmed against the `v0.3.0` git tag) does not include
 the `cadence/testing/` package** — it only exists on the project's unreleased `main`

@@ -1,0 +1,6 @@
+{
+    "refactored_code_files": [
+        "path/to/refactored_file1.ts",
+        "path/to/refactored_file2.ts"
+    ]
+}

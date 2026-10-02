@@ -1,0 +1,181 @@
+{
+  "raw_request": "docs/ex/fe-only/display_name_story.md",
+  "title": "Use Display Name Instead of ID",
+  "story": {
+    "so_that": "see human-readable names instead of IDs for promotion types",
+    "as_a": "User",
+    "i_want": "the system to display display names instead of internal IDs"
+  },
+  "target_persona": {
+    "name": "Internal Requester",
+    "role": "Internal Requester",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "User navigates to the tactics management interface, looking for tactics associated with specific promotion types",
+      "during": "User searches or filters tactics by promotion type, expecting to see human-readable names in the tactic view, search results table, and filter dropdown",
+      "after": "User can quickly identify and work with tactics by promotion type without needing to reference ID-to-name mappings"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Display human-readable promotion type names instead of internal IDs across the UI (tactic view, search results, filter dropdown)",
+    "inputs": [
+      "Promotion type ID",
+      "Promotion type display name (from backend)"
+    ],
+    "outputs": [
+      "Human-readable promotion type name displayed in tactic view",
+      "Human-readable promotion type name displayed in search results table",
+      "Human-readable promotion type name displayed in filter dropdown"
+    ],
+    "state_changes": [
+      "UI rendering changes to show display_name field instead of ID"
+    ],
+    "affected_components": {
+      "ui": [
+        "Tactic view component",
+        "Search results table component",
+        "Promotion type filter dropdown component"
+      ],
+      "api": [
+        "No API changes required (display_name already available from backend)"
+      ],
+      "database": [
+        "No database changes required (display_name field already exists)"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Promotion type displayed as human-readable name in tactic view",
+      "gherkin": "Given I am a registered Internal Requester When I view a Tactic Then the promotion type is displayed as a human-readable name AND the display name is consistent across all views",
+      "type": "Functional",
+      "jtbd": "View promotion type as human-readable name",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search results table displays promotion types as human-readable names",
+      "gherkin": "Given I am an Internal Requester When I search for tactics Then the search table displays promotion types as human-readable names",
+      "type": "Functional",
+      "jtbd": "See promotion type names in search results",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Filter dropdown displays promotion types as human-readable names",
+      "gherkin": "Given I am an Internal Requester When I open the select filter for promotion type Then the filter displays promotion types as human-readable names AND the Search filter works as before",
+      "type": "Functional",
+      "jtbd": "Filter tactics by human-readable promotion type names",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Display names are consistent across all views",
+      "gherkin": "Given I am an Internal Requester When I view the same promotion type in tactic view, search results, and filter dropdown Then the display name is identical in all locations",
+      "type": "Functional",
+      "jtbd": "Ensure consistent display across UI",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Promotion type with null or missing display name",
+      "gherkin": "Given a promotion type has no display name When the UI renders the tactic view, search results, or filter Then a fallback value is displayed (e.g., ID or 'Unknown')",
+      "type": "Edge case",
+      "jtbd": "Handle missing display name gracefully",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Promotion type with very long display name",
+      "gherkin": "Given a promotion type has a very long display name (100+ characters) When the UI renders the name in search results or filter Then the name is truncated or wrapped appropriately",
+      "type": "Edge case",
+      "jtbd": "Handle long display names in constrained UI spaces",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Promotion type with special characters in display name",
+      "gherkin": "Given a promotion type has special characters in its display name When the UI renders the name Then special characters are properly escaped and displayed",
+      "type": "Edge case",
+      "jtbd": "Handle special characters in display names",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "No promotion types available",
+      "gherkin": "Given no promotion types exist When the filter dropdown is opened Then an appropriate message is displayed (e.g., 'No promotion types available')",
+      "type": "Edge case",
+      "jtbd": "Handle empty promotion type list",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Tactic view component (display promotion type)",
+        "Search results table component (display promotion type)",
+        "Promotion type filter dropdown component",
+        "API service that fetches tactics and promotion types"
+      ],
+      "new_code": [],
+      "infrastructure": [],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "Any story related to promotion type management or display"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "Promotion type concept and its role in the tactics system",
+        "User workflow for viewing, searching, and filtering tactics"
+      ],
+      "technical_knowledge": [
+        "Frontend component architecture and state management",
+        "Data binding and rendering patterns used in the application"
+      ],
+      "stakeholder_questions": [
+        "Are there other places in the UI where promotion type IDs are displayed that should also be updated?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 3,
+    "risk_level": "Low",
+    "uncertainty": "Low"
+  },
+  "open_questions": [
+    {
+      "question": "Is the display_name field already populated in the backend for all existing promotion types?",
+      "impacts": [
+        "Data migration requirements",
+        "Backend API readiness",
+        "Testing scope"
+      ]
+    },
+    {
+      "question": "Should the filter maintain the ability to filter by ID as a fallback if display name is unavailable?",
+      "impacts": [
+        "UI logic",
+        "User experience",
+        "Error handling"
+      ]
+    },
+    {
+      "question": "What is the maximum length for a promotion type display name?",
+      "impacts": [
+        "UI layout and truncation logic",
+        "Database schema validation",
+        "Search results rendering"
+      ]
+    },
+    {
+      "question": "Are there any performance implications when rendering display names across multiple components?",
+      "impacts": [
+        "Component architecture",
+        "Data fetching strategy",
+        "Caching requirements"
+      ]
+    }
+  ],
+  "recommendation": "This is a low-complexity, low-risk UI update story. The backend already provides the display_name field, so implementation is primarily a frontend concern. Recommend prioritizing this story as it improves user experience with minimal technical risk. Key implementation focus: ensure consistent display across all three UI locations (tactic view, search results, filter dropdown) and handle edge cases like missing or very long display names."
+}

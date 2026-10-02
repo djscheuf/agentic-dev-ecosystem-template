@@ -21,7 +21,7 @@ class SkillAndEvaluationDiscovery:
         target_root: str,
     ) -> SkillDiscoveryResult:
         root = Path(target_root)
-        skill_path = root / ".devin" / "skills" / skill_name
+        skill_path = root / ".agents" / "skills" / skill_name
         eval_path = (root / evaluation_path).resolve()
         if not skill_path.exists():
             return SkillDiscoveryResult(

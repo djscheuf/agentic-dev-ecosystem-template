@@ -1,0 +1,55 @@
+# ========================================
+# RUBRIC-BASED EVALUATIONS WITH SCORING
+# ========================================
+# Each llm-rubric assertion evaluates a single quality dimension independently.
+# - threshold: minimum score (0.0–1.0) required to pass this assertion
+# - metric:    named label shown in the promptfoo web UI results table
+# - weight:    relative importance when computing the overall test score
+#
+# This lets you see per-dimension scores, set different pass bars for
+# critical vs. nice-to-have criteria, and weight what matters most.
+
+# ========================================
+# Excess Scope ANALYSIS
+# ========================================
+- vars:
+    request: 
+      - '@../.agents/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+    assert_config:
+      expected_failing_sections:
+        - "scope"
+      score_floor: 1
+  description: 'Excess Scope Analysis'
+  assert:
+    # Core definition
+    - type: javascript
+      value: file://../.agents/skills/grade-story-analysis/_tests/gradeAnalysisChecks.js:hasExpectedFailingSections
+      metric: scope-scores
+      weight: 1
+    - type: llm-rubric
+      value: "The Scope Section's Reason should mention the breadth of the story's scope. It may cite the number of systems touched or the evident complexity."
+      threshold: 0.7
+      metric: scope-reasons
+      weight: 1
+    - type: llm-rubric
+      value: "The Scope Section's Recommendation should include comment on how to improve scope-control. Advise may include things like story splitting, or looking for a thin vertical slice."
+      threshold: 0.7
+      metric: scope-recommendation
+      weight: 1
+
+
+# ========================================
+# SCRIPT-BASED DETERMINISTIC EVALUATIONS
+# ========================================
+# These evaluations call functions exported from eval-script.js directly.
+# Syntax: file://path/to/script.js:functionName
+
+- vars:
+    request: 
+      - '@../.agents/skills/grade-story-analysis/_tests/_data/expanded-administer-tactic-types.analysis.json'
+  description: 'Output Schema Validation - Script Based'
+  assert:
+    - type: javascript
+      value: file://./eval-script.js:matchesSchema
+      config:
+        schemaPath: '../.agents/skills/grade-story-analysis/schema/analysis-grade.schema.json'

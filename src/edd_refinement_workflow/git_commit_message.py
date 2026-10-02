@@ -5,7 +5,7 @@ from pathlib import Path
 class GitCommitMessageBuilder:
     """Build a commit message for an accepted EDD candidate.
 
-    Loads the target repository's ``.devin/skills/git-commit/SKILL.md`` and
+    Loads the target repository's ``git-commit`` skill ``SKILL.md`` and
     looks for a ``Template: <message>`` line.  If no template is found, falls
     back to a conventional commit message.
     """
@@ -16,7 +16,7 @@ class GitCommitMessageBuilder:
         self.repo_root = Path(repo_root)
 
     def _skill_path(self) -> Path:
-        return self.repo_root / ".devin" / "skills" / "git-commit" / "SKILL.md"
+        return self.repo_root / ".agents" / "skills" / "git-commit" / "SKILL.md"
 
     def _extract_template(self, text: str) -> str | None:
         match = self._TEMPLATE_PATTERN.search(text)

@@ -1,0 +1,233 @@
+{
+  "raw_request": "docs/ex/be-only/improve-search-performance.intent.json",
+  "title": "Improve Search Performance",
+  "story": {
+    "so_that": "I can search for active tactics efficiently",
+    "as_a": "User",
+    "i_want": "receive first page search results within 3 seconds"
+  },
+  "target_persona": {
+    "name": "Internal Requester",
+    "role": "User",
+    "technical_level": "Intermediate",
+    "journey": {
+      "before": "User needs to search through active tactics but experiences slow search response times that impact productivity",
+      "during": "User submits search query with filters and waits for results to be returned from the database",
+      "after": "User receives search results within 3 seconds and can view, filter, or refine their search with new tactics immediately visible"
+    }
+  },
+  "capability_breakdown": {
+    "core_action": "Optimize search performance to return first page results within 3 seconds while maintaining existing filter functionality",
+    "inputs": [
+      "Search query string",
+      "Existing search filters (multiple filter types)",
+      "Pagination parameters (page, limit)",
+      "Tactic data in database"
+    ],
+    "outputs": [
+      "First page of search results (paginated)",
+      "Filtered tactic list matching query",
+      "Performance metrics (response time, query count)"
+    ],
+    "state_changes": [
+      "Search results are updated when new tactics are created",
+      "Database query performance is improved through indexing or query optimization"
+    ],
+    "affected_components": {
+      "ui": [
+        "Search results display component"
+      ],
+      "api": [
+        "Search endpoint API"
+      ],
+      "database": [
+        "Tactic data queries and indexes"
+      ],
+      "external_services": []
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Existing Filters continue to work",
+      "gherkin": "Given I am an Internal Requester When I use any existing search filters Then the filters continue to work as before And the search results are returned within 3 seconds",
+      "type": "Functional",
+      "jtbd": "Apply search filters without performance degradation",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Results Update on new Search",
+      "gherkin": "Given I am an Internal Requester and I previously completed a search and a NEW Tactic was just created When I search again Then the new tactic should be included in the search results AND the search results should be returned within 3 seconds",
+      "type": "Functional",
+      "jtbd": "See newly created tactics in search results",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search performance meets SLA",
+      "gherkin": "Given a user submits a search query When the search completes Then results are returned within 3 seconds",
+      "type": "Non-functional",
+      "jtbd": "Receive search results quickly",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Existing APIs remain unchanged",
+      "gherkin": "Given existing API consumers When they call search endpoints Then the API contracts remain unchanged",
+      "type": "Functional",
+      "jtbd": "Maintain backward compatibility",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "Empty search query",
+      "gherkin": "Given I am an Internal Requester When I submit a search with empty or whitespace-only query Then results are returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle empty search queries",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Very long search query",
+      "gherkin": "Given I am an Internal Requester When I submit a search with extremely long query (1000+ characters) Then results are returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle long search queries",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Special characters in search",
+      "gherkin": "Given I am an Internal Requester When I submit a search with special characters (regex, SQL, etc.) Then results are returned safely within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle special characters safely",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Multiple simultaneous filters",
+      "gherkin": "Given I am an Internal Requester When I apply maximum number of filters at once Then results are returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle complex filter combinations",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Large result set (thousands of tactics)",
+      "gherkin": "Given the database contains very large number of tactics (10k+) When I search Then first page of results is returned within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle large datasets",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Concurrent searches",
+      "gherkin": "Given multiple users are searching simultaneously (10+ concurrent) When each submits a search query Then each receives results within 3 seconds",
+      "type": "Edge case",
+      "jtbd": "Handle concurrent search load",
+      "persona_served": "Internal Requester"
+    },
+    {
+      "criterion": "Search immediately after tactic creation",
+      "gherkin": "Given a new tactic was just created When I search for it immediately Then it appears in results within 1 second",
+      "type": "Edge case",
+      "jtbd": "Ensure data freshness",
+      "persona_served": "Internal Requester"
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the current baseline search performance?",
+      "impacts": [
+        "Implementation approach",
+        "Success metrics",
+        "Testing strategy"
+      ]
+    },
+    {
+      "question": "What optimization approach is preferred: database indexing, query rewriting, caching, or combination?",
+      "impacts": [
+        "Architecture",
+        "Implementation complexity",
+        "Maintenance burden"
+      ]
+    },
+    {
+      "question": "Are there constraints on database schema changes (adding indexes)?",
+      "impacts": [
+        "Implementation approach",
+        "Deployment strategy"
+      ]
+    },
+    {
+      "question": "What is the expected size of the tactic dataset?",
+      "impacts": [
+        "Optimization strategy",
+        "Testing approach",
+        "Performance targets"
+      ]
+    },
+    {
+      "question": "Should search results be cached, and if so, what is the acceptable cache staleness?",
+      "impacts": [
+        "Architecture",
+        "Data freshness guarantees",
+        "Implementation complexity"
+      ]
+    },
+    {
+      "question": "Are there specific search filter combinations that are performance bottlenecks?",
+      "impacts": [
+        "Optimization strategy",
+        "Testing approach"
+      ]
+    }
+  ],
+  "dependencies": {
+    "technical": {
+      "existing_code": [
+        "Current search endpoint implementation",
+        "Existing filter logic and validation",
+        "Tactic data model and repository",
+        "Database connection pooling"
+      ],
+      "new_code": [
+        "Query optimization logic",
+        "Performance monitoring/metrics collection",
+        "Caching layer (if implementing cache-based optimization)"
+      ],
+      "infrastructure": [
+        "Database indexes on search-relevant columns",
+        "Query execution plan analysis tools",
+        "Performance monitoring and logging infrastructure"
+      ],
+      "external_services": []
+    },
+    "story": {
+      "blocked_by": [],
+      "blocks": [],
+      "related": [
+        "Any stories involving tactic creation",
+        "Any stories involving filter functionality"
+      ]
+    },
+    "knowledge": {
+      "domain_knowledge": [
+        "What constitutes 'active tactics' and how they are filtered",
+        "Current search filter types and their implementation",
+        "Business rules for tactic visibility and access"
+      ],
+      "technical_knowledge": [
+        "Database query optimization techniques",
+        "Index design for search queries",
+        "Performance profiling and benchmarking",
+        "Caching strategies"
+      ],
+      "stakeholder_questions": [
+        "What is the current average search response time?",
+        "What are the most common search filters used?",
+        "Is there a preference for optimization approach?",
+        "What is the expected dataset size?",
+        "Are there any constraints on database schema changes?"
+      ]
+    }
+  },
+  "complexity": {
+    "story_points": 5,
+    "risk_level": "Medium",
+    "uncertainty": "Medium"
+  },
+  "recommendation": "Proceed with implementation. This is a moderately complex performance optimization story with clear acceptance criteria. The main uncertainties are around the optimization approach and current baseline performance, which should be clarified with stakeholders before implementation begins."
+}

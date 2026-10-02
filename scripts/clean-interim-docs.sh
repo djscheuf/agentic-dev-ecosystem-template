@@ -3,9 +3,9 @@
 #
 # Usage: scripts/clean-interim-docs.sh [--delete] [--ending <ending>] [<directory>]
 #
-# Defaults to a dry run. Excludes .git, .devin, .venv, node_modules, .pytest_cache,
-# and __pycache__. When no --ending is given, the default set of interim endings
-# is used.
+# Defaults to a dry run. Excludes .git, .devin, .agents, .claude, .venv,
+# node_modules, .pytest_cache, and __pycache__. When no --ending is given,
+# the default set of interim endings is used.
 
 set -euo pipefail
 
@@ -104,6 +104,8 @@ mapfile -d '' -t matches < <(
   find "$TARGET_DIR" -type f \( "${find_args[@]}" \) \
     ! -path "*/.git/*" \
     ! -path "*/.devin/*" \
+    ! -path "*/.agents/*" \
+    ! -path "*/.claude/*" \
     ! -path "*/.venv/*" \
     ! -path "*/node_modules/*" \
     ! -path "*/.pytest_cache/*" \

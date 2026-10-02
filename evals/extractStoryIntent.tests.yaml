@@ -3,7 +3,7 @@ description: EDD on Extract Intent Skill
 
 # Define prompts to test - template that includes base prompt
 prompts:
-  - file://../.devin/skills/extract-story-intent/_tests/prompt.md
+  - file://../.agents/skills/extract-story-intent/_tests/prompt.md
 
 # External evaluation script for custom deterministic evaluations
 # This script contains custom assertion functions used in tests
@@ -17,25 +17,30 @@ defaultTest:
     # Provider mode: prompt is plain text
     #
     # Devin CLI grader — ACTIVE
-    provider: 'Kimi K3'
+    provider: 'Kimi K2.7'
     
 # Use devin cli as a provider via script execution
 providers:
   # - file://./stdProviders.config.yaml
   # Added Haiku to demonstrate working on lower-end models.
-  - id: 'exec: node ./devin.js'
-    label: 'Claude Haiku'
-    config:
-      model: 'claude-haiku-4.5' 
+  # - id: 'exec: node ./devin.js'
+  #   label: 'Claude Haiku'
+  #   config:
+  #     model: 'claude-haiku-4.5' 
   
+  # - id: 'exec: node ./devin.js'
+  #   label: 'Kimi K2.7'
+  #   config:
+  #     model: 'Kimi-K2.7'
+
   - id: 'exec: node ./devin.js'
-    label: 'Kimi K3'
+    label: 'SWE 1.7-Medium'
     config:
-      model: 'Kimi-K3'
+      model: 'SWE-1.7-Medium'
 
 # Test cases loaded from external file
 tests: 
-  - file://../.devin/skills/extract-story-intent/_tests/tests.yaml
+  - file://../.agents/skills/extract-story-intent/_tests/tests.yaml
 
 # Output configuration
 outputPath: results.extractStoryIntent.html
