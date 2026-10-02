@@ -66,6 +66,7 @@ For each planned reference file (work top to bottom):
 
 ## 7. **sync-mirrors**
 - Run `scripts/sync-agent-skills.sh` (or `--dry-run` to preview) so the new skill is mirrored to `.claude/skills/` for Claude agents
+- Tell the user the mirror was refreshed (or that they can run the sync themselves if it could not be run here)
 
 ## Quality Standards
 

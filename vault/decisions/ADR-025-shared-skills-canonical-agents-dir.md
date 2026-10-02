@@ -38,9 +38,12 @@ Alternatives considered:
 2. `scripts/sync-agent-skills.sh` copies `.agents/skills/` → `.claude/skills/`
    and rewrites `.agents/skills` and `.devin/skills` path references inside text
    files to `.claude/skills`, so mirrored instructions point at the mirror.
-   Knowledge skills describing the tools' own path vocabularies
-   (`devin-desktop/`, `claude-code/`) are copied verbatim to keep their docs
-   factually correct.
+   Three skills under `.agents/skills/` are copied verbatim:
+   - `devin-desktop/` and `claude-code/` document the tools' own path
+     vocabularies — rewriting would make their docs factually wrong.
+   - `create-knowledge-skill/` instructs agents to write new skills into
+     `.agents/skills/` and to run `scripts/sync-agent-skills.sh` afterward —
+     rewriting would wrongly send Claude agents to author in `.claude/skills/`.
 3. The mirror is protected by a sha256 manifest
    (`.claude/skills/.sync-manifest`): files hand-edited in `.claude/skills/` are
    reported as conflicts and skipped unless `--force` is passed. `--prune`

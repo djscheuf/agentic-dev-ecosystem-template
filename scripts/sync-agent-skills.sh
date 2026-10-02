@@ -100,8 +100,10 @@ while IFS= read -r -d '' src; do
   dest="$DEST_DIR/$rel"
   SOURCE_FILES["$rel"]=1
 
-  # Build synced content (path rewrite for text files). Knowledge skills that
-  # document the tools' own path vocabularies are copied verbatim.
+  # Build synced content (path rewrite for text files). Copied verbatim:
+  # skills documenting the tools' own path vocabularies, and
+  # create-knowledge-skill, which must keep telling agents to author in
+  # .agents/skills/ and run this sync afterward.
   tmp="$(mktemp)"
   case "$rel" in
     devin-desktop/*|claude-code/*|create-knowledge-skill/*) REWRITE=0 ;;
