@@ -22,6 +22,10 @@ class HarnessResult:
 
 
 class Harness(Protocol):
+    config_namespace: str
+    default_model: str
+    default_permission_mode: str
+
     def run(
         self,
         prompt: str,
