@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -206,6 +207,78 @@ class TestClaudeHarnessRun:
 
         assert result.exit_code == 42
         assert result.stderr == "error text"
+
+    def test_run_without_activity_context_writes_parses_and_cleans_temporary_trajectory(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """harness-008: Temporary trajectory written, parsed, then cleaned up."""
+        ndjson_output = json.dumps(
+            {"type": "result", "usage": {"input_tokens": 12}, "total_cost_usd": 0.1}
+        ) + "\n"
+        captured_dirs = []
+        written = []
+        real_temporary_directory = tempfile.TemporaryDirectory
+        real_write_text = Path.write_text
+
+        class SpyingTemporaryDirectory(real_temporary_directory):
+            def __enter__(self):
+                path = super().__enter__()
+                captured_dirs.append(Path(path))
+                return path
+
+        def spying_write_text(self, data, *args, **kwargs):
+            written.append((self, data))
+            return real_write_text(self, data, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "common.claude_harness.tempfile.TemporaryDirectory", SpyingTemporaryDirectory
+        )
+        monkeypatch.setattr(Path, "write_text", spying_write_text)
+
+        def runner(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, ndjson_output, "")
+
+        result = ClaudeHarness(runner=runner).run(
+            "review this", cwd=Path("/repo"), config={}
+        )
+
+        export_path = captured_dirs[0] / "claude-trajectory.jsonl"
+        assert result.usage == HarnessUsage(prompt_tokens=12, cost_usd=0.1)
+        assert written == [(export_path, ndjson_output)]
+        assert not export_path.exists()
+        assert not captured_dirs[0].exists()
+
+    def test_run_with_activity_context_retains_trajectory_beside_activity_logs(
+        self, tmp_path: Path
+    ) -> None:
+        """harness-009: Durable trajectory retained beside activity/claude logs."""
+        ndjson_output = json.dumps(
+            {"type": "result", "usage": {"output_tokens": 4}, "total_cost_usd": 0.2}
+        ) + "\n"
+
+        def runner(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, ndjson_output, "")
+
+        info = SimpleNamespace(
+            workflow_id="workflow",
+            workflow_run_id="run",
+            activity_type="Analyze",
+            activity_id="activity",
+            attempt=2,
+        )
+        with activity_log_context(info, WorkflowLoggerConfig(log_root=tmp_path)):
+            result = ClaudeHarness(runner=runner).run(
+                "review this", cwd=Path("/repo"), config={}
+            )
+
+        base_dir = tmp_path / "workflow" / "run" / "activities" / "Analyze_activity_2"
+        trajectory_path = base_dir / "claude-trajectory.jsonl"
+
+        assert result.usage == HarnessUsage(completion_tokens=4, cost_usd=0.2)
+        assert trajectory_path.exists()
+        assert trajectory_path.read_text() == ndjson_output
+        assert (base_dir / "activity.log").exists()
+        assert (base_dir / "claude.log").exists()
 
 
 class TestReadClaudeUsageResult:

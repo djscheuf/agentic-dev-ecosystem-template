@@ -162,6 +162,7 @@ class ClaudeHarness:
                 )
                 raise RuntimeError("claude_launch_failed") from exc
             duration_ms = int((time.monotonic() - start) * 1000)
+            export_path.write_text(result.stdout)
             usage, error_category = read_claude_usage_result(result.stdout)
             if error_category:
                 activity_logger.warning(
