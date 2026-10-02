@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable, ClassVar, Mapping
 
 from .harness import HarnessResult, HarnessUsage
+from .harness_usage import coerce_cost, coerce_token
 from .invocation_context import get_current_skill_name
 from .workflow_logger import (
     get_activity_artifact_dir,
@@ -46,16 +47,6 @@ class ClaudeHarnessConfig:
         return cls(model=model, permission_mode=permission_mode)
 
 
-def _token(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
-def _cost(value: object) -> float | None:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return float(value)
-    return None
-
-
 def read_claude_usage_result(ndjson_text: str) -> tuple[HarnessUsage | None, str | None]:
     """Parse Claude NDJSON output for terminal result event and extract usage."""
     lines = ndjson_text.splitlines()
@@ -89,10 +80,10 @@ def read_claude_usage_result(ndjson_text: str) -> tuple[HarnessUsage | None, str
         return None, "invalid_document"
 
     return HarnessUsage(
-        prompt_tokens=_token(usage_obj.get("input_tokens")),
-        completion_tokens=_token(usage_obj.get("output_tokens")),
-        cached_tokens=_token(usage_obj.get("cache_read_input_tokens")),
-        cost_usd=_cost(last_result_event.get("total_cost_usd")),
+        prompt_tokens=coerce_token(usage_obj.get("input_tokens")),
+        completion_tokens=coerce_token(usage_obj.get("output_tokens")),
+        cached_tokens=coerce_token(usage_obj.get("cache_read_input_tokens")),
+        cost_usd=coerce_cost(last_result_event.get("total_cost_usd")),
     ), None
 
 
